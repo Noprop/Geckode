@@ -29,7 +29,7 @@ export default BlocklyComponent;
 const Block = (p) => {
   const {children, ...props} = p;
   props.is = 'blockly';
-  return React.createElement('block', props, children);
+  return React.createElement('Block', props, children);
 };
 
 const Category = (p) => {

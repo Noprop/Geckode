@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+"use client";
+
 /**
  * @fileoverview Blockly React Component.
  * @author samelh@google.com (Sam El-Husseini)
