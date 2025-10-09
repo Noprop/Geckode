@@ -1,6 +1,31 @@
-#blocklyDiv {
-  height: 50%;
+.blocklyContainer {
+  display: flex;
+  flex-direction: column;
+  height: 60vh; /* or a fixed px height if you prefer */
   width: 100%;
-  position: absolute;
-  bottom: 0;
+}
+
+/* keep the controls on top; sticky is optional */
+.blocklyControls {
+  cursor: pointer;
+  top: 0;
+  z-index: 1;
+  padding: 8px 0;
+}
+
+#blocklyDiv {
+  /* remove absolute */
+  /* position: absolute;  <-- delete */
+  /* bottom: 0;           <-- delete */
+  /* padding-top: 30px;   <-- delete */
+
+  flex: 1 1 auto;        /* fill remaining space */
+  min-height: 0;         /* important so the SVG can shrink inside flex */
+  width: 100%;
+}
+
+/* Optional: ensure the inner SVG respects the container */
+#blocklyDiv .blocklySvg {
+  width: 100% !important;
+  height: 100% !important;
 }
