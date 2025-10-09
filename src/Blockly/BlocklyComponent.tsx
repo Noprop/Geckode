@@ -57,13 +57,11 @@ function BlocklyComponent(props: Props) {
 
   return (
     <>
-      {/* Container */}
       <div className="flex h-[60vh] w-full flex-col">
-        {/* Controls */}
         <div className="sticky top-0 z-10 mb-2">
           <button
             onClick={generateCode}
-            className="inline-flex w-auto items-center justify-center rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium shadow-sm hover:bg-slate-50"
+            className="flex items-center justify-center rounded-lg border border-slate-300 px-2 py-1 text-xs cursor-pointer mb-2"
             aria-label="Convert Now"
             title="Convert Now"
           >
@@ -71,7 +69,6 @@ function BlocklyComponent(props: Props) {
           </button>
         </div>
 
-        {/* Blockly surface */}
         <div
           ref={blocklyDiv}
           id="blocklyDiv"

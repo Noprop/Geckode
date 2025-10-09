@@ -31,10 +31,9 @@ export default function Home() {
     <div id="app" className="mb-12">
       <PhaserGame ref={phaserRef} currentActiveScene={currentScene} />
 
-      {/* Controls */}
-      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-4 flex items-center gap-2">
         <button
-          className="inline-flex w-auto items-center justify-center rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium shadow-sm hover:bg-slate-50"
+          className="flex items-center justify-center rounded-lg border border-slate-300 px-2 py-1 text-xs cursor-pointer"
           onClick={changeScene}
         >
           Change Scene
@@ -42,27 +41,27 @@ export default function Home() {
 
         <button
           disabled={canMoveSprite}
-          className="inline-flex w-auto items-center justify-center rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex items-center justify-center rounded-lg border border-slate-300 px-2 py-1 text-xs cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
           onClick={moveSprite}
         >
           Toggle Movement
         </button>
 
-        <div className="rounded-xl border border-slate-200 p-3 text-sm">
+        <div className="rounded-lg border border-slate-300 p-2 text-xs">
           <div className="font-medium">Sprite Position</div>
-          <pre className="mt-1 text-xs">{`{\n  x: ${spritePosition.x}\n  y: ${spritePosition.y}\n}`}</pre>
+          <pre className="mt-1">{`{\n  x: ${spritePosition.x}\n  y: ${spritePosition.y}\n}`}</pre>
         </div>
 
         <button
-          className="inline-flex w-auto items-center justify-center rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium shadow-sm hover:bg-slate-50"
+          className="flex items-center justify-center rounded-lg border border-slate-300 px-2 py-1 text-xs cursor-pointer"
           onClick={addSprite}
         >
-          Add New Sprite
+          Add Sprite
         </button>
       </div>
 
       {/* Blockly */}
-      <div className="mt-5">
+      <div className="mt-5 px-6 rounded-md">
         <BlocklyEditor />
       </div>
     </div>
