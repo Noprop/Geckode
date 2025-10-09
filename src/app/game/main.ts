@@ -1,7 +1,6 @@
 import { Boot } from './scenes/Boot';
 import { Game } from './scenes/Game';
 import { GameOver } from './scenes/GameOver';
-// import { MainMenu } from './scenes/MainMenu';
 import MainMenu from './scenes/MainMenu';
 import * as Phaser from 'phaser';
 import { Preloader } from './scenes/Preloader';
@@ -10,30 +9,23 @@ import { Preloader } from './scenes/Preloader';
 // https://docs.phaser.io/api-documentation/typedef/types-core#gameconfig
 const config = {
   type: Phaser.AUTO,
-  width: 512,
-  height: 256,
+  width: 640,
+  height: 400,
   parent: 'game-container',
   backgroundColor: '#028af8',
-  scene: [
-    Boot,
-    Preloader,
-    MainMenu,
-    Game,
-    GameOver
-  ],
+  scene: [Boot, Preloader, MainMenu, Game, GameOver],
   physics: {
     default: 'arcade',
     arcade: {
-      gravity: { y: 0 },
+      gravity: { x: 0, y: 0 },
       debug: false,
     },
   },
-};
+} satisfies Phaser.Types.Core.GameConfig;
 
-const StartGame = (parent) => {
-
+const StartGame = (parent: string | HTMLElement): Phaser.Game => {
+  console.log('parent: ', parent);
   return new Phaser.Game({ ...config, parent });
-
-}
+};
 
 export default StartGame;

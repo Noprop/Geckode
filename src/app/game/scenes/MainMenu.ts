@@ -5,8 +5,7 @@ import { EventBus } from '../EventBus';
 type PosCB = (pos: { x: number; y: number }) => void;
 
 export default class MainMenu extends Phaser.Scene {
-  // @ts-ignore
-  public scene: { key: string }; // for React's simple key check
+  public key: string;
   private player!: Phaser.Physics.Arcade.Sprite;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd!: {
@@ -20,12 +19,16 @@ export default class MainMenu extends Phaser.Scene {
 
   constructor() {
     super('MainMenu');
-    this.scene = { key: 'MainMenu' }; // keep your existing contract with React
+    this.key = 'MainMenu';
   }
 
   preload() {
     // Ensure you have a sprite/atlas loaded; example:
     // this.load.image('star', 'assets/star.png');
+  }
+
+  public changeScene() {
+    this.scene.start('Game');
   }
 
   create() {
@@ -58,7 +61,10 @@ export default class MainMenu extends Phaser.Scene {
   public moveLogo(cb: PosCB) {
     this.posCB = cb;
     // Send an initial position immediately
-    this.posCB?.({ x: Math.round(this.player.x), y: Math.round(this.player.y) });
+    this.posCB?.({
+      x: Math.round(this.player.x),
+      y: Math.round(this.player.y),
+    });
   }
 
   /**
@@ -78,20 +84,22 @@ export default class MainMenu extends Phaser.Scene {
     // Reset velocity each frame, then set based on input
     this.player.setVelocity(0);
 
-    const left  = this.cursors.left?.isDown || this.wasd.A.isDown;
+    const left = this.cursors.left?.isDown || this.wasd.A.isDown;
     const right = this.cursors.right?.isDown || this.wasd.D.isDown;
-    const up    = this.cursors.up?.isDown || this.wasd.W.isDown;
-    const down  = this.cursors.down?.isDown || this.wasd.S.isDown;
+    const up = this.cursors.up?.isDown || this.wasd.W.isDown;
+    const down = this.cursors.down?.isDown || this.wasd.S.isDown;
 
-    if (left)  this.player.setVelocityX(-speed);
+    if (left) this.player.setVelocityX(-speed);
     if (right) this.player.setVelocityX(speed);
-    if (up)    this.player.setVelocityY(-speed);
-    if (down)  this.player.setVelocityY(speed);
+    if (up) this.player.setVelocityY(-speed);
+    if (down) this.player.setVelocityY(speed);
 
     // Normalize diagonal speed
-    if ((left || right) && (up || down)) {
-      // @ts-ignore
-      this.player.setVelocity(this.player.body.velocity.x * 0.7071, this.player.body.velocity.y * 0.7071);
+    if ((left || right) && (up || down) && this.player.body) {
+      this.player.setVelocity(
+        this.player.body.velocity.x * 0.7071,
+        this.player.body.velocity.y * 0.7071
+      );
     }
 
     // Publish position only when it changes (avoids spamming React state)

@@ -23,15 +23,15 @@ const PhaserGame = forwardRef<ExposedRef, Props>(function PhaserGame({ currentAc
     };
   }, []);
 
-  // @ts-ignore
   useEffect(() => {
     const handler = (currentScene: SceneApi) => {
       currentActiveScene?.(currentScene);
-      // @ts-ignore - expose on the imperative handle object
       (ref as any).current.scene = currentScene;
     };
     EventBus.on('current-scene-ready', handler);
-    return () => EventBus.removeListener('current-scene-ready', handler);
+    return () => {
+      EventBus.removeListener('current-scene-ready', handler);
+    };
   }, [currentActiveScene, ref]);
 
   return <div id="game-container" />;
