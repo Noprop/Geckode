@@ -4,9 +4,27 @@ import { EventBus } from '../EventBus';
 
 type PosCB = (pos: { x: number; y: number }) => void;
 
+export type GameAPI = {
+  moveBy: (dx: number, dy: number) => void;
+  addStar: () => void;
+  wait: (ms: number) => Promise<void>;
+  stopAll: () => void;
+};
+
+type SandboxContext = {
+  api: GameAPI;
+  scene: MainMenu;
+  phaser: typeof Phaser;
+  console: Console; // you can swap this with a logger collector if you want
+};
+
+// Utility to create an async function at runtime.
+const AsyncFunction = Object.getPrototypeOf(async function () {})
+  .constructor as new (...args: string[]) => (...args: any[]) => Promise<any>;
+
 export default class MainMenu extends Phaser.Scene {
   public key: string;
-  private player!: Phaser.Physics.Arcade.Sprite;
+  public player!: Phaser.Physics.Arcade.Sprite;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd!: {
     W: Phaser.Input.Keyboard.Key;
@@ -108,6 +126,63 @@ export default class MainMenu extends Phaser.Scene {
     if ((px !== this.lastSent.x || py !== this.lastSent.y) && this.posCB) {
       this.posCB({ x: px, y: py });
       this.lastSent = { x: px, y: py };
+    }
+  }
+
+  private buildAPI(): GameAPI {
+    return {
+      moveBy: (dx: number, dy: number) => {
+        if (!this.player) return;
+        this.player.setX(this.player.x + dx);
+        this.player.setY(this.player.y + dy);
+      },
+      addStar: () => this.addStar(),
+      wait: (ms: number) => new Promise((r) => setTimeout(r, ms)),
+      stopAll: () => {
+        if (!this.player) return;
+        this.player.setVelocity(0, 0);
+      },
+    };
+  }
+
+  /**
+   * Execute arbitrary JS in a constrained context.
+   * Example code string:
+   *   "console.log('wow'); await api.wait(250); api.moveBy(50, -20);"
+   */
+  public async runScript(code: string): Promise<any> {
+    this.player.setVelocity(20, 0);
+    // @ts-ignore
+    console.log('this.test: ', this.test);
+    const ctx: SandboxContext = {
+      api: this.buildAPI(),
+      scene: this,
+      phaser: Phaser,
+      console: console, // replace with your own logger if desired
+    };
+
+    // The function receives named parameters matching keys of `ctx`.
+    // It returns an awaited result of the user's script.
+    const argNames = Object.keys(ctx); // ['api','scene','phaser','console']
+    const argValues = Object.values(ctx);
+
+    // Wrap user code in an async IIFE so `await` works at top level.
+    const wrapped = `
+      "use strict";
+      return (async () => {
+        ${code}
+      })();
+    `;
+
+    try {
+      const fn = new AsyncFunction(...argNames, wrapped);
+      const result = await fn(...argValues);
+      return result;
+    } catch (err) {
+      // Surface a readable error back to caller/React UI
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('[runScript error]', err);
+      throw new Error(`runScript failed: ${message}`);
     }
   }
 }

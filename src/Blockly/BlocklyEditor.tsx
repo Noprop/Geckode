@@ -3,6 +3,8 @@
 import BlocklyComponent from "./BlocklyComponent";
 import { Block, Value, Shadow, Field } from ".";
 
+import { javascriptGenerator } from "blockly/javascript"; // ✅ v12 way
+
 const BlocklyEditor = () => {
   return (
     <BlocklyComponent

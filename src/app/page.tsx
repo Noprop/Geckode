@@ -18,9 +18,34 @@ export default function Home() {
   const moveSprite = () => {
     const scene = phaserRef.current?.scene;
     if (scene?.key === 'MainMenu') {
-      scene.moveLogo?.(({ x, y }: { x: number; y: number }) =>
-        setSpritePosition({ x, y })
-      );
+      try {
+        scene.runScript(`
+          console.log('wow');
+          console.log(scene.player.x);
+          scene.player.setX(0);
+          console.log(scene.player.x);
+          scene.test = 'wow2';
+          console.log(scene.test);
+          // scene.player.setVelocity(25);
+          await api.wait(1000);
+          for (let i = 0; i < 600; i++) {
+            await api.wait(5);
+            scene.player.setX(i);
+            // console.log('i: ', i);
+          }
+          // await api.wait(300);
+          // api.addStar();
+          // api.moveBy(25, -10);
+          // return any value if you want:
+          return { done: true };
+        `);
+      } catch (e) {
+        console.error(e);
+      }
+
+      // scene.moveLogo?.(({ x, y }: { x: number; y: number }) =>
+      //   setSpritePosition({ x, y })
+      // );
     }
   };
   const addSprite = () => phaserRef.current?.scene?.addStar?.();
