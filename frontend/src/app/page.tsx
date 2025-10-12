@@ -20,7 +20,7 @@ export default function Home() {
     if (scene?.key === 'MainMenu') {
       try {
         scene.runScript(`
-          console.log('wow');
+          console.log('wow2');
           console.log(scene.player.x);
           scene.player.setX(0);
           console.log(scene.player.x);
