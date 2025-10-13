@@ -1,4 +1,4 @@
-from rest_framework.serializers import ModelSerializer, CharField, ValidationError
+from rest_framework.serializers import ModelSerializer, CharField, ValidationError, Serializer, IntegerField
 from .models import User
 from django.contrib.auth.password_validation import validate_password
 
@@ -24,3 +24,12 @@ class RegisterSerializer(ModelSerializer):
             first_name=validated_data.get('first_name', ''),
             last_name=validated_data.get('last_name', '')
         )
+
+class UserSearchSerializer(Serializer):
+    search = CharField()
+    limit = IntegerField(required=False, min_value=1, max_value=25, default=5)
+
+class PublicUserSerializer(ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'first_name', 'last_name']
