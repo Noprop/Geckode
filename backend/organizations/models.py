@@ -12,18 +12,17 @@ class Organization(Model):
     def has_permission(self, user, required_permission):
         if user == self.owner:
             return True
+        
+        allowed_levels = {
+            choice[0]: [choice[0] for choice in OrganizationMember.PERMISSION_CHOICES[i:]]
+            for i, choice in enumerate(OrganizationMember.PERMISSION_CHOICES)
+        }
 
-        try:
-            user_permission = OrganizationMember.objects.get(organization=self, member=user).permission
-        except OrganizationMember.DoesNotExist:
-            return False
-
-        permission_index = lambda x : next((i for i, (permission, _) in enumerate(OrganizationMember.PERMISSION_CHOICES) if permission == x), -1)
-
-        try:
-            return permission_index(required_permission) <= permission_index(user_permission)
-        except ValueError:
-            return False
+        return OrganizationMember.objects.filter(
+            organization=self,
+            member=user,
+            permission__in=allowed_levels.get(required_permission, [])
+        ).exists()
 
     def has_member(self, user, include_owner=True):
         if include_owner and user == self.owner:
@@ -56,3 +55,6 @@ class OrganizationInvitation(Model):
 
     class Meta:
         unique_together = ('organization', 'invitee', 'inviter')
+
+    def has_permission(self, user, required_permission):
+        return self.organization.has_permission(user, required_permission)

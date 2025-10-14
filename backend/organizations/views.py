@@ -2,7 +2,7 @@ from rest_framework.viewsets import ModelViewSet
 from .models import Organization, OrganizationInvitation, OrganizationMember
 from .serializers import OrganizationSerializer, OrganizationInvitationSerializer, OrganizationMemberSerializer
 from .permissions import create_organization_permission_class
-from rest_framework.pagination import PageNumberPagination
+from geckode.utils import create_custom_pagination_class
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -25,15 +25,10 @@ class OrganizationViewSet(ModelViewSet):
     # def get_queryset(self):
     #     return Organization.objects.filter(Q(owner=self.request.user) | Q(members=self.request.user)).distinct()
 
-class OrganizationInvitationPagination(PageNumberPagination):
-    page_size = 10
-    page_size_query_param = 'limit'
-    page_query_param = 'page_number'
-    max_page_size = 100
-
 class OrganizationInvitationViewSet(ModelViewSet):
     queryset = OrganizationInvitation.objects.all()
     serializer_class = OrganizationInvitationSerializer
+    pagination_class = create_custom_pagination_class()
 
     http_method_names = ['get', 'post', 'delete']
 
