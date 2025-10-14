@@ -1,6 +1,6 @@
 from rest_framework.viewsets import ModelViewSet
 from .models import Organization, OrganizationInvitation, OrganizationMember
-from .serializers import OrganizationSerializer, OrganizationInvitationSerializer
+from .serializers import OrganizationSerializer, OrganizationInvitationSerializer, OrganizationMemberSerializer
 from .permissions import create_organization_permission_class
 from rest_framework.pagination import PageNumberPagination
 from django.shortcuts import get_object_or_404
@@ -78,8 +78,9 @@ class OrganizationInvitationViewSet(ModelViewSet):
 
 class OrganizationMembersViewSet(ModelViewSet):
     queryset = OrganizationMember.objects.all()
+    serializer_class = OrganizationMemberSerializer
 
-    http_method_names = ['delete']
+    http_method_names = ['get', 'patch', 'delete']
 
     def get_object(self):
         try:
@@ -87,7 +88,10 @@ class OrganizationMembersViewSet(ModelViewSet):
         except OrganizationMember.DoesNotExist:
             raise NotFound('No OrganizationMember matches the given query.')
 
+    def get_queryset(self):
+        return OrganizationMember.objects.filter(organization=self.kwargs.get('organization_pk'))
+
     def get_permissions(self):
         return super().get_permissions() + [
-            create_organization_permission_class(['member'], 'manage', 'member')()
+            create_organization_permission_class(['member'], 'view' if self.action == 'view' else 'manage', 'member')()
         ]
