@@ -1,12 +1,13 @@
 from rest_framework.viewsets import ModelViewSet
-from .models import Organization, OrganizationInvitation, OrganizationPermission
+from .models import Organization, OrganizationInvitation, OrganizationMember
 from .serializers import OrganizationSerializer, OrganizationInvitationSerializer
-from .permissions import HasOrganizationPermission
+from .permissions import create_organization_permission_class
 from rest_framework.pagination import PageNumberPagination
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.status import HTTP_403_FORBIDDEN, HTTP_200_OK
+from rest_framework.exceptions import NotFound
 
 class OrganizationViewSet(ModelViewSet):
     queryset = Organization.objects.all()
@@ -17,7 +18,7 @@ class OrganizationViewSet(ModelViewSet):
 
     def get_permissions(self):
         if self.action in ['update', 'partial_update', 'destroy']:
-            return super().get_permissions() + [HasOrganizationPermission(['owner'], 'admin')]
+            return super().get_permissions() + [create_organization_permission_class(['owner'], 'admin')()]
         return super().get_permissions()
 
     # Prevents non-members from seeing data about the organization completely
@@ -37,13 +38,24 @@ class OrganizationInvitationViewSet(ModelViewSet):
     http_method_names = ['get', 'post', 'delete']
 
     def get_permissions(self):
-        return super().get_permissions() + [HasOrganizationPermission(['invitee', 'inviter'], 'invite' if self.action == 'post' else 'manage')]
+        try:
+            index = ['list', 'create', 'destroy'].index(self.action)
+        except ValueError:
+            index = 2
+
+        return super().get_permissions() + [
+            create_organization_permission_class(
+                ['inviter', 'invitee'][:index],
+                'invite' if self.action == 'create' else 'manage',
+                'invitation'
+            )()
+        ]
 
     def get_queryset(self):
-        return OrganizationInvitation.objects.filter(organization=self.kwargs['organization_pk'])
+        return OrganizationInvitation.objects.filter(organization=self.kwargs.get('organization_pk')).order_by('id')
 
     def perform_create(self, serializer):
-        organization = get_object_or_404(Organization, pk=self.kwargs['organization_pk'])
+        organization = get_object_or_404(Organization, pk=self.kwargs.get('organization_pk'))
         serializer.save(organization=organization, inviter=self.request.user)
 
     @action(detail=True, url_path='accept')
@@ -53,12 +65,29 @@ class OrganizationInvitationViewSet(ModelViewSet):
         if not request.user.is_superuser and invitation.invitee != request.user:
             return Response({"detail": "Not authorized to accept this invitation."}, status=HTTP_403_FORBIDDEN)
 
-        OrganizationPermission.objects.create(
+        OrganizationMember.objects.create(
             organization=get_object_or_404(Organization, pk=organization_pk),
-            user=invitation.invitee,
+            member=invitation.invitee,
             invited_by=invitation.inviter,
             permission=invitation.permission
         )
-        
+
+        invitation.delete()
 
         return Response({"status": "accepted"}, status=HTTP_200_OK)
+
+class OrganizationMembersViewSet(ModelViewSet):
+    queryset = OrganizationMember.objects.all()
+
+    http_method_names = ['delete']
+
+    def get_object(self):
+        try:
+            return OrganizationMember.objects.get(organization=self.kwargs.get('organization_pk'), member=self.kwargs.get('pk'))
+        except OrganizationMember.DoesNotExist:
+            raise NotFound('No OrganizationMember matches the given query.')
+
+    def get_permissions(self):
+        return super().get_permissions() + [
+            create_organization_permission_class(['member'], 'manage', 'member')()
+        ]

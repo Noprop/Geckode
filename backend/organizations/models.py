@@ -7,25 +7,25 @@ class Organization(Model):
     slug = SlugField(max_length=100, unique=True)
     name = CharField(max_length=200)
     description = TextField(blank=True)
-    members = ManyToManyField(User, through='OrganizationPermission', through_fields=('organization', 'user'), related_name='organizations')
+    members = ManyToManyField(User, through='OrganizationMember', through_fields=('organization', 'member'), related_name='organizations')
 
     def has_permission(self, user, required_permission):
         if user == self.owner:
             return True
 
         try:
-            user_permission = OrganizationPermission.objects.get(organization=self, user=user).permission
-        except OrganizationPermission.DoesNotExist:
+            user_permission = OrganizationMember.objects.get(organization=self, member=user).permission
+        except OrganizationMember.DoesNotExist:
             return False
 
-        permission_index = lambda x : next((i for i, (permission, _) in enumerate(OrganizationPermission.PERMISSION_CHOICES) if permission == x), -1)
+        permission_index = lambda x : next((i for i, (permission, _) in enumerate(OrganizationMember.PERMISSION_CHOICES) if permission == x), -1)
 
         try:
             return permission_index(required_permission) <= permission_index(user_permission)
         except ValueError:
             return False
 
-class OrganizationPermission(Model):
+class OrganizationMember(Model):
     PERMISSION_CHOICES = [
         ('view', 'Can view projects'),
         ('contribute', 'Can contribute projects'),
@@ -35,19 +35,19 @@ class OrganizationPermission(Model):
     ]
 
     organization = ForeignKey(Organization, on_delete=CASCADE)
-    user = ForeignKey(User, related_name='joined_organizations', on_delete=CASCADE)
+    member = ForeignKey(User, related_name='joined_organizations', on_delete=CASCADE)
     invited_by = ForeignKey(User, related_name='organization_inviters', null=True, on_delete=SET_NULL)
     permission = CharField(max_length=10, choices=PERMISSION_CHOICES)
 
     class Meta:
-        unique_together = ('organization', 'user')
+        unique_together = ('organization', 'member')
 
 class OrganizationInvitation(Model):
     invited_at = DateTimeField(auto_now_add=True)
     organization = ForeignKey(Organization, on_delete=CASCADE)
     invitee = ForeignKey(User, related_name='invitee_organizations', on_delete=CASCADE)
     inviter = ForeignKey(User, related_name='inviter_organizations', on_delete=CASCADE)
-    permission = CharField(max_length=10, choices=OrganizationPermission.PERMISSION_CHOICES)
+    permission = CharField(max_length=10, choices=OrganizationMember.PERMISSION_CHOICES)
 
     class Meta:
         unique_together = ('organization', 'invitee', 'inviter')
