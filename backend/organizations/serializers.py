@@ -21,7 +21,7 @@ class OrganizationSerializer(ModelSerializer):
         data = super().to_representation(instance)
         user = self.context['request'].user
 
-        if not user.is_superuser and user != instance.owner and user not in instance.members.all():
+        if not user.is_superuser and not instance.has_member(user):
             data.pop('members', None)
 
         data['owner'] = PublicUserSerializer(instance.owner).data
@@ -45,9 +45,16 @@ class OrganizationInvitationSerializer(ModelSerializer):
     def validate(self, data):
         try:
             if 'view' in self.context and hasattr(self.context['view'], 'kwargs'):
-                organization = Organization.objects.get(id=self.context['view'].kwargs['organization_pk'])
-                if data['invitee'] == organization.owner or organization.members.filter(id=data['invitee'].id).exists():
+                organization = Organization.objects.get(id=self.context['view'].kwargs.get('organization_pk'))
+
+                if organization.has_member(data['invitee']):
                     raise ValidationError('Cannot invite an already-existing member to the organization.')
+
+                if 'request' in self.context:
+                    user = self.context['request'].user
+
+                    if not user.is_superuser and not organization.has_permission(user, data['permission']):
+                        raise ValidationError('Cannot give an invited member a higher permission class.')
         except Organization.DoesNotExist:
             pass
 

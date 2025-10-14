@@ -25,6 +25,11 @@ class Organization(Model):
         except ValueError:
             return False
 
+    def has_member(self, user, include_owner=True):
+        if include_owner and user == self.owner:
+            return True
+        return self.members.filter(pk=user.pk).exists()
+
 class OrganizationMember(Model):
     PERMISSION_CHOICES = [
         ('view', 'Can view projects'),
