@@ -1,5 +1,5 @@
 from rest_framework.generics import CreateAPIView
-from rest_framework import permissions
+from rest_framework.permissions import AllowAny
 from .serializers import RegisterSerializer, UserSearchSerializer, PublicUserSerializer
 from .models import User
 from rest_framework.views import APIView
@@ -10,7 +10,7 @@ from functools import reduce
 from operator import or_
 
 class RegisterView(CreateAPIView):
-    permission_classes = (permissions.AllowAny,)
+    permission_classes = (AllowAny,)
     queryset = User.objects.all()
     serializer_class = RegisterSerializer
 
