@@ -5,13 +5,12 @@ from accounts.serializers import PublicUserSerializer
 from .models import Organization, OrganizationInvitation, OrganizationMember
 
 class OrganizationSerializer(ModelSerializer):
-    owner = ReadNestedWriteIDUserField(queryset=User.objects.all())
-    members = PublicUserSerializer(many=True, read_only=True)
+    owner = PublicUserSerializer(read_only=True)
     members_count = SerializerMethodField()
 
     class Meta:
         model = Organization
-        fields = ['id', 'created_at', 'owner', 'name', 'slug', 'description', 'members', 'members_count']
+        fields = ['id', 'created_at', 'owner', 'name', 'slug', 'description', 'members_count']
         read_only_fields = ['created_at']
 
     def get_members_count(self, instance):
@@ -21,11 +20,6 @@ class OrganizationSerializer(ModelSerializer):
         data = super().to_representation(instance)
 
         if hasattr(self, 'context') and self.context.get('request'):
-            user = self.context['request'].user
-
-            if not user.is_superuser and not instance.has_member(user):
-                data.pop('members', None)
-
             data['owner'] = PublicUserSerializer(instance.owner).data
 
         return data

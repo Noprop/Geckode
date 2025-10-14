@@ -18,7 +18,7 @@ class OrganizationViewSet(ModelViewSet):
 
     def get_permissions(self):
         if self.action in ['update', 'partial_update', 'destroy']:
-            return super().get_permissions() + [create_organization_permission_class(['owner'], 'admin')()]
+            return super().get_permissions() + [create_organization_permission_class('admin', ['owner'])()]
         return super().get_permissions()
 
     # Prevents non-members from seeing data about the organization completely
@@ -34,14 +34,14 @@ class OrganizationInvitationViewSet(ModelViewSet):
 
     def get_permissions(self):
         try:
-            index = ['list', 'create', 'destroy'].index(self.action)
+            index = ['list', 'retrieve', 'destroy'].index(self.action)
         except ValueError:
             index = 2
 
         return super().get_permissions() + [
             create_organization_permission_class(
-                ['inviter', 'invitee'][:index],
                 'invite' if self.action == 'create' else 'manage',
+                ['inviter', 'invitee'],
                 'invitation'
             )()
         ]
@@ -56,6 +56,7 @@ class OrganizationInvitationViewSet(ModelViewSet):
     @action(detail=True, url_path='accept')
     def accept(self, request, organization_pk=None, pk=None):
         invitation = self.get_object()
+        print('accepting invite here')
 
         if not request.user.is_superuser and invitation.invitee != request.user:
             return Response({"detail": "Not authorized to accept this invitation."}, status=HTTP_403_FORBIDDEN)
@@ -84,9 +85,13 @@ class OrganizationMembersViewSet(ModelViewSet):
             raise NotFound('No OrganizationMember matches the given query.')
 
     def get_queryset(self):
-        return OrganizationMember.objects.filter(organization=self.kwargs.get('organization_pk'))
+        return super().get_queryset().filter(organization=self.kwargs.get('organization_pk'))
 
     def get_permissions(self):
         return super().get_permissions() + [
-            create_organization_permission_class(['member'], 'view' if self.action == 'view' else 'manage', 'member')()
+            create_organization_permission_class(
+                'view' if self.action in ['retrieve', 'list'] else 'manage' if self.action != 'destroy' else 'owner',
+                ['member'] if self.action in ['retrieve', 'list'] or str(self.request.user.id) == self.kwargs.get('pk') else [],
+                'member'
+            )()
         ]
