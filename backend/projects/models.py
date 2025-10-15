@@ -28,7 +28,7 @@ class Project(Model):
             for i, choice in enumerate(ProjectCollaborator.PERMISSION_CHOICES)
         }
 
-        return ProjectCollaborator.objects.filter(
+        return self.published_at is not None or ProjectCollaborator.objects.filter(
             project=self,
             collaborator=user,
             permission__in=permissions_allowed.get(required_permission, [])

@@ -1,28 +1,27 @@
-from rest_framework.generics import CreateAPIView
-from rest_framework.permissions import AllowAny
-from .serializers import RegisterSerializer, UserSearchSerializer, PublicUserSerializer
+from rest_framework.viewsets import ModelViewSet
 from .models import User
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from django.db.models import Q
-from functools import reduce
-from operator import or_
+from .serializers import UserSerializer
+from .filters import UserSearchFilterBackend
+from rest_framework.permissions import AllowAny
+from rest_framework.permissions import BasePermission
 
-class RegisterView(CreateAPIView):
-    permission_classes = (AllowAny,)
+class UserViewSet(ModelViewSet):
     queryset = User.objects.all()
-    serializer_class = RegisterSerializer
+    serializer_class = UserSerializer
+    filter_backends = [UserSearchFilterBackend]
 
-class UserSearchView(APIView):
-    def get(self, request):
-        serializer = UserSearchSerializer(data=request.query_params)
+    http_method_names = ['get', 'post', 'patch', 'delete']
 
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [AllowAny()]
 
-        params = serializer.validated_data
-        users = User.objects.filter(reduce(or_, (Q(**{f"{field}__icontains": params['search']}) for field in PublicUserSerializer.Meta.fields)))[:params['limit']]
-        serialized_users = PublicUserSerializer(users, many=True)
+        class PermissionClass(BasePermission):
+            def has_permission(self, request, view):
+                return request.user and request.user.is_authenticated
 
-        return Response(serialized_users.data)
+            def has_object_permission(self, request, view, obj):
+                return request.user.is_superuser or obj == request.user
+
+        return super().get_permissions() + [PermissionClass()]
+

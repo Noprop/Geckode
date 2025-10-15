@@ -1,22 +1,58 @@
-from rest_framework.serializers import ModelSerializer, CharField, ValidationError, Serializer, IntegerField
-from .models import User
+from rest_framework.serializers import Serializer, CharField, ChoiceField, ModelSerializer, ValidationError
+from geckode.utils import create_order_by_choices
 from django.contrib.auth.password_validation import validate_password
+from .models import User
 
-class RegisterSerializer(ModelSerializer):
-    password = CharField(write_only=True, validators=[validate_password])
-    password2 = CharField(write_only=True)
+class UserSearchSerializer(Serializer):
+    ORDER_BY_CHOICES = create_order_by_choices(['id', 'username', 'first_name', 'last_name'])
+
+    search = CharField(required=False)
+    order_by = ChoiceField(required=False, choices=ORDER_BY_CHOICES, default='id')
+
+class UserSerializer(ModelSerializer):
+    password = CharField(write_only=True, required=False, validators=[validate_password])
+    password2 = CharField(write_only=True, required=False)
 
     class Meta:
         model = User
-        fields = ['username', 'email', 'first_name', 'last_name', 'password', 'password2']
+        fields = ['id', 'created_at', 'username', 'email', 'first_name', 'last_name',
+                  'password', 'password2', 'is_staff', 'is_superuser'
+                 ]
+        read_only_fields = ['created_at', 'is_staff', 'is_superuser']
 
     def validate(self, attrs):
-        if attrs['password'] != attrs['password2']:
-            raise ValidationError({"password": "Passwords must match."})
+        view = self.context.get('view')
+        action = view.action if view else None
+
+        if action == 'create' and 'password' not in attrs:
+            raise ValidationError({'password': 'A password is required.'})
+
+        if 'password' in attrs:
+            if not 'password2' in attrs:
+                raise ValidationError({'password': 'The re-typed password is required.'})
+
+            if attrs['password'] != attrs['password2']:
+                raise ValidationError({'password2': 'Passwords must match.'})
+
         return attrs
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+
+        view = self.context.get('view')
+        action = view.action if view else None
+
+        if action in ['retrieve', 'list']:
+            data.pop('created_at', None)
+            data.pop('email', None)
+            data.pop('is_staff', None)
+            data.pop('is_superuser', None)
+
+        return data
+
     def create(self, validated_data):
-        validated_data.pop('password2')
+        validated_data.pop('password2', None)
+
         return User.objects.create_user(
             username=validated_data['username'],
             email=validated_data.get('email', ''),
@@ -25,9 +61,9 @@ class RegisterSerializer(ModelSerializer):
             last_name=validated_data.get('last_name', '')
         )
 
-class UserSearchSerializer(Serializer):
-    search = CharField()
-    limit = IntegerField(required=False, min_value=1, max_value=25, default=5)
+    def update(self, instance, validated_data):
+        validated_data.pop('username', None)
+        return super().update(instance, validated_data)
 
 class PublicUserSerializer(ModelSerializer):
     class Meta:

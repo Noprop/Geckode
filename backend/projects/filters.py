@@ -25,6 +25,7 @@ class ProjectSearchFilterBackend(BaseFilterBackend):
                 queryset = queryset.filter(**{field: params[param]})
 
         queryset = queryset.filter(
+            Q(published_at__isnull=False) |
             Q(owner=request.user) |
             Q(collaborators__collaborator=request.user) |
             Q(shared_organizations__members=request.user)
