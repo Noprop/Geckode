@@ -40,6 +40,7 @@ class OrganizationMember(Model):
 
     organization = ForeignKey(Organization, on_delete=CASCADE)
     member = ForeignKey(User, related_name='joined_organizations', on_delete=CASCADE)
+    joined_at = DateTimeField(auto_now_add=True)
     invited_by = ForeignKey(User, related_name='organization_inviters', null=True, on_delete=SET_NULL)
     permission = CharField(max_length=10, choices=PERMISSION_CHOICES)
 
@@ -48,7 +49,7 @@ class OrganizationMember(Model):
 
 class OrganizationInvitation(Model):
     invited_at = DateTimeField(auto_now_add=True)
-    organization = ForeignKey(Organization, on_delete=CASCADE)
+    organization = ForeignKey(Organization, related_name='invitations', on_delete=CASCADE)
     invitee = ForeignKey(User, related_name='invitee_organizations', on_delete=CASCADE)
     inviter = ForeignKey(User, related_name='inviter_organizations', on_delete=CASCADE)
     permission = CharField(max_length=10, choices=OrganizationMember.PERMISSION_CHOICES)

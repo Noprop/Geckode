@@ -1,6 +1,7 @@
 from geckode.settings import REST_FRAMEWORK
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import BasePermission
+from rest_framework.serializers import Field, ValidationError
 
 def create_custom_pagination_class(**kwargs):
     defaults = {
@@ -55,3 +56,19 @@ def create_user_permission_class(
             return obj.has_permission(request.user, permission_required)
 
     return PermissionClass
+
+def create_order_by_choices(choices, operators=['', '+', '-']):
+    return [f"{op}{choice}" for op in operators for choice in choices]
+
+class NullableBooleanField(Field):
+    def to_internal_value(self, data):
+        if data in [True, 'true', 'True', '1', 1]:
+            return True
+        if data in [False, 'false', 'False', '0', 0]:
+            return False
+        if data is None or data == '':
+            raise ValidationError('This field may be null or omitted')
+        raise ValidationError('Invalid boolean value')
+
+    def to_representation(self, value):
+        return value

@@ -1,8 +1,16 @@
-from rest_framework.serializers import ModelSerializer, SerializerMethodField, ValidationError
+from rest_framework.serializers import Serializer, CharField, IntegerField, ChoiceField, ModelSerializer, SerializerMethodField, ValidationError
+from geckode.utils import create_order_by_choices
 from accounts.fields import ReadNestedWriteIDUserField
 from accounts.models import User
 from accounts.serializers import PublicUserSerializer
 from .models import Organization, OrganizationInvitation, OrganizationMember
+
+class OrganizationSearchSerializer(Serializer):
+    ORDER_BY_CHOICES = create_order_by_choices(['name', 'slug'])
+
+    search = CharField(required=False)
+    owner = IntegerField(required=False)
+    order_by = ChoiceField(required=False, choices=ORDER_BY_CHOICES, default='name')
 
 class OrganizationSerializer(ModelSerializer):
     owner = PublicUserSerializer(read_only=True)
@@ -20,6 +28,18 @@ class OrganizationSerializer(ModelSerializer):
         data = super().to_representation(instance)
         data['owner'] = PublicUserSerializer(instance.owner).data
         return data
+
+class OrganizationInvitationSearchSerializer(Serializer):
+    ORDER_BY_CHOICES = create_order_by_choices([
+        'id', 'invited_at', 'invitee__username', 'invitee__first_name', 'invitee__last_name'
+        'inviter__username', 'inviter__first_name', 'inviter__last_name',
+    ])
+
+    search = CharField(required=False)
+    invitee = IntegerField(required=False)
+    inviter = IntegerField(required=False)
+    permission = ChoiceField(required=False, choices=OrganizationMember.PERMISSION_CHOICES)
+    order_by = ChoiceField(required=False, choices=ORDER_BY_CHOICES, default='-id')
 
 class OrganizationInvitationSerializer(ModelSerializer):
     invitee = ReadNestedWriteIDUserField(queryset=User.objects.all())
@@ -53,6 +73,17 @@ class OrganizationInvitationSerializer(ModelSerializer):
 
         return attrs
 
+class OrganizationMemberSearchSerializer(Serializer):
+    ORDER_BY_CHOICES = create_order_by_choices([
+        'id', 'invited_at', 'member__username' 'member__first_name', 'member__last_name',
+        'invited_by__username', 'invited_by__first_name', 'invited_by__last_name',
+    ])
+
+    search = CharField(required=False)
+    invited_by = IntegerField(required=False)
+    permission = ChoiceField(required=False, choices=OrganizationMember.PERMISSION_CHOICES)
+    order_by = ChoiceField(required=False, choices=ORDER_BY_CHOICES, default='id')
+
 class OrganizationMemberSerializer(ModelSerializer):
     class Meta:
         model = OrganizationMember
@@ -77,8 +108,7 @@ class OrganizationMemberSerializer(ModelSerializer):
         try:
             if 'view' in self.context and hasattr(self.context['view'], 'kwargs'):
                 organization = Organization.objects.get(id=self.context['view'].kwargs.get('organization_pk'))
-                member = User.objects.get(id=self.context['view'].kwargs.get('pk'))
-                organization_member = OrganizationMember.objects.get(organization=organization, member=member)
+                organization_member = OrganizationMember.objects.get(organization=organization, member__id=self.context['view'].kwargs.get('pk'))
 
                 if 'request' in self.context:
                     user = self.context['request'].user
@@ -89,7 +119,7 @@ class OrganizationMemberSerializer(ModelSerializer):
 
                         if not organization.has_permission(user, attrs['permission']):
                             raise ValidationError('You cannot give a member a higher permission class than yourself.')
-        except (Organization.DoesNotExist, User.DoesNotExist, OrganizationMember.DoesNotExist):
+        except (Organization.DoesNotExist, OrganizationMember.DoesNotExist):
             pass
 
         return attrs

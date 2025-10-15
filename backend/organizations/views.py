@@ -1,7 +1,8 @@
 from rest_framework.viewsets import ModelViewSet
 from .models import Organization, OrganizationInvitation, OrganizationMember
 from .serializers import OrganizationSerializer, OrganizationInvitationSerializer, OrganizationMemberSerializer
-from geckode.utils import create_user_permission_class, create_custom_pagination_class
+from .filters import OrganizationSearchFilterBackend, OrganizationInvitationSearchFilterBackend
+from geckode.utils import create_user_permission_class
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -11,6 +12,7 @@ from rest_framework.exceptions import NotFound
 class OrganizationViewSet(ModelViewSet):
     queryset = Organization.objects.all()
     serializer_class = OrganizationSerializer
+    filter_backends = [OrganizationSearchFilterBackend]
 
     http_method_names = ['get', 'post', 'patch', 'delete']
 
@@ -27,7 +29,7 @@ class OrganizationViewSet(ModelViewSet):
 class OrganizationInvitationViewSet(ModelViewSet):
     queryset = OrganizationInvitation.objects.all()
     serializer_class = OrganizationInvitationSerializer
-    pagination_class = create_custom_pagination_class()
+    filter_backends = [OrganizationInvitationSearchFilterBackend]
 
     http_method_names = ['get', 'post', 'delete']
 
@@ -44,7 +46,7 @@ class OrganizationInvitationViewSet(ModelViewSet):
         ]
 
     def get_queryset(self):
-        return OrganizationInvitation.objects.filter(organization=self.kwargs.get('organization_pk')).order_by('id')
+        return super().get_queryset().filter(organization=self.kwargs.get('organization_pk'))
 
     def perform_create(self, serializer):
         organization = get_object_or_404(Organization, pk=self.kwargs.get('organization_pk'))
@@ -71,6 +73,7 @@ class OrganizationInvitationViewSet(ModelViewSet):
 class OrganizationMemberViewSet(ModelViewSet):
     queryset = OrganizationMember.objects.all()
     serializer_class = OrganizationMemberSerializer
+    filter_backends = [OrganizationInvitationSearchFilterBackend]
 
     http_method_names = ['get', 'patch', 'delete']
 
