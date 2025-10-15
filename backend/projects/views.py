@@ -1,0 +1,85 @@
+from rest_framework.viewsets import ModelViewSet
+from .models import ProjectGroup, Project, ProjectCollaborator
+from .serializers import ProjectGroupSerializer, ProjectSerializer, ProjectCollaboratorSerializer
+from rest_framework.permissions import BasePermission
+from .filters import ProjectSearchFilterBackend
+from geckode.utils import create_user_permission_class
+from rest_framework.exceptions import NotFound, PermissionDenied
+from django.shortcuts import get_object_or_404
+
+class ProjectGroupViewSet(ModelViewSet):
+    queryset = ProjectGroup.objects.all()
+    serializer_class = ProjectGroupSerializer
+
+    http_method_names = ['get', 'post', 'patch', 'delete']
+
+    def get_queryset(self):
+        return super().get_queryset().filter(owner=self.request.user).order_by('name')
+
+    def get_permissions(self):
+        class ObjectPermissionClass(BasePermission):
+            def has_object_permission(self, request, view, obj):
+                return obj.owner == request.user
+
+        return super().get_permissions() + [ObjectPermissionClass()]
+
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)
+
+class ProjectViewSet(ModelViewSet):
+    queryset = Project.objects.all()
+    serializer_class = ProjectSerializer
+    filter_backends = [ProjectSearchFilterBackend]
+
+    http_method_names = ['get', 'post', 'patch', 'delete']
+
+    def get_permissions(self):
+        permission_required = 'owner' if self.action == 'destroy' else 'edit' if self.action == 'partially_update' else 'view'
+
+        return super().get_permissions() + [
+            create_user_permission_class(permission_required, ['owner'])()
+        ]
+
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)
+
+    def partial_update(self, request, *args, **kwargs):
+        project = self.get_object()
+
+        if not project.has_permission(request.user, 'admin'):
+            for field in request.data.keys():
+                if field != 'blocks':
+                    raise PermissionDenied(f"You cannot modify '{field}'.")
+
+        return super().partial_update(request, *args, **kwargs)
+
+class ProjectCollaboratorViewSet(ModelViewSet):
+    queryset = ProjectCollaborator.objects.all()
+    serializer_class = ProjectCollaboratorSerializer
+
+    http_method_names = ['get', 'post', 'patch', 'delete']
+
+    def get_object(self):
+        try:
+            return ProjectCollaborator.objects.get(project=self.kwargs.get('project_pk'), collaborator=self.kwargs.get('pk'))
+        except ProjectCollaborator.DoesNotExist:
+            raise NotFound('No project/collaborator pair matches the given IDs.')
+
+    def get_queryset(self):
+        return super().get_queryset().filter(project=self.kwargs.get('project_pk')).order_by('id')
+
+    def get_permissions(self):
+        return super().get_permissions() + [
+            create_user_permission_class(
+                'admin' if self.action in ['partially_update', 'destroy'] else 'code',
+                ['collaborator'] if self.action in ['retrieve', 'list'] or (self.action == 'destroy' and str(self.request.user.id) == self.kwargs.get('pk')) else [],
+                Project,
+                'project',
+                ProjectCollaborator,
+                lambda view : {'project__id': view.kwargs.get('project_pk'), 'collaborator__id': view.kwargs.get('pk')},
+            )()
+        ]
+
+    def perform_create(self, serializer):
+        project = get_object_or_404(Project, pk=self.kwargs.get('project_pk'))
+        serializer.save(project=project)
