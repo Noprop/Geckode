@@ -18,10 +18,7 @@ class OrganizationSerializer(ModelSerializer):
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-
-        if hasattr(self, 'context') and self.context.get('request'):
-            data['owner'] = PublicUserSerializer(instance.owner).data
-
+        data['owner'] = PublicUserSerializer(instance.owner).data
         return data
 
 class OrganizationInvitationSerializer(ModelSerializer):

@@ -12,8 +12,8 @@ class Organization(Model):
     def has_permission(self, user, required_permission):
         if user == self.owner:
             return True
-        
-        allowed_levels = {
+
+        permissions_allowed = {
             choice[0]: [choice[0] for choice in OrganizationMember.PERMISSION_CHOICES[i:]]
             for i, choice in enumerate(OrganizationMember.PERMISSION_CHOICES)
         }
@@ -21,7 +21,7 @@ class Organization(Model):
         return OrganizationMember.objects.filter(
             organization=self,
             member=user,
-            permission__in=allowed_levels.get(required_permission, [])
+            permission__in=permissions_allowed.get(required_permission, [])
         ).exists()
 
     def has_member(self, user, include_owner=True):
