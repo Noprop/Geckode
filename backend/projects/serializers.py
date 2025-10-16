@@ -1,4 +1,4 @@
-from rest_framework.serializers import ModelSerializer, PrimaryKeyRelatedField, Serializer, CharField, IntegerField, BooleanField, ChoiceField, ValidationError
+from rest_framework.serializers import ModelSerializer, PrimaryKeyRelatedField, Serializer, CharField, IntegerField, BooleanField, ChoiceField, SerializerMethodField, ValidationError
 from accounts.serializers import PublicUserSerializer
 from geckode.utils import create_order_by_choices, NullableBooleanField
 from django.utils import timezone
@@ -47,13 +47,17 @@ class ProjectSearchSerializer(Serializer):
 class ProjectSerializer(ModelSerializer):
     owner = PublicUserSerializer(read_only=True)
     is_published = BooleanField(write_only=True, required=False)
+    fork_count = SerializerMethodField()
 
     class Meta:
         model = Project
-        fields = ['id', 'owner', 'created_at', 'updated_at', 'name', 'description',
-                  'shared_users', 'shared_organizations', 'published_at', 'is_published', 'blocks',
+        fields = ['id', 'owner', 'created_at', 'updated_at', 'name', 'description', 'shared_users',
+                  'shared_organizations', 'published_at', 'is_published', 'fork_count', 'blocks',
                  ]
         read_only_fields = ['owner', 'created_at', 'updated_at', 'shared_users', 'published_at']
+
+    def get_fork_count(self, instance):
+        return instance.forked_by.count()
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

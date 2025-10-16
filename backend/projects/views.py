@@ -5,6 +5,9 @@ from rest_framework.permissions import BasePermission
 from .filters import ProjectSearchFilterBackend
 from geckode.utils import create_user_permission_class
 from rest_framework.exceptions import NotFound, PermissionDenied
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework.status import HTTP_200_OK
 from django.shortcuts import get_object_or_404
 
 class ProjectGroupViewSet(ModelViewSet):
@@ -52,6 +55,22 @@ class ProjectViewSet(ModelViewSet):
                     raise PermissionDenied(f"You cannot modify '{field}'.")
 
         return super().partial_update(request, *args, **kwargs)
+
+    @action(detail=True, url_path='fork')
+    def fork(self, request, pk=None):
+        project = self.get_object()
+
+        project.forked_by.add(request.user)
+        project.save()
+
+        project.id = None
+        project.owner = request.user
+        project.group = None
+        project.name += ' - Fork'
+        project.published_at = None
+        project.save()
+
+        return Response({"status": "forked"}, status=HTTP_200_OK)
 
 class ProjectCollaboratorViewSet(ModelViewSet):
     queryset = ProjectCollaborator.objects.all()

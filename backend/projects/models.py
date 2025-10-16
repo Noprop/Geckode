@@ -17,6 +17,7 @@ class Project(Model):
     shared_users = ManyToManyField(User, through='ProjectCollaborator', related_name='shared_projects')
     shared_organizations = ManyToManyField(Organization, related_name='projects', blank=True)
     published_at = DateTimeField(null=True, blank=True)
+    forked_by = ManyToManyField(User, related_name='forked_projects', blank=True)
     blocks = JSONField(default=dict, blank=True)
 
     def has_permission(self, user, required_permission):
