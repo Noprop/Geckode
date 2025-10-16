@@ -1,9 +1,30 @@
+from rest_framework.views import APIView
+from rest_framework.permissions import AllowAny, BasePermission
+from django.contrib.auth import authenticate, login, logout
+from rest_framework.response import Response
+from rest_framework.status import HTTP_200_OK, HTTP_401_UNAUTHORIZED
 from rest_framework.viewsets import ModelViewSet
 from .models import User
 from .serializers import UserSerializer
 from .filters import UserSearchFilterBackend
-from rest_framework.permissions import AllowAny
-from rest_framework.permissions import BasePermission
+
+class LoginView(APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        user = authenticate(request, username=request.data.get("username"), password=request.data.get("password"))
+
+        if user is not None:
+            login(request, user)
+            return Response({"detail": "Logged in"}, status=HTTP_200_OK)
+        else:
+            return Response({"detail": "Invalid credentials"}, status=HTTP_401_UNAUTHORIZED)
+
+class LogoutView(APIView):
+    def post(self, request):
+        logout(request)
+        return Response({"detail": "Logged out"})
 
 class UserViewSet(ModelViewSet):
     queryset = User.objects.all()
