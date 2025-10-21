@@ -3,7 +3,7 @@
 import BlocklyComponent from "./BlocklyComponent";
 import { Block, Value, Shadow, Field } from ".";
 
-import { javascriptGenerator } from "blockly/javascript"; // ✅ v12 way
+import { javascriptGenerator } from 'blockly/javascript';
 
 const BlocklyEditor = () => {
   return (
@@ -11,7 +11,7 @@ const BlocklyEditor = () => {
       className=""
       readOnly={false}
       trashcan={true}
-      media={"media/"}
+      media={'media/'}
       move={{
         scrollbars: true,
         drag: true,
@@ -24,7 +24,7 @@ const BlocklyEditor = () => {
       `}
     >
       {/* TODO: custom block type for this to work */}
-      {/* <Block type="test_react_field" /> */}
+      <Block type="forever" />
       <Block type="controls_ifelse" />
       <Block type="logic_compare" />
       <Block type="logic_operation" />

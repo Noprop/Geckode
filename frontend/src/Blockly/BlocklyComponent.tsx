@@ -5,6 +5,7 @@ import "blockly/blocks";
 import * as Blockly from "blockly/core";
 import { javascriptGenerator } from "blockly/javascript";
 import * as locale from "blockly/msg/en";
+import "./blocks/customBlocks";
 
 Blockly.setLocale(locale as any);
 
