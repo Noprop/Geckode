@@ -1,5 +1,5 @@
 from rest_framework.serializers import Serializer, CharField, ChoiceField, ModelSerializer, ValidationError
-from geckode.utils import create_order_by_choices
+from utils.serializers import create_order_by_choices
 from django.contrib.auth.password_validation import validate_password
 from .models import User
 

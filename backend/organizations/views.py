@@ -2,7 +2,7 @@ from rest_framework.viewsets import ModelViewSet
 from .models import Organization, OrganizationInvitation, OrganizationMember
 from .serializers import OrganizationSerializer, OrganizationInvitationSerializer, OrganizationMemberSerializer
 from .filters import OrganizationSearchFilterBackend, OrganizationInvitationSearchFilterBackend
-from geckode.utils import create_user_permission_class
+from utils.permissions import create_user_permission_class
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import action
 from rest_framework.response import Response

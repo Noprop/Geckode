@@ -3,7 +3,7 @@ from .models import ProjectGroup, Project, ProjectCollaborator
 from .serializers import ProjectGroupSerializer, ProjectSerializer, ProjectCollaboratorSerializer
 from rest_framework.permissions import BasePermission
 from .filters import ProjectSearchFilterBackend
-from geckode.utils import create_user_permission_class
+from utils.permissions import create_user_permission_class
 from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.decorators import action
 from rest_framework.response import Response

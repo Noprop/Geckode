@@ -20,7 +20,7 @@ class Project(Model):
     forked_by = ManyToManyField(User, related_name='forked_projects', blank=True)
     blocks = JSONField(default=dict, blank=True)
 
-    def has_permission(self, user, required_permission):
+    def has_permission(self, user, required_permission, published_gives_permission=True):
         if user == self.owner:
             return True
 
@@ -29,7 +29,7 @@ class Project(Model):
             for i, choice in enumerate(ProjectCollaborator.PERMISSION_CHOICES)
         }
 
-        return self.published_at is not None or ProjectCollaborator.objects.filter(
+        return (published_gives_permission and self.published_at is not None) or ProjectCollaborator.objects.filter(
             project=self,
             collaborator=user,
             permission__in=permissions_allowed.get(required_permission, [])

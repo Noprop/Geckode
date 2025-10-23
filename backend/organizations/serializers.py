@@ -1,5 +1,5 @@
 from rest_framework.serializers import Serializer, CharField, IntegerField, ChoiceField, ModelSerializer, SerializerMethodField, ValidationError
-from geckode.utils import create_order_by_choices
+from utils.serializers import create_order_by_choices
 from accounts.fields import ReadNestedWriteIDUserField
 from accounts.models import User
 from accounts.serializers import PublicUserSerializer

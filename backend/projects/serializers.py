@@ -1,6 +1,7 @@
 from rest_framework.serializers import ModelSerializer, PrimaryKeyRelatedField, Serializer, CharField, IntegerField, BooleanField, ChoiceField, SerializerMethodField, ValidationError
 from accounts.serializers import PublicUserSerializer
-from geckode.utils import create_order_by_choices, NullableBooleanField
+from utils.serializers import create_order_by_choices
+from utils.fields import NullableBooleanField
 from django.utils import timezone
 from .models import ProjectGroup, Project, ProjectCollaborator
 from accounts.fields import ReadNestedWriteIDUserField
@@ -103,6 +104,11 @@ class ProjectCollaboratorSerializer(ModelSerializer):
         model = ProjectCollaborator
         fields = ['project', 'collaborator', 'permission']
         read_only_fields = ['project', 'collaborator']
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['collaborator'] = PublicUserSerializer(instance.collaborator).data
+        return data
 
     def validate(self, attrs):
         try:
