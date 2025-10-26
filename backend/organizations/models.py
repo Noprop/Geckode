@@ -1,4 +1,4 @@
-from django.db.models import Model, DateTimeField, ForeignKey, PROTECT, SlugField, CharField, TextField, ManyToManyField, CASCADE, SET_NULL
+from django.db.models import Model, DateTimeField, ForeignKey, PROTECT, SlugField, CharField, TextField, ManyToManyField, BooleanField, CASCADE, SET_NULL
 from accounts.models import User
 
 class Organization(Model):
@@ -8,6 +8,7 @@ class Organization(Model):
     name = CharField(max_length=200)
     description = TextField(blank=True)
     members = ManyToManyField(User, through='OrganizationMember', through_fields=('organization', 'member'), related_name='organizations')
+    project_containment = BooleanField(blank=True, default=False)
 
     def has_permission(self, user, required_permission):
         if user == self.owner:
@@ -38,10 +39,10 @@ class OrganizationMember(Model):
         ('admin', 'Can modify details'),
     ]
 
-    organization = ForeignKey(Organization, on_delete=CASCADE)
-    member = ForeignKey(User, related_name='joined_organizations', on_delete=CASCADE)
+    organization = ForeignKey(Organization, related_name='organization_members', on_delete=CASCADE)
+    member = ForeignKey(User, related_name='organization_members', on_delete=CASCADE)
     joined_at = DateTimeField(auto_now_add=True)
-    invited_by = ForeignKey(User, related_name='organization_inviters', null=True, on_delete=SET_NULL)
+    invited_by = ForeignKey(User, related_name='inviter_organization_members', null=True, on_delete=SET_NULL)
     permission = CharField(max_length=10, choices=PERMISSION_CHOICES)
 
     class Meta:
@@ -50,8 +51,8 @@ class OrganizationMember(Model):
 class OrganizationInvitation(Model):
     invited_at = DateTimeField(auto_now_add=True)
     organization = ForeignKey(Organization, related_name='invitations', on_delete=CASCADE)
-    invitee = ForeignKey(User, related_name='invitee_organizations', on_delete=CASCADE)
-    inviter = ForeignKey(User, related_name='inviter_organizations', on_delete=CASCADE)
+    invitee = ForeignKey(User, related_name='invitee_organization_invitations', on_delete=CASCADE)
+    inviter = ForeignKey(User, related_name='inviter_organization_invitations', on_delete=CASCADE)
     permission = CharField(max_length=10, choices=OrganizationMember.PERMISSION_CHOICES)
 
     class Meta:

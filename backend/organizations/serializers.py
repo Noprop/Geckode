@@ -1,4 +1,4 @@
-from rest_framework.serializers import Serializer, CharField, IntegerField, ChoiceField, ModelSerializer, SerializerMethodField, ValidationError
+from rest_framework.serializers import Serializer, CharField, IntegerField, ChoiceField, ModelSerializer, SerializerMethodField, PrimaryKeyRelatedField, ValidationError
 from utils.serializers import create_order_by_choices
 from accounts.fields import ReadNestedWriteIDUserField
 from accounts.models import User
@@ -24,11 +24,6 @@ class OrganizationSerializer(ModelSerializer):
     def get_members_count(self, instance):
         return instance.members.count()
 
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        data['owner'] = PublicUserSerializer(instance.owner).data
-        return data
-
 class OrganizationInvitationSearchSerializer(Serializer):
     ORDER_BY_CHOICES = create_order_by_choices([
         'id', 'invited_at', 'invitee__username', 'invitee__first_name', 'invitee__last_name'
@@ -42,13 +37,14 @@ class OrganizationInvitationSearchSerializer(Serializer):
     order_by = ChoiceField(required=False, choices=ORDER_BY_CHOICES, default='-id')
 
 class OrganizationInvitationSerializer(ModelSerializer):
-    invitee = ReadNestedWriteIDUserField(queryset=User.objects.all())
+    invitee = PublicUserSerializer(read_only=True)
+    invitee_id = PrimaryKeyRelatedField(queryset=User.objects.all(), write_only=True, source='invitee')
     inviter = PublicUserSerializer(read_only=True)
 
     class Meta:
         model = OrganizationInvitation
-        fields = ['id', 'organization', 'invited_at', 'invitee', 'inviter', 'permission']
-        read_only_fields = ['organization', 'invited_at']
+        fields = ['id', 'invited_at', 'invitee', 'invitee_id', 'inviter', 'permission']
+        read_only_fields = ['invited_at']
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -85,10 +81,12 @@ class OrganizationMemberSearchSerializer(Serializer):
     order_by = ChoiceField(required=False, choices=ORDER_BY_CHOICES, default='id')
 
 class OrganizationMemberSerializer(ModelSerializer):
+    member = PublicUserSerializer(read_only=True)
+
     class Meta:
         model = OrganizationMember
-        fields = ['organization', 'member', 'invited_by', 'permission']
-        read_only_fields = ['organization', 'member', 'invited_by']
+        fields = ['member', 'invited_by', 'permission']
+        read_only_fields = ['invited_by']
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -99,8 +97,6 @@ class OrganizationMemberSerializer(ModelSerializer):
             if not user.is_superuser and instance.member != user and not instance.organization.has_permission(user, 'manage'):
                 data.pop('invited_by', None)
                 data.pop('permission', None)
-
-            data['member'] = PublicUserSerializer(instance.member).data
 
         return data
 

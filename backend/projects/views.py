@@ -1,14 +1,15 @@
 from rest_framework.viewsets import ModelViewSet
-from .models import ProjectGroup, Project, ProjectCollaborator
-from .serializers import ProjectGroupSerializer, ProjectSerializer, ProjectCollaboratorSerializer
+from .models import ProjectGroup, Project, ProjectCollaborator, OrganizationProject
+from .serializers import ProjectGroupSerializer, ProjectSerializer, ProjectCollaboratorSerializer, OrganizationProjectSerializer
 from rest_framework.permissions import BasePermission
 from .filters import ProjectSearchFilterBackend
-from utils.permissions import create_user_permission_class
+from utils.permissions import create_user_permission_class, AnyOf
 from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK
 from django.shortcuts import get_object_or_404
+from organizations.models import Organization
 
 class ProjectGroupViewSet(ModelViewSet):
     queryset = ProjectGroup.objects.all()
@@ -56,7 +57,7 @@ class ProjectViewSet(ModelViewSet):
 
         return super().partial_update(request, *args, **kwargs)
 
-    @action(detail=True, url_path='fork')
+    @action(detail=True, methods=['post'])
     def fork(self, request, pk=None):
         project = self.get_object()
 
@@ -93,7 +94,7 @@ class ProjectCollaboratorViewSet(ModelViewSet):
                 'admin' if self.action in ['partially_update', 'destroy'] else 'code',
                 ['collaborator'] if self.action in ['retrieve', 'list'] or (self.action == 'destroy' and str(self.request.user.id) == self.kwargs.get('pk')) else [],
                 Project,
-                'project',
+                'project_pk',
                 ProjectCollaborator,
                 lambda view : {'project__id': view.kwargs.get('project_pk'), 'collaborator__id': view.kwargs.get('pk')},
             )()
@@ -102,3 +103,33 @@ class ProjectCollaboratorViewSet(ModelViewSet):
     def perform_create(self, serializer):
         project = get_object_or_404(Project, pk=self.kwargs.get('project_pk'))
         serializer.save(project=project)
+
+class OrganizationProjectViewSet(ModelViewSet):
+    queryset = OrganizationProject.objects.all()
+    serializer_class = OrganizationProjectSerializer
+    filter_backends = [ProjectSearchFilterBackend]
+
+    http_method_names = ['get', 'post', 'patch', 'delete']
+
+    def get_object(self):
+        try:
+            return OrganizationProject.objects.get(organization__id=self.kwargs.get('organization_pk'), project__id=self.kwargs.get('pk'))
+        except OrganizationProject.DoesNotExist:
+            raise NotFound('No organization/project pair matches the given IDs.')
+
+    def get_queryset(self):
+        return super().get_queryset().filter(organization__id=self.kwargs.get('organization_pk'))
+
+    def get_permissions(self):
+        return super().get_permissions() + [AnyOf(
+            create_user_permission_class(
+                'view' if self.action in ['retrieve', 'list'] else 'admin',
+            )(),
+            create_user_permission_class(
+                'view' if self.action in ['retrieve', 'list'] else 'manage' if self.action == 'destroy' else '',
+            )()
+        )]
+
+    def perform_create(self, serializer):
+        organization = get_object_or_404(Organization, pk=self.kwargs.get('organization_pk'))
+        serializer.save(organization=organization)

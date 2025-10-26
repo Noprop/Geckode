@@ -9,13 +9,13 @@ class ProjectGroup(Model):
 
 class Project(Model):
     owner = ForeignKey(User, related_name='projects', on_delete=CASCADE)
-    group = ForeignKey(ProjectGroup, related_name='projects', null=True, blank=True, default=None, on_delete=SET_NULL)
+    group = ForeignKey(ProjectGroup, related_name='projects', null=True, blank=True, on_delete=SET_NULL)
     created_at = DateTimeField(auto_now_add=True)
     updated_at = DateTimeField(auto_now=True)
     name = CharField(max_length=200)
     description = TextField(blank=True)
-    shared_users = ManyToManyField(User, through='ProjectCollaborator', related_name='shared_projects')
-    shared_organizations = ManyToManyField(Organization, related_name='projects', blank=True)
+    collaborators = ManyToManyField(User, through='ProjectCollaborator', related_name='shared_projects')
+    organizations = ManyToManyField(Organization, through='OrganizationProject', related_name='projects')
     published_at = DateTimeField(null=True, blank=True)
     forked_by = ManyToManyField(User, related_name='forked_projects', blank=True)
     blocks = JSONField(default=dict, blank=True)
@@ -33,10 +33,11 @@ class Project(Model):
             project=self,
             collaborator=user,
             permission__in=permissions_allowed.get(required_permission, [])
-        ).exists() or (required_permission == 'view' and Organization.objects.filter(
+        ).exists() or Organization.objects.filter(
             projects=self,
+            organization_projects__permission__in=permissions_allowed.get(required_permission, []),
             members=user
-        ).exists())
+        ).exists()
 
 class ProjectCollaborator(Model):
     PERMISSION_CHOICES = [
@@ -46,9 +47,20 @@ class ProjectCollaborator(Model):
         ('admin', 'Can change project details'),
     ]
 
-    project = ForeignKey(Project, related_name='collaborators', on_delete=CASCADE)
-    collaborator = ForeignKey(User, related_name='collaborator_projects', on_delete=CASCADE)
+    project = ForeignKey(Project, related_name='project_collaborators', on_delete=CASCADE)
+    collaborator = ForeignKey(User, related_name='project_collaborators', on_delete=CASCADE)
     permission = CharField(max_length=10, choices=PERMISSION_CHOICES)
 
     class Meta:
         unique_together = ('project', 'collaborator')
+
+class OrganizationProject(Model):
+    organization = ForeignKey(Organization, related_name='organization_projects', on_delete=CASCADE)
+    project = ForeignKey(Project, related_name='organization_projects', on_delete=CASCADE)
+    permission = CharField(max_length=10, choices=ProjectCollaborator.PERMISSION_CHOICES)
+
+    class Meta:
+        unique_together = ('organization', 'project')
+
+    def has_permission(self, user, required_permission):
+        return self.project.has_permission(user, required_permission)

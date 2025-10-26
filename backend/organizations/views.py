@@ -39,7 +39,7 @@ class OrganizationInvitationViewSet(ModelViewSet):
                 'invite' if self.action == 'create' else 'manage',
                 ['inviter', 'invitee'],
                 Organization,
-                'organization',
+                'organization_pk',
                 OrganizationInvitation,
                 lambda view : {'id': view.kwargs.get('pk')},
             )()
@@ -92,7 +92,7 @@ class OrganizationMemberViewSet(ModelViewSet):
                 'view' if self.action in ['retrieve', 'list'] else 'manage',
                 ['member'] if self.action in ['retrieve', 'list'] or (self.action == 'destroy' and str(self.request.user.id) == self.kwargs.get('pk')) else [],
                 Organization,
-                'organization',
+                'organization_pk',
                 OrganizationMember,
                 lambda view : {'organization__id': view.kwargs.get('organization_pk'), 'member__id': view.kwargs.get('pk')},
             )()

@@ -3,7 +3,7 @@ from accounts.serializers import PublicUserSerializer
 from utils.serializers import create_order_by_choices
 from utils.fields import NullableBooleanField
 from django.utils import timezone
-from .models import ProjectGroup, Project, ProjectCollaborator
+from .models import ProjectGroup, Project, ProjectCollaborator, OrganizationProject
 from accounts.fields import ReadNestedWriteIDUserField
 from accounts.models import User
 
@@ -52,24 +52,21 @@ class ProjectSerializer(ModelSerializer):
 
     class Meta:
         model = Project
-        fields = ['id', 'owner', 'created_at', 'updated_at', 'name', 'description', 'shared_users',
-                  'shared_organizations', 'published_at', 'is_published', 'fork_count', 'blocks',
-                 ]
-        read_only_fields = ['owner', 'created_at', 'updated_at', 'shared_users', 'published_at']
+        fields = ['id', 'owner', 'created_at', 'updated_at', 'name', 'description', 'published_at', 'is_published', 'fork_count', 'blocks']
+        read_only_fields = ['created_at', 'updated_at', 'published_at']
 
     def get_fork_count(self, instance):
         return instance.forked_by.count()
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        data['owner'] = PublicUserSerializer(instance.owner).data
 
         view = self.context.get('view')
         action = view.action if view else None
 
         if action == 'list':
-            data.pop('shared_users', None)
-            data.pop('shared_organizations', None)
+            data.pop('collaborators', None)
+            data.pop('organizations', None)
             data.pop('blocks', None)
 
         return data
@@ -98,17 +95,12 @@ class ProjectSerializer(ModelSerializer):
         return attrs
 
 class ProjectCollaboratorSerializer(ModelSerializer):
-    collaborator = ReadNestedWriteIDUserField(queryset=User.objects.all())
+    collaborator = PublicUserSerializer(read_only=True)
+    collaborator_id = PrimaryKeyRelatedField(queryset=User.objects.all(), write_only=True, source='collaborator')
 
     class Meta:
         model = ProjectCollaborator
-        fields = ['project', 'collaborator', 'permission']
-        read_only_fields = ['project', 'collaborator']
-
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        data['collaborator'] = PublicUserSerializer(instance.collaborator).data
-        return data
+        fields = ['collaborator', 'collaborator_id', 'permission']
 
     def validate(self, attrs):
         try:
@@ -121,6 +113,31 @@ class ProjectCollaboratorSerializer(ModelSerializer):
                     if not user.is_superuser and not project.has_permission(user, 'admin'):
                         raise ValidationError('You do not have permission to perform this action.')
         except (Project.DoesNotExist, ProjectCollaborator.DoesNotExist):
+            pass
+
+        return attrs
+
+class OrganizationProjectSerializer(ModelSerializer):
+    project = ProjectSerializer(read_only=True)
+    project_id = PrimaryKeyRelatedField(queryset=Project.objects.all(), write_only=True, source='project')
+
+    class Meta:
+        model = OrganizationProject
+        fields = ['project', 'project_id', 'permission']
+
+    def validate(self, attrs):
+        try:
+            if 'view' in self.context and hasattr(self.context['view'], 'kwargs'):
+                project = Project.objects.get(id=self.context['view'].kwargs.get('pk'))
+            else:
+                project = attrs['project']
+
+            if 'request' in self.context:
+                user = self.context['request'].user
+
+                if not user.is_superuser and not project.has_permission(user, 'admin'):
+                    raise ValidationError('You do not have permission to perform this action.')
+        except Project.DoesNotExist:
             pass
 
         return attrs

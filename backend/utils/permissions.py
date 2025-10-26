@@ -3,7 +3,7 @@ from rest_framework.permissions import BasePermission
 def create_user_permission_class(
         permission_required,
         user_override_fields=[],
-        main_pk_class=None,
+        primary_pk_class=None,
         lookup='',
         secondary_pk_class=None,
         secondary_pk_kwargs=lambda view : {},
@@ -20,11 +20,11 @@ def create_user_permission_class(
                 except getattr(secondary_pk_class, 'DoesNotExist'):
                     pass
 
-            if main_pk_class is not None:
+            if primary_pk_class is not None:
                 try:
-                    obj = getattr(main_pk_class, 'objects').get(id=view.kwargs.get(f'{lookup}_pk'))
+                    obj = getattr(primary_pk_class, 'objects').get(id=view.kwargs.get(lookup))
                     return obj.has_permission(request.user, permission_required)
-                except getattr(main_pk_class, 'DoesNotExist'):
+                except getattr(primary_pk_class, 'DoesNotExist'):
                     pass
 
             return super().has_permission(request, view)
@@ -37,3 +37,13 @@ def create_user_permission_class(
             return obj.has_permission(request.user, permission_required)
 
     return PermissionClass
+
+class AnyOf(BasePermission):
+    def __init__(self, *permission_classes):
+        self.permission_classes = permission_classes
+
+    def has_permission(self, request, view):
+        return any(permission.has_permission(request, view) for permission in self.permission_classes)
+
+    def has_object_permission(self, request, view, obj):
+        return any(permission.has_object_permission(request, view, obj) for permission in self.permission_classes)
