@@ -10,7 +10,8 @@ const foreverBlockDefinition = {
   message0: 'forever %1 %2',
   args0: [
     {
-      type: 'input_dummy',
+      // type: 'input_dummy',
+      type: 'input_end_row',
     },
     {
       type: 'input_statement',
