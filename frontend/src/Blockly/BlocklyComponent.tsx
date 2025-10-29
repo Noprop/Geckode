@@ -13,6 +13,7 @@ type Props = React.PropsWithChildren<
   {
     initialXml?: string;
     className?: string;
+    scene?: any
   } & Blockly.BlocklyOptions
 >;
 
@@ -25,6 +26,7 @@ function BlocklyComponent(props: Props) {
     if (!workspaceRef.current) return;
     const code = javascriptGenerator.workspaceToCode(workspaceRef.current);
     console.log(code);
+    props.scene.runScript(code);
   };
 
   useEffect(() => {

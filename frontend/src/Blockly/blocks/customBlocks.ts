@@ -3,7 +3,7 @@
  */
 
 import * as Blockly from 'blockly/core';
-import { javascriptGenerator } from 'blockly/javascript';
+import { javascriptGenerator, Order } from 'blockly/javascript';
 
 const foreverBlockDefinition = {
   type: 'forever',
@@ -35,4 +35,53 @@ javascriptGenerator.forBlock['forever'] = function (block, generator) {
   const branch = generator.statementToCode(block, 'DO');
   const loopBody = branch ? branch : '';
   return `while (true) {\n${loopBody}}\n`;
+};
+
+const setPropertyDefinition = {
+  type: "setProperty",
+  tooltip: "Set a property of a sprite",
+  helpUrl: "",
+  message0: "set %1 to %2",
+  args0: [
+    {
+      type: "field_dropdown",
+      name: "PROPERTY",
+      options: [
+        [
+          "x",
+          "X"
+        ],
+        [
+          "y",
+          "Y"
+        ],
+        [
+          "velocityX",
+          "VelocityX"
+        ],
+        [
+          "velocityY",
+          "VelocityY"
+        ]
+      ]
+    },
+    {
+      type: "input_value",
+      name: "VALUE"
+    }
+  ],
+  previousStatement: null,
+  nextStatement: null,
+  colour: 225
+}
+                    
+Blockly.Blocks['setProperty'] = {
+  init: function () {
+    this.jsonInit(setPropertyDefinition);
+  },
+};
+
+javascriptGenerator.forBlock['setProperty'] = function (block, generator) {
+  const value = generator.valueToCode(block, 'VALUE', Order.NONE);
+  return `scene.player.set${block.getFieldValue('PROPERTY')}(${value})`;
 };

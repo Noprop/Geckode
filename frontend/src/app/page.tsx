@@ -3,6 +3,8 @@
 import dynamic from "next/dynamic";
 import { useRef, useState, useEffect } from 'react';
 import BlocklyEditor from '../Blockly/BlocklyEditor';
+import * as Blockly from "blockly/core";
+import { javascriptGenerator } from "blockly/javascript";
 
 const PhaserGame = dynamic(() => import('./PhaserGame'), { ssr: false });
 
@@ -89,7 +91,7 @@ export default function Home() {
 
       {/* Blockly */}
       <div className="mt-5 px-6 rounded-md">
-        <BlocklyEditor />
+        <BlocklyEditor scene={phaserRef.current?.scene}/>
       </div>
     </div>
   );

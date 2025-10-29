@@ -5,7 +5,7 @@ import { Block, Value, Shadow, Field } from ".";
 
 import { javascriptGenerator } from 'blockly/javascript';
 
-const BlocklyEditor = () => {
+const BlocklyEditor = (props : any) => {
   return (
     <BlocklyComponent
       className=""
@@ -22,6 +22,7 @@ const BlocklyEditor = () => {
           <block type="controls_ifelse" x="0" y="0"></block>
         </xml>
       `}
+      scene={props.scene}
     >
       {/* TODO: custom block type for this to work */}
       <Block type="forever" />
@@ -45,6 +46,13 @@ const BlocklyEditor = () => {
           <Block type="variables_get">
             <Field name="VAR">text</Field>
           </Block>
+        </Value>
+      </Block>
+      <Block type="setProperty">
+        <Value name="VALUE">
+          <Shadow type="math_number">
+            <Field name="NUM">0</Field>
+          </Shadow>
         </Value>
       </Block>
     </BlocklyComponent>

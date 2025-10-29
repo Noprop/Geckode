@@ -95,38 +95,38 @@ export default class MainMenu extends Phaser.Scene {
   }
 
   update() {
-    if (!this.player) return;
+    // if (!this.player) return;
 
-    const speed = 200;
+    // const speed = 200;
 
-    // Reset velocity each frame, then set based on input
-    this.player.setVelocity(0);
+    // // Reset velocity each frame, then set based on input
+    // this.player.setVelocity(0);
 
-    const left = this.cursors.left?.isDown || this.wasd.A.isDown;
-    const right = this.cursors.right?.isDown || this.wasd.D.isDown;
-    const up = this.cursors.up?.isDown || this.wasd.W.isDown;
-    const down = this.cursors.down?.isDown || this.wasd.S.isDown;
+    // const left = this.cursors.left?.isDown || this.wasd.A.isDown;
+    // const right = this.cursors.right?.isDown || this.wasd.D.isDown;
+    // const up = this.cursors.up?.isDown || this.wasd.W.isDown;
+    // const down = this.cursors.down?.isDown || this.wasd.S.isDown;
 
-    if (left) this.player.setVelocityX(-speed);
-    if (right) this.player.setVelocityX(speed);
-    if (up) this.player.setVelocityY(-speed);
-    if (down) this.player.setVelocityY(speed);
+    // if (left) this.player.setVelocityX(-speed);
+    // if (right) this.player.setVelocityX(speed);
+    // if (up) this.player.setVelocityY(-speed);
+    // if (down) this.player.setVelocityY(speed);
 
-    // Normalize diagonal speed
-    if ((left || right) && (up || down) && this.player.body) {
-      this.player.setVelocity(
-        this.player.body.velocity.x * 0.7071,
-        this.player.body.velocity.y * 0.7071
-      );
-    }
+    // // Normalize diagonal speed
+    // if ((left || right) && (up || down) && this.player.body) {
+    //   this.player.setVelocity(
+    //     this.player.body.velocity.x * 0.7071,
+    //     this.player.body.velocity.y * 0.7071
+    //   );
+    // }
 
-    // Publish position only when it changes (avoids spamming React state)
-    const px = Math.round(this.player.x);
-    const py = Math.round(this.player.y);
-    if ((px !== this.lastSent.x || py !== this.lastSent.y) && this.posCB) {
-      this.posCB({ x: px, y: py });
-      this.lastSent = { x: px, y: py };
-    }
+    // // Publish position only when it changes (avoids spamming React state)
+    // const px = Math.round(this.player.x);
+    // const py = Math.round(this.player.y);
+    // if ((px !== this.lastSent.x || py !== this.lastSent.y) && this.posCB) {
+    //   this.posCB({ x: px, y: py });
+    //   this.lastSent = { x: px, y: py };
+    // }
   }
 
   private buildAPI(): GameAPI {
@@ -151,7 +151,7 @@ export default class MainMenu extends Phaser.Scene {
    *   "console.log('wow'); await api.wait(250); api.moveBy(50, -20);"
    */
   public async runScript(code: string): Promise<any> {
-    this.player.setVelocity(20, 0);
+    //this.player.setVelocity(20, 0);
     // @ts-ignore
     console.log('this.test: ', this.test);
     const ctx: SandboxContext = {
