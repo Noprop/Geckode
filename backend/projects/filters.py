@@ -1,48 +1,48 @@
-from rest_framework.filters import BaseFilterBackend
-from .serializers import ProjectSearchSerializer
-from .models import OrganizationProject
+from functools import reduce
+from operator import or_
 from django.db.models import Q
+from utils.filters import PrefixedFilterSet, make_owner_id_filter, make_nullable_boolean_filter
+from django_filters import NumberFilter, BooleanFilter, OrderingFilter
+from .models import Project, OrganizationProject
 
-class ProjectSearchFilterBackend(BaseFilterBackend):
-    def filter_queryset(self, request, queryset, view):
-        serializer = ProjectSearchSerializer(data=request.query_params)
-        serializer.is_valid(raise_exception=True)
-        params = serializer.validated_data
+def apply_project_access_filters(queryset, user, prefix=''):
+    return queryset.filter(
+        reduce(or_, (Q(**{
+            f'{prefix}{field}': value
+        }) for field, value in {
+            'published_at__isnull': False,
+            'owner': user,
+            'collaborators': user,
+            'organizations__members': user
+        }.items())
+    )).distinct()
 
-        if queryset.model is OrganizationProject:
-            lookup_prefix = 'project__'
-        else:
-            lookup_prefix = ''
+class ProjectFilter(PrefixedFilterSet):
+    search_fields = ['name']
 
-        def prefix_filters(**filters):
-            return {f'{lookup_prefix}{key}': value for key, value in filters.items()}
+    owner = NumberFilter(method='filter_owner')
+    is_published = BooleanFilter(method='filter_is_published')
+    group = NumberFilter(field_name='group__id')
+    organization = NumberFilter(field_name='organizations__id')
+    order_by = OrderingFilter(
+        fields=(
+            'id',
+            'created_at',
+            'updated_at',
+            *search_fields,
+        ),
+    )
 
-        if 'owner' in params:
-            if params['owner']:
-                queryset = queryset.filter(**prefix_filters(owner__id=params['owner']))
-            else:
-                queryset = queryset.exclude(**prefix_filters(owner=request.user))
+    class Meta:
+        model = Project
+        fields = []
 
-        if 'is_published' in params:
-            queryset = queryset.filter(**prefix_filters(published_at__isnull=not params['is_published']))
+    filter_owner = make_owner_id_filter('owner')
+    filter_is_published = make_nullable_boolean_filter('published_at')
 
-        for field, param in {
-            'organizations__id': 'organization',
-            'group__id': 'group',
-        }.items():
-            if param in params:
-                queryset = queryset.filter(**prefix_filters(**{field: params[param]}))
+class OrganizationProjectFilter(PrefixedFilterSet):
+    search_fields = ['test']
 
-        queryset = queryset.filter(
-            Q(**prefix_filters(published_at__isnull=False)) |
-            Q(**prefix_filters(owner=request.user)) |
-            Q(**prefix_filters(collaborators=request.user)) |
-            Q(**prefix_filters(organizations__members=request.user))
-        )
-
-        if 'search' in params:
-            queryset = queryset.filter(**prefix_filters(name__icontains=params['search']))
-
-        order_by_symbol = params['order_by'][0] if params['order_by'][:1] in ['+', '-'] else ''
-
-        return queryset.order_by(order_by_symbol + lookup_prefix + params['order_by'][len(order_by_symbol):])
+    class Meta:
+        model = OrganizationProject
+        fields = []

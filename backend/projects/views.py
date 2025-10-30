@@ -1,8 +1,8 @@
 from rest_framework.viewsets import ModelViewSet
 from .models import ProjectGroup, Project, ProjectCollaborator, OrganizationProject
 from .serializers import ProjectGroupSerializer, ProjectSerializer, ProjectCollaboratorSerializer, OrganizationProjectSerializer
-from rest_framework.permissions import BasePermission
-from .filters import ProjectSearchFilterBackend
+from django_filters.rest_framework import DjangoFilterBackend
+from .filters import ProjectFilter, apply_project_access_filters, OrganizationProjectFilter
 from utils.permissions import create_user_permission_class, AnyOf
 from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.decorators import action
@@ -10,6 +10,7 @@ from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK
 from django.shortcuts import get_object_or_404
 from organizations.models import Organization
+from django.db.models import Q
 
 class ProjectGroupViewSet(ModelViewSet):
     queryset = ProjectGroup.objects.all()
@@ -21,11 +22,14 @@ class ProjectGroupViewSet(ModelViewSet):
         return super().get_queryset().filter(owner=self.request.user).order_by('name')
 
     def get_permissions(self):
-        class ObjectPermissionClass(BasePermission):
-            def has_object_permission(self, request, view, obj):
-                return obj.owner == request.user
-
-        return super().get_permissions() + [ObjectPermissionClass()]
+        return super().get_permissions() + [
+            create_user_permission_class(
+                'owner',
+                user_override_fields=['owner'],
+                secondary_pk_class=ProjectGroup,
+                secondary_pk_kwargs={'id': self.kwargs.get('pk')}
+            )(),
+        ]
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
@@ -33,16 +37,25 @@ class ProjectGroupViewSet(ModelViewSet):
 class ProjectViewSet(ModelViewSet):
     queryset = Project.objects.all()
     serializer_class = ProjectSerializer
-    filter_backends = [ProjectSearchFilterBackend]
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = ProjectFilter
 
     http_method_names = ['get', 'post', 'patch', 'delete']
 
-    def get_permissions(self):
-        permission_required = 'owner' if self.action == 'destroy' else 'edit' if self.action == 'partially_update' else 'view'
+    def get_queryset(self):
+        return apply_project_access_filters(super().get_queryset(), self.request.user)
 
-        return super().get_permissions() + [
-            create_user_permission_class(permission_required, ['owner'])()
-        ]
+    def get_permissions(self):
+        if self.action in ['list', 'create']:
+            return super().get_permissions()
+
+        return super().get_permissions() + ([
+            create_user_permission_class(
+                'owner' if self.action == 'destroy' else 'code' if self.action == 'partial_update' else 'view',
+                primary_pk_class=Project,
+                lookup='project_pk',
+            )()
+        ])
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
@@ -86,17 +99,18 @@ class ProjectCollaboratorViewSet(ModelViewSet):
             raise NotFound('No project/collaborator pair matches the given IDs.')
 
     def get_queryset(self):
-        return super().get_queryset().filter(project=self.kwargs.get('project_pk')).order_by('id')
+        return super().get_queryset().filter(project=self.kwargs.get('project_pk')).filter(
+            Q(project__owner=self.request.user) |
+            Q(project__collaborators=self.request.user)
+        ).distinct().order_by('id')
 
     def get_permissions(self):
         return super().get_permissions() + [
             create_user_permission_class(
-                'admin' if self.action in ['partially_update', 'destroy'] else 'code',
-                ['collaborator'] if self.action in ['retrieve', 'list'] or (self.action == 'destroy' and str(self.request.user.id) == self.kwargs.get('pk')) else [],
-                Project,
-                'project_pk',
-                ProjectCollaborator,
-                lambda view : {'project__id': view.kwargs.get('project_pk'), 'collaborator__id': view.kwargs.get('pk')},
+                'admin' if self.action in ['partial_update', 'destroy'] else 'invite' if self.action == 'create' else 'view',
+                user_override_fields=['collaborator'] if self.action == 'destroy' and str(self.request.user.id) == self.kwargs.get('pk') else [],
+                primary_pk_class=Project,
+                lookup='project_pk',
             )()
         ]
 
@@ -107,7 +121,8 @@ class ProjectCollaboratorViewSet(ModelViewSet):
 class OrganizationProjectViewSet(ModelViewSet):
     queryset = OrganizationProject.objects.all()
     serializer_class = OrganizationProjectSerializer
-    filter_backends = [ProjectSearchFilterBackend]
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = OrganizationProjectFilter
 
     http_method_names = ['get', 'post', 'patch', 'delete']
 
@@ -118,17 +133,34 @@ class OrganizationProjectViewSet(ModelViewSet):
             raise NotFound('No organization/project pair matches the given IDs.')
 
     def get_queryset(self):
-        return super().get_queryset().filter(organization__id=self.kwargs.get('organization_pk'))
+        queryset = super().get_queryset().filter(organization__id=self.kwargs.get('organization_pk')).filter(
+            Q(organization__is_public=True) |
+            Q(organization__owner=self.request.user) |
+            Q(organization__members=self.request.user)
+        ).distinct()
+
+        return apply_project_access_filters(queryset, self.request.user, 'project__')
 
     def get_permissions(self):
-        return super().get_permissions() + [AnyOf(
+        organization = get_object_or_404(Organization, pk=self.kwargs.get('organization_pk'))
+
+        if self.action in ['partial_update', 'destroy']:
+            return super().get_permissions() + [AnyOf(
+                create_user_permission_class(
+                    'admin',
+                )(),
+                create_user_permission_class(
+                    'manage',
+                    object_override=organization,
+                )(),
+            )]
+
+        return super().get_permissions() + [
             create_user_permission_class(
-                'view' if self.action in ['retrieve', 'list'] else 'admin',
+                'contribute' if self.action == 'create' else 'view',
+                object_override=organization,
             )(),
-            create_user_permission_class(
-                'view' if self.action in ['retrieve', 'list'] else 'manage' if self.action == 'destroy' else '',
-            )()
-        )]
+        ]
 
     def perform_create(self, serializer):
         organization = get_object_or_404(Organization, pk=self.kwargs.get('organization_pk'))

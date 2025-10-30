@@ -1,3 +1,7 @@
+from utils.filters import PrefixedFilterSet
+from django_filters import OrderingFilter
+from .models import User
+
 from rest_framework.filters import BaseFilterBackend
 from .serializers import UserSearchSerializer
 from django.db.models import Q
@@ -16,3 +20,17 @@ class UserSearchFilterBackend(BaseFilterBackend):
             )
 
         return queryset.order_by(params['order_by'])
+
+class UserFilter(PrefixedFilterSet):
+    search_fields = User.SEARCH_FIELDS
+
+    order_by = OrderingFilter(
+        fields=(
+            'id',
+            *search_fields,
+        ),
+    )
+
+    class Meta:
+        model = User
+        fields = []

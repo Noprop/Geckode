@@ -2,12 +2,22 @@ from django.db.models import Model, DateTimeField, ForeignKey, PROTECT, SlugFiel
 from accounts.models import User
 
 class Organization(Model):
+    PERMISSION_CHOICES = [
+        ('view', 'Can view projects'),
+        ('contribute', 'Can contribute projects'),
+        ('invite', 'Can invite members'),
+        ('manage', 'Can remove members'),
+        ('admin', 'Can modify details'),
+    ]
+
     created_at = DateTimeField(auto_now_add=True)
     owner = ForeignKey(User, on_delete=PROTECT)
     slug = SlugField(max_length=100, unique=True)
     name = CharField(max_length=200)
     description = TextField(blank=True)
+    is_public = BooleanField(blank=True, default=False)
     members = ManyToManyField(User, through='OrganizationMember', through_fields=('organization', 'member'), related_name='organizations')
+    default_member_permission = CharField(max_length=10, choices=PERMISSION_CHOICES, default=PERMISSION_CHOICES[0][0])
     project_containment = BooleanField(blank=True, default=False)
 
     def has_permission(self, user, required_permission):
@@ -15,8 +25,8 @@ class Organization(Model):
             return True
 
         permissions_allowed = {
-            choice[0]: [choice[0] for choice in OrganizationMember.PERMISSION_CHOICES[i:]]
-            for i, choice in enumerate(OrganizationMember.PERMISSION_CHOICES)
+            choice[0]: [choice[0] for choice in self.PERMISSION_CHOICES[i:]]
+            for i, choice in enumerate(self.PERMISSION_CHOICES)
         }
 
         return OrganizationMember.objects.filter(
@@ -30,20 +40,28 @@ class Organization(Model):
             return True
         return self.members.filter(pk=user.pk).exists()
 
-class OrganizationMember(Model):
-    PERMISSION_CHOICES = [
-        ('view', 'Can view projects'),
-        ('contribute', 'Can contribute projects'),
-        ('invite', 'Can invite members'),
-        ('manage', 'Can remove members'),
-        ('admin', 'Can modify details'),
-    ]
+    def add_member(self, user, permission=None, invited_by=None):
+        if not permission:
+            permission = self.default_member_permission
 
+        OrganizationMember.objects.create(
+            organization=self,
+            member=user,
+            invited_by=invited_by,
+            permission=permission,
+        )
+
+        OrganizationInvitation.objects.filter(
+            organization=self,
+            invitee=user,
+        ).delete()
+
+class OrganizationMember(Model):
     organization = ForeignKey(Organization, related_name='organization_members', on_delete=CASCADE)
     member = ForeignKey(User, related_name='organization_members', on_delete=CASCADE)
     joined_at = DateTimeField(auto_now_add=True)
     invited_by = ForeignKey(User, related_name='inviter_organization_members', null=True, on_delete=SET_NULL)
-    permission = CharField(max_length=10, choices=PERMISSION_CHOICES)
+    permission = CharField(max_length=10, choices=Organization.PERMISSION_CHOICES)
 
     class Meta:
         unique_together = ('organization', 'member')
@@ -53,7 +71,7 @@ class OrganizationInvitation(Model):
     organization = ForeignKey(Organization, related_name='invitations', on_delete=CASCADE)
     invitee = ForeignKey(User, related_name='invitee_organization_invitations', on_delete=CASCADE)
     inviter = ForeignKey(User, related_name='inviter_organization_invitations', on_delete=CASCADE)
-    permission = CharField(max_length=10, choices=OrganizationMember.PERMISSION_CHOICES)
+    permission = CharField(max_length=10, choices=Organization.PERMISSION_CHOICES)
 
     class Meta:
         unique_together = ('organization', 'invitee', 'inviter')

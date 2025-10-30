@@ -34,6 +34,7 @@ class User(AbstractBaseUser):
 
     USERNAME_FIELD = 'username'
     REQUIRED_FIELDS = ['email', 'first_name', 'last_name', 'password']
+    SEARCH_FIELDS = ['username', 'first_name', 'last_name']
 
     objects = UserManager()
 

@@ -4,15 +4,16 @@ def create_user_permission_class(
         permission_required,
         user_override_fields=[],
         primary_pk_class=None,
-        lookup='',
+        lookup='pk',
         secondary_pk_class=None,
-        secondary_pk_kwargs=lambda view : {},
+        secondary_pk_kwargs={},
+        object_override=None,
     ):
     class PermissionClass(BasePermission):
         def has_permission(self, request, view):
             if secondary_pk_class is not None and view.kwargs.get('pk'):
                 try:
-                    obj = getattr(secondary_pk_class, 'objects').get(**secondary_pk_kwargs(view))
+                    obj = getattr(secondary_pk_class, 'objects').get(**secondary_pk_kwargs)
 
                     for user_field in user_override_fields:
                         if getattr(obj, user_field) == request.user:
@@ -27,9 +28,15 @@ def create_user_permission_class(
                 except getattr(primary_pk_class, 'DoesNotExist'):
                     pass
 
-            return super().has_permission(request, view)
+            if object_override is not None:
+                return object_override.has_permission(request.user, permission_required)
+
+            return False
 
         def has_object_permission(self, request, view, obj):
+            if object_override:
+                obj = object_override
+
             for user_field in user_override_fields:
                 if getattr(obj, user_field) == request.user:
                     return True

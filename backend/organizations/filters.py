@@ -1,66 +1,71 @@
-from rest_framework.filters import BaseFilterBackend
-from .serializers import OrganizationSearchSerializer, OrganizationInvitationSearchSerializer, OrganizationMemberSearchSerializer
-from django.db.models import Q
+from utils.filters import PrefixedFilterSet
+from django_filters import NumberFilter, BooleanFilter, ChoiceFilter, OrderingFilter
+from .models import Organization, OrganizationInvitation, OrganizationMember
+from accounts.models import User
 
-class OrganizationSearchFilterBackend(BaseFilterBackend):
-    def filter_queryset(self, request, queryset, view):
-        serializer = OrganizationSearchSerializer(data=request.query_params)
-        serializer.is_valid(raise_exception=True)
-        params = serializer.validated_data
+class OrganizationFilter(PrefixedFilterSet):
+    search_fields = ['name', 'slug']
 
-        if 'owner' in params:
-            queryset = queryset.filter(owner__id=params['owner'])
+    owner = NumberFilter(field_name='owner__id')
+    is_public = BooleanFilter(field_name='is_public')
+    order_by = OrderingFilter(
+        fields=(
+            'id',
+            *search_fields,
+        ),
+    )
 
-        if 'search' in params:
-            queryset = queryset.filter(
-                Q(name__icontains=params['search']) |
-                Q(slug__icontains=params['search'])
-            )
+    class Meta:
+        model = Organization
+        fields = []
 
-        return queryset.order_by(params['order_by'])
+class OrganizationInvitationFilter(PrefixedFilterSet):
+    search_fields = [
+        (field1, field2)
+        for field1 in ['invitee', 'inviter']
+        for field2 in User.SEARCH_FIELDS
+    ]
 
-class OrganizationInvitationSearchFilterBackend(BaseFilterBackend):
-    def filter_queryset(self, request, queryset, view):
-        serializer = OrganizationInvitationSearchSerializer(data=request.query_params)
-        serializer.is_valid(raise_exception=True)
-        params = serializer.validated_data
+    invitee = NumberFilter(field_name='invitee__id')
+    inviter = NumberFilter(field_name='inviter__id')
+    permission = ChoiceFilter(choices=Organization.PERMISSION_CHOICES)
+    order_by = OrderingFilter(
+        fields=(
+            'id',
+            'invited_at',
+            *[
+                (f'{field1}__{field2}', f'{field1}_{field2}')
+                for field1, field2 in search_fields
+            ],
+            'created_at',
+        ),
+    )
 
-        for param in ['invitee', 'inviter']:
-            if param in params:
-                queryset = queryset.filter(**{f"{param}__id": params[param]})
+    class Meta:
+        model = OrganizationInvitation
+        fields = []
 
-        if 'permission' in params:
-            queryset = queryset.filter(permission=params['permission'])
+class OrganizationMemberFilter(PrefixedFilterSet):
+    search_fields = [
+        (field1, field2)
+        for field1 in ['member', 'invited_by']
+        for field2 in User.SEARCH_FIELDS
+    ]
 
-        if 'search' in params:
-            queryset = queryset.filter(
-                Q(invitee__username__icontains=params['search']) |
-                Q(invitee__first_name__icontains=params['search']) |
-                Q(invitee__last_name__icontains=params['search']) |
-                Q(inviter__username__icontains=params['search']) |
-                Q(inviter__first_name__icontains=params['search']) |
-                Q(inviter__last_name__icontains=params['search'])
-            )
+    invited_by = NumberFilter(field_name='invited_by__id')
+    permission = ChoiceFilter(choices=Organization.PERMISSION_CHOICES)
+    order_by = OrderingFilter(
+        fields=(
+            'id',
+            'invited_at',
+            *[
+                (f'{field1}__{field2}', f'{field1}_{field2}')
+                for field1, field2 in search_fields
+            ],
+            'joined_at',
+        ),
+    )
 
-        return queryset.order_by(params['order_by'])
-
-class OrganizationMemberSearchFilterBackend(BaseFilterBackend):
-    def filter_queryset(self, request, queryset, view):
-        serializer = OrganizationMemberSearchSerializer(data=request.query_params)
-        serializer.is_valid(raise_exception=True)
-        params = serializer.validated_data
-
-        if 'permission' in params:
-            queryset = queryset.filter(permission=params['permission'])
-
-        if 'search' in params:
-            queryset = queryset.filter(
-                Q(member__username__icontains=params['search']) |
-                Q(member__first_name__icontains=params['search']) |
-                Q(member__last_name__icontains=params['search']) |
-                Q(invited_by__username__icontains=params['search']) |
-                Q(invited_by__first_name__icontains=params['search']) |
-                Q(invited_by__last_name__icontains=params['search'])
-            )
-
-        return queryset.order_by(params['order_by'])
+    class Meta:
+        model = OrganizationMember
+        fields = []

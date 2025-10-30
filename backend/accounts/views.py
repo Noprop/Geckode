@@ -6,7 +6,8 @@ from rest_framework.status import HTTP_200_OK, HTTP_401_UNAUTHORIZED
 from rest_framework.viewsets import ModelViewSet
 from .models import User
 from .serializers import UserSerializer
-from .filters import UserSearchFilterBackend
+from django_filters.rest_framework import DjangoFilterBackend
+from .filters import UserFilter
 
 class LoginView(APIView):
     authentication_classes = []
@@ -29,7 +30,8 @@ class LogoutView(APIView):
 class UserViewSet(ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    filter_backends = [UserSearchFilterBackend]
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = UserFilter
 
     http_method_names = ['get', 'post', 'patch', 'delete']
 
@@ -38,9 +40,6 @@ class UserViewSet(ModelViewSet):
             return [AllowAny()]
 
         class PermissionClass(BasePermission):
-            def has_permission(self, request, view):
-                return request.user and request.user.is_authenticated
-
             def has_object_permission(self, request, view, obj):
                 return request.user.is_superuser or obj == request.user
 

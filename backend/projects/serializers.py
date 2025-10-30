@@ -4,7 +4,6 @@ from utils.serializers import create_order_by_choices
 from utils.fields import NullableBooleanField
 from django.utils import timezone
 from .models import ProjectGroup, Project, ProjectCollaborator, OrganizationProject
-from accounts.fields import ReadNestedWriteIDUserField
 from accounts.models import User
 
 class ProjectGroupSerializer(ModelSerializer):
@@ -102,20 +101,9 @@ class ProjectCollaboratorSerializer(ModelSerializer):
         model = ProjectCollaborator
         fields = ['collaborator', 'collaborator_id', 'permission']
 
-    def validate(self, attrs):
-        try:
-            if 'view' in self.context and hasattr(self.context['view'], 'kwargs'):
-                project = Project.objects.get(id=self.context['view'].kwargs.get('project_pk'))
-
-                if 'request' in self.context:
-                    user = self.context['request'].user
-
-                    if not user.is_superuser and not project.has_permission(user, 'admin'):
-                        raise ValidationError('You do not have permission to perform this action.')
-        except (Project.DoesNotExist, ProjectCollaborator.DoesNotExist):
-            pass
-
-        return attrs
+    def update(self, instance, validated_data):
+        validated_data.pop('collaborator_id', None)
+        return super().update(instance, validated_data)
 
 class OrganizationProjectSerializer(ModelSerializer):
     project = ProjectSerializer(read_only=True)
@@ -128,16 +116,16 @@ class OrganizationProjectSerializer(ModelSerializer):
     def validate(self, attrs):
         try:
             if 'view' in self.context and hasattr(self.context['view'], 'kwargs'):
-                project = Project.objects.get(id=self.context['view'].kwargs.get('pk'))
-            else:
-                project = attrs['project']
+                if 'request' in self.context:
+                    user = self.context['request'].user
 
-            if 'request' in self.context:
-                user = self.context['request'].user
-
-                if not user.is_superuser and not project.has_permission(user, 'admin'):
-                    raise ValidationError('You do not have permission to perform this action.')
+                    if not attrs['project'].has_permission(user, attrs['permission']):
+                        raise ValidationError({'permission': 'Cannot give an organization a higher permission class to the project than yourself.'})
         except Project.DoesNotExist:
             pass
 
         return attrs
+
+    def update(self, instance, validated_data):
+        validated_data.pop('project_id', None)
+        return super().update(instance, validated_data)
