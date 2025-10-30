@@ -1,13 +1,6 @@
-from rest_framework.serializers import Serializer, CharField, ChoiceField, ModelSerializer, ValidationError
-from utils.serializers import create_order_by_choices
+from rest_framework.serializers import CharField, ModelSerializer, ValidationError
 from django.contrib.auth.password_validation import validate_password
 from .models import User
-
-class UserSearchSerializer(Serializer):
-    ORDER_BY_CHOICES = create_order_by_choices(['id', 'username', 'first_name', 'last_name'])
-
-    search = CharField(required=False)
-    order_by = ChoiceField(required=False, choices=ORDER_BY_CHOICES, default='id')
 
 class UserSerializer(ModelSerializer):
     password = CharField(write_only=True, required=False, validators=[validate_password])
