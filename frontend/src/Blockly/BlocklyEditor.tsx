@@ -1,7 +1,7 @@
 "use client";
 
 import BlocklyComponent from "./BlocklyComponent";
-import { Block, Value, Shadow, Field } from ".";
+import { Block, Value, Shadow, Field, Category } from ".";
 
 import { javascriptGenerator } from 'blockly/javascript';
 
@@ -23,9 +23,8 @@ const BlocklyEditor = (props : any) => {
         </xml>
       `}
       scene={props.scene}
-    >
-      {/* TODO: custom block type for this to work */}
-      <Block type="forever" />
+    > { }
+      <Block type="controls_if" />
       <Block type="controls_ifelse" />
       <Block type="logic_compare" />
       <Block type="logic_operation" />
@@ -55,6 +54,9 @@ const BlocklyEditor = (props : any) => {
           </Shadow>
         </Value>
       </Block>
+      <Block type="getProperty"/>
+      <Block type="math_number"/>
+      <Block type="math_arithmetic"/>
     </BlocklyComponent>
   );
 };

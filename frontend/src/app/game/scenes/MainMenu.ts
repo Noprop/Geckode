@@ -43,6 +43,7 @@ export default class MainMenu extends Phaser.Scene {
   preload() {
     // Ensure you have a sprite/atlas loaded; example:
     // this.load.image('star', 'assets/star.png');
+
   }
 
   public changeScene() {
@@ -177,7 +178,7 @@ export default class MainMenu extends Phaser.Scene {
     try {
       const fn = new AsyncFunction(...argNames, wrapped);
       const result = await fn(...argValues);
-      return result;
+      //return result;
     } catch (err) {
       // Surface a readable error back to caller/React UI
       const message = err instanceof Error ? err.message : String(err);

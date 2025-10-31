@@ -85,3 +85,50 @@ javascriptGenerator.forBlock['setProperty'] = function (block, generator) {
   const value = generator.valueToCode(block, 'VALUE', Order.NONE);
   return `scene.player.set${block.getFieldValue('PROPERTY')}(${value})\n`;
 };
+
+const getPropertyDefinition = {
+  type: "getProperty",
+  tooltip: "Get a property of a sprite",
+  helpUrl: "",
+  message0: "%1 %2",
+  args0: [
+    {
+      type: "field_dropdown",
+      name: "PROPERTY",
+      options: [
+        [
+          "x",
+          "x"
+        ],
+        [
+          "y",
+          "y"
+        ],
+        [
+          "velocityX",
+          "velocityX"
+        ],
+        [
+          "velocityY",
+          "velocityY"
+        ]
+      ]
+    },
+    {
+      type: "input_dummy",
+      name: "DUMMY"
+    }
+  ],
+  output: null,
+  colour: 225
+}
+
+Blockly.Blocks['getProperty'] = {
+  init: function () {
+    this.jsonInit(getPropertyDefinition);
+  },
+};
+
+javascriptGenerator.forBlock['getProperty'] = function (block, generator) {
+  return `(player.${block.getFieldValue('PROPERTY')})`;
+};
