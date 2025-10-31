@@ -1,7 +1,5 @@
-from rest_framework.serializers import ModelSerializer, PrimaryKeyRelatedField, Serializer, CharField, IntegerField, BooleanField, ChoiceField, SerializerMethodField, ValidationError
+from rest_framework.serializers import ModelSerializer, PrimaryKeyRelatedField, BooleanField, SerializerMethodField, ValidationError
 from accounts.serializers import PublicUserSerializer
-from utils.serializers import create_order_by_choices
-from utils.fields import NullableBooleanField
 from django.utils import timezone
 from .models import ProjectGroup, Project, ProjectCollaborator, OrganizationProject
 from accounts.models import User
@@ -33,16 +31,6 @@ class ProjectGroupSerializer(ModelSerializer):
                 project.save()
 
         return instance
-
-class ProjectSearchSerializer(Serializer):
-    ORDER_BY_CHOICES = create_order_by_choices(['created_at', 'updated_at', 'name'])
-
-    search = CharField(required=False)
-    is_published = NullableBooleanField(required=False)
-    owner = IntegerField(required=False)
-    group = IntegerField(required=False)
-    organization = IntegerField(required=False)
-    order_by = ChoiceField(required=False, choices=ORDER_BY_CHOICES, default='-updated_at')
 
 class ProjectSerializer(ModelSerializer):
     owner = PublicUserSerializer(read_only=True)
