@@ -1,6 +1,19 @@
-from django.db.models import DateTimeField, CharField, EmailField, BooleanField
+from django.db.models import DateTimeField, CharField, EmailField, BooleanField, ImageField
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from django.core.validators import RegexValidator
+import random
+import string
+
+# generate random strings for image
+def generate_random_string(length):
+    characters = string.ascii_letters + string.digits + string.punctuation
+    random_string = ''.join(random.choices(characters, k=length))
+    return random_string
+
+# saves avatars to media/avatars/user_<id>/
+def user_avatar_path(_instance, filename):
+    file_ext = filename.split('.')[-1]
+    return f"avatars//{generate_random_string(20)}.{file_ext}"
 
 class UserManager(BaseUserManager):
     def create_user(self, username, email, password=None, **extra_fields):
@@ -31,6 +44,7 @@ class User(AbstractBaseUser):
     password = CharField(max_length=255)
     is_staff = BooleanField(default=False)
     is_superuser = BooleanField(default=False)
+    avatar = ImageField(upload_to=user_avatar_path, blank=True, null=True)
 
     USERNAME_FIELD = 'username'
     REQUIRED_FIELDS = ['email', 'first_name', 'last_name', 'password']

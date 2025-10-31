@@ -1,7 +1,7 @@
 from rest_framework.serializers import ModelSerializer, SerializerMethodField, PrimaryKeyRelatedField, ValidationError
 from accounts.models import User
 from accounts.serializers import PublicUserSerializer
-from .models import Organization, OrganizationInvitation, OrganizationMember
+from .models import Organization, OrganizationInvitation, OrganizationMember, OrganizationBannedMember
 
 class OrganizationSerializer(ModelSerializer):
     owner = PublicUserSerializer(read_only=True)
@@ -29,11 +29,6 @@ class OrganizationInvitationSerializer(ModelSerializer):
         model = OrganizationInvitation
         fields = ['id', 'invited_at', 'invitee', 'invitee_id', 'inviter', 'permission']
         read_only_fields = ['invited_at']
-
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        data['invitee'] = PublicUserSerializer(instance.invitee).data
-        return data
 
     def validate(self, attrs):
         try:
@@ -86,4 +81,33 @@ class OrganizationMemberSerializer(ModelSerializer):
         except Organization.DoesNotExist:
             pass
 
+        return attrs
+
+class OrganizationBannedMemberSerializer(ModelSerializer):
+    user = PublicUserSerializer(read_only=True)
+    user_id = PrimaryKeyRelatedField(queryset=User.objects.all(), write_only=True, source='user')
+    banned_by = PublicUserSerializer(read_only=True)
+
+    class Meta:
+        model = OrganizationBannedMember
+        fields = ['organization', 'user', 'user_id', 'banned_by', 'banned_at', 'ban_reason']
+        read_only_fields = ['organization', 'user', 'banned_by', 'banned_at']
+    
+    def validate(self, attrs):
+        try:
+            if 'view' in self.context and hasattr(self.context['view'], 'kwargs'):
+                organization = Organization.objects.get(id=self.context['view'].kwargs.get('organization_pk'))
+
+                # can't ban organization admin
+                if organization.has_permission(attrs['user'], 'admin'):
+                    raise ValidationError('You cannot ban the organization admin.')
+                
+                # managers can't ban other manager
+                if organization.has_permission(attrs['user'], 'manage') and organization.has_permission(self.context['request'].user, 'manage'):
+                    raise ValidationError('Organization managers cannot ban other managers.')
+                
+
+        except Organization.DoesNotExist:
+            pass
+        
         return attrs

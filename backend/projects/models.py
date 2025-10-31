@@ -1,6 +1,7 @@
 from django.db.models import Model, ForeignKey, CASCADE, DateTimeField, CharField, TextField, SET_NULL, ManyToManyField, JSONField
 from accounts.models import User
 from organizations.models import Organization
+from utils.permissions import create_permissions_allowed_hierarchy
 
 class ProjectGroup(Model):
     owner = ForeignKey(User, related_name='project_groups', on_delete=CASCADE)
@@ -31,10 +32,7 @@ class Project(Model):
         if user == self.owner:
             return True
 
-        permissions_allowed = {
-            choice[0]: [choice[0] for choice in self.PERMISSION_CHOICES[i:]]
-            for i, choice in enumerate(self.PERMISSION_CHOICES)
-        }
+        permissions_allowed = create_permissions_allowed_hierarchy(self.PERMISSION_CHOICES)
 
         return (published_gives_permission and self.published_at is not None) or ProjectCollaborator.objects.filter(
             project=self,
