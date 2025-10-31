@@ -1,10 +1,16 @@
 from rest_framework.serializers import CharField, ModelSerializer, ValidationError
+<<<<<<< HEAD
 from utils.serializers import create_order_by_choices
 from django.contrib.auth.password_validation import validate_password
 from .models import User
 
 
 # for creation
+=======
+from django.contrib.auth.password_validation import validate_password
+from .models import User
+
+>>>>>>> 06d4f9187de918a5ae6591497d405643134895a2
 class UserSerializer(ModelSerializer):
     password = CharField(write_only=True, required=False, validators=[validate_password])
     password2 = CharField(write_only=True, required=False)

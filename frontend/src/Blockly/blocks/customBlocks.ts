@@ -83,5 +83,5 @@ Blockly.Blocks['setProperty'] = {
 
 javascriptGenerator.forBlock['setProperty'] = function (block, generator) {
   const value = generator.valueToCode(block, 'VALUE', Order.NONE);
-  return `scene.player.set${block.getFieldValue('PROPERTY')}(${value})`;
+  return `scene.player.set${block.getFieldValue('PROPERTY')}(${value})\n`;
 };
