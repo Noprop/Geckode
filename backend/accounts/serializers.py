@@ -1,14 +1,10 @@
-from rest_framework.serializers import Serializer, CharField, ChoiceField, ModelSerializer, ValidationError
+from rest_framework.serializers import CharField, ModelSerializer, ValidationError
 from utils.serializers import create_order_by_choices
 from django.contrib.auth.password_validation import validate_password
 from .models import User
 
-class UserSearchSerializer(Serializer):
-    ORDER_BY_CHOICES = create_order_by_choices(['id', 'username', 'first_name', 'last_name'])
 
-    search = CharField(required=False)
-    order_by = ChoiceField(required=False, choices=ORDER_BY_CHOICES, default='id')
-
+# for creation
 class UserSerializer(ModelSerializer):
     password = CharField(write_only=True, required=False, validators=[validate_password])
     password2 = CharField(write_only=True, required=False)
@@ -16,7 +12,7 @@ class UserSerializer(ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'created_at', 'username', 'email', 'first_name', 'last_name',
-                  'password', 'password2', 'is_staff', 'is_superuser'
+                  'password', 'password2', 'is_staff', 'is_superuser', 'avatar'
                  ]
         read_only_fields = ['created_at', 'is_staff', 'is_superuser']
 
@@ -58,14 +54,16 @@ class UserSerializer(ModelSerializer):
             email=validated_data.get('email', ''),
             password=validated_data['password'],
             first_name=validated_data.get('first_name', ''),
-            last_name=validated_data.get('last_name', '')
+            last_name=validated_data.get('last_name', ''),
+            avatar=validated_data.get('avatar', ''),
         )
 
     def update(self, instance, validated_data):
         validated_data.pop('username', None)
         return super().update(instance, validated_data)
 
+# for fetching users
 class PublicUserSerializer(ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'first_name', 'last_name']
+        fields = ['id', 'username', 'first_name', 'last_name', 'avatar']

@@ -1,6 +1,6 @@
 from utils.filters import PrefixedFilterSet
 from django_filters import NumberFilter, BooleanFilter, ChoiceFilter, OrderingFilter
-from .models import Organization, OrganizationInvitation, OrganizationMember
+from .models import Organization, OrganizationInvitation, OrganizationMember, OrganizationBannedMember
 from accounts.models import User
 
 class OrganizationFilter(PrefixedFilterSet):
@@ -69,3 +69,23 @@ class OrganizationMemberFilter(PrefixedFilterSet):
     class Meta:
         model = OrganizationMember
         fields = []
+
+class OrganizationBannedMemberFilter(PrefixedFilterSet):
+    search_fields = [
+        ('user', field2)
+        for field2 in User.SEARCH_FIELDS
+    ]
+
+    banned_by = NumberFilter(field_name='banned_by__id')
+
+    # ordering rules
+    order_by = OrderingFilter(
+        fields=(
+            'banned_at',
+            'banned_by__id', 'banned_by_id',
+            *[
+                (f'{field1}__{field2}', f'{field1}_{field2}')
+                for field1, field2 in search_fields
+            ],
+        ),
+    )

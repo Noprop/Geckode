@@ -1,8 +1,8 @@
 from rest_framework.viewsets import ModelViewSet
-from .models import Organization, OrganizationInvitation, OrganizationMember
-from .serializers import OrganizationSerializer, OrganizationInvitationSerializer, OrganizationMemberSerializer
+from .models import Organization, OrganizationInvitation, OrganizationMember, OrganizationBannedMember
+from .serializers import OrganizationSerializer, OrganizationInvitationSerializer, OrganizationMemberSerializer, OrganizationBannedMemberSerializer
 from django_filters.rest_framework import DjangoFilterBackend
-from .filters import OrganizationFilter, OrganizationInvitationFilter, OrganizationMemberFilter
+from .filters import OrganizationFilter, OrganizationInvitationFilter, OrganizationMemberFilter, OrganizationBannedMemberFilter
 from utils.permissions import create_user_permission_class
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
@@ -78,6 +78,10 @@ class OrganizationInvitationViewSet(ModelViewSet):
 
     def perform_create(self, serializer):
         organization = get_object_or_404(Organization, pk=self.kwargs.get('organization_pk'))
+
+        if organization.is_user_banned(serializer.validated_data['user']):
+            raise ValidationError("Invited user is banned from organization.")
+
         serializer.save(organization=organization, inviter=self.request.user)
 
     @action(detail=True, methods=['post'])
@@ -123,3 +127,26 @@ class OrganizationMemberViewSet(ModelViewSet):
                 secondary_pk_kwargs={'organization__id': self.kwargs.get('organization_pk'), 'member__id': self.kwargs.get('pk')},
             )()
         ]
+
+class OrganizationBannedMemberViewSet(ModelViewSet):
+    queryset = OrganizationBannedMember.objects.all()
+    serializer_class = OrganizationBannedMemberSerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = OrganizationBannedMemberFilter
+
+
+    http_method_names = ['get', 'post', 'delete']
+
+    def perform_create(self, serializer):
+        organization = Organization.objects.get(id=self.kwargs.get('organization_pk'))
+        serializer.save(banned_by=self.request.user, organization=organization)
+    
+    def get_permissions(self):
+        return super().get_permissions()
+    
+    def get_object(self):
+        try:
+            return OrganizationBannedMember.objects.get(organization=self.kwargs.get('organization_pk'), user=self.kwargs.get('pk'))
+        except OrganizationBannedMember.DoesNotExist:
+            raise NotFound('No organization/member pair matches the given IDs.')
+
