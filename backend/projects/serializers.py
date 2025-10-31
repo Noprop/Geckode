@@ -52,8 +52,6 @@ class ProjectSerializer(ModelSerializer):
         action = view.action if view else None
 
         if action == 'list':
-            data.pop('collaborators', None)
-            data.pop('organizations', None)
             data.pop('blocks', None)
 
         return data

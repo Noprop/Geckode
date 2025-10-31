@@ -1,6 +1,7 @@
-from django.db.models import Model, Q, DateTimeField, ForeignKey, PROTECT, SlugField, CharField, TextField, ManyToManyField, BooleanField, CASCADE, SET_NULL
+from django.db.models import Model, DateTimeField, ForeignKey, PROTECT, SlugField, CharField, TextField, ManyToManyField, BooleanField, CASCADE, SET_NULL
 from accounts.models import User
 from rest_framework.exceptions import ValidationError
+from utils.permissions import create_permissions_allowed_hierarchy
 
 class Organization(Model):
     PERMISSION_CHOICES = [
@@ -27,15 +28,10 @@ class Organization(Model):
         if self.is_user_banned(user):
             return False
 
-        permissions_allowed = {
-            choice[0]: [choice[0] for choice in self.PERMISSION_CHOICES[i:]]
-            for i, choice in enumerate(self.PERMISSION_CHOICES)
-        }
-
         return OrganizationMember.objects.filter(
             organization=self,
             member=user,
-            permission__in=permissions_allowed.get(required_permission, [])
+            permission__in=create_permissions_allowed_hierarchy(self.PERMISSION_CHOICES).get(required_permission, [])
         ).exists()
 
     def has_member(self, user, include_owner=True):
@@ -64,7 +60,6 @@ class Organization(Model):
             invitee=user,
         ).delete()
 
-    # ban selected user from organization by making OrganizationBannedMember object
     def ban_user(self, user, banned_by, days=None, reason=None):
         return OrganizationBannedMember.objects.create(
             organization=self,
@@ -73,7 +68,6 @@ class Organization(Model):
             ban_reason=reason,
         )
 
-    # determines if user is banned from organization
     def is_user_banned(self, user):
         return OrganizationBannedMember.objects.filter(
             organization=self,
@@ -104,7 +98,6 @@ class OrganizationInvitation(Model):
     def has_permission(self, user, required_permission):
         return self.organization.has_permission(user, required_permission)
 
-# list of all bans from organizations   
 class OrganizationBannedMember(Model):
     organization = ForeignKey(Organization, related_name='banned_users', on_delete=CASCADE)
     user = ForeignKey(User, related_name='banned_from', on_delete=CASCADE)
@@ -112,6 +105,5 @@ class OrganizationBannedMember(Model):
     banned_at = DateTimeField(auto_now_add=True)
     ban_reason = TextField(blank=True)
 
-    
     class Meta:
         ordering = ["-banned_at"] # newest first

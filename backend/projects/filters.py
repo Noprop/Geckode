@@ -5,6 +5,10 @@ from utils.filters import PrefixedFilterSet, make_owner_id_filter, make_nullable
 from django_filters import NumberFilter, BooleanFilter, OrderingFilter
 from .models import Project, OrganizationProject
 
+'''
+Filter the query set to restrict projects to those published or the user has access
+(owner, collaborator, or a member of an organization in which the project is shared to)
+'''
 def apply_project_access_filters(queryset, user, prefix=''):
     return queryset.filter(
         reduce(or_, (Q(**{
@@ -41,8 +45,6 @@ class ProjectFilter(PrefixedFilterSet):
     filter_is_published = make_nullable_boolean_filter('published_at')
 
 class OrganizationProjectFilter(PrefixedFilterSet):
-    search_fields = ['test']
-
     class Meta:
         model = OrganizationProject
         fields = []

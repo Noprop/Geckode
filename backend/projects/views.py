@@ -49,11 +49,15 @@ class ProjectViewSet(ModelViewSet):
         if self.action in ['list', 'create']:
             return super().get_permissions()
 
+        '''
+        Only the owner can delete a project
+        Only allow collaborators that have the ability to code to update the project (further restricted in partial_update)
+        Otherwise, allow anyone with viewing permission
+        '''
         return super().get_permissions() + ([
             create_user_permission_class(
                 'owner' if self.action == 'destroy' else 'code' if self.action == 'partial_update' else 'view',
                 primary_pk_class=Project,
-                lookup='project_pk',
             )()
         ])
 
@@ -104,6 +108,11 @@ class ProjectCollaboratorViewSet(ModelViewSet):
             Q(project__collaborators=self.request.user)
         ).distinct().order_by('id')
 
+    '''
+    Only admins can update or delete a project collaborators
+    However, allow users to remove themselves as a collaborator
+    Only allow users with invite permissions to create a collaborator
+    '''
     def get_permissions(self):
         return super().get_permissions() + [
             create_user_permission_class(
@@ -144,6 +153,7 @@ class OrganizationProjectViewSet(ModelViewSet):
     def get_permissions(self):
         organization = get_object_or_404(Organization, pk=self.kwargs.get('organization_pk'))
 
+        # Only allow project admins or organization managers to update or remove a project from an organization
         if self.action in ['partial_update', 'destroy']:
             return super().get_permissions() + [AnyOf(
                 create_user_permission_class(
@@ -155,6 +165,7 @@ class OrganizationProjectViewSet(ModelViewSet):
                 )(),
             )]
 
+        # Only allow organization contributors to add projects to the organization
         return super().get_permissions() + [
             create_user_permission_class(
                 'contribute' if self.action == 'create' else 'view',
