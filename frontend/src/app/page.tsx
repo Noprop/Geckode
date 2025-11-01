@@ -22,23 +22,34 @@ export default function Home() {
     if (scene?.key === 'MainMenu') {
       try {
         scene.runScript(`
-          console.log('wow2');
-          console.log(scene.player.x);
-          scene.player.setX(0);
-          console.log(scene.player.x);
-          scene.test = 'wow2';
-          console.log(scene.test);
-          // scene.player.setVelocity(25);
-          await api.wait(1000);
-          for (let i = 0; i < 600; i++) {
-            await api.wait(5);
-            scene.player.setX(i);
-            // console.log('i: ', i);
+          
+          scene.create = () => {
+            scene.player = scene.physics.add.sprite(50, 300, 'star');
+            scene.player.setCollideWorldBounds(true);
+
+            scene.cursors = scene.input.keyboard.createCursorKeys();
           }
-          // await api.wait(300);
-          // api.addStar();
-          // api.moveBy(25, -10);
-          // return any value if you want:
+
+          scene.update = () => {
+            scene.player.setVelocityX(0)
+            scene.player.setVelocityY(0)
+            const speed = 200
+            if (scene.cursors.right.isDown) {
+              console.log("hello45")
+              scene.player.body.velocity.x += speed
+            }
+            if (scene.cursors.left.isDown) {
+              scene.player.body.velocity.x -= speed
+            }
+            if (scene.cursors.up.isDown) {
+              scene.player.body.velocity.y -= speed
+            }
+            if (scene.cursors.down.isDown) {
+              scene.player.body.velocity.y += speed
+            }
+          }
+          
+          scene.scene.restart();
           return { done: true };
         `);
       } catch (e) {

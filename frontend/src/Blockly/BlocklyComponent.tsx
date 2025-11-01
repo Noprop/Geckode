@@ -38,6 +38,8 @@ function BlocklyComponent(props: Props) {
       ...rest,
     });
 
+    
+
     workspaceRef.current = workspace;
 
     if (initialXml) {

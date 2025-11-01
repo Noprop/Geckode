@@ -30,11 +30,6 @@ class OrganizationInvitationSerializer(ModelSerializer):
         fields = ['id', 'invited_at', 'invitee', 'invitee_id', 'inviter', 'permission']
         read_only_fields = ['invited_at']
 
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        data['invitee'] = PublicUserSerializer(instance.invitee).data
-        return data
-
     def validate(self, attrs):
         try:
             if 'view' in self.context and hasattr(self.context['view'], 'kwargs'):

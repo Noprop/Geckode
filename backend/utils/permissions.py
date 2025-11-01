@@ -1,5 +1,27 @@
 from rest_framework.permissions import BasePermission
 
+'''
+Function that creates user permission classes for model view sets
+
+has_permission() determines if the user is able to access the request in general
+has_object_permission() determines if the user is able to do modify the object (put, patch, delete)
+
+The model related to the model view set this function is being used on MUST have a has_permission() function (look at Organization for an example)
+
+Function parameters:
+permission_required: The permission that the user requires
+user_override_fields: These model fields allow the requesting user the override the permission if they match
+    Ex: If user is the invitee of an organization invitation, give them permission to delete the object (i.e. reject the invitation)
+primary_pk_class: The model to run has_permission() on during has_permission() (access to the view in general)
+lookup: MUST BE PASSED WITH primary_pk_class --- the view.kwargs.get() lookup from drf nested routers
+    Ex: /api/organizations/{id}/members/ - a user should only have access to the model view set in general if they have permission the organization's permission
+        In this case, primary_pk_class = Organization and lookup = 'organization_pk' (defined by the drf nested router url in urls.py)
+secondary_pk_class: The model to check user_override_fields on in has_permission()
+    THIS DOES NOTHING IF user_override_fields IS EMPTY
+secondary_pk_kwargs: MUST BE PASSED WITH secondary_pk_class --- The fields to get the secondary_pk_class model object to check the user_override_fields on
+object_override: A specific model object to run has_permission() on in both has_permission() and has_object_permission()
+    This is for extremely custom cases and theoretically no other parameters should need to be passed if this is passed
+'''
 def create_user_permission_class(
         permission_required,
         user_override_fields=[],
@@ -54,3 +76,10 @@ class AnyOf(BasePermission):
 
     def has_object_permission(self, request, view, obj):
         return any(permission.has_object_permission(request, view, obj) for permission in self.permission_classes)
+
+# Transform permissions to a hierarchy where allowed permissions for a permission is all permissions below it
+def create_permissions_allowed_hierarchy(permissions):
+    return {
+        choice[0]: [choice[0] for choice in permissions[i:]]
+        for i, choice in enumerate(permissions)
+    }
