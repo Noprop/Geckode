@@ -21,10 +21,4 @@ def main():
 
 
 if __name__ == '__main__':
-    print("\nTop 5 types of potatoes:")
-    print("1. Pan seared")
-    print("2. Lemon Potatoes")
-    print("3. Scalloped Potatoes")
-    print("4. French Fries (Thick Cut)")
-    print("5. Home Fries")
     main()

@@ -1,7 +1,15 @@
-from django.db.models import Model, DateTimeField, ForeignKey, PROTECT, SlugField, CharField, TextField, ManyToManyField, BooleanField, CASCADE, SET_NULL
+from django.db.models import Model, ImageField, DateTimeField, ForeignKey, PROTECT, SlugField, CharField, TextField, ManyToManyField, BooleanField, CASCADE, SET_NULL
 from accounts.models import User
 from rest_framework.exceptions import ValidationError
 from utils.permissions import create_permissions_allowed_hierarchy
+import string
+import random
+
+def org_thumbnail_path(_instance, filename):
+    characters = string.ascii_letters + string.digits + string.punctuation
+    random_string = ''.join(random.choices(characters, k=20))
+    file_ext = filename.split('.')[-1]
+    return f"org-thumbnails/{random_string}.{file_ext}"
 
 class Organization(Model):
     PERMISSION_CHOICES = [
@@ -21,6 +29,7 @@ class Organization(Model):
     members = ManyToManyField(User, through='OrganizationMember', through_fields=('organization', 'member'), related_name='organizations')
     default_member_permission = CharField(max_length=10, choices=PERMISSION_CHOICES, default=PERMISSION_CHOICES[0][0])
     project_containment = BooleanField(blank=True, default=False)
+    thumbnail = ImageField(upload_to=org_thumbnail_path, blank=True, null=True)
 
     def has_permission(self, user, required_permission):
         if user == self.owner:

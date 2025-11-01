@@ -39,7 +39,7 @@ class ProjectSerializer(ModelSerializer):
 
     class Meta:
         model = Project
-        fields = ['id', 'owner', 'created_at', 'updated_at', 'name', 'description', 'published_at', 'is_published', 'fork_count', 'blocks']
+        fields = ['id', 'owner', 'created_at', 'updated_at', 'name', 'description', 'published_at', 'is_published', 'fork_count', 'blocks', 'thumbnail']
         read_only_fields = ['created_at', 'updated_at', 'published_at']
 
     def get_fork_count(self, instance):

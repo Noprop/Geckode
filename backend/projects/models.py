@@ -1,7 +1,15 @@
-from django.db.models import Model, ForeignKey, CASCADE, DateTimeField, CharField, TextField, SET_NULL, ManyToManyField, JSONField
+from django.db.models import Model, ImageField, ForeignKey, CASCADE, DateTimeField, CharField, TextField, SET_NULL, ManyToManyField, JSONField
 from accounts.models import User
 from organizations.models import Organization
 from utils.permissions import create_permissions_allowed_hierarchy
+import random
+import string
+
+def project_thumbnail_path(_instance, filename):
+    characters = string.ascii_letters + string.digits + string.punctuation
+    random_string = ''.join(random.choices(characters, k=20))
+    file_ext = filename.split('.')[-1]
+    return f"proj-thumbnails/{random_string}.{file_ext}"
 
 class ProjectGroup(Model):
     owner = ForeignKey(User, related_name='project_groups', on_delete=CASCADE)
@@ -27,6 +35,7 @@ class Project(Model):
     published_at = DateTimeField(null=True, blank=True)
     forked_by = ManyToManyField(User, related_name='forked_projects', blank=True)
     blocks = JSONField(default=dict, blank=True)
+    thumbnail = ImageField(upload_to=project_thumbnail_path, blank=True, null=True)
 
     def has_permission(self, user, required_permission, published_gives_permission=True):
         if user == self.owner:
