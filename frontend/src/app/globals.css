@@ -1,8 +1,30 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: var(--color-light-bg);
+  --foreground: var(--color-light-txt);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: var(--color-dark-bg);
+    --foreground: var(--color-dark-txt);
+  }
+}
+
+/* put custom colors/parametres here. tailwind handles these automatically */
+@theme {
+  /* main design colors */
+  --color-primary-green: #25c583;
+  --color-accent-green: #a7f1cd;
+
+  --color-light-bg: #dddddd;
+  --color-light-txt: #171717;
+
+  --color-dark-bg: #151525;
+  --color-dark-txt: #ededed;
+
+  /* button colors */
 }
 
 @theme inline {
@@ -12,12 +34,7 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+
 
 body {
   background: var(--background);
@@ -26,6 +43,22 @@ body {
 }
 
 
-.standard-btn {
-  @apply flex items-center justify-center rounded-lg border border-slate-300 px-2 py-1 text-xs cursor-pointer disabled:cursor-not-allowed disabled:opacity-50;
+.btn {
+  @apply flex items-center justify-center rounded-lg border border-slate-300 px-2 py-1 text-xs text-dark-txt text-shadow-2xs cursor-pointer disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+.btn-confirm {
+  @apply bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 shadow-md;
+}
+
+.btn-deny {
+  @apply bg-rose-500 hover:bg-rose-400 active:bg-rose-600 shadow-md;
+}
+
+.btn-neutral {
+  @apply bg-neutral-500 hover:bg-neutral-400 active:bg-neutral-600 shadow-md;
+}
+
+.btn-alt {
+  @apply bg-purple-500 hover:bg-purple-400 active:bg-purple-600 shadow-md;
 }

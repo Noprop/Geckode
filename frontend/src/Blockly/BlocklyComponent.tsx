@@ -60,19 +60,18 @@ function BlocklyComponent(props: Props) {
 
   return (
     <>
-      <div className="h-screen">
+      <div className="h-full">
+        <div ref={blocklyDiv} id="blocklyDiv" className="h-[90%] w-full" />
         <div className="sticky top-0 z-10 m-2">
           <button
             onClick={generateCode}
-            className="standard-btn"
+            className="btn btn-neutral"
             aria-label="Convert Now"
             title="Convert Now"
           >
             Convert Now
           </button>
         </div>
-
-        <div ref={blocklyDiv} id="blocklyDiv" className="h-full w-full" />
       </div>
 
       {/* Toolbox; hidden but in DOM for Blockly */}
