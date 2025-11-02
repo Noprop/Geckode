@@ -3,15 +3,15 @@
 import BlocklyComponent from "./BlocklyComponent";
 import { Block, Value, Shadow, Field, Category } from ".";
 
-import { javascriptGenerator } from 'blockly/javascript';
+import { javascriptGenerator } from "blockly/javascript";
 
-const BlocklyEditor = (props : any) => {
+const BlocklyEditor = (props: any) => {
   return (
     <BlocklyComponent
       className=""
       readOnly={false}
       trashcan={true}
-      media={'media/'}
+      media={"media/"}
       move={{
         scrollbars: true,
         drag: true,
@@ -23,7 +23,9 @@ const BlocklyEditor = (props : any) => {
         </xml>
       `}
       scene={props.scene}
-    > { }
+    >
+      {" "}
+      {}
       <Block type="controls_if" />
       <Block type="controls_ifelse" />
       <Block type="logic_compare" />
@@ -54,9 +56,9 @@ const BlocklyEditor = (props : any) => {
           </Shadow>
         </Value>
       </Block>
-      <Block type="getProperty"/>
-      <Block type="math_number"/>
-      <Block type="math_arithmetic"/>
+      <Block type="getProperty" />
+      <Block type="math_number" />
+      <Block type="math_arithmetic" />
     </BlocklyComponent>
   );
 };
