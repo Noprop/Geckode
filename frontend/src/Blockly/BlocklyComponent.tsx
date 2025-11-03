@@ -13,7 +13,7 @@ type Props = React.PropsWithChildren<
   {
     initialXml?: string;
     className?: string;
-    scene?: any
+    scene?: any;
   } & Blockly.BlocklyOptions
 >;
 
@@ -38,8 +38,6 @@ function BlocklyComponent(props: Props) {
       ...rest,
     });
 
-    
-
     workspaceRef.current = workspace;
 
     if (initialXml) {
@@ -58,27 +56,22 @@ function BlocklyComponent(props: Props) {
     };
     // Intentionally run only on mount/unmount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); 
+  }, []);
 
   return (
     <>
-      <div className="flex h-[60vh] w-full flex-col">
-        <div className="sticky top-0 z-10 mb-2">
+      <div className="h-full">
+        <div ref={blocklyDiv} id="blocklyDiv" className="h-[90%] w-full" />
+        <div className="sticky top-0 z-10 m-2">
           <button
             onClick={generateCode}
-            className="flex items-center justify-center rounded-lg border border-slate-300 px-2 py-1 text-xs cursor-pointer mb-2"
+            className="btn btn-neutral"
             aria-label="Convert Now"
             title="Convert Now"
           >
             Convert Now
           </button>
         </div>
-
-        <div
-          ref={blocklyDiv}
-          id="blocklyDiv"
-          className="min-h-0 w-full flex-1"
-        />
       </div>
 
       {/* Toolbox; hidden but in DOM for Blockly */}

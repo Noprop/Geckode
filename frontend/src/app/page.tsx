@@ -1,12 +1,12 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useRef, useState, useEffect } from 'react';
-import BlocklyEditor from '../Blockly/BlocklyEditor';
+import { useRef, useState, useEffect } from "react";
+import BlocklyEditor from "../Blockly/BlocklyEditor";
 import * as Blockly from "blockly/core";
 import { javascriptGenerator } from "blockly/javascript";
 
-const PhaserGame = dynamic(() => import('./PhaserGame'), { ssr: false });
+const PhaserGame = dynamic(() => import("./PhaserGame"), { ssr: false });
 
 export default function Home() {
   const phaserRef = useRef<{ game?: any; scene?: any } | null>(null);
@@ -19,7 +19,7 @@ export default function Home() {
 
   const moveSprite = () => {
     const scene = phaserRef.current?.scene;
-    if (scene?.key === 'MainMenu') {
+    if (scene?.key === "MainMenu") {
       try {
         scene.runScript(`
           
@@ -63,46 +63,48 @@ export default function Home() {
   };
   const addSprite = () => phaserRef.current?.scene?.addStar?.();
   const currentScene = (scene: { scene: { key: string } }) => {
-    setCanMoveSprite(scene.scene.key !== 'MainMenu');
+    setCanMoveSprite(scene.scene.key !== "MainMenu");
   };
 
   return (
-    <div id="app" className="mb-12">
-      <PhaserGame ref={phaserRef} currentActiveScene={currentScene} />
+    <div id="app" className="h-screen flex flex-col">
+      <div className="bg-primary-green h-[45px] flex p-2 pl-6 text-2xl align-top text-shadow-sm">
+        Geckode
+      </div>
+      <div className="h-full grid grid-cols-5 gap-x-10">
+        <div className="m-4 col-span-2 w-min">
+          {/* Phaser Game Window */}
+          <PhaserGame ref={phaserRef} currentActiveScene={currentScene} />
 
-      {/* Phaser Controls */}
-      <div className="mt-4 flex items-center gap-2">
-        <button
-          className="flex items-center justify-center rounded-lg border border-slate-300 px-2 py-1 text-xs cursor-pointer"
-          onClick={changeScene}
-        >
-          Change Scene
-        </button>
+          {/* Phaser Controls */}
+          <div className="mt-4 flex items-center gap-2">
+            <div className="rounded-lg border border-slate-300 p-2 text-xs">
+              <div className="font-medium">Sprite Position</div>
+              <pre className="mt-1">{`{\n  x: ${spritePosition.x}\n  y: ${spritePosition.y}\n}`}</pre>
+            </div>
 
-        <button
-          disabled={canMoveSprite}
-          className="flex items-center justify-center rounded-lg border border-slate-300 px-2 py-1 text-xs cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-          onClick={moveSprite}
-        >
-          Toggle Movement
-        </button>
+            <button className="btn btn-deny" onClick={changeScene}>
+              Change Scene
+            </button>
 
-        <div className="rounded-lg border border-slate-300 p-2 text-xs">
-          <div className="font-medium">Sprite Position</div>
-          <pre className="mt-1">{`{\n  x: ${spritePosition.x}\n  y: ${spritePosition.y}\n}`}</pre>
+            <button
+              disabled={canMoveSprite}
+              className="btn btn-alt"
+              onClick={moveSprite}
+            >
+              Toggle Movement
+            </button>
+
+            <button className="btn btn-confirm" onClick={addSprite}>
+              Add Sprite
+            </button>
+          </div>
         </div>
 
-        <button
-          className="flex items-center justify-center rounded-lg border border-slate-300 px-2 py-1 text-xs cursor-pointer"
-          onClick={addSprite}
-        >
-          Add Sprite
-        </button>
-      </div>
-
-      {/* Blockly */}
-      <div className="mt-5 px-6 rounded-md">
-        <BlocklyEditor scene={phaserRef.current?.scene}/>
+        {/* Blockly */}
+        <div className="m-4 t-5 px-6  col-span-3">
+          <BlocklyEditor scene={phaserRef.current?.scene} />
+        </div>
       </div>
     </div>
   );
