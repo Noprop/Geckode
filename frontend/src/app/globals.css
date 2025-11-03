@@ -1,5 +1,32 @@
 @import "tailwindcss";
 
+
+/* put custom colors/parametres here. tailwind handles these automatically */
+@theme {
+  /* main design colors */
+  --color-primary-green: #25c583;
+  --color-accent-green: #a7f1cd;
+
+  --color-light-bg: #dddddd;
+  --color-light-secondary: #afafaf;
+  --color-light-tertiary: #d0d0d0;
+  --color-light-whiteboard: #f9f9f9;
+  --color-light-txt: #171717;
+
+  --color-dark-bg: #151525;
+  --color-dark-secondary: #202038;
+  --color-dark-tertiary: #2e2e4f;
+  --color-dark-whiteboard: #434372; 
+  --color-dark-txt: #ededed;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
 :root {
   --background: var(--color-light-bg);
   --foreground: var(--color-light-txt);
@@ -12,27 +39,8 @@
   }
 }
 
-/* put custom colors/parametres here. tailwind handles these automatically */
-@theme {
-  /* main design colors */
-  --color-primary-green: #25c583;
-  --color-accent-green: #a7f1cd;
 
-  --color-light-bg: #dddddd;
-  --color-light-txt: #171717;
 
-  --color-dark-bg: #151525;
-  --color-dark-txt: #ededed;
-
-  /* button colors */
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
 
 
 
@@ -61,4 +69,45 @@ body {
 
 .btn-alt {
   @apply bg-purple-500 hover:bg-purple-400 active:bg-purple-600 shadow-md;
+}
+
+
+/* Overridding Blocky styles */
+
+.blocklyToolbox{
+  @apply bg-light-secondary px-3 rounded-l-lg;
+}
+.blocklyToolboxCategoryContainer{
+  @apply bg-light-tertiary m-1 rounded-2xl text-center;
+}
+.blocklyToolboxFlyout {
+  @apply bg-light-tertiary
+}
+.blocklySvg {
+  @apply bg-light-whiteboard rounded-lg
+}
+.blocklyScrollbarHandle {
+  @apply fill-neutral-400
+}
+
+@media (prefers-color-scheme: dark) {
+  .blocklyToolbox{
+    @apply bg-dark-secondary px-3 rounded-l-lg;
+  }
+  .blocklyToolboxCategoryContainer{
+    @apply bg-dark-tertiary m-1 rounded-2xl text-center;
+  }
+  .blocklyToolboxFlyout {
+    @apply bg-dark-tertiary
+  }
+  .blocklySvg {
+    @apply bg-dark-whiteboard rounded-lg
+  }
+  .blocklyScrollbarHandle {
+    @apply fill-neutral-400
+  }
+}
+
+.blocklyFlyoutBackground {
+  fill-opacity: 0;
 }

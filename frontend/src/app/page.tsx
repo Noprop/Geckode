@@ -68,7 +68,7 @@ export default function Home() {
 
   return (
     <div id="app" className="h-screen flex flex-col">
-      <div className="bg-primary-green h-[45px] flex p-2 pl-6 text-2xl align-top text-shadow-sm">
+      <div className="bg-primary-green h-[45px] flex p-2 pl-6 text-2xl align-top text-shadow-sm text-white">
         Geckode
       </div>
       <div className="h-full grid grid-cols-5 gap-x-10">
@@ -78,7 +78,7 @@ export default function Home() {
 
           {/* Phaser Controls */}
           <div className="mt-4 flex items-center gap-2">
-            <div className="rounded-lg border border-slate-300 p-2 text-xs">
+            <div className="rounded-lg border border-slate-800 dark:border-slate-300 p-2 text-xs">
               <div className="font-medium">Sprite Position</div>
               <pre className="mt-1">{`{\n  x: ${spritePosition.x}\n  y: ${spritePosition.y}\n}`}</pre>
             </div>
@@ -102,7 +102,7 @@ export default function Home() {
         </div>
 
         {/* Blockly */}
-        <div className="m-4 t-5 px-6  col-span-3">
+        <div className="m-4 t-5 px-6 col-span-3">
           <BlocklyEditor scene={phaserRef.current?.scene} />
         </div>
       </div>
