@@ -86,6 +86,55 @@ javascriptGenerator.forBlock['setProperty'] = function (block, generator) {
   return `scene.player.set${block.getFieldValue('PROPERTY')}(${value})\n`;
 };
 
+const changePropertyDefinition = {
+  type: "changeProperty",
+  tooltip: "Change a property of a sprite by a certain amount",
+  helpUrl: "",
+  message0: "change %1 by %2",
+  args0: [
+    {
+      type: "field_dropdown",
+      name: "PROPERTY",
+      options: [
+        [
+          "x",
+          "x"
+        ],
+        [
+          "y",
+          "y"
+        ],
+        [
+          "velocityX",
+          "velocity.x"
+        ],
+        [
+          "velocityY",
+          "velocity.y"
+        ]
+      ]
+    },
+    {
+      type: "input_value",
+      name: "VALUE"
+    }
+  ],
+  previousStatement: null,
+  nextStatement: null,
+  colour: 225
+}
+                    
+Blockly.Blocks['changeProperty'] = {
+  init: function () {
+    this.jsonInit(changePropertyDefinition);
+  },
+};
+
+javascriptGenerator.forBlock['changeProperty'] = function (block, generator) {
+  const value = generator.valueToCode(block, 'VALUE', Order.NONE);
+  return `scene.player.body.${block.getFieldValue('PROPERTY')} += ${value}\n`;
+};
+
 const getPropertyDefinition = {
   type: "getProperty",
   tooltip: "Get a property of a sprite",
@@ -106,11 +155,11 @@ const getPropertyDefinition = {
         ],
         [
           "velocityX",
-          "velocityX"
+          "velocity.x"
         ],
         [
           "velocityY",
-          "velocityY"
+          "velocity.y"
         ]
       ]
     },
@@ -130,5 +179,111 @@ Blockly.Blocks['getProperty'] = {
 };
 
 javascriptGenerator.forBlock['getProperty'] = function (block, generator) {
-  return `(player.${block.getFieldValue('PROPERTY')})`;
+  const code = `scene.player.${block.getFieldValue('PROPERTY')}`
+  return [code, Order.NONE];
+};
+
+const onUpdateDefinition = {
+  type: "onUpdate",
+  tooltip: "",
+  helpUrl: "",
+  message0: "on update %1",
+  args0: [
+    {
+      type: "input_statement",
+      name: "INNER",
+      align: "CENTRE"
+    }
+  ],
+  colour: 225
+}                
+
+Blockly.Blocks['onUpdate'] = {
+  init: function () {
+    this.jsonInit(onUpdateDefinition);
+  },
+};
+
+javascriptGenerator.forBlock['onUpdate'] = function (block, generator) {
+  const inner = generator.statementToCode(block, 'INNER');
+  return `scene.update = () => {\n${inner}}\n`;
+};
+
+const onStartDefinition = {
+  type: "onStart",
+  tooltip: "",
+  helpUrl: "",
+  message0: "on start %1",
+  args0: [
+    {
+      type: "input_statement",
+      name: "INNER",
+      align: "CENTRE"
+    }
+  ],
+  colour: 225
+}                
+
+Blockly.Blocks['onStart'] = {
+  init: function () {
+    this.jsonInit(onStartDefinition);
+  },
+};
+
+javascriptGenerator.forBlock['onStart'] = function (block, generator) {
+  const inner = generator.statementToCode(block, 'INNER');
+  return `scene.start = () => {\n${inner}}\n`;
+};
+
+const keyPressedDefinition = {
+  type: "keyPressed",
+  tooltip: "",
+  helpUrl: "",
+  message0: "key %1 pressed %2",
+  args0: [
+    {
+      type: "field_dropdown",
+      name: "KEY",
+      options: [
+        [
+          "left",
+          "left"
+        ],
+        [
+          "right",
+          "right"
+        ],
+        [
+          "up",
+          "up"
+        ],
+        [
+          "down",
+          "down"
+        ],
+        [
+          "space",
+          "space"
+        ]
+      ]
+    },
+    {
+      type: "input_dummy",
+      name: "DUMMY"
+    }
+  ],
+  "output": null,
+  "colour": 225
+}
+                                  
+
+Blockly.Blocks['keyPressed'] = {
+  init: function () {
+    this.jsonInit(keyPressedDefinition);
+  },
+};
+
+javascriptGenerator.forBlock['keyPressed'] = function (block, generator) {
+  const code = `scene.cursors.${block.getFieldValue('KEY')}.isDown`
+  return [code, Order.NONE];
 };

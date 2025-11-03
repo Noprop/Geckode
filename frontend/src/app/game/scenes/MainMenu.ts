@@ -70,6 +70,12 @@ export default class MainMenu extends Phaser.Scene {
 
     // Tell React which scene is active
     EventBus.emit('current-scene-ready', this);
+
+    this.start()
+  }
+
+  start(){
+    
   }
 
   /**
@@ -172,6 +178,7 @@ export default class MainMenu extends Phaser.Scene {
       "use strict";
       return (async () => {
         ${code}
+        scene.scene.restart();
       })();
     `;
 
