@@ -71,6 +71,11 @@ body {
   @apply bg-purple-500 hover:bg-purple-400 active:bg-purple-600 shadow-md;
 }
 
+.blocklyFlyout[style*="display: none"] + .blocklyScrollbarVertical  {
+  display: none !important;
+}
+
+
 
 /* Overridding Blocky styles */
 
