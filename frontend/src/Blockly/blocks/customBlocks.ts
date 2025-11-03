@@ -187,16 +187,19 @@ const onUpdateDefinition = {
   type: "onUpdate",
   tooltip: "",
   helpUrl: "",
-  message0: "on update %1",
+  message0: "on update %1 %2",
   args0: [
     {
+      type: "input_dummy",
+      name: "LABEL"
+    },
+    {
       type: "input_statement",
-      name: "INNER",
-      align: "CENTRE"
+      name: "INNER"
     }
   ],
-  colour: 225
-}                
+  "colour": 225
+}          
 
 Blockly.Blocks['onUpdate'] = {
   init: function () {
@@ -213,16 +216,19 @@ const onStartDefinition = {
   type: "onStart",
   tooltip: "",
   helpUrl: "",
-  message0: "on start %1",
+  message0: "on start %1 %2",
   args0: [
     {
+      type: "input_dummy",
+      name: "LABEL"
+    },
+    {
       type: "input_statement",
-      name: "INNER",
-      align: "CENTRE"
+      name: "INNER"
     }
   ],
-  colour: 225
-}                
+  "colour": 225
+}               
 
 Blockly.Blocks['onStart'] = {
   init: function () {
