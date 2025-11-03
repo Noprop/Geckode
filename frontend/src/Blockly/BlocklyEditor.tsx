@@ -8,6 +8,7 @@ import { javascriptGenerator } from "blockly/javascript";
 const BlocklyEditor = (props: any) => {
   return (
     <BlocklyComponent
+      renderer='zelos'
       className=""
       readOnly={false}
       trashcan={true}
@@ -19,7 +20,7 @@ const BlocklyEditor = (props: any) => {
       }}
       initialXml={`
         <xml xmlns="http://www.w3.org/1999/xhtml">
-          <block type="controls_if" x="0" y="0"></block>
+          
         </xml>
       `}
       scene={props.scene}
