@@ -2,7 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, BasePermission
 from django.contrib.auth import authenticate, login, logout
 from rest_framework.response import Response
-from rest_framework.status import HTTP_200_OK, HTTP_401_UNAUTHORIZED
+from rest_framework.status import HTTP_401_UNAUTHORIZED
 from rest_framework.viewsets import ModelViewSet
 from .models import User
 from .serializers import UserSerializer
@@ -18,7 +18,7 @@ class LoginView(APIView):
 
         if user is not None:
             login(request, user)
-            return Response({"detail": "Logged in"}, status=HTTP_200_OK)
+            return Response(UserSerializer(user).data)
         else:
             return Response({"detail": "Invalid credentials"}, status=HTTP_401_UNAUTHORIZED)
 
@@ -26,6 +26,10 @@ class LogoutView(APIView):
     def post(self, request):
         logout(request)
         return Response({"detail": "Logged out"})
+
+class UserDetailsView(APIView):
+    def get(self, request):
+        return Response(UserSerializer(request.user).data)
 
 class UserViewSet(ModelViewSet):
     queryset = User.objects.all()
@@ -44,4 +48,3 @@ class UserViewSet(ModelViewSet):
                 return request.user.is_superuser or obj == request.user
 
         return super().get_permissions() + [PermissionClass()]
-

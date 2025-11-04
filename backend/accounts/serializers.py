@@ -2,7 +2,6 @@ from rest_framework.serializers import CharField, ModelSerializer, ValidationErr
 from django.contrib.auth.password_validation import validate_password
 from .models import User
 
-# for creating users
 class UserSerializer(ModelSerializer):
     password = CharField(write_only=True, required=False, validators=[validate_password])
     password2 = CharField(write_only=True, required=False)
@@ -36,7 +35,7 @@ class UserSerializer(ModelSerializer):
         view = self.context.get('view')
         action = view.action if view else None
 
-        if action in ['retrieve', 'list']:
+        if action in ['retrieve', 'list'] and instance != self.context.get('request').user:
             data.pop('created_at', None)
             data.pop('email', None)
             data.pop('is_staff', None)
@@ -60,7 +59,6 @@ class UserSerializer(ModelSerializer):
         validated_data.pop('username', None)
         return super().update(instance, validated_data)
 
-# for fetching users
 class PublicUserSerializer(ModelSerializer):
     class Meta:
         model = User

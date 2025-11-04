@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework_nested.routers import DefaultRouter
-from .views import LoginView, LogoutView, UserViewSet
+from .views import LoginView, LogoutView, UserDetailsView, UserViewSet
 
 router = DefaultRouter()
 router.register(r'users', UserViewSet, basename='users')
@@ -8,5 +8,6 @@ router.register(r'users', UserViewSet, basename='users')
 urlpatterns = [
     path('users/login/', LoginView.as_view(), name='login'),
     path('users/logout/', LogoutView.as_view(), name='logout'),
+    path('users/user-details/', UserDetailsView.as_view(), name='user-details'),
     path('', include(router.urls)),
 ]

@@ -2,7 +2,7 @@ from rest_framework.viewsets import ModelViewSet
 from .models import ProjectGroup, Project, ProjectCollaborator, OrganizationProject
 from .serializers import ProjectGroupSerializer, ProjectSerializer, ProjectCollaboratorSerializer, OrganizationProjectSerializer
 from django_filters.rest_framework import DjangoFilterBackend
-from .filters import ProjectFilter, apply_project_access_filters, OrganizationProjectFilter
+from .filters import ProjectFilter, apply_project_access_filters, ProjectCollaboratorFilter, OrganizationProjectFilter
 from utils.permissions import create_user_permission_class, AnyOf
 from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.decorators import action
@@ -22,6 +22,9 @@ class ProjectGroupViewSet(ModelViewSet):
         return super().get_queryset().filter(owner=self.request.user).order_by('name')
 
     def get_permissions(self):
+        if self.action == 'list':
+            return super().get_permissions()
+
         return super().get_permissions() + [
             create_user_permission_class(
                 'owner',
@@ -93,6 +96,8 @@ class ProjectViewSet(ModelViewSet):
 class ProjectCollaboratorViewSet(ModelViewSet):
     queryset = ProjectCollaborator.objects.all()
     serializer_class = ProjectCollaboratorSerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = ProjectCollaboratorFilter
 
     http_method_names = ['get', 'post', 'patch', 'delete']
 

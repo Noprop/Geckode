@@ -50,11 +50,12 @@ class OrganizationInvitationSerializer(ModelSerializer):
 
 class OrganizationMemberSerializer(ModelSerializer):
     member = PublicUserSerializer(read_only=True)
+    invited_by = PublicUserSerializer(read_only=True)
 
     class Meta:
         model = OrganizationMember
         fields = ['member', 'invited_by', 'joined_at', 'permission']
-        read_only_fields = ['invited_by', 'joined_at']
+        read_only_fields = ['joined_at']
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -90,9 +91,9 @@ class OrganizationBannedMemberSerializer(ModelSerializer):
 
     class Meta:
         model = OrganizationBannedMember
-        fields = ['organization', 'user', 'user_id', 'banned_by', 'banned_at', 'ban_reason']
-        read_only_fields = ['organization', 'user', 'banned_by', 'banned_at']
-    
+        fields = ['user', 'user_id', 'banned_by', 'banned_at', 'ban_reason']
+        read_only_fields = ['user', 'banned_by', 'banned_at']
+
     def validate(self, attrs):
         try:
             if 'view' in self.context and hasattr(self.context['view'], 'kwargs'):
@@ -101,13 +102,12 @@ class OrganizationBannedMemberSerializer(ModelSerializer):
                 # can't ban organization admin
                 if organization.has_permission(attrs['user'], 'admin'):
                     raise ValidationError('You cannot ban the organization admin.')
-                
+
                 # managers can't ban other manager
                 if organization.has_permission(attrs['user'], 'manage') and organization.has_permission(self.context['request'].user, 'manage'):
                     raise ValidationError('Organization managers cannot ban other managers.')
-                
 
         except Organization.DoesNotExist:
             pass
-        
+
         return attrs

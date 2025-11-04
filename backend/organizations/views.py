@@ -8,7 +8,7 @@ from django.shortcuts import get_object_or_404
 from django.db.models import Q
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.status import HTTP_403_FORBIDDEN, HTTP_200_OK
+from rest_framework.status import HTTP_200_OK
 from rest_framework.exceptions import NotFound, ValidationError, PermissionDenied
 
 class OrganizationViewSet(ModelViewSet):
@@ -142,7 +142,6 @@ class OrganizationBannedMemberViewSet(ModelViewSet):
     serializer_class = OrganizationBannedMemberSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_class = OrganizationBannedMemberFilter
-
 
     http_method_names = ['get', 'post', 'delete']
 
