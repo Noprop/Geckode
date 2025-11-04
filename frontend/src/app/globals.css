@@ -52,7 +52,7 @@ body {
 
 
 .btn {
-  @apply flex items-center justify-center rounded-lg border border-slate-300 px-2 py-1 text-xs text-dark-txt text-shadow-2xs cursor-pointer disabled:cursor-not-allowed disabled:opacity-50;
+  @apply items-center justify-center rounded-lg border border-slate-300 px-2 py-1 text-xs text-dark-txt text-shadow-2xs cursor-pointer disabled:cursor-not-allowed disabled:opacity-50;
 }
 
 .btn-confirm {
@@ -82,9 +82,18 @@ body {
 .blocklyToolbox{
   @apply bg-light-secondary px-3 rounded-l-lg;
 }
-.blocklyToolboxCategoryContainer{
-  @apply bg-light-tertiary m-1 rounded-full text-center hover:rounded-full;
+
+.blocklyToolboxCategory {
+  @apply bg-light-tertiary m-1 rounded-full text-center;
 }
+
+
+
+.blocklyToolboxSelected {
+  background-color: var(--color-primary-green) !important;
+  @apply text-shadow-sm;
+}
+
 .blocklyToolboxFlyout {
   @apply bg-light-tertiary
 }
@@ -102,7 +111,7 @@ body {
   .blocklyToolbox{
     @apply bg-dark-secondary px-3 rounded-l-lg;
   }
-  .blocklyToolboxCategoryContainer{
+  .blocklyToolboxCategory {
     @apply bg-dark-tertiary m-1 rounded-2xl text-center;
   }
   .blocklyToolboxFlyout {

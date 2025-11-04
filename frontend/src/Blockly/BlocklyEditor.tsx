@@ -9,7 +9,7 @@ import { Geckode } from "./new_theme";
 const BlocklyEditor = (props: any) => {
   return (
     <BlocklyComponent
-      renderer='zelos'
+      renderer="zelos"
       className=""
       theme={Geckode}
       readOnly={false}
