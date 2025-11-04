@@ -5,41 +5,48 @@
 import * as Blockly from 'blockly/core';
 import { javascriptGenerator, Order } from 'blockly/javascript';
 
-const foreverBlockDefinition = {
-  type: 'forever',
-  message0: 'forever %1 %2',
-  args0: [
-    {
-      // type: 'input_dummy',
-      type: 'input_end_row',
-    },
-    {
-      type: 'input_statement',
-      name: 'DO',
-    },
-  ],
-  previousStatement: null,
-  nextStatement: null,
-  style: 'loop_blocks',
-  tooltip: 'Repeat the enclosed statements forever.',
-  helpUrl: '',
-};
+Blockly.Msg['EVENTS_HUE'] = '#975DF5';
+Blockly.Msg['SPRITES_HUE'] = '#53c996';
+Blockly.Msg['INPUT_HUE'] = '#DB5161';
+Blockly.Msg['CONTROL_HUE'] = '42';
+Blockly.Msg['LOGIC_HUE'] = '#5169DB'; // blockly hue
+Blockly.Msg['MATH_HUE'] = '42'; // blockly hue
 
-Blockly.Blocks['forever'] = {
-  init: function () {
-    this.jsonInit(foreverBlockDefinition);
-  },
-};
+// const foreverBlockDefinition = {
+//   type: 'forever',
+//   message0: 'forever %1 %2',
+//   args0: [
+//     {
+//       // type: 'input_dummy',
+//       type: 'input_end_row',
+//     },
+//     {
+//       type: 'input_statement',
+//       name: 'DO',
+//     },
+//   ],
+//   previousStatement: null,
+//   nextStatement: null,
+//   style: 'loop_blocks',
+//   tooltip: 'Repeat the enclosed statements forever.',
+//   helpUrl: '',
+// };
 
-javascriptGenerator.forBlock['forever'] = function (block, generator) {
-  const branch = generator.statementToCode(block, 'DO');
-  const loopBody = branch ? branch : '';
-  return `while (true) {\n${loopBody}}\n`;
-};
+// Blockly.Blocks['forever'] = {
+//   init: function () {
+//     this.jsonInit(foreverBlockDefinition);
+//   },
+// };
+
+// javascriptGenerator.forBlock['forever'] = function (block, generator) {
+//   const branch = generator.statementToCode(block, 'DO');
+//   const loopBody = branch ? branch : '';
+//   return `while (true) {\n${loopBody}}\n`;
+// };
 
 const setPropertyDefinition = {
   type: "setProperty",
-  tooltip: "Set a property of a sprite",
+  tooltip: "Set the property of a sprite",
   helpUrl: "",
   message0: "set %1 to %2",
   args0: [
@@ -72,7 +79,7 @@ const setPropertyDefinition = {
   ],
   previousStatement: null,
   nextStatement: null,
-  colour: 225
+  colour: "%{BKY_SPRITES_HUE}"
 }
                     
 Blockly.Blocks['setProperty'] = {
@@ -88,7 +95,7 @@ javascriptGenerator.forBlock['setProperty'] = function (block, generator) {
 
 const changePropertyDefinition = {
   type: "changeProperty",
-  tooltip: "Change a property of a sprite by a certain amount",
+  tooltip: "Change the property of a sprite by a certain amount",
   helpUrl: "",
   message0: "change %1 by %2",
   args0: [
@@ -121,7 +128,7 @@ const changePropertyDefinition = {
   ],
   previousStatement: null,
   nextStatement: null,
-  colour: 225
+  colour: "%{BKY_SPRITES_HUE}"
 }
                     
 Blockly.Blocks['changeProperty'] = {
@@ -137,7 +144,7 @@ javascriptGenerator.forBlock['changeProperty'] = function (block, generator) {
 
 const getPropertyDefinition = {
   type: "getProperty",
-  tooltip: "Get a property of a sprite",
+  tooltip: "Get the property of a sprite",
   helpUrl: "",
   message0: "%1 %2",
   args0: [
@@ -169,7 +176,7 @@ const getPropertyDefinition = {
     }
   ],
   output: null,
-  colour: 225
+  colour: "%{BKY_SPRITES_HUE}"
 }
 
 Blockly.Blocks['getProperty'] = {
@@ -185,7 +192,7 @@ javascriptGenerator.forBlock['getProperty'] = function (block, generator) {
 
 const onUpdateDefinition = {
   type: "onUpdate",
-  tooltip: "",
+  tooltip: "Runs code once per frame",
   helpUrl: "",
   message0: "on update %1 %2",
   args0: [
@@ -198,7 +205,7 @@ const onUpdateDefinition = {
       name: "INNER"
     }
   ],
-  "colour": 225
+  colour: "%{BKY_EVENTS_HUE}"
 }          
 
 Blockly.Blocks['onUpdate'] = {
@@ -214,7 +221,7 @@ javascriptGenerator.forBlock['onUpdate'] = function (block, generator) {
 
 const onStartDefinition = {
   type: "onStart",
-  tooltip: "",
+  tooltip: "Runs code once when the game starts",
   helpUrl: "",
   message0: "on start %1 %2",
   args0: [
@@ -227,7 +234,7 @@ const onStartDefinition = {
       name: "INNER"
     }
   ],
-  "colour": 225
+  colour: "%{BKY_EVENTS_HUE}"
 }               
 
 Blockly.Blocks['onStart'] = {
@@ -243,7 +250,7 @@ javascriptGenerator.forBlock['onStart'] = function (block, generator) {
 
 const keyPressedDefinition = {
   type: "keyPressed",
-  tooltip: "",
+  tooltip: "return \"true\" if a specific key is pressed ",
   helpUrl: "",
   message0: "key %1 pressed %2",
   args0: [
@@ -278,8 +285,8 @@ const keyPressedDefinition = {
       name: "DUMMY"
     }
   ],
-  "output": null,
-  "colour": 225
+  output: "Boolean",
+  colour: "%{BKY_INPUT_HUE}"
 }
                                   
 

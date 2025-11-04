@@ -4,12 +4,14 @@ import BlocklyComponent from "./BlocklyComponent";
 import { Block, Value, Shadow, Field, Category } from ".";
 
 import { javascriptGenerator } from "blockly/javascript";
+import { Geckode } from "./new_theme";
 
 const BlocklyEditor = (props: any) => {
   return (
     <BlocklyComponent
       renderer='zelos'
       className=""
+      theme={Geckode}
       readOnly={false}
       trashcan={true}
       media={"media/"}
@@ -31,10 +33,6 @@ const BlocklyEditor = (props: any) => {
         <Block type="onStart" />
         <Block type="onUpdate" />
       </Category>
-      <Category name="control">
-        <Block type="controls_if" />
-        <Block type="controls_ifelse" />
-      </Category>
       <Category name="sprites">
         <Block type="setProperty">
           <Value name="VALUE">
@@ -52,12 +50,33 @@ const BlocklyEditor = (props: any) => {
         </Block>
         <Block type="getProperty" />
       </Category>
-      <Category name="math">
-        <Block type="math_number" />
-        <Block type="math_arithmetic" />
-      </Category>
       <Category name="input">
         <Block type="keyPressed" />
+      </Category>
+      <Category name="control">
+        <Block type="controls_if">
+          <Value name="IF0">
+            <Shadow type="logic_boolean">
+              <Field name="BOOL">'TRUE'</Field>
+            </Shadow>
+          </Value>
+        </Block>
+        <Block type="controls_ifelse" />
+      </Category>
+      <Category name="math">
+        <Block type="math_number" />
+        <Block type="math_arithmetic">
+          <Value name="A">
+            <Shadow type="math_number">
+              <Field name="NUM">0</Field>
+            </Shadow>
+          </Value>
+          <Value name="B">
+            <Shadow type="math_number">
+              <Field name="NUM">0</Field>
+            </Shadow>
+          </Value>
+        </Block>
       </Category>
       <Block type="logic_compare" />
       <Block type="logic_operation" />
