@@ -47,7 +47,7 @@ const PhaserGame = forwardRef<ExposedRef, Props>(function PhaserGame(
     };
   }, [currentActiveScene, ref]);
 
-  return <div id="game-container" className="rounded" />;
+  return <div id="game-container" className="h-[40vh]" />;
 });
 
 export default PhaserGame;

@@ -15,6 +15,7 @@ const config = {
   type: Phaser.AUTO,
   width: gameViewWidth,
   height: gameViewHeight,
+  scale: {mode: Phaser.Scale.WIDTH_CONTROLS_HEIGHT},
   parent: 'game-container',
   backgroundColor: '#707090',
   scene: [Boot, Preloader, MainMenu, Game, GameOver],

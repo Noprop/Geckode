@@ -83,16 +83,19 @@ body {
   @apply bg-light-secondary px-3 rounded-l-lg;
 }
 .blocklyToolboxCategoryContainer{
-  @apply bg-light-tertiary m-1 rounded-2xl text-center;
+  @apply bg-light-tertiary m-1 rounded-full text-center hover:rounded-full;
 }
 .blocklyToolboxFlyout {
   @apply bg-light-tertiary
 }
 .blocklySvg {
-  @apply bg-light-whiteboard rounded-lg
+  @apply bg-light-whiteboard rounded-lg border-none
 }
 .blocklyScrollbarHandle {
   @apply fill-neutral-400
+}
+.blocklyMainBackground {
+  @apply stroke-none shadow-2xl;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -106,7 +109,7 @@ body {
     @apply bg-dark-tertiary
   }
   .blocklySvg {
-    @apply bg-dark-whiteboard rounded-lg
+    @apply bg-dark-whiteboard rounded-lg 
   }
   .blocklyScrollbarHandle {
     @apply fill-neutral-400
