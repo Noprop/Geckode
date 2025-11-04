@@ -60,7 +60,8 @@ function BlocklyComponent(props: Props) {
 
   return (
     <>
-      <div className="h-[85vh]">
+      {/* <div className="h-[85vh]"> */}
+      <div className="h-full">
         <div ref={blocklyDiv} id="blocklyDiv" className="w-full h-full" />
         <div className="sticky top-0 z-10 m-2">
           <button
