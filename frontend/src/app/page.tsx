@@ -72,7 +72,7 @@ export default function Home() {
         Geckode
       </div>
       <div className="h-full grid grid-cols-5 gap-x-10">
-        <div className="m-4 col-span-2 w-min">
+        <div className="m-4 col-span-2">
           {/* Phaser Game Window */}
           <PhaserGame ref={phaserRef} currentActiveScene={currentScene} />
 
