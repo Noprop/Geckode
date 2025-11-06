@@ -47,11 +47,18 @@ function BlocklyComponent(props: Props) {
       );
     }
 
+    const handleResize = () => {
+      workspace.resize();
+      workspace.resizeContents();
+    };
+    window.addEventListener("resize", handleResize);
+
     // Cleanup is crucial to avoid "duplicate" UIs under React 18 StrictMode.
     return () => {
       try {
         workspace.dispose();
       } catch {}
+      window.removeEventListener("resize", handleResize);
       workspaceRef.current = null;
     };
     // Intentionally run only on mount/unmount.

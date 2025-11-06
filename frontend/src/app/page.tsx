@@ -73,7 +73,6 @@ export default function Home() {
       </div>
       <div className="h-full grid grid-cols-5 gap-x-10">
         <div className="m-4 col-span-2">
-
           <PhaserGame ref={phaserRef} currentActiveScene={currentScene} />
 
           <div className="mt-4 flex items-center gap-2">
@@ -101,7 +100,7 @@ export default function Home() {
         </div>
 
         {/* Blockly */}
-        <div className="mb-12 mt-4 t-5 px-6 col-span-3 ">
+        <div className="mb-12 mt-4  px-6 col-span-3 ">
           <BlocklyEditor scene={phaserRef.current?.scene} />
         </div>
       </div>
