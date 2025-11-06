@@ -6,6 +6,7 @@ import * as Blockly from "blockly/core";
 import { javascriptGenerator } from "blockly/javascript";
 import * as locale from "blockly/msg/en";
 import "./blocks/customBlocks";
+import { RenderBlocklySvg } from "./BlocklyRenderer";
 
 Blockly.setLocale(locale as any);
 
@@ -47,18 +48,15 @@ function BlocklyComponent(props: Props) {
       );
     }
 
-    const handleResize = () => {
-      workspace.resize();
-      workspace.resizeContents();
-    };
-    window.addEventListener("resize", handleResize);
+    // rerender blockly svg for resize events
+    RenderBlocklySvg();
 
     // Cleanup is crucial to avoid "duplicate" UIs under React 18 StrictMode.
     return () => {
       try {
         workspace.dispose();
       } catch {}
-      window.removeEventListener("resize", handleResize);
+      //window.removeEventListener("resize", handleResize);
       workspaceRef.current = null;
     };
     // Intentionally run only on mount/unmount.
@@ -68,7 +66,7 @@ function BlocklyComponent(props: Props) {
   return (
     <>
       {/* <div className="h-[85vh]"> */}
-      <div className="h-full">
+      <div className="flex-col w-full">
         <div ref={blocklyDiv} id="blocklyDiv" className="w-full h-full" />
         <div className="sticky top-0 z-10 m-2">
           <button
