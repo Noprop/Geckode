@@ -73,10 +73,9 @@ export default function Home() {
       </div>
       <div className="h-full grid grid-cols-5 gap-x-10">
         <div className="m-4 col-span-2">
-          {/* Phaser Game Window */}
+
           <PhaserGame ref={phaserRef} currentActiveScene={currentScene} />
 
-          {/* Phaser Controls */}
           <div className="mt-4 flex items-center gap-2">
             <div className="rounded-lg border border-slate-800 dark:border-slate-300 p-2 text-xs">
               <div className="font-medium">Sprite Position</div>
@@ -102,7 +101,7 @@ export default function Home() {
         </div>
 
         {/* Blockly */}
-        <div className="mb-12 mt-4 t-5 px-6 col-span-3 flex flex-col">
+        <div className="mb-8 px-6 col-span-3 flex flex-col">
           <BlocklyEditor scene={phaserRef.current?.scene} />
         </div>
       </div>
