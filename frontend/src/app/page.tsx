@@ -101,7 +101,7 @@ export default function Home() {
         </div>
 
         {/* Blockly */}
-        <div className="mb-8 px-6 col-span-3 flex flex-col">
+        <div className="mb-12 mt-4 t-5 px-6 col-span-3 ">
           <BlocklyEditor scene={phaserRef.current?.scene} />
         </div>
       </div>
