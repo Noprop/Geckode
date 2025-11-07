@@ -7,12 +7,12 @@ import { javascriptGenerator } from "blockly/javascript";
 import * as locale from "blockly/msg/en";
 import "./blocks/customBlocks";
 import { RenderBlocklySvg } from "./BlocklyRenderer";
+import toolboxJson from "./BlocklyToolbox"
 
 Blockly.setLocale(locale as any);
 
 type Props = React.PropsWithChildren<
   {
-    initialXml?: string;
     className?: string;
     scene?: any;
   } & Blockly.BlocklyOptions
@@ -20,7 +20,6 @@ type Props = React.PropsWithChildren<
 
 function BlocklyComponent(props: Props) {
   const blocklyDiv = useRef<HTMLDivElement | null>(null);
-  const toolbox = useRef<HTMLDivElement | null>(null);
   const workspaceRef = useRef<Blockly.WorkspaceSvg | null>(null);
 
   const generateCode = () => {
@@ -32,21 +31,15 @@ function BlocklyComponent(props: Props) {
 
   useEffect(() => {
     // Inject once per mount; dispose on unmount.
-    const { initialXml, children: _children, ...rest } = props;
+    const { children: _children, ...rest } = props;
 
     const workspace = Blockly.inject(blocklyDiv.current as HTMLDivElement, {
-      toolbox: toolbox.current as HTMLDivElement,
+      toolbox: toolboxJson as Blockly.utils.toolbox.ToolboxDefinition,
+      'sounds': false, // This temporarily removes the annoying cannot find media/delete.mp3 error
       ...rest,
     });
 
     workspaceRef.current = workspace;
-
-    if (initialXml) {
-      Blockly.Xml.domToWorkspace(
-        Blockly.utils.xml.textToDom(initialXml),
-        workspace
-      );
-    }
 
     // rerender blockly svg for resize events
     RenderBlocklySvg();
@@ -78,11 +71,6 @@ function BlocklyComponent(props: Props) {
             Convert Now
           </button>
         </div>
-      </div>
-
-      {/* Toolbox; hidden but in DOM for Blockly */}
-      <div className="hidden" ref={toolbox}>
-        {props.children}
       </div>
     </>
   );
