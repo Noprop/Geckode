@@ -166,14 +166,7 @@ const toolbox = {
     {
       "kind": "category",
       "name": "variables",
-      "custom": "VARIABLE",
-      "contents": [
-        { 
-          "kind": "button", 
-          "text": "Create variable", 
-          "callbackKey": "createVariableButton" ,
-        },
-      ],
+      "custom": "CUSTOM_VARIABLES",
     },
     {
       "kind": "block",

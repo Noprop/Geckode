@@ -1,45 +1,94 @@
 "use client";
 
 import * as Blockly from 'blockly/core';
+import type { WorkspaceSvg } from 'blockly/core';
 import BlocklyComponent from "./BlocklyComponent";
-import { Block, Value, Shadow, Field, Category, Button } from ".";
 
 import { Geckode } from "./new_theme";
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 
 const BlocklyEditor = (props: any) => {
-  const [hasVariables, setHasVariables] = useState(false);
-  const [latestVar, setLatestVar] = useState('myVar');
-  
   useEffect(() => {
     const workspace = Blockly.getMainWorkspace();
 
-    (workspace as any).registerButtonCallback('createVariableButton', function (button: any) {
-      Blockly.Variables.createVariableButtonHandler(button.getTargetWorkspace());
+    (workspace as any).registerButtonCallback('createVariableButton', function (button: Blockly.FlyoutButton) {
+      const ws = button.getTargetWorkspace();
+      const toolbox = ws.getToolbox();
+      const selectedItem = toolbox?.getSelectedItem();
+
+      Blockly.Variables.createVariableButtonHandler(ws);
+
+      // This can be a way to do a custom variable name handler (maybe do a nicer pop out for example)
+      // const name = prompt('New variable name:');
+      // if (!name) {
+      //   return;
+      // }
+      // ws.getVariableMap().createVariable(name);
+
+      if (toolbox && selectedItem) {
+        // Re-select the same category so flyout refreshes and stays open (except for an annoying flash)
+        setTimeout(() => {
+          toolbox.setSelectedItem(selectedItem);
+        }, 50);
+      }
     });
 
-    const updateVariableState = () => {
-      const varCount = workspace.getVariableMap().getAllVariables().length;
-      setHasVariables(varCount > 0);
-    };
+    (workspace as any).registerToolboxCategoryCallback(
+      'CUSTOM_VARIABLES',
+      (workspace: WorkspaceSvg): Blockly.utils.toolbox.ToolboxItemInfo[] => {
+        const variables = workspace.getVariableMap().getAllVariables();
 
-    updateVariableState();
+        const blocks: Blockly.utils.toolbox.ToolboxItemInfo[] = [];
 
-    const onVarCreate = (event: any) => {
-      if (event.type === Blockly.Events.VAR_CREATE) {
-        const model: any = workspace.getVariableMap().getVariableById(event.varId);
-        if (model) {
-          setLatestVar(model.name);
+        blocks.push({
+          kind: 'button',
+          text: 'Create variable',
+          callbackKey: 'createVariableButton',
+        } as any);
+
+        if (variables.length > 0) {
+          const lastVar = variables[variables.length - 1];
+
+          blocks.push({
+            kind: 'block',
+            type: 'variables_set',
+            fields: {
+              VAR: lastVar,
+            },
+          });
+
+          blocks.push({
+            kind: 'block',
+            type: 'math_change',
+            fields: {
+              VAR: lastVar,
+            },
+            inputs: {
+              DELTA: {
+                shadow: {
+                  type: 'math_number',
+                  fields: {
+                    NUM: 1,
+                  },
+                },
+              },
+            },
+          });
+
+          for (const variable of variables) {
+            blocks.push({
+              kind: 'block',
+              type: 'variables_get',
+              fields: {
+                VAR: variable,
+              },
+            });
+          }
         }
-      }
-      if (event.type === Blockly.Events.VAR_CREATE || event.type === Blockly.Events.VAR_DELETE) {
-        updateVariableState();
-      }
-    };
 
-    workspace.addChangeListener(onVarCreate);
-
-    return () => workspace.removeChangeListener(onVarCreate);
+        return blocks;
+      }
+    );
   }, []);
 
   return (
