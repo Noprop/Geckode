@@ -1,14 +1,15 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useRef, useState, useEffect } from "react";
-import BlocklyEditor from "../Blockly/BlocklyEditor";
-import * as Blockly from "blockly/core";
+import { useRef, useState } from "react";
+import BlocklyEditor, { BlocklyEditorHandle } from "@/components/BlocklyEditor";
 import { javascriptGenerator } from "blockly/javascript";
+import type { Workspace } from "blockly/core";
 
 const PhaserGame = dynamic(() => import("./PhaserGame"), { ssr: false });
 
 export default function Home() {
+  const blocklyRef = useRef<BlocklyEditorHandle>(null);
   const phaserRef = useRef<{ game?: any; scene?: any } | null>(null);
   const [spritePosition, setSpritePosition] = useState({ x: 0, y: 0 });
   const [canMoveSprite, setCanMoveSprite] = useState(true);
@@ -61,10 +62,19 @@ export default function Home() {
       // );
     }
   };
+
   const addSprite = () => phaserRef.current?.scene?.addStar?.();
+
   const currentScene = (scene: { scene: { key: string } }) => {
     setCanMoveSprite(scene.scene.key !== "MainMenu");
   };
+
+  const generateCode = () => {
+    if (!phaserRef.current || !blocklyRef.current || !blocklyRef.current.getWorkspace()) return;
+    const code = javascriptGenerator.workspaceToCode(blocklyRef.current.getWorkspace() as Workspace);
+    console.log(code);
+    phaserRef.current.scene?.runScript(code);
+  }
 
   return (
     <div id="app" className="h-screen w-screen flex flex-col">
@@ -96,12 +106,15 @@ export default function Home() {
             <button className="btn btn-confirm" onClick={addSprite}>
               Add Sprite
             </button>
+
+            <button className="btn btn-neutral" onClick={generateCode}>
+              Convert Now
+            </button>
           </div>
         </div>
 
-        {/* Blockly */}
-        <div className="mb-12 mt-4 flex px-6  w-full">
-          <BlocklyEditor scene={phaserRef.current?.scene} />
+        <div className="mb-4 mt-4 flex px-6 w-full">
+          <BlocklyEditor ref={blocklyRef} />
         </div>
       </div>
     </div>

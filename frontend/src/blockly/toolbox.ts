@@ -29,9 +29,9 @@ const toolbox = {
                 "fields": {
                   "NUM": 0,
                 },
-              }
-            }
-          }
+              },
+            },
+          },
         },
         {
           "kind": "block",
@@ -167,6 +167,11 @@ const toolbox = {
       "kind": "category",
       "name": "variables",
       "custom": "CUSTOM_VARIABLES",
+    },
+    {
+      "kind": "category",
+      "name": "typed variables",
+      "custom": "VARIABLE_DYNAMIC",
     },
     {
       "kind": "block",
