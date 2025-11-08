@@ -1,6 +1,6 @@
 import api from "@/lib/api/axios";
-import { Organization, OrganizationFilters, OrganizationPayload } from "@/lib/types/organizations";
-import { PaginatedResponse } from "@/lib/types/pagination";
+import { Organization, OrganizationFilters, OrganizationPayload } from "@/lib/types/api/organizations";
+import { PaginatedResponse } from "@/lib/types/api/pagination";
 import invitationsApi from "./invitations";
 import membersApi from "./members";
 import bannedMembersApi from "./banned-members";

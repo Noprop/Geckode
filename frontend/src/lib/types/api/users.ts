@@ -1,4 +1,3 @@
-
 export interface User {
   id: number;
   created_at?: string;
@@ -10,6 +9,7 @@ export interface User {
   is_superuser?: boolean;
   avatar: string | null;
 }
+
 export interface UserPayload {
   username: string;
   email: string;

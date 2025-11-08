@@ -1,6 +1,6 @@
 import api from "@/lib/api/axios";
-import { OrganizationBannedMember, OrganizationBannedMemberFilters, OrganizationBannedMemberPayload } from "@/lib/types/organizations/banned-members";
-import { PaginatedResponse } from "@/lib/types/pagination";
+import { OrganizationBannedMember, OrganizationBannedMemberFilters, OrganizationBannedMemberPayload } from "@/lib/types/api/organizations/banned-members";
+import { PaginatedResponse } from "@/lib/types/api/pagination";
 
 const bannedMembersApi = (baseUrl: string) => Object.assign(
   {

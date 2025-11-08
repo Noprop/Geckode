@@ -1,7 +1,7 @@
 import api from "@/lib/api/axios";
-import { OrganizationProject, OrganizationProjectPayload } from "@/lib/types/organizations/projects";
-import { ProjectFilters } from "@/lib/types/projects";
-import { PaginatedResponse } from "@/lib/types/pagination";
+import { OrganizationProject, OrganizationProjectPayload } from "@/lib/types/api/organizations/projects";
+import { ProjectFilters } from "@/lib/types/api/projects";
+import { PaginatedResponse } from "@/lib/types/api/pagination";
 
 const projectsApi = (baseUrl: string) => Object.assign(
   {

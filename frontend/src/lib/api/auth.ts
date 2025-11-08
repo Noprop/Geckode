@@ -1,6 +1,6 @@
 import api from "@/lib/api/axios";
 import { USERS_API_URL } from "@/lib/api/users";
-import { User } from "../types/users";
+import { User } from "@/lib/types/api/users";
 
 export interface LoginPayload {
     username: string;
