@@ -76,49 +76,44 @@ export default function Home() {
   };
 
   return (
-    <div id="app" className="h-screen w-screen flex flex-col">
-      <div className="bg-primary-green h-[45px] flex p-2 pl-6 text-2xl align-top text-shadow-sm text-white">
-        Geckode
+    <div className="flex flex-1 gap-x-10">
+      <div className="h-full m-4 min-w-1/3 max-w-1/3">
+        {/* believe it or not both the min and max w classes are necessary */}
+        <PhaserGame ref={phaserRef} currentActiveScene={currentScene} />
+        <div className="mt-4 flex items-center gap-2">
+          <button className="btn btn-deny" onClick={changeScene}>
+            Change Scene
+          </button>
+
+          <button
+            disabled={canMoveSprite}
+            className="btn btn-alt"
+            onClick={moveSprite}
+          >
+            Toggle Movement
+          </button>
+
+          <button className="btn btn-confirm" onClick={addSprite}>
+            Add Sprite
+          </button>
+          <button
+            onClick={generateCode}
+            className="btn btn-neutral"
+            aria-label="Convert Now"
+            title="Convert Now"
+          >
+            Convert Now
+          </button>
+        </div>
+        <div className="w-max mt-6 rounded-lg border border-slate-800 dark:border-slate-300 p-2 text-xs">
+          <div className="font-medium">Sprite Position</div>
+          <pre className="mt-1">{`{\n  x: ${spritePosition.x}\n  y: ${spritePosition.y}\n}`}</pre>
+        </div>
       </div>
-      <div className="flex h-full gap-x-10">
-        <div className="m-4 min-w-1/3 max-w-1/3">
-          {/* believe it or not both the min and max w classes are necessary */}
-          <PhaserGame ref={phaserRef} currentActiveScene={currentScene} />
-          <div className="mt-4 flex items-center gap-2">
-            <button className="btn btn-deny" onClick={changeScene}>
-              Change Scene
-            </button>
 
-            <button
-              disabled={canMoveSprite}
-              className="btn btn-alt"
-              onClick={moveSprite}
-            >
-              Toggle Movement
-            </button>
-
-            <button className="btn btn-confirm" onClick={addSprite}>
-              Add Sprite
-            </button>
-            <button
-              onClick={generateCode}
-              className="btn btn-neutral"
-              aria-label="Convert Now"
-              title="Convert Now"
-            >
-              Convert Now
-            </button>
-          </div>
-          <div className="w-max mt-6 rounded-lg border border-slate-800 dark:border-slate-300 p-2 text-xs">
-            <div className="font-medium">Sprite Position</div>
-            <pre className="mt-1">{`{\n  x: ${spritePosition.x}\n  y: ${spritePosition.y}\n}`}</pre>
-          </div>
-        </div>
-
-        {/* Blockly */}
-        <div className="mb-12 mt-4 flex px-6  w-full">
-          <BlocklyEditor scene={phaserRef.current?.scene} />
-        </div>
+      {/* Blockly */}
+      <div className="mb-12 mt-4 flex px-6 w-full">
+        <BlocklyEditor scene={phaserRef.current?.scene} />
       </div>
     </div>
   );

@@ -25,9 +25,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}
       >
-        {children}
+        <div className="bg-primary-green h-[45px] p-2 pl-6 text-2xl align-top text-shadow-sm text-white">
+          Geckode
+        </div>
+        <main className="flex-1 flex flex-col">{children}</main>
       </body>
     </html>
   );
