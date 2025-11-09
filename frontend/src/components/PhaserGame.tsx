@@ -7,8 +7,8 @@ import {
   useRef,
   useImperativeHandle,
 } from "react";
-import StartGame from "./game/main";
-import { EventBus } from "./game/EventBus";
+import StartGame from "@/phaser/main";
+import { EventBus } from "@/phaser/EventBus";
 
 type SceneApi = any; // tighten to your scene type if you have it
 type ExposedRef = { game?: any; scene?: SceneApi };

@@ -6,7 +6,7 @@ import BlocklyEditor, { BlocklyEditorHandle } from "@/components/BlocklyEditor";
 import { javascriptGenerator } from "blockly/javascript";
 import type { Workspace } from "blockly/core";
 
-const PhaserGame = dynamic(() => import("./PhaserGame"), { ssr: false });
+const PhaserGame = dynamic(() => import("@/components/PhaserGame"), { ssr: false });
 
 export default function Home() {
   const blocklyRef = useRef<BlocklyEditorHandle>(null);
