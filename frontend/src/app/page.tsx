@@ -17,6 +17,15 @@ export default function Home() {
     phaserRef.current?.scene?.changeScene?.();
   };
 
+  const generateCode = () => {
+    const workspace = Blockly.getMainWorkspace();
+    if (workspace) {
+      const code = javascriptGenerator.workspaceToCode(workspace);
+      console.log(code);
+      phaserRef.current?.scene.runScript(code);
+    }
+  };
+
   const moveSprite = () => {
     const scene = phaserRef.current?.scene;
     if (scene?.key === "MainMenu") {
@@ -76,11 +85,6 @@ export default function Home() {
           {/* believe it or not both the min and max w classes are necessary */}
           <PhaserGame ref={phaserRef} currentActiveScene={currentScene} />
           <div className="mt-4 flex items-center gap-2">
-            <div className="rounded-lg border border-slate-800 dark:border-slate-300 p-2 text-xs">
-              <div className="font-medium">Sprite Position</div>
-              <pre className="mt-1">{`{\n  x: ${spritePosition.x}\n  y: ${spritePosition.y}\n}`}</pre>
-            </div>
-
             <button className="btn btn-deny" onClick={changeScene}>
               Change Scene
             </button>
@@ -96,6 +100,18 @@ export default function Home() {
             <button className="btn btn-confirm" onClick={addSprite}>
               Add Sprite
             </button>
+            <button
+              onClick={generateCode}
+              className="btn btn-neutral"
+              aria-label="Convert Now"
+              title="Convert Now"
+            >
+              Convert Now
+            </button>
+          </div>
+          <div className="w-max mt-6 rounded-lg border border-slate-800 dark:border-slate-300 p-2 text-xs">
+            <div className="font-medium">Sprite Position</div>
+            <pre className="mt-1">{`{\n  x: ${spritePosition.x}\n  y: ${spritePosition.y}\n}`}</pre>
           </div>
         </div>
 

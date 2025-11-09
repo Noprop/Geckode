@@ -7,7 +7,7 @@ import { javascriptGenerator } from "blockly/javascript";
 import * as locale from "blockly/msg/en";
 import "./blocks/customBlocks";
 import { RenderBlocklySvg } from "./BlocklyRenderer";
-import toolboxJson from "./BlocklyToolbox"
+import toolboxJson from "./BlocklyToolbox";
 
 Blockly.setLocale(locale as any);
 
@@ -22,20 +22,13 @@ function BlocklyComponent(props: Props) {
   const blocklyDiv = useRef<HTMLDivElement | null>(null);
   const workspaceRef = useRef<Blockly.WorkspaceSvg | null>(null);
 
-  const generateCode = () => {
-    if (!workspaceRef.current) return;
-    const code = javascriptGenerator.workspaceToCode(workspaceRef.current);
-    console.log(code);
-    props.scene.runScript(code);
-  };
-
   useEffect(() => {
     // Inject once per mount; dispose on unmount.
     const { children: _children, ...rest } = props;
 
     const workspace = Blockly.inject(blocklyDiv.current as HTMLDivElement, {
       toolbox: toolboxJson as Blockly.utils.toolbox.ToolboxDefinition,
-      'sounds': false, // This temporarily removes the annoying cannot find media/delete.mp3 error
+      sounds: false, // This temporarily removes the annoying cannot find media/delete.mp3 error
       ...rest,
     });
 
@@ -61,16 +54,6 @@ function BlocklyComponent(props: Props) {
       {/* <div className="h-[85vh]"> */}
       <div className="flex-col w-full">
         <div ref={blocklyDiv} id="blocklyDiv" className="w-full h-full" />
-        <div className="sticky top-0 z-10 m-2">
-          <button
-            onClick={generateCode}
-            className="btn btn-neutral"
-            aria-label="Convert Now"
-            title="Convert Now"
-          >
-            Convert Now
-          </button>
-        </div>
       </div>
     </>
   );
