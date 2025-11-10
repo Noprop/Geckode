@@ -2,9 +2,13 @@
 
 import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import * as Blockly from 'blockly/core';
-import { registerBlockly } from '@/blockly/index';
-import toolbox from '@/blockly/toolbox';
-import { variableCreateButtonCallback, variableCategoryCallback } from '@/blockly/callbacks';
+import { registerBlockly } from '@/Blockly/index';
+import toolbox from '@/Blockly/toolbox';
+import starterWorkspace from '@/Blockly/starterWorkspace';
+import {
+  variableCreateButtonCallback,
+  variableCategoryCallback,
+} from '@/Blockly/callbacks';
 
 registerBlockly();
 
@@ -46,6 +50,15 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, Record<string, any>>((prop
         'CUSTOM_VARIABLES',
         variableCategoryCallback,
       );
+
+      const hasExistingBlocks =
+        workspaceRef.current.getAllBlocks(false).length > 0;
+      if (!hasExistingBlocks) {
+        Blockly.serialization.workspaces.load(
+          starterWorkspace,
+          workspaceRef.current,
+        );
+      }
     }
 
     return () => {

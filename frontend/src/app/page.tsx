@@ -82,8 +82,8 @@ export default function Home() {
         Geckode
       </div>
       <div className="flex h-full gap-x-10">
-        <div className="m-4 min-w-1/3 max-w-1/3">
-          {/* believe it or not both the min and max w classes are necessary */}
+        <div className="m-4 min-w-1/3">
+          {/* believe it or not both the min and max w classes are necessary: E: I removed it and it seems fine? */}
           <PhaserGame ref={phaserRef} currentActiveScene={currentScene} />
           <div className="mt-4 flex items-center gap-2">
             <div className="rounded-lg border border-slate-800 dark:border-slate-300 p-2 text-xs">

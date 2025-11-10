@@ -2,11 +2,11 @@ import * as Blockly from 'blockly/core';
 import "blockly/blocks";
 import './messages';
 import * as locale from "blockly/msg/en";
-import { Geckode } from "@/blockly/theme";
+import { Geckode } from '@/Blockly/theme';
 
-import { spriteBlocks } from '@/blockly/blocks/sprites';
-import { eventBlocks } from '@/blockly/blocks/events';
-import { inputBlocks } from '@/blockly/blocks/input';
+import { spriteBlocks } from '@/Blockly/blocks/sprites';
+import { eventBlocks } from '@/Blockly/blocks/events';
+import { inputBlocks } from '@/Blockly/blocks/input';
 
 const customBlocks = [
   ...spriteBlocks,
