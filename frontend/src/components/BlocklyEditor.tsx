@@ -2,13 +2,13 @@
 
 import { useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import * as Blockly from "blockly/core";
-import { registerBlockly } from "@/_Blockly/index";
-import toolbox from "@/Blockly/toolbox";
-import starterWorkspace from "@/_Blockly/starterWorkspace";
+import { registerBlockly } from "@/blockly/index";
+import toolbox from "@/blockly/toolbox";
+import starterWorkspace from "@/blockly/starterWorkspace";
 import {
   variableCreateButtonCallback,
   variableCategoryCallback,
-} from "@/Blockly/callbacks";
+} from "@/blockly/callbacks";
 
 registerBlockly();
 
