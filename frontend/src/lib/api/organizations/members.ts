@@ -1,6 +1,6 @@
 import api from "@/lib/api/axios";
-import { OrganizationMember, OrganizationMemberFilters, OrganizationMemberPayload } from "@/lib/types/organizations/members";
-import { PaginatedResponse } from "@/lib/types/pagination";
+import { OrganizationMember, OrganizationMemberFilters, OrganizationMemberPayload } from "@/lib/types/api/organizations/members";
+import { PaginatedResponse } from "@/lib/types/api/pagination";
 
 const membersApi = (baseUrl: string) => Object.assign(
   {

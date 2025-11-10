@@ -1,6 +1,6 @@
 import api from "@/lib/api/axios";
-import { PaginatedResponse } from "@/lib/types/pagination";
-import { ProjectGroup, ProjectGroupPayload } from "@/lib/types/projects/groups";
+import { PaginatedResponse } from "@/lib/types/api/pagination";
+import { ProjectGroup, ProjectGroupPayload } from "@/lib/types/api/projects/groups";
 
 const groupsApi = (baseUrl: string) => Object.assign(
   {

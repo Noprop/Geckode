@@ -1,6 +1,6 @@
 import api from "@/lib/api/axios";
-import { OrganizationInvitation, OrganizationInvitationFilters, OrganizationInvitationPayload } from "@/lib/types/organizations/invitations";
-import { PaginatedResponse } from "@/lib/types/pagination";
+import { OrganizationInvitation, OrganizationInvitationFilters, OrganizationInvitationPayload } from "@/lib/types/api/organizations/invitations";
+import { PaginatedResponse } from "@/lib/types/api/pagination";
 
 const invitationsApi = (baseUrl: string) => Object.assign(
   {
