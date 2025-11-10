@@ -90,11 +90,6 @@ export default function Home() {
           {/* believe it or not both the min and max w classes are necessary: E: I removed it and it seems fine? */}
           <PhaserGame ref={phaserRef} currentActiveScene={currentScene} />
           <div className="mt-4 flex items-center gap-2">
-            <div className="rounded-lg border border-slate-800 dark:border-slate-300 p-2 text-xs">
-              <div className="font-medium">Sprite Position</div>
-              <pre className="mt-1">{`{\n  x: ${spritePosition.x}\n  y: ${spritePosition.y}\n}`}</pre>
-            </div>
-
             <button className="btn btn-deny" onClick={changeScene}>
               Change Scene
             </button>
@@ -111,9 +106,18 @@ export default function Home() {
               Add Sprite
             </button>
 
-            <button className="btn btn-neutral" onClick={generateCode}>
+            <button
+              onClick={generateCode}
+              className="btn btn-neutral"
+              aria-label="Convert Now"
+              title="Convert Now"
+            >
               Convert Now
             </button>
+          </div>
+          <div className="w-max mt-6 rounded-lg border border-slate-800 dark:border-slate-300 p-2 text-xs">
+            <div className="font-medium">Sprite Position</div>
+            <pre className="mt-1">{`{\n  x: ${spritePosition.x}\n  y: ${spritePosition.y}\n}`}</pre>
           </div>
         </div>
 
