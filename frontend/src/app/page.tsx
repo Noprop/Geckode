@@ -6,7 +6,9 @@ import BlocklyEditor, { BlocklyEditorHandle } from "@/components/BlocklyEditor";
 import { javascriptGenerator } from "blockly/javascript";
 import type { Workspace } from "blockly/core";
 
-const PhaserGame = dynamic(() => import("@/components/PhaserGame"), { ssr: false });
+const PhaserGame = dynamic(() => import("@/components/PhaserGame"), {
+  ssr: false,
+});
 
 export default function Home() {
   const blocklyRef = useRef<BlocklyEditorHandle>(null);
@@ -20,7 +22,7 @@ export default function Home() {
 
   const moveSprite = () => {
     const scene = phaserRef.current?.scene;
-    if (scene?.key === 'MainMenu') {
+    if (scene?.key === "MainMenu") {
       try {
         scene.runScript(`
           
@@ -66,7 +68,7 @@ export default function Home() {
   const addSprite = () => phaserRef.current?.scene?.addStar?.();
 
   const currentScene = (scene: { scene: { key: string } }) => {
-    setCanMoveSprite(scene.scene.key !== 'MainMenu');
+    setCanMoveSprite(scene.scene.key !== "MainMenu");
   };
 
   const generateCode = () => {
@@ -84,46 +86,44 @@ export default function Home() {
   };
 
   return (
-    <div id="app" className="h-screen w-screen flex flex-col">
-      <div className="flex h-full gap-x-10">
-        <div className="m-4 min-w-1/3">
-          {/* believe it or not both the min and max w classes are necessary: E: I removed it and it seems fine? */}
-          <PhaserGame ref={phaserRef} currentActiveScene={currentScene} />
-          <div className="mt-4 flex items-center gap-2">
-            <button className="btn btn-deny" onClick={changeScene}>
-              Change Scene
-            </button>
+    <div id="app" className="flex flex-1  gap-x-10">
+      <div className="m-4 min-w-1/3">
+        {/* believe it or not both the min and max w classes are necessary: E: I removed it and it seems fine? */}
+        <PhaserGame ref={phaserRef} currentActiveScene={currentScene} />
+        <div className="mt-4 flex items-center gap-2">
+          <button className="btn btn-deny" onClick={changeScene}>
+            Change Scene
+          </button>
 
-            <button
-              disabled={canMoveSprite}
-              className="btn btn-alt"
-              onClick={moveSprite}
-            >
-              Toggle Movement
-            </button>
+          <button
+            disabled={canMoveSprite}
+            className="btn btn-alt"
+            onClick={moveSprite}
+          >
+            Toggle Movement
+          </button>
 
-            <button className="btn btn-confirm" onClick={addSprite}>
-              Add Sprite
-            </button>
+          <button className="btn btn-confirm" onClick={addSprite}>
+            Add Sprite
+          </button>
 
-            <button
-              onClick={generateCode}
-              className="btn btn-neutral"
-              aria-label="Convert Now"
-              title="Convert Now"
-            >
-              Convert Now
-            </button>
-          </div>
-          <div className="w-max mt-6 rounded-lg border border-slate-800 dark:border-slate-300 p-2 text-xs">
-            <div className="font-medium">Sprite Position</div>
-            <pre className="mt-1">{`{\n  x: ${spritePosition.x}\n  y: ${spritePosition.y}\n}`}</pre>
-          </div>
+          <button
+            onClick={generateCode}
+            className="btn btn-neutral"
+            aria-label="Convert Now"
+            title="Convert Now"
+          >
+            Convert Now
+          </button>
         </div>
-
-        <div className="mb-4 mt-4 flex px-6 w-full">
-          <BlocklyEditor ref={blocklyRef} />
+        <div className="w-max mt-6 rounded-lg border border-slate-800 dark:border-slate-300 p-2 text-xs">
+          <div className="font-medium">Sprite Position</div>
+          <pre className="mt-1">{`{\n  x: ${spritePosition.x}\n  y: ${spritePosition.y}\n}`}</pre>
         </div>
+      </div>
+
+      <div className="mb-4 mt-4 flex px-6 w-full">
+        <BlocklyEditor ref={blocklyRef} />
       </div>
     </div>
   );
