@@ -6,7 +6,6 @@
 
 // Former goog.module ID: Blockly.Themes.Zelos
 import {Theme} from "blockly/core";
-//import {Theme} from '../theme.js';
 
 const defaultBlockStyles = {
   'colour_blocks': {

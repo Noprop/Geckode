@@ -1,8 +1,8 @@
 import api from "@/lib/api/axios";
-import { PaginatedResponse } from "@/lib/types/pagination";
+import { PaginatedResponse } from "@/lib/types/api/pagination";
 import collaboratorsApi from "./collaborators";
 import groupsApi from "./groups";
-import { Project, ProjectFilters, ProjectPayload } from "@/lib/types/projects";
+import { Project, ProjectFilters, ProjectPayload } from "@/lib/types/api/projects";
 
 export const PROJECTS_API_URL = 'projects/';
 

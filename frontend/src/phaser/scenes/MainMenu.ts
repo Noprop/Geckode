@@ -1,6 +1,6 @@
 // game/scenes/MainMenu.ts
 import Phaser from 'phaser';
-import { EventBus } from '../EventBus';
+import { EventBus } from '@/phaser/EventBus';
 
 type PosCB = (pos: { x: number; y: number }) => void;
 

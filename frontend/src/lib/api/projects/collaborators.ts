@@ -1,6 +1,6 @@
 import api from "@/lib/api/axios";
-import { PaginatedResponse } from "@/lib/types/pagination";
-import { OrganizationCollaborator, OrganizationCollaboratorFilters, OrganizationCollaboratorPayload } from "@/lib/types/projects/collaborators";
+import { PaginatedResponse } from "@/lib/types/api/pagination";
+import { OrganizationCollaborator, OrganizationCollaboratorFilters, OrganizationCollaboratorPayload } from "@/lib/types/api/projects/collaborators";
 
 const collaboratorsApi = (baseUrl: string) => Object.assign(
   {

@@ -78,7 +78,7 @@ class AnyOf(BasePermission):
         return any(permission.has_object_permission(request, view, obj) for permission in self.permission_classes)
 
 # Transform permissions to a hierarchy where allowed permissions for a permission is all permissions below it
-def create_permissions_allowed_hierarchy(permissions):
+def create_permissions_allowed_hierarchy(permissions : list[tuple[str, str]]) -> dict[str, list[str]]:
     return {
         choice[0]: [choice[0] for choice in permissions[i:]]
         for i, choice in enumerate(permissions)
