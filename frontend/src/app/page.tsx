@@ -20,7 +20,7 @@ export default function Home() {
 
   const moveSprite = () => {
     const scene = phaserRef.current?.scene;
-    if (scene?.key === "MainMenu") {
+    if (scene?.key === 'MainMenu') {
       try {
         scene.runScript(`
           
@@ -66,21 +66,25 @@ export default function Home() {
   const addSprite = () => phaserRef.current?.scene?.addStar?.();
 
   const currentScene = (scene: { scene: { key: string } }) => {
-    setCanMoveSprite(scene.scene.key !== "MainMenu");
+    setCanMoveSprite(scene.scene.key !== 'MainMenu');
   };
 
   const generateCode = () => {
-    if (!phaserRef.current || !blocklyRef.current || !blocklyRef.current.getWorkspace()) return;
-    const code = javascriptGenerator.workspaceToCode(blocklyRef.current.getWorkspace() as Workspace);
+    if (
+      !phaserRef.current ||
+      !blocklyRef.current ||
+      !blocklyRef.current.getWorkspace()
+    )
+      return;
+    const code = javascriptGenerator.workspaceToCode(
+      blocklyRef.current.getWorkspace() as Workspace
+    );
     console.log(code);
     phaserRef.current.scene?.runScript(code);
-  }
+  };
 
   return (
     <div id="app" className="h-screen w-screen flex flex-col">
-      <div className="bg-primary-green h-[45px] flex p-2 pl-6 text-2xl align-top text-shadow-sm text-white">
-        Geckode
-      </div>
       <div className="flex h-full gap-x-10">
         <div className="m-4 min-w-1/3">
           {/* believe it or not both the min and max w classes are necessary: E: I removed it and it seems fine? */}

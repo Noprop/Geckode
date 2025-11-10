@@ -1,8 +1,10 @@
-import projectsApi from '@/lib/api/projects';
-import { Project } from '@/lib/types/projects';
+import projectsApi from "@/lib/api/projects";
+import { Project } from "@/lib/types/projects";
 
 export default async function ProjectsPage() {
-  const projects: Project[] = await projectsApi.list().then(res => res.results);
+  const projects: Project[] = await projectsApi
+    .list()
+    .then((res) => res.results);
 
   return (
     <div>
@@ -14,4 +16,4 @@ export default async function ProjectsPage() {
       </ul>
     </div>
   );
-};
+}

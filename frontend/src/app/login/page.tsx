@@ -28,7 +28,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="max-w-sm mx-auto mt-20 p-6 border rounded shadow">
+    <div className="w-sm mx-auto mt-20 p-6 border rounded shadow">
       <h1 className="text-xl font-bold mb-4">Login</h1>
 
       {error && <p className="text-red-500 mb-2">{error}</p>}
@@ -36,7 +36,7 @@ export default function LoginPage() {
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         <input
           type="input"
-          placeholder="Password"
+          placeholder="Username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           required
