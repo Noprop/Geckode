@@ -1,6 +1,6 @@
 import * as Blockly from 'blockly/core';
 import "blockly/blocks";
-import './messages';
+import '@/Blockly/messages';
 import * as locale from "blockly/msg/en";
 import { Geckode } from '@/Blockly/theme';
 
