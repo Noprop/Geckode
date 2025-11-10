@@ -5,7 +5,7 @@ from utils.permissions import create_permissions_allowed_hierarchy
 import string
 import random
 
-def org_thumbnail_path(_instance, filename):
+def org_thumbnail_path(_instance, filename : str):
     characters = string.ascii_letters + string.digits + string.punctuation
     random_string = ''.join(random.choices(characters, k=20))
     file_ext = filename.split('.')[-1]
@@ -31,7 +31,7 @@ class Organization(Model):
     project_containment = BooleanField(blank=True, default=False)
     thumbnail = ImageField(upload_to=org_thumbnail_path, blank=True, null=True)
 
-    def has_permission(self, user, required_permission):
+    def has_permission(self, user : User, required_permission : str) -> bool:
         if user == self.owner:
             return True
         if self.is_user_banned(user):
@@ -43,14 +43,14 @@ class Organization(Model):
             permission__in=create_permissions_allowed_hierarchy(self.PERMISSION_CHOICES).get(required_permission, [])
         ).exists()
 
-    def has_member(self, user, include_owner=True):
+    def has_member(self, user : User, include_owner=True) -> bool:
         if include_owner and user == self.owner:
             return True
         if self.is_user_banned(user):
             return False
         return self.members.filter(pk=user.pk).exists()
 
-    def add_member(self, user, permission=None, invited_by=None):
+    def add_member(self, user : User, permission : str | None = None, invited_by : User | None = None) -> None:
         if not permission:
             permission = self.default_member_permission
 
@@ -69,7 +69,7 @@ class Organization(Model):
             invitee=user,
         ).delete()
 
-    def ban_user(self, user, banned_by, days=None, reason=None):
+    def ban_user(self, user : User, banned_by : User | None, days : int | None =None, reason : str | None = None) -> None:
         return OrganizationBannedMember.objects.create(
             organization=self,
             user=user,
@@ -77,7 +77,7 @@ class Organization(Model):
             ban_reason=reason,
         )
 
-    def is_user_banned(self, user):
+    def is_user_banned(self, user : User) -> bool:
         return OrganizationBannedMember.objects.filter(
             organization=self,
             user=user
