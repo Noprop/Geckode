@@ -1,53 +1,49 @@
 "use client";
 
-import {
-  forwardRef,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useImperativeHandle,
-} from "react";
-import StartGame from "@/phaser/main";
-import { EventBus } from "@/phaser/EventBus";
+import { useEffect, useLayoutEffect, useRef, useImperativeHandle } from 'react';
+import StartGame from '@/phaser/main';
+import { EventBus } from '@/phaser/EventBus';
+import { MAIN_MENU_SCENE_KEY } from '@/phaser/scenes/MainMenu';
+import type MainMenu from '@/phaser/scenes/MainMenu';
 
-type SceneApi = any; // tighten to your scene type if you have it
-type ExposedRef = { game?: any; scene?: SceneApi };
-type Props = { currentActiveScene?: (scene: SceneApi) => void };
+type PhaserInstance = ReturnType<typeof StartGame>;
 
-const PhaserGame = forwardRef<ExposedRef, Props>(function PhaserGame(
-  { currentActiveScene },
-  ref
-) {
-  const gameRef = useRef<any>(null);
+// the React hooks in this component are written in order of their actual execution.
+const PhaserGame = ({ ref }: any) => {
+  const gameRef = useRef<PhaserInstance | null>(null);
+
+  useLayoutEffect(() => {
+    if (!gameRef.current) gameRef.current = StartGame('game-container');
+  }, []);
 
   useImperativeHandle(
     ref,
-    () => ({ game: gameRef.current, scene: undefined }),
+    () => {
+      console.log('useImperativeHandle(), ', gameRef);
+      return {
+        game: gameRef.current,
+        scene: null,
+      };
+    },
     []
   );
 
-  useLayoutEffect(() => {
-    if (!gameRef.current) {
-      gameRef.current = StartGame("game-container");
-    }
+  useEffect(() => {
+    // this scene event listener will live until this
+    // Phaser react component has been torn down
+    const handler = (scene: Phaser.Scene | MainMenu) => {
+      if (!('key' in scene) || !(scene.key == MAIN_MENU_SCENE_KEY)) return;
+      ref.scene = scene;
+      ref.current.scene = scene;
+    };
+    EventBus.on('current-scene-ready', handler);
+
     return () => {
-      gameRef.current?.destroy(true);
-      gameRef.current = undefined;
+      EventBus.off('current-scene-ready', handler);
     };
   }, []);
 
-  useEffect(() => {
-    const handler = (currentScene: SceneApi) => {
-      currentActiveScene?.(currentScene);
-      (ref as any).current.scene = currentScene;
-    };
-    EventBus.on("current-scene-ready", handler);
-    return () => {
-      EventBus.removeListener("current-scene-ready", handler);
-    };
-  }, [currentActiveScene, ref]);
-
   return <div id="game-container" className="h-96" />;
-});
+};
 
 export default PhaserGame;
