@@ -8,12 +8,13 @@ from .models import User
 from .serializers import UserSerializer
 from django_filters.rest_framework import DjangoFilterBackend
 from .filters import UserFilter
+from rest_framework.request import HttpRequest, Request
 
 class LoginView(APIView):
     authentication_classes = []
     permission_classes = [AllowAny]
 
-    def post(self, request):
+    def post(self, request : HttpRequest) -> Response:
         user = authenticate(request, username=request.data.get("username"), password=request.data.get("password"))
 
         if user is not None:
@@ -23,12 +24,12 @@ class LoginView(APIView):
             return Response({"detail": "Invalid credentials"}, status=HTTP_401_UNAUTHORIZED)
 
 class LogoutView(APIView):
-    def post(self, request):
+    def post(self, request : HttpRequest) -> Response :
         logout(request)
         return Response({"detail": "Logged out"})
 
 class UserDetailsView(APIView):
-    def get(self, request):
+    def get(self, request : Request):
         return Response(UserSerializer(request.user).data)
 
 class UserViewSet(ModelViewSet):
@@ -39,7 +40,7 @@ class UserViewSet(ModelViewSet):
 
     http_method_names = ['get', 'post', 'patch', 'delete']
 
-    def get_permissions(self):
+    def get_permissions(self) -> list[any]:
         if self.request.method == 'POST':
             return [AllowAny()]
 

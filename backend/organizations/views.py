@@ -7,6 +7,7 @@ from utils.permissions import create_user_permission_class
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
 from rest_framework.decorators import action
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK
 from rest_framework.exceptions import NotFound, ValidationError, PermissionDenied
@@ -19,10 +20,10 @@ class OrganizationViewSet(ModelViewSet):
 
     http_method_names = ['get', 'post', 'patch', 'delete']
 
-    def perform_create(self, serializer):
+    def perform_create(self, serializer : OrganizationSerializer) -> None:
         serializer.save(owner=self.request.user)
 
-    def get_permissions(self):
+    def get_permissions(self) -> list[any]:
         if self.action in ['list', 'create', 'join']:
             return super().get_permissions()
 
@@ -34,7 +35,7 @@ class OrganizationViewSet(ModelViewSet):
         ]
 
     @action(detail=True, methods=['post'])
-    def join(self, request, none_pk=None, pk=None):
+    def join(self, request : Request, none_pk=None, pk : str|None = None) -> Response:
         organization = get_object_or_404(
             Organization.objects.filter(pk=pk).filter(
                 Q(is_public=True) |
@@ -60,7 +61,7 @@ class OrganizationInvitationViewSet(ModelViewSet):
 
     http_method_names = ['get', 'post', 'delete']
 
-    def get_permissions(self):
+    def get_permissions(self) -> list[any]:
         '''
         Only allow users that can invite to create invitations in the org
         Restrict all other methods to managers
@@ -80,16 +81,16 @@ class OrganizationInvitationViewSet(ModelViewSet):
     def get_queryset(self):
         return super().get_queryset().filter(organization=self.kwargs.get('organization_pk'))
 
-    def perform_create(self, serializer):
-        organization = get_object_or_404(Organization, pk=self.kwargs.get('organization_pk'))
+    def perform_create(self, serializer : OrganizationInvitationSerializer) -> None:
+        organization : Organization = get_object_or_404(Organization, pk=self.kwargs.get('organization_pk'))
 
-        if organization.is_user_banned(serializer.validated_data['user']):
+        if organization.is_user_banned(serializer.validated_data['invitee']):
             raise ValidationError("Invited user is banned from organization.")
 
         serializer.save(organization=organization, inviter=self.request.user)
 
     @action(detail=True, methods=['post'])
-    def accept(self, request, organization_pk=None, pk=None):
+    def accept(self, request : Request, organization_pk : str|None = None, pk=None) :
         organization = get_object_or_404(Organization, pk=organization_pk)
         invitation = self.get_object()
 
@@ -108,7 +109,7 @@ class OrganizationMemberViewSet(ModelViewSet):
 
     http_method_names = ['get', 'patch', 'delete']
 
-    def get_object(self):
+    def get_object(self) -> OrganizationMember:
         try:
             return OrganizationMember.objects.get(organization=self.kwargs.get('organization_pk'), member=self.kwargs.get('pk'))
         except OrganizationMember.DoesNotExist:
@@ -125,7 +126,7 @@ class OrganizationMemberViewSet(ModelViewSet):
     Only allow managers for all other methods
     However, let users destroy their own object to leave the organization
     '''
-    def get_permissions(self):
+    def get_permissions(self) -> list[any]:
         return super().get_permissions() + [
             create_user_permission_class(
                 'view' if self.action in ['retrieve', 'list'] else 'manage',
@@ -145,14 +146,14 @@ class OrganizationBannedMemberViewSet(ModelViewSet):
 
     http_method_names = ['get', 'post', 'delete']
 
-    def perform_create(self, serializer):
-        organization = Organization.objects.get(id=self.kwargs.get('organization_pk'))
+    def perform_create(self, serializer : OrganizationBannedMemberSerializer):
+        organization : Organization = Organization.objects.get(id=self.kwargs.get('organization_pk'))
         serializer.save(banned_by=self.request.user, organization=organization)
     
-    def get_permissions(self):
+    def get_permissions(self) -> list[any]:
         return super().get_permissions()
     
-    def get_object(self):
+    def get_object(self) -> OrganizationBannedMember:
         try:
             return OrganizationBannedMember.objects.get(organization=self.kwargs.get('organization_pk'), user=self.kwargs.get('pk'))
         except OrganizationBannedMember.DoesNotExist:
