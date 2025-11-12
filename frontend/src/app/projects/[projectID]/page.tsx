@@ -1,20 +1,24 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import BlocklyEditor, { BlocklyEditorHandle } from "@/components/BlocklyEditor";
 import { javascriptGenerator } from "blockly/javascript";
-import type { Workspace } from "blockly/core";
+import { serialization, type Workspace } from "blockly/core";
+import { useParams } from "next/navigation";
+import projectsApi from "@/lib/api/projects";
 
 const PhaserGame = dynamic(() => import("@/components/PhaserGame"), {
   ssr: false,
 });
 
-export default function Home() {
+export default function ProjectView() {
   const blocklyRef = useRef<BlocklyEditorHandle>(null);
   const phaserRef = useRef<{ game?: any; scene?: any } | null>(null);
   const [spritePosition, setSpritePosition] = useState({ x: 0, y: 0 });
   const [canMoveSprite, setCanMoveSprite] = useState(true);
+
+  const { projectID } = useParams();
 
   const changeScene = () => {
     phaserRef.current?.scene?.changeScene?.();
@@ -65,6 +69,11 @@ export default function Home() {
     }
   };
 
+  useEffect(() => {
+    const workspace: Workspace = blocklyRef.current?.getWorkspace()!;
+    projectsApi.list(projectID);
+  }, []);
+
   const addSprite = () => phaserRef.current?.scene?.addStar?.();
 
   const currentScene = (scene: { scene: { key: string } }) => {
@@ -81,8 +90,17 @@ export default function Home() {
     const code = javascriptGenerator.workspaceToCode(
       blocklyRef.current.getWorkspace() as Workspace
     );
-    console.log(code);
     phaserRef.current.scene?.runScript(code);
+  };
+
+  const saveWorkspace = () => {
+    const workspace: Workspace = blocklyRef.current?.getWorkspace()!;
+    const workspaceState: { [key: string]: any } =
+      serialization.workspaces.save(workspace);
+
+    projectsApi.update(parseInt(projectID!.toString()), {
+      blocks: workspaceState,
+    });
   };
 
   return (
@@ -120,6 +138,7 @@ export default function Home() {
             className="btn btn-alt2"
             aria-label="Save Project"
             title="Save Project"
+            onClick={saveWorkspace}
           >
             Save Project
           </button>

@@ -6,11 +6,14 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { Project } from "@/lib/types/projects";
+import { Project } from "@/lib/types/api/projects";
 
 const columnHelper = createColumnHelper<Project>();
-
 const columns = [
+  columnHelper.accessor("id", {
+    cell: "",
+    header: "",
+  }),
   columnHelper.accessor("thumbnail", {
     cell: (info) => <img src={info.getValue()!} alt="" className="h-3" />,
     header: () => <span></span>,
@@ -44,6 +47,10 @@ export const ProjectTable = forwardRef<ProjectTableRef, tableProps>(
   ({ data }: tableProps, ref) => {
     const rerender = useReducer(() => ({}), {})[1];
 
+    const reroute = (projectID: number | string) => {
+      window.location.href = `/projects/${projectID}/`;
+    };
+
     const table = useReactTable({
       data,
       columns,
@@ -62,7 +69,7 @@ export const ProjectTable = forwardRef<ProjectTableRef, tableProps>(
     return (
       <div className="p-2">
         <table className="w-full">
-          <thead className="h-12 bg-light-secondary dark:bg-dark-secondary">
+          <thead className="table-header">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
@@ -81,9 +88,9 @@ export const ProjectTable = forwardRef<ProjectTableRef, tableProps>(
           <tbody>
             {table.getRowModel().rows.map((row) => (
               <tr
-                onClick={() => console.log(row.getValue("name"))}
+                onClick={() => reroute(row.getValue("id"))}
                 key={row.id}
-                className="cursor-pointer hover:bg-light-tertiary hover:dark:bg-dark-tertiary h-10"
+                className="table-row"
               >
                 {row.getVisibleCells().map((cell) => (
                   <td key={cell.id}>

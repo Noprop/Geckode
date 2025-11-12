@@ -11,6 +11,7 @@ export interface Project {
   published_at: string | null;
   fork_count: number;
   thumbnail: string | null;
+  blocks?: JSON | null;
 }
 
 export interface ProjectFilters extends BaseFilters {
@@ -21,7 +22,8 @@ export interface ProjectFilters extends BaseFilters {
 }
 
 export interface ProjectPayload {
-  name: string;
-  description: string;
+  name?: string; // required when creating
+  description?: string; // required when creating
   thumbnail?: File;
+  blocks?: {[key: string]: any} | null;
 }

@@ -13,7 +13,20 @@ async function request<T = any>(
 ) {
   const headers: Record<string, string> = {};
 
-  if (!isBrowser) {
+  if (isBrowser) {
+    function getCookie(name: string): string | null {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop()?.split(';').shift() ?? null;
+      return null;
+    }
+
+    const csrfToken = getCookie('csrftoken');
+
+    if (csrfToken) {
+      headers['X-CSRFToken'] = csrfToken;
+    }
+  } else {
     const cookies = require('next/headers').cookies;
     const cookieStore = await cookies();
     const serverCookies = cookieStore.getAll().map((c: any) => `${c.name}=${c.value}`).join('; ');
@@ -36,12 +49,13 @@ async function request<T = any>(
     return response;
   } catch (err: any) {
     if (err.response) {
+      /* diabling this for now to see my errors
       if (isBrowser) {
         window.location.href = '/login';
       } else {
         redirect('/login');
       }
-
+      */
       console.error('API Error:', err.response.status, err.response.data);
       throw new Error(`API Error ${err.response.status}: ${err.response.data.detail || 'Unknown'}`);
     } else if (err.request) {
