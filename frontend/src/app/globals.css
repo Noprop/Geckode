@@ -97,6 +97,14 @@ body {
   @apply stroke-none shadow-2xl;
 }
 
+.blockly-toolbox-search {
+  @apply sticky top-0 z-10 mb-2 rounded-lg bg-light-secondary/90 px-2 pt-3 pb-2 backdrop-blur-sm;
+}
+
+.blockly-toolbox-search-input {
+  @apply w-full rounded-md border border-slate-300 bg-white/90 px-2 py-1 text-xs text-dark-txt placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-green;
+}
+
 @media (prefers-color-scheme: dark) {
   .blocklyToolbox{
     @apply bg-dark-secondary px-3 rounded-l-lg;
@@ -112,6 +120,12 @@ body {
   }
   .blocklyScrollbarHandle {
     @apply fill-neutral-400
+  }
+  .blockly-toolbox-search {
+    @apply bg-dark-secondary/80;
+  }
+  .blockly-toolbox-search-input {
+    @apply border-slate-600 bg-slate-900/80 text-light-txt placeholder:text-slate-400;
   }
 }
 

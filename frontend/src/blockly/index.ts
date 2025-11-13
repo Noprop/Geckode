@@ -3,6 +3,7 @@ import "blockly/blocks";
 import '@/blockly/messages';
 import * as locale from "blockly/msg/en";
 import { Geckode } from '@/blockly/theme';
+import '@blockly/toolbox-search';
 
 import { spriteBlocks } from '@/blockly/blocks/sprites';
 import { eventBlocks } from '@/blockly/blocks/events';

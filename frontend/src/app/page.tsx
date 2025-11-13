@@ -264,7 +264,7 @@ export default function Home() {
         />
       </div>
 
-      <div className="flex flex-col">
+      <div className="flex flex-col p-3">
         <div
           className="rounded-xl border border-dashed border-slate-400 
                    bg-slate-900/5 p-2 dark:border-slate-600 dark:bg-slate-100/10"
