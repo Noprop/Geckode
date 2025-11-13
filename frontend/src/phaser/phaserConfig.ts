@@ -8,15 +8,12 @@ import { Preloader } from './scenes/Preloader';
 // Find out more information about the Game Config at:
 // https://docs.phaser.io/api-documentation/typedef/types-core#gameconfig
 
-let gameViewWidth : number = window.innerWidth * 0.4;
-let gameViewHeight : number = gameViewWidth * 9 / 16
-
 const config = {
   type: Phaser.AUTO,
-  width: gameViewWidth,
-  height: gameViewHeight,
-  scale: {mode: Phaser.Scale.WIDTH_CONTROLS_HEIGHT},
-  parent: 'game-container',
+  width: 480,
+  height: 360,
+  scale: { mode: Phaser.Scale.WIDTH_CONTROLS_HEIGHT },
+  parent: 'phaser-container',
   backgroundColor: '#707090',
   scene: [Boot, Preloader, MainMenu, Game, GameOver],
   physics: {
@@ -29,7 +26,6 @@ const config = {
 } satisfies Phaser.Types.Core.GameConfig;
 
 const StartGame = (parent: string | HTMLElement): Phaser.Game => {
-  console.log('parent: ', parent);
   return new Phaser.Game({ ...config, parent });
 };
 
