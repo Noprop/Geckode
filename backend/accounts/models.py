@@ -1,9 +1,9 @@
+from __future__ import annotations
 from django.db.models import DateTimeField, CharField, EmailField, BooleanField, ImageField
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from django.core.validators import RegexValidator
 import random
 import string
-
 
 def user_avatar_path(_instance, filename):
     characters = string.ascii_letters + string.digits + string.punctuation
