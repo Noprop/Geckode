@@ -80,6 +80,10 @@ body {
 }
 
 
+.error-bubble {
+  @apply bg-rose-600 outline-1 outline-white align-middle text-white rounded-lg py-1 mt-1 mx-1 px-3 transition-transform
+}
+
 
 /* Overridding Blocky styles */
 
