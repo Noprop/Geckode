@@ -1,16 +1,16 @@
 import { User } from "../users";
 import { BaseFilters } from "../filters";
 
-export interface OrganizationCollaborator {
+export interface ProjectCollaborator {
   collaborator: User;
   permission: string;
 }
 
-export interface OrganizationCollaboratorFilters extends BaseFilters {
+export interface ProjectCollaboratorFilters extends BaseFilters {
   permission?: string;
 }
 
-export interface OrganizationCollaboratorPayload {
+export interface ProjectCollaboratorPayload {
   collaborator_id: number;
   permission: string;
 }

@@ -22,8 +22,8 @@ export interface ProjectFilters extends BaseFilters {
 }
 
 export interface ProjectPayload {
-  name?: string; // required when creating
-  description?: string; // required when creating
+  name: string;
+  description: string;
   thumbnail?: File;
   blocks?: {[key: string]: any} | null;
 }
