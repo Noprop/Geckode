@@ -16,8 +16,12 @@ export interface BlocklyEditorHandle {
   getWorkspace: () => Blockly.Workspace | null;
 }
 
-const BlocklyEditor = forwardRef<BlocklyEditorHandle, Record<string, any>>(
-  (props: any, ref) => {
+type BlocklyEditorProps = {
+  onWorkspaceReady?: (workspace: Blockly.WorkspaceSvg) => void;
+};
+
+const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(
+  ({ onWorkspaceReady }, ref) => {
     const blocklyDivRef = useRef<HTMLDivElement>(null);
     const workspaceRef = useRef<Blockly.WorkspaceSvg | null>(null);
 
@@ -26,10 +30,10 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, Record<string, any>>(
         const blocklyOptions: Blockly.BlocklyOptions = {
           toolbox: toolbox as Blockly.utils.toolbox.ToolboxDefinition,
           sounds: false,
-          renderer: "zelos",
+          renderer: 'zelos',
           readOnly: false,
           trashcan: true,
-          media: "media/",
+          media: 'media/',
           move: {
             scrollbars: true,
             drag: true,
@@ -42,13 +46,15 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, Record<string, any>>(
           blocklyOptions
         );
 
+        onWorkspaceReady?.(workspaceRef.current);
+
         workspaceRef.current.registerButtonCallback(
-          "createVariableButton",
+          'createVariableButton',
           variableCreateButtonCallback
         );
 
         workspaceRef.current.registerToolboxCategoryCallback(
-          "CUSTOM_VARIABLES",
+          'CUSTOM_VARIABLES',
           variableCategoryCallback
         );
 
@@ -72,11 +78,11 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, Record<string, any>>(
     }));
 
     return (
-      <>
-        <div className="flex-col w-full">
-          <div ref={blocklyDivRef} id="blocklyDiv" className="w-full h-full" />
-        </div>
-      </>
+      <div
+        ref={blocklyDivRef}
+        id="blocklyDiv"
+        className="h-full w-full min-h-[20rem]"
+      />
     );
   }
 );

@@ -21,6 +21,10 @@ const toolbox = {
       "contents": [
         {
           "kind": "block",
+          "type": "createSprite",
+        },
+        {
+          "kind": "block",
           "type": "setProperty",
           "inputs": {
             "VALUE": {

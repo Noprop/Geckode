@@ -43,6 +43,49 @@ javascriptGenerator.forBlock['setProperty'] = function (block, generator) {
   return `scene.player.set${block.getFieldValue('PROPERTY')}(${value})\n`;
 };
 
+const createSprite = {
+  type: "createSprite",
+  tooltip: "Create a sprite on the canvas",
+  helpUrl: "",
+  message0: "create sprite %1 using %2 at x %3 y %4",
+  args0: [
+    {
+      type: "field_input",
+      name: "NAME",
+      text: "sprite1",
+    },
+    {
+      type: "field_dropdown",
+      name: "TEXTURE",
+      options: [
+        ["Star", "star"],
+      ],
+    },
+    {
+      type: "field_number",
+      name: "X",
+      value: 0,
+    },
+    {
+      type: "field_number",
+      name: "Y",
+      value: 0,
+    },
+  ],
+  previousStatement: null,
+  nextStatement: null,
+  colour: "%{BKY_SPRITES_HUE}",
+};
+
+javascriptGenerator.forBlock['createSprite'] = function (block) {
+  const rawName = block.getFieldValue('NAME') || 'sprite';
+  const safeName = rawName.replace(/[^\w]/g, '_') || 'sprite';
+  const x = block.getFieldValue('X') ?? 0;
+  const y = block.getFieldValue('Y') ?? 0;
+  const texture = block.getFieldValue('TEXTURE') || 'star';
+  return `const ${safeName} = scene.physics.add.sprite(${x}, ${y}, '${texture}');\n`;
+};
+
 const changeProperty = {
   type: "changeProperty",
   tooltip: "Change the property of a sprite by a certain amount",
@@ -129,6 +172,7 @@ javascriptGenerator.forBlock['getProperty'] = function (block, generator) {
 };
 
 export const spriteBlocks = [
+  createSprite,
   setProperty,
   changeProperty,
   getProperty,

@@ -2,6 +2,8 @@
 import Phaser from 'phaser';
 import { EventBus } from '@/phaser/EventBus';
 
+export const MAIN_MENU_SCENE_KEY = 'MainMenu' as const;
+
 type PosCB = (pos: { x: number; y: number }) => void;
 
 export type GameAPI = {
@@ -34,16 +36,16 @@ export default class MainMenu extends Phaser.Scene {
   };
   private posCB?: PosCB;
   private lastSent = { x: -1, y: -1 };
+  private editorSprites = new Map<string, Phaser.Physics.Arcade.Sprite>();
 
   constructor() {
-    super('MainMenu');
-    this.key = 'MainMenu';
+    super(MAIN_MENU_SCENE_KEY);
+    this.key = MAIN_MENU_SCENE_KEY;
   }
 
   preload() {
     // Ensure you have a sprite/atlas loaded; example:
     // this.load.image('star', 'assets/star.png');
-
   }
 
   public changeScene() {
@@ -51,6 +53,7 @@ export default class MainMenu extends Phaser.Scene {
   }
 
   create() {
+    this.editorSprites.clear();
     // Create a physics-enabled sprite
     this.player = this.physics.add.sprite(400, 300, 'star');
     this.player.setCollideWorldBounds(true);
@@ -71,12 +74,10 @@ export default class MainMenu extends Phaser.Scene {
     // Tell React which scene is active
     EventBus.emit('current-scene-ready', this);
 
-    this.start()
+    this.start();
   }
 
-  start(){
-    
-  }
+  start() {}
 
   /**
    * Keep your existing React contract:
@@ -101,24 +102,39 @@ export default class MainMenu extends Phaser.Scene {
     this.physics.add.sprite(x, y, 'star');
   }
 
+  public addSpriteFromEditor(
+    texture: string,
+    x: number,
+    y: number,
+    id: string
+  ) {
+    const sprite = this.physics.add.sprite(x, y, texture);
+    sprite.setName(id);
+    sprite.setData('editorSpriteId', id);
+    this.editorSprites.set(id, sprite);
+    return sprite;
+  }
+
+  public removeEditorSprite(id: string) {
+    const sprite = this.editorSprites.get(id);
+    if (!sprite) return;
+    sprite.destroy();
+    this.editorSprites.delete(id);
+  }
+
   update() {
     // if (!this.player) return;
-
     // const speed = 200;
-
     // // Reset velocity each frame, then set based on input
     // this.player.setVelocity(0);
-
     // const left = this.cursors.left?.isDown || this.wasd.A.isDown;
     // const right = this.cursors.right?.isDown || this.wasd.D.isDown;
     // const up = this.cursors.up?.isDown || this.wasd.W.isDown;
     // const down = this.cursors.down?.isDown || this.wasd.S.isDown;
-
     // if (left) this.player.setVelocityX(-speed);
     // if (right) this.player.setVelocityX(speed);
     // if (up) this.player.setVelocityY(-speed);
     // if (down) this.player.setVelocityY(speed);
-
     // // Normalize diagonal speed
     // if ((left || right) && (up || down) && this.player.body) {
     //   this.player.setVelocity(
@@ -126,7 +142,6 @@ export default class MainMenu extends Phaser.Scene {
     //     this.player.body.velocity.y * 0.7071
     //   );
     // }
-
     // // Publish position only when it changes (avoids spamming React state)
     // const px = Math.round(this.player.x);
     // const py = Math.round(this.player.y);
