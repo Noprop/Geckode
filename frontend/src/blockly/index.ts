@@ -7,11 +7,13 @@ import { Geckode } from '@/blockly/theme';
 import { spriteBlocks } from '@/blockly/blocks/sprites';
 import { eventBlocks } from '@/blockly/blocks/events';
 import { inputBlocks } from '@/blockly/blocks/input';
+import { miscBlocks } from '@/blockly/blocks/misc';
 
 const customBlocks = [
   ...spriteBlocks,
   ...eventBlocks,
   ...inputBlocks,
+  ...miscBlocks,
 ];
 
 let isRegistered = false;
