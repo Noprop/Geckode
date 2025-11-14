@@ -90,10 +90,15 @@ export default function Home() {
     )
       return;
     const code = javascriptGenerator.workspaceToCode(
-      blocklyRef.current.getWorkspace() as Workspace
+      blocklyRef.current.getWorkspace() as Blockly.WorkspaceSvg
     );
     console.log(code);
     phaserRef.current.scene?.runScript(code);
+
+    (blocklyRef?.current?.getWorkspace() as Blockly.WorkspaceSvg)
+      .getToolbox()
+      ?.getFlyout()
+      ?.setVisible(true);
   };
 
   const workspaceDeleteHandler = useCallback(
@@ -256,7 +261,7 @@ export default function Home() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-3rem)]">
+    <div className="flex h-[calc(100vh-4rem)]">
       <div className="flex-1 min-h-0 min-w-0">
         <BlocklyEditor
           ref={blocklyRef}

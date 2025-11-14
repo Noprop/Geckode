@@ -24,10 +24,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
-        <header className="bg-primary-green flex items-center h-[3rem]">
-          <h1 className="text-shadow-sm text-white pl-4 text-2xl">Geckode</h1>
+        <header className="bg-primary-green flex items-center h-[4rem]">
+          <h1 className="text-shadow-sm text-white pl-4 text-3xl">Geckode</h1>
         </header>
-        <main className="h-[calc(100% - 3rem)]" id="app">
+        <main className="h-[calc(100% - 4rem)]" id="app">
           {children}
         </main>
       </body>

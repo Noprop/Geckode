@@ -8,7 +8,7 @@ const toolbox = {
     },
     {
       kind: 'category',
-      name: 'events',
+      name: 'Events',
       contents: [
         {
           kind: 'block',
@@ -22,7 +22,7 @@ const toolbox = {
     },
     {
       kind: 'category',
-      name: 'sprites',
+      name: 'Sprites',
       contents: [
         {
           kind: 'block',
@@ -64,7 +64,7 @@ const toolbox = {
     },
     {
       kind: 'category',
-      name: 'input',
+      name: 'Input',
       contents: [
         {
           kind: 'block',
@@ -74,7 +74,7 @@ const toolbox = {
     },
     {
       kind: 'category',
-      name: 'control',
+      name: 'Control',
       contents: [
         {
           kind: 'block',
@@ -142,7 +142,7 @@ const toolbox = {
     },
     {
       kind: 'category',
-      name: 'math',
+      name: 'Math',
       contents: [
         {
           kind: 'block',
@@ -174,12 +174,12 @@ const toolbox = {
     },
     {
       kind: 'category',
-      name: 'variables',
+      name: 'Variables',
       custom: 'CUSTOM_VARIABLES',
     },
     {
       kind: 'category',
-      name: 'typed variables',
+      name: 'Typed Variables',
       custom: 'VARIABLE_DYNAMIC',
     },
     {

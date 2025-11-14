@@ -72,15 +72,53 @@ body {
 /* Overridding Blocky styles */
 
 .blocklyToolbox{
-  @apply bg-light-secondary px-3 rounded-l-lg;
+  /* @apply bg-light-secondary px-3 rounded-l-lg; */
+  @apply p-0;
+}
+.blocklyToolboxCategory {
+  @apply h-[2rem]
+}
+
+#toolbox-search-input.blocklyToolboxCategoryContainer {
+  @apply h-[2.5rem] flex justify-center items-center mb-2;
+}
+#toolbox-search-input.blocklyToolboxCategoryContainer:hover {
+  @apply cursor-text;
+}
+#toolbox-search-input .blocklyTreeRowContentContainer {
+  @apply h-[2.5rem];
+}
+#toolbox-search-input input {
+  @apply h-[2.5rem];
+}
+
+.blocklyFlyoutScrollbar {
+  display: none;
+}
+
+
+#toolbox-search-input input:focus-visible {
+  @apply outline-0;
+}
+
+#toolbox-search-input.blocklyToolboxCategory {
+  @apply p-0 m-0 h-[2.5rem];
 }
 
 .blocklyToolboxCategory {
-  @apply bg-light-tertiary m-1 rounded-full text-center;
+  /* @apply bg-light-tertiary m-1 rounded-full text-center; */
+  /* @apply text-2xl; */
+}
+.blocklyToolboxCategoryLabel {
+  @apply text-xl;
+}
+#toolbox-search-input {
+  @apply text-xl bg-white;
 }
 
 .blocklyToolboxSelected {
-  background-color: var(--color-primary-green) !important;
+  /* background-color: var(--color-primary-green); */
+  background-color: white !important;
   @apply text-shadow-sm;
 }
 
@@ -106,11 +144,17 @@ body {
 }
 
 @media (prefers-color-scheme: dark) {
-  .blocklyToolbox{
-    @apply bg-dark-secondary px-3 rounded-l-lg;
+  .blocklyToolbox {
+    /* @apply bg-dark-secondary px-3 rounded-l-lg; */
+    @apply bg-dark-secondary;
   }
   .blocklyToolboxCategory {
-    @apply bg-dark-tertiary m-1 rounded-2xl text-center;
+    /* @apply bg-dark-tertiary m-1 rounded-2xl text-center; */
+    /* @apply text-2xl; */
+  }
+  #toolbox-search-input.blocklyToolboxCategoryContainer {
+    /* @apply bg-white; */
+    @apply text-black;
   }
   .blocklyToolboxFlyout {
     @apply bg-dark-tertiary
@@ -131,12 +175,4 @@ body {
 
 .blocklyFlyoutBackground {
   fill-opacity: 0;
-}
-
-.main-height {
-  height: calc(100% - 200rem);
-}
-
-.header-height {
-  height: 3rem;
 }
