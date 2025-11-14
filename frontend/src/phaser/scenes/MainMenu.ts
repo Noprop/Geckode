@@ -6,7 +6,8 @@ type PosCB = (pos: { x: number; y: number }) => void;
 
 export type GameAPI = {
   moveBy: (dx: number, dy: number) => void;
-  addStar: () => void;
+  createPlayer: (xPos: number|null, yPos: number|null, starKey: string|null) => void;
+  addStar: (xPos: number|null, yPos: number|null, starKey: string|null) => void;
   wait: (ms: number) => Promise<void>;
   stopAll: () => void;
 };
@@ -51,10 +52,6 @@ export default class MainMenu extends Phaser.Scene {
   }
 
   create() {
-    // Create a physics-enabled sprite
-    this.player = this.physics.add.sprite(400, 300, 'star');
-    this.player.setCollideWorldBounds(true);
-
     // Cursor keys
     // @ts-ignore
     this.cursors = this.input.keyboard.createCursorKeys();
@@ -72,10 +69,21 @@ export default class MainMenu extends Phaser.Scene {
     EventBus.emit('current-scene-ready', this);
 
     this.start()
+    
+  }
+
+  public createPlayer(xPos: number|null, yPos: number|null, starKey: string|null) {
+    const x = xPos ? xPos : 400;
+    const y = yPos ? yPos : 300;
+    const key = starKey ? starKey : 'player'
+    
+    // Create a physics-enabled sprite
+    this.player = this.physics.add.sprite(x, y, key);
+    this.player.name = 'player';
+    this.player.setCollideWorldBounds(true);
   }
 
   start(){
-    
   }
 
   /**
@@ -95,10 +103,11 @@ export default class MainMenu extends Phaser.Scene {
   /**
    * Optional: If you already have addStar() wired from React, keep it.
    */
-  public addStar() {
-    const x = Phaser.Math.Between(50, 750);
-    const y = Phaser.Math.Between(50, 550);
-    this.physics.add.sprite(x, y, 'star');
+  public addStar(xPos: number|null = null, yPos: number|null = null, starKey: string|null = null) {
+    const x = xPos ? xPos :Phaser.Math.Between(50, 750);
+    const y = yPos ? yPos : Phaser.Math.Between(50, 550);
+    const key = starKey ? starKey : 'star'
+    this.physics.add.sprite(x, y, key);
   }
 
   update() {
@@ -143,7 +152,8 @@ export default class MainMenu extends Phaser.Scene {
         this.player.setX(this.player.x + dx);
         this.player.setY(this.player.y + dy);
       },
-      addStar: () => this.addStar(),
+      createPlayer: (xPos, yPos, starKey) => this.createPlayer(xPos, yPos, starKey),
+      addStar: (xPos, yPos, starKey) => this.addStar(xPos, yPos, starKey),
       wait: (ms: number) => new Promise((r) => setTimeout(r, ms)),
       stopAll: () => {
         if (!this.player) return;

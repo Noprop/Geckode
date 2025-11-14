@@ -12,6 +12,7 @@ export interface Project {
   fork_count: number;
   thumbnail: string | null;
   blocks?: JSON | null;
+  game_state?: JSON | null;
 }
 
 export interface ProjectFilters extends BaseFilters {
@@ -26,4 +27,5 @@ export interface ProjectPayload {
   description: string;
   thumbnail?: File;
   blocks?: {[key: string]: any} | null;
+  game_state?: {[key: string]: any} | null;
 }

@@ -35,6 +35,7 @@ class Project(Model):
     published_at = DateTimeField(null=True, blank=True)
     forked_by = ManyToManyField(User, related_name='forked_projects', blank=True)
     blocks = JSONField(default=dict, blank=True)
+    game_state = JSONField(default=dict, blank=True)
     thumbnail = ImageField(upload_to=project_thumbnail_path, blank=True, null=True)
 
     def has_permission(self, user, required_permission, published_gives_permission=True):

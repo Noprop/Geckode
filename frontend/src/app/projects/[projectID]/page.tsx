@@ -8,6 +8,13 @@ import { serialization, type Workspace } from "blockly/core";
 import { useParams } from "next/navigation";
 import projectsApi from "@/lib/api/projects";
 import { Project } from "@/lib/types/api/projects";
+import {
+  createPhaserState,
+  loadPhaserState,
+  PhaserExport,
+} from "@/phaser/PhaserStateManager";
+import { EventBus } from "@/phaser/EventBus";
+import MainMenu from "@/phaser/scenes/MainMenu";
 
 const PhaserGame = dynamic(() => import("@/components/PhaserGame"), {
   ssr: false,
@@ -19,6 +26,7 @@ export default function ProjectView() {
   const [spritePosition, setSpritePosition] = useState({ x: 0, y: 0 });
   const [canMoveSprite, setCanMoveSprite] = useState(true);
   const [errMsg, setErrMsg] = useState<string | null>(null);
+  const [phaserState, setPhaserState] = useState<PhaserExport | null>(null);
 
   const { projectID } = useParams();
 
@@ -75,7 +83,7 @@ export default function ProjectView() {
     // try to get workspace from backend
     const fetchWorkspace = async () => {
       const workspace: Workspace = blocklyRef.current?.getWorkspace()!;
-      projectsApi.get(projectID).then((res: Project) => {
+      projectsApi.get(parseInt(projectID?.toString()!)).then((res: Project) => {
         if (res.blocks) {
           try {
             serialization.workspaces.load(res.blocks, workspace);
@@ -83,13 +91,17 @@ export default function ProjectView() {
             setErrMsg("Failed to load workspace!");
           }
         }
+
+        if (res.game_state) setPhaserState(res.game_state as PhaserExport);
       });
     };
 
     fetchWorkspace();
   }, []);
 
-  const addSprite = () => phaserRef.current?.scene?.addStar?.();
+  const addSprite = () => {
+    phaserRef.current?.scene?.addStar?.();
+  };
 
   const currentScene = (scene: { scene: { key: string } }) => {
     setCanMoveSprite(scene.scene.key !== "MainMenu");
@@ -108,13 +120,16 @@ export default function ProjectView() {
     phaserRef.current.scene?.runScript(code);
   };
 
-  const saveWorkspace = () => {
+  const saveProject = () => {
     const workspace: Workspace = blocklyRef.current?.getWorkspace()!;
     const workspaceState: { [key: string]: any } =
       serialization.workspaces.save(workspace);
 
+    const phaserState = createPhaserState(phaserRef?.current!);
+
     projectsApi.update(parseInt(projectID!.toString()), {
       blocks: workspaceState,
+      game_state: phaserState,
     });
   };
 
@@ -124,7 +139,11 @@ export default function ProjectView() {
       <div id="app" className="flex flex-1  gap-x-10">
         <div className="m-4 min-w-1/3">
           {/* believe it or not both the min and max w classes are necessary: E: I removed it and it seems fine? */}
-          <PhaserGame ref={phaserRef} currentActiveScene={currentScene} />
+          <PhaserGame
+            ref={phaserRef}
+            currentActiveScene={currentScene}
+            phaserState={phaserState}
+          />
           <div className="mt-4 flex items-center gap-2">
             <button className="btn btn-deny" onClick={changeScene}>
               Change Scene
@@ -155,7 +174,7 @@ export default function ProjectView() {
               className="btn btn-alt2"
               aria-label="Save Project"
               title="Save Project"
-              onClick={saveWorkspace}
+              onClick={saveProject}
             >
               Save Project
             </button>

@@ -9,13 +9,17 @@ import {
 } from "react";
 import StartGame from "@/phaser/main";
 import { EventBus } from "@/phaser/EventBus";
+import { loadPhaserState, PhaserExport } from "@/phaser/PhaserStateManager";
 
 type SceneApi = any; // tighten to your scene type if you have it
 type ExposedRef = { game?: any; scene?: SceneApi };
-type Props = { currentActiveScene?: (scene: SceneApi) => void };
+type Props = {
+  currentActiveScene?: (scene: SceneApi) => void;
+  phaserState: PhaserExport | null;
+};
 
 const PhaserGame = forwardRef<ExposedRef, Props>(function PhaserGame(
-  { currentActiveScene },
+  { currentActiveScene, phaserState },
   ref
 ) {
   const gameRef = useRef<any>(null);
@@ -40,6 +44,9 @@ const PhaserGame = forwardRef<ExposedRef, Props>(function PhaserGame(
     const handler = (currentScene: SceneApi) => {
       currentActiveScene?.(currentScene);
       (ref as any).current.scene = currentScene;
+      if (phaserState && Object.keys(phaserState).length > 0)
+        loadPhaserState((ref as any).current, phaserState);
+      else (ref as any).current.scene.createPlayer();
     };
     EventBus.on("current-scene-ready", handler);
     return () => {
