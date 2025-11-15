@@ -10,6 +10,8 @@ export type GameAPI = {
   moveBy: (dx: number, dy: number) => void;
   createPlayer: (xPos: number|null, yPos: number|null, starKey: string|null) => void;
   addStar: (xPos: number|null, yPos: number|null, starKey: string|null) => void;
+  addSpriteFromEditor: (texture: string, x: number, y: number, id: string) => void;
+  removeEditorSprite: (id: string) => void;
   wait: (ms: number) => Promise<void>;
   stopAll: () => void;
 };
@@ -113,6 +115,26 @@ export default class MainMenu extends Phaser.Scene {
     this.physics.add.sprite(x, y, key);
   }
 
+  public addSpriteFromEditor(
+    texture: string,
+    x: number,
+    y: number,
+    id: string
+  ) {
+    const sprite = this.physics.add.sprite(x, y, texture);
+    sprite.setName(id);
+    sprite.setData('editorSpriteId', id);
+    this.editorSprites.set(id, sprite);
+    return sprite;
+  }
+
+  public removeEditorSprite(id: string) {
+    const sprite = this.editorSprites.get(id);
+    if (!sprite) return;
+    sprite.destroy();
+    this.editorSprites.delete(id);
+  }
+
   update() {
     // if (!this.player) return;
     // const speed = 200;
@@ -151,6 +173,8 @@ export default class MainMenu extends Phaser.Scene {
       },
       createPlayer: (xPos, yPos, starKey) => this.createPlayer(xPos, yPos, starKey),
       addStar: (xPos, yPos, starKey) => this.addStar(xPos, yPos, starKey),
+      addSpriteFromEditor: (texture: string, x: number, y: number, id: string) => this.addSpriteFromEditor(texture, x, y, id),
+      removeEditorSprite: (id: string) => this.removeEditorSprite(id),
       wait: (ms: number) => new Promise((r) => setTimeout(r, ms)),
       stopAll: () => {
         if (!this.player) return;

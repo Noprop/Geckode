@@ -6,7 +6,7 @@ export interface PhaserExport {
 
 // Schema mirrors the interface to 
 const phaserExportSchema = {
-  game: "any",
+  //game: "object",     this causes issues rn
   scene: {
     key: "string",
     player: "object",  /// Use a format like: {x: "number",y: "number"} if you only want specific fields,
