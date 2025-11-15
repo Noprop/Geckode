@@ -23,6 +23,7 @@ class Project(Model):
         ('invite', 'Can invite and code'),
         ('admin', 'Can change project details'),
     ]
+    PROJECT_STATE_FIELDS = ['blocks', 'game_state', 'sprites']
 
     owner = ForeignKey(User, related_name='projects', on_delete=CASCADE)
     group = ForeignKey(ProjectGroup, related_name='projects', null=True, blank=True, on_delete=SET_NULL)
@@ -37,6 +38,7 @@ class Project(Model):
     blocks = JSONField(default=dict, blank=True)
     game_state = JSONField(default=dict, blank=True)
     thumbnail = ImageField(upload_to=project_thumbnail_path, blank=True, null=True)
+    sprites = JSONField(default=list, blank=True) # This is temporary and definitely should be its own model
 
     def has_permission(self, user, required_permission, published_gives_permission=True):
         if user == self.owner:

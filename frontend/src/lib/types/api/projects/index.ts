@@ -1,5 +1,6 @@
 import { User } from "../users";
 import { BaseFilters } from "../filters";
+import { SpriteInstance } from "@/components/SpriteEditor";
 
 export interface Project {
   id: number;
@@ -13,6 +14,7 @@ export interface Project {
   thumbnail: string | null;
   blocks?: JSON | null;
   game_state?: JSON | null;
+  sprites?: SpriteInstance[];
 }
 
 export interface ProjectFilters extends BaseFilters {
@@ -24,8 +26,9 @@ export interface ProjectFilters extends BaseFilters {
 
 export interface ProjectPayload {
   name: string;
-  description: string;
+  description?: string;
   thumbnail?: File;
   blocks?: {[key: string]: any} | null;
   game_state?: {[key: string]: any} | null;
+  sprites?: {[key: string]: any} | null;
 }

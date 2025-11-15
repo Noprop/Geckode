@@ -72,7 +72,7 @@ class ProjectViewSet(ModelViewSet):
 
         if not project.has_permission(request.user, 'admin'):
             for field in request.data.keys():
-                if field != 'blocks':
+                if field not in Project.PROJECT_STATE_FIELDS:
                     raise PermissionDenied(f"You cannot modify '{field}'.")
 
         return super().partial_update(request, *args, **kwargs)

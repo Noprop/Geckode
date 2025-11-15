@@ -96,16 +96,18 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectID }) => {
 
     const fetchWorkspace = async () => {
       const workspace: Blockly.Workspace = blocklyRef.current?.getWorkspace()!;
-      projectsApi.get(parseInt(projectID?.toString()!)).then((res: Project) => {
-        if (res.blocks) {
+      projectsApi.get(parseInt(projectID?.toString()!)).then((project: Project) => {
+        if (project.blocks) {
           try {
-            Blockly.serialization.workspaces.load(res.blocks, workspace);
+            Blockly.serialization.workspaces.load(project.blocks, workspace);
           } catch {
             setErrMsg("Failed to load workspace!");
           }
         }
 
-        if (res.game_state) setPhaserState(res.game_state as PhaserExport);
+        if (project.game_state) setPhaserState(project.game_state as PhaserExport);
+
+        if (project.sprites) setSpriteInstances(project.sprites);
       });
     };
 
@@ -146,6 +148,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectID }) => {
     projectsApi.update(parseInt(projectID!.toString()), {
       blocks: workspaceState,
       game_state: phaserState,
+      sprites: spriteInstances,
     });
 
     setSuccessMsg("Project Saved Successfully!");

@@ -38,6 +38,16 @@ export default function ProjectsPage() {
     tableRef?.current?.handleRefresh();
   };
 
+  const createProject = () => {
+    const projectName = prompt("Project name");
+
+    if (projectName != null) {
+      projectsApi.create({
+        name: projectName,
+      }).then(project => window.location.href = `/projects/${project.id}`);
+    }
+  };
+
   return (
     <div className="mx-20 my-5">
       {!errMsg ? (
@@ -49,6 +59,12 @@ export default function ProjectsPage() {
               className="ml-10 h-min btn btn-confirm p-2"
             >
               Refresh
+            </button>
+            <button
+              onClick={createProject}
+              className="ml-10 h-min btn btn-confirm p-2"
+            >
+              Create
             </button>
           </div>
           <ProjectTable ref={tableRef} data={projects} />
