@@ -1,9 +1,9 @@
+from __future__ import annotations
 from django.db.models import DateTimeField, CharField, EmailField, BooleanField, ImageField
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from django.core.validators import RegexValidator
 import random
 import string
-
 
 def user_avatar_path(_instance, filename):
     characters = string.ascii_letters + string.digits + string.punctuation
@@ -12,16 +12,16 @@ def user_avatar_path(_instance, filename):
     return f"avatars/{random_string}.{file_ext}"
 
 class UserManager(BaseUserManager):
-    def create_user(self, username, email, password=None, **extra_fields):
+    def create_user(self, username : str, email : str, password : str|None = None, **extra_fields) -> User :
         if not email:
             raise ValueError('Users must have an email address.')
         email = self.normalize_email(email)
-        user = self.model(username=username, email=email, **extra_fields)
+        user : User = self.model(username=username, email=email, **extra_fields)
         user.set_password(password)
         user.save()
         return user
 
-    def create_superuser(self, username, email, password=None, **extra_fields):
+    def create_superuser(self, username : str, email : str, password : str|None = None, **extra_fields) -> User :
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
         return self.create_user(username, email, password, **extra_fields)
@@ -48,11 +48,11 @@ class User(AbstractBaseUser):
 
     objects = UserManager()
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.username
 
     @property
-    def full_name(self):
+    def full_name(self) -> str:
         return f"{self.first_name} {self.last_name}".strip()
 
     def has_perm(self, perm, obj=None):

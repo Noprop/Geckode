@@ -10,5 +10,5 @@ export interface LoginPayload {
 export const authApi = {
   login: (data: LoginPayload) => api.post<User>(`${USERS_API_URL}login/`, data).then(res => res.data),
   logout: () => api.post(`${USERS_API_URL}logout/`).then(res => res.data),
-  getUserDetails: () => api.get<Required<User>>(`${USERS_API_URL}user-details/`).then(res => res.data),
+  getUserDetails: () => api.get<Required<User>>(`${USERS_API_URL}user-details/`).then(res => res.data as User),
 }

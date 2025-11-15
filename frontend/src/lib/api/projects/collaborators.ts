@@ -1,29 +1,22 @@
 import api from "@/lib/api/axios";
 import { PaginatedResponse } from "@/lib/types/api/pagination";
-import { OrganizationCollaborator, OrganizationCollaboratorFilters, OrganizationCollaboratorPayload } from "@/lib/types/api/projects/collaborators";
+import { ProjectCollaborator, ProjectCollaboratorFilters, ProjectCollaboratorPayload } from "@/lib/types/api/projects/collaborators";
 
-const collaboratorsApi = (baseUrl: string) => Object.assign(
-  {
-    list: (filters?: OrganizationCollaboratorFilters) =>
-      api.get<PaginatedResponse<OrganizationCollaborator>>(baseUrl, { params: filters }).then(res => res.data),
+const collaboratorsApi = (baseUrl: string) => ({
+  list: (filters?: ProjectCollaboratorFilters) =>
+    api.get<PaginatedResponse<ProjectCollaborator>>(baseUrl, { params: filters }).then(res => res.data),
 
-    create: (data: OrganizationCollaboratorPayload) =>
-      api.post<OrganizationCollaborator>(baseUrl, data).then(res => res.data),
-  },
-  (id: number) => {
-    const url = `${baseUrl}${id}/`;
+  get: (id: number) =>
+    api.get<ProjectCollaborator>(`${baseUrl}${id}/`).then(res => res.data),
 
-    return {
-      get: () =>
-        api.get<OrganizationCollaborator>(url).then(res => res.data),
+  create: (data: ProjectCollaboratorPayload) =>
+    api.post<ProjectCollaborator>(baseUrl, data).then(res => res.data),
 
-      update: (data: Omit<OrganizationCollaboratorPayload, 'collaborator_id'>) =>
-        api.patch<OrganizationCollaborator>(url, data).then(res => res.data),
+  update: (id: number, data: Omit<Partial<ProjectCollaboratorPayload>, 'collaborator_id'>) =>
+    api.patch<ProjectCollaborator>(`${baseUrl}${id}/`, data).then(res => res.data),
 
-      delete: () =>
-        api.delete(url).then(res => res.data),
-    }
-  }
-);
+  delete: (id: number) =>
+    api.delete(`${baseUrl}${id}/`).then(res => res.data),
+});
 
 export default collaboratorsApi;

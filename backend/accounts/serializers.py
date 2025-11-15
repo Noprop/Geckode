@@ -1,6 +1,7 @@
 from rest_framework.serializers import CharField, ModelSerializer, ValidationError
 from django.contrib.auth.password_validation import validate_password
 from .models import User
+from rest_framework.views import APIView
 
 class UserSerializer(ModelSerializer):
     password = CharField(write_only=True, required=False, validators=[validate_password])
@@ -13,9 +14,9 @@ class UserSerializer(ModelSerializer):
                  ]
         read_only_fields = ['created_at', 'is_staff', 'is_superuser']
 
-    def validate(self, attrs):
+    def validate(self, attrs : dict[str, any]) -> dict[str, any]:
         view = self.context.get('view')
-        action = view.action if view else None
+        action : str|None = view.action if view else None
 
         if action == 'create' and 'password' not in attrs:
             raise ValidationError({'password': 'A password is required.'})
@@ -29,11 +30,11 @@ class UserSerializer(ModelSerializer):
 
         return attrs
 
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
+    def to_representation(self, instance : User) -> dict:
+        data : dict = super().to_representation(instance)
 
-        view = self.context.get('view')
-        action = view.action if view else None
+        view : APIView = self.context.get('view')
+        action : str|None = view.action if view else None
 
         if action in ['retrieve', 'list'] and instance != self.context.get('request').user:
             data.pop('created_at', None)
@@ -43,7 +44,7 @@ class UserSerializer(ModelSerializer):
 
         return data
 
-    def create(self, validated_data):
+    def create(self, validated_data : dict[str,any]) -> User:
         validated_data.pop('password2', None)
 
         return User.objects.create_user(
@@ -55,7 +56,7 @@ class UserSerializer(ModelSerializer):
             avatar=validated_data.get('avatar', ''),
         )
 
-    def update(self, instance, validated_data):
+    def update(self, instance, validated_data : dict[str, any]) -> User:
         validated_data.pop('username', None)
         return super().update(instance, validated_data)
 

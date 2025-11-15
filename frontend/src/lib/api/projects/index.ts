@@ -6,32 +6,26 @@ import { Project, ProjectFilters, ProjectPayload } from "@/lib/types/api/project
 
 export const PROJECTS_API_URL = 'projects/';
 
-const projectsApi = Object.assign(
-  {
-    list: (filters?: ProjectFilters) =>
-      api.get<PaginatedResponse<Project>>(PROJECTS_API_URL, { params: filters }).then(res => res.data),
+const projectsApi = {
+  list: (filters?: ProjectFilters) =>
+    api.get<PaginatedResponse<Project>>(PROJECTS_API_URL, { params: filters }).then(res => res.data),
 
-    create: (data: ProjectPayload) =>
-      api.post<Project>(PROJECTS_API_URL, data).then(res => res.data),
+  get: (id: number) =>
+    api.get<Required<Project>>(`${PROJECTS_API_URL}${id}/`).then(res => res.data),
 
-    groups: groupsApi(`project-groups/`),
-  },
-  (id: number) => {
-    const baseUrl = `${PROJECTS_API_URL}${id}/`;
+  create: (data: ProjectPayload) =>
+    api.post<Project>(PROJECTS_API_URL, data).then(res => res.data),
 
-    return {
-      get: () =>
-        api.get<Project>(baseUrl).then(res => res.data),
+  update: (id: number, data: Partial<ProjectPayload>) =>
+    api.patch<Project>(`${PROJECTS_API_URL}${id}/`, data).then(res => res.data),
 
-      update: (data: ProjectPayload) =>
-        api.patch<Project>(baseUrl, data).then(res => res.data),
+  delete: (id: number) =>
+    api.delete(`${PROJECTS_API_URL}${id}/`).then(res => res.data),
 
-      delete: () =>
-        api.delete(baseUrl).then(res => res.data),
+  groups: groupsApi(`project-groups/`),
 
-      collaborators: collaboratorsApi(`${baseUrl}collaborators/`),
-    }
-  }
-);
+  collaborators: (id : number) =>
+    collaboratorsApi(`${PROJECTS_API_URL}${id}/collaborators/`),
+};
 
 export default projectsApi;

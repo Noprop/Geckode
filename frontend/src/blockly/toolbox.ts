@@ -183,6 +183,16 @@ const toolbox = {
       custom: 'VARIABLE_DYNAMIC',
     },
     {
+      "kind": "category",
+      "name": "misc",
+      "contents": [
+        {
+          "kind": "block",
+          "type": "runJS",
+        },
+      ],
+    },
+    {
       kind: 'block',
       type: 'logic_compare',
     },

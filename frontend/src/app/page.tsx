@@ -1,20 +1,20 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type { DragEvent } from 'react';
-import * as Blockly from 'blockly/core';
-import type { Workspace } from 'blockly/core';
-import BlocklyEditor, { BlocklyEditorHandle } from '@/components/BlocklyEditor';
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { DragEvent } from "react";
+import * as Blockly from "blockly/core";
+import type { Workspace } from "blockly/core";
+import BlocklyEditor, { BlocklyEditorHandle } from "@/components/BlocklyEditor";
 import SpriteEditor, {
   type SpriteDragPayload,
   type SpriteInstance,
-} from '@/components/SpriteEditor';
-import { javascriptGenerator } from 'blockly/javascript';
-import type { Game } from 'phaser';
-import type MainMenu from '@/phaser/scenes/MainMenu';
+} from "@/components/SpriteEditor";
+import { javascriptGenerator } from "blockly/javascript";
+import type { Game } from "phaser";
+import type MainMenu from "@/phaser/scenes/MainMenu";
 
-const PhaserGame = dynamic(() => import('@/components/PhaserGame'), {
+const PhaserGame = dynamic(() => import("@/components/PhaserGame"), {
   ssr: false,
 });
 
@@ -39,7 +39,7 @@ export default function Home() {
 
   const moveSprite = () => {
     const scene = phaserRef.current?.scene;
-    if (scene && scene.key === 'MainMenu') {
+    if (scene && scene.key === "MainMenu") {
       try {
         scene.runScript(`
 
@@ -105,7 +105,7 @@ export default function Home() {
     (event: Blockly.Events.Abstract) => {
       if (event.type !== Blockly.Events.BLOCK_DELETE) return;
       const deleteEvent = event as Blockly.Events.BlockDelete;
-      if (deleteEvent.oldJson?.type !== 'createSprite') return;
+      if (deleteEvent.oldJson?.type !== "createSprite") return;
       setSpriteInstances((prev) => {
         const sprite = prev.find(
           (instance) => instance.blockId === deleteEvent.blockId
@@ -150,9 +150,9 @@ export default function Home() {
     workspace: Blockly.WorkspaceSvg,
     block: Blockly.BlockSvg
   ) => {
-    const [onStartBlock] = workspace.getBlocksByType('onStart', false);
+    const [onStartBlock] = workspace.getBlocksByType("onStart", false);
     if (!onStartBlock) return;
-    const input = onStartBlock.getInput('INNER');
+    const input = onStartBlock.getInput("INNER");
     const connection = input?.connection;
     if (!connection || !block.previousConnection) return;
 
@@ -170,17 +170,17 @@ export default function Home() {
 
   const handleSpriteDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
-    const payloadString = event.dataTransfer.getData('application/json');
+    const payloadString = event.dataTransfer.getData("application/json");
     if (!payloadString || !blocklyRef.current || !phaserRef.current) return;
 
     let payload: SpriteDragPayload;
     try {
       payload = JSON.parse(payloadString) as SpriteDragPayload;
     } catch {
-      console.warn('Invalid payload for sprite creation.');
+      console.warn("Invalid payload for sprite creation.");
       return;
     }
-    if (payload.kind !== 'sprite-blueprint') return;
+    if (payload.kind !== "sprite-blueprint") return;
 
     const game = phaserRef.current.game;
     const scene = phaserRef.current.scene;
@@ -214,7 +214,7 @@ export default function Home() {
     console.log(relativeX, worldX);
     console.log(relativeY, worldY);
 
-    const safeBase = payload.texture.replace(/[^\w]/g, '') || 'sprite';
+    const safeBase = payload.texture.replace(/[^\w]/g, "") || "sprite";
     const duplicateCount = spriteInstances.filter(
       (instance) => instance.texture === payload.texture
     ).length;
@@ -223,11 +223,11 @@ export default function Home() {
 
     scene.addSpriteFromEditor(payload.texture, worldX, worldY, spriteId);
 
-    const newBlock = workspace.newBlock('createSprite') as Blockly.BlockSvg;
-    newBlock.setFieldValue(variableName, 'NAME');
-    newBlock.setFieldValue(payload.texture, 'TEXTURE');
-    newBlock.setFieldValue(String(worldX), 'X');
-    newBlock.setFieldValue(String(worldY), 'Y');
+    const newBlock = workspace.newBlock("createSprite") as Blockly.BlockSvg;
+    newBlock.setFieldValue(variableName, "NAME");
+    newBlock.setFieldValue(payload.texture, "TEXTURE");
+    newBlock.setFieldValue(String(worldX), "X");
+    newBlock.setFieldValue(String(worldY), "Y");
     newBlock.initSvg();
     newBlock.render();
     attachBlockToOnStart(workspace, newBlock);
@@ -248,7 +248,7 @@ export default function Home() {
 
   const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
-    event.dataTransfer.dropEffect = 'copy';
+    event.dataTransfer.dropEffect = "copy";
   };
 
   const handleRemoveSprite = (spriteId: string) => {

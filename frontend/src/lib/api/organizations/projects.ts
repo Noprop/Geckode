@@ -3,28 +3,21 @@ import { OrganizationProject, OrganizationProjectPayload } from "@/lib/types/api
 import { ProjectFilters } from "@/lib/types/api/projects";
 import { PaginatedResponse } from "@/lib/types/api/pagination";
 
-const projectsApi = (baseUrl: string) => Object.assign(
-  {
-    list: (filters?: ProjectFilters) =>
-      api.get<PaginatedResponse<OrganizationProject>>(baseUrl, { params: filters }).then(res => res.data),
+const projectsApi = (baseUrl: string) => ({
+  list: (filters?: ProjectFilters) =>
+    api.get<PaginatedResponse<OrganizationProject>>(baseUrl, { params: filters }).then(res => res.data),
 
-    create: (data: OrganizationProjectPayload) =>
-      api.post<OrganizationProject>(baseUrl, data).then(res => res.data),
-  },
-  (id: number) => {
-    const url = `${baseUrl}${id}/`;
+  get: (id: number) =>
+    api.get<OrganizationProject>(`${baseUrl}${id}/`).then(res => res.data),
 
-    return {
-      get: () =>
-        api.get<OrganizationProject>(url).then(res => res.data),
+  create: (data: OrganizationProjectPayload) =>
+    api.post<OrganizationProject>(baseUrl, data).then(res => res.data),
 
-      update: (data: Omit<OrganizationProjectPayload, 'project_id'>) =>
-        api.patch<OrganizationProject>(url, data).then(res => res.data),
+  update: (id: number, data: Omit<Partial<OrganizationProjectPayload>, 'project_id'>) =>
+    api.patch<OrganizationProject>(`${baseUrl}${id}/`, data).then(res => res.data),
 
-      delete: () =>
-        api.delete(url).then(res => res.data),
-    }
-  }
-);
+  delete: (id: number) =>
+    api.delete(`${baseUrl}${id}/`).then(res => res.data),
+});
 
 export default projectsApi;

@@ -73,6 +73,8 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(
       };
     }, []);
 
+    if (workspaceRef.current) Blockly.svgResize(workspaceRef.current);
+
     useImperativeHandle(ref, () => ({
       getWorkspace: () => workspaceRef.current,
     }));

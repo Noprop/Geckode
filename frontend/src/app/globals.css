@@ -9,15 +9,18 @@
 
   --color-light-bg: #dddddd;
   --color-light-secondary: #afafaf;
-  --color-light-tertiary: #d0d0d0;
+  --color-light-tertiary: #c4c4c4;
+  --color-light-hover: #eeeeee;
   --color-light-whiteboard: #f9f9f9;
   --color-light-txt: #171717;
 
   --color-dark-bg: #151525;
   --color-dark-secondary: #202038;
   --color-dark-tertiary: #2e2e4f;
+  --color-dark-hover: #3b3b68;
   --color-dark-whiteboard: #434372; 
   --color-dark-txt: #ededed;
+
 }
 
 @theme inline {
@@ -45,6 +48,9 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Background classes */
+
+
 .btn {
   @apply items-center justify-center rounded-lg border border-slate-300 px-2 py-1 text-xs text-dark-txt text-shadow-2xs cursor-pointer disabled:cursor-not-allowed disabled:opacity-50;
 }
@@ -65,9 +71,18 @@ body {
   @apply bg-purple-500 hover:bg-purple-400 active:bg-purple-600 shadow-md;
 }
 
+.btn-alt2 {
+  @apply bg-blue-500 hover:bg-blue-400 active:bg-blue-600 shadow-md;
+}
 .blocklyFlyout[style*="display: none"] + .blocklyScrollbarVertical  {
   display: none !important;
 }
+
+
+.error-bubble {
+  @apply bg-rose-600 outline-1 outline-white align-middle text-white rounded-lg py-1 mt-1 mx-1 px-3 transition-transform
+}
+
 
 /* Overridding Blocky styles */
 
@@ -175,4 +190,13 @@ body {
 
 .blocklyFlyoutBackground {
   fill-opacity: 0;
+}
+
+
+.table-row {
+  @apply cursor-pointer hover:bg-light-hover hover:dark:bg-dark-hover active:bg-light-tertiary active:dark:bg-dark-tertiary h-10
+}
+
+.table-header {
+  @apply h-12 bg-light-tertiary dark:bg-dark-tertiary;
 }

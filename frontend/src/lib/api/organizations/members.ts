@@ -2,25 +2,18 @@ import api from "@/lib/api/axios";
 import { OrganizationMember, OrganizationMemberFilters, OrganizationMemberPayload } from "@/lib/types/api/organizations/members";
 import { PaginatedResponse } from "@/lib/types/api/pagination";
 
-const membersApi = (baseUrl: string) => Object.assign(
-  {
-    list: (filters?: OrganizationMemberFilters) =>
-      api.get<PaginatedResponse<OrganizationMember>>(baseUrl, { params: filters }).then(res => res.data),
-  },
-  (id: number) => {
-    const url = `${baseUrl}${id}/`;
+const membersApi = (baseUrl: string) => ({
+  list: (filters?: OrganizationMemberFilters) =>
+    api.get<PaginatedResponse<OrganizationMember>>(baseUrl, { params: filters }).then(res => res.data),
 
-    return {
-      get: () =>
-        api.get<OrganizationMember>(url).then(res => res.data),
+  get: (id: number) =>
+    api.get<OrganizationMember>(`${baseUrl}${id}/`).then(res => res.data),
 
-      update: (data: OrganizationMemberPayload) =>
-        api.patch<OrganizationMember>(url, data).then(res => res.data),
+  update: (id: number, data: Partial<OrganizationMemberPayload>) =>
+    api.patch<OrganizationMember>(`${baseUrl}${id}/`, data).then(res => res.data),
 
-      delete: () =>
-        api.delete(url).then(res => res.data),
-    }
-  }
-);
+  delete: (id: number) =>
+    api.delete(`${baseUrl}${id}/`).then(res => res.data),
+});
 
 export default membersApi;

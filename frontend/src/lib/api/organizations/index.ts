@@ -8,36 +8,33 @@ import projectsApi from "./projects";
 
 export const ORGANIZATIONS_API_URL = 'organizations/';
 
-const organizationsApi = Object.assign(
-  {
-    list: (filters?: OrganizationFilters) =>
-      api.get<PaginatedResponse<Organization>>(ORGANIZATIONS_API_URL, { params: filters }).then(res => res.data),
+const organizationsApi = {
+  list: (filters?: OrganizationFilters) =>
+    api.get<PaginatedResponse<Organization>>(ORGANIZATIONS_API_URL, { params: filters }).then(res => res.data),
 
-    create: (data: OrganizationPayload) =>
-      api.post<Organization>(ORGANIZATIONS_API_URL, data).then(res => res.data),
-  },
-  (id: number) => {
-    const baseUrl = `${ORGANIZATIONS_API_URL}${id}/`;
+  get: (id: number) =>
+    api.get<Organization>(`${ORGANIZATIONS_API_URL}${id}/`).then(res => res.data),
 
-    return {
-      get: () =>
-        api.get<Organization>(baseUrl).then(res => res.data),
+  create: (data: OrganizationPayload) =>
+    api.post<Organization>(ORGANIZATIONS_API_URL, data).then(res => res.data),
 
-      update: (data: OrganizationPayload) =>
-        api.patch<Organization>(baseUrl, data).then(res => res.data),
+  update: (id: number, data: Partial<OrganizationPayload>) =>
+    api.patch<Organization>(`${ORGANIZATIONS_API_URL}${id}/`, data).then(res => res.data),
 
-      delete: () =>
-        api.delete(baseUrl).then(res => res.data),
+  delete: (id: number) =>
+    api.delete(`${ORGANIZATIONS_API_URL}${id}/`).then(res => res.data),
 
-      collaborators: invitationsApi(`${baseUrl}invitations/`),
+  collaborators: (id: number) =>
+    invitationsApi(`${ORGANIZATIONS_API_URL}${id}/invitations/`),
 
-      members: membersApi(`${baseUrl}members/`),
+  members: (id: number) =>
+    membersApi(`${ORGANIZATIONS_API_URL}${id}/members/`),
 
-      bannedMembers: bannedMembersApi(`${baseUrl}banned-members/`),
+  bannedMembers: (id: number) =>
+    bannedMembersApi(`${ORGANIZATIONS_API_URL}${id}/banned-members/`),
 
-      projects: projectsApi(`${baseUrl}projects/`),
-    }
-  }
-);
+  projects: (id: number) =>
+    projectsApi(`${ORGANIZATIONS_API_URL}${id}/projects/`),
+};
 
 export default organizationsApi;

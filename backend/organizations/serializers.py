@@ -14,10 +14,10 @@ class OrganizationSerializer(ModelSerializer):
                   'default_member_permission', 'members_count', 'projects_count', 'thumbnail']
         read_only_fields = ['created_at']
 
-    def get_members_count(self, instance):
-        return instance.members.count()
+    def get_members_count(self, instance : Organization) -> int:
+        return instance.members.count() + 1 # plus one to count the owner
 
-    def get_projects_count(self, instance):
+    def get_projects_count(self, instance : Organization) -> int:
         return instance.projects.count()
 
 class OrganizationInvitationSerializer(ModelSerializer):
@@ -30,7 +30,7 @@ class OrganizationInvitationSerializer(ModelSerializer):
         fields = ['id', 'invited_at', 'invitee', 'invitee_id', 'inviter', 'permission']
         read_only_fields = ['invited_at']
 
-    def validate(self, attrs):
+    def validate(self, attrs : dict[str, any]) -> dict[str, any]:
         try:
             if 'view' in self.context and hasattr(self.context['view'], 'kwargs'):
                 organization = Organization.objects.get(id=self.context['view'].kwargs.get('organization_pk'))
@@ -57,7 +57,7 @@ class OrganizationMemberSerializer(ModelSerializer):
         fields = ['member', 'invited_by', 'joined_at', 'permission']
         read_only_fields = ['joined_at']
 
-    def to_representation(self, instance):
+    def to_representation(self, instance : OrganizationMember) -> dict:
         data = super().to_representation(instance)
 
         if self.context.get('request'):
@@ -69,7 +69,7 @@ class OrganizationMemberSerializer(ModelSerializer):
 
         return data
 
-    def validate(self, attrs):
+    def validate(self, attrs : dict[str, any]) -> dict[str, any]:
         try:
             if 'view' in self.context and hasattr(self.context['view'], 'kwargs'):
                 organization = Organization.objects.get(id=self.context['view'].kwargs.get('organization_pk'))
@@ -94,7 +94,7 @@ class OrganizationBannedMemberSerializer(ModelSerializer):
         fields = ['user', 'user_id', 'banned_by', 'banned_at', 'ban_reason']
         read_only_fields = ['user', 'banned_by', 'banned_at']
 
-    def validate(self, attrs):
+    def validate(self, attrs : dict[str, any]) -> dict[str, any]:
         try:
             if 'view' in self.context and hasattr(self.context['view'], 'kwargs'):
                 organization = Organization.objects.get(id=self.context['view'].kwargs.get('organization_pk'))
