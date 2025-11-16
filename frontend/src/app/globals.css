@@ -7,16 +7,16 @@
   --color-primary-green: #25c583;
   --color-accent-green: #a7f1cd;
 
-  --color-light-bg: #dddddd;
-  --color-light-secondary: #afafaf;
-  --color-light-tertiary: #c4c4c4;
-  --color-light-hover: #eeeeee;
-  --color-light-whiteboard: #f9f9f9;
-  --color-light-txt: #171717;
+  --color-light-bg: #b0b0c0;
+  --color-light-secondary: #9797a9;
+  --color-light-tertiary: #b4b4c4;
+  --color-light-hover: #d5d5e5;
+  --color-light-whiteboard: #d0d0de;
+  --color-light-txt: #404040;
 
   --color-dark-bg: #151525;
-  --color-dark-secondary: #202038;
-  --color-dark-tertiary: #2e2e4f;
+  --color-dark-secondary: #25253b;
+  --color-dark-tertiary: #313152;
   --color-dark-hover: #3b3b68;
   --color-dark-whiteboard: #434372; 
   --color-dark-txt: #ededed;
@@ -84,15 +84,15 @@ body {
 }
 
 .success-msg {
-  @apply bg-green-500  m-3 outline-1 outline-white align-middle text-white font-medium rounded-lg py-1 mt-1 mx-1 px-3 transition-transform
+  @apply bg-green-500 m-3 scale-y-0 scale-y-100 outline-1 outline-white align-middle text-white font-medium rounded-lg py-1 mt-1 mx-1 px-3 transition-transform
 }
 
 
 /* Overridding Blocky styles */
 
 .blocklyToolbox{
-  /* @apply bg-light-secondary px-3 rounded-l-lg; */
-  @apply p-0;
+  /* @apply  px-3 rounded-l-lg; */
+  @apply p-0 bg-light-tertiary;
 }
 .blocklyToolboxCategory {
   @apply h-[2rem]

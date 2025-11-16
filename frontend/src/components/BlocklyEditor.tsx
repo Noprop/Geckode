@@ -30,10 +30,10 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(
         const blocklyOptions: Blockly.BlocklyOptions = {
           toolbox: toolbox as Blockly.utils.toolbox.ToolboxDefinition,
           sounds: false,
-          renderer: 'zelos',
+          renderer: "zelos",
           readOnly: false,
           trashcan: true,
-          media: 'media/',
+          media: "media/",
           move: {
             scrollbars: true,
             drag: true,
@@ -49,12 +49,12 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(
         onWorkspaceReady?.(workspaceRef.current);
 
         workspaceRef.current.registerButtonCallback(
-          'createVariableButton',
+          "createVariableButton",
           variableCreateButtonCallback
         );
 
         workspaceRef.current.registerToolboxCategoryCallback(
-          'CUSTOM_VARIABLES',
+          "CUSTOM_VARIABLES",
           variableCategoryCallback
         );
 

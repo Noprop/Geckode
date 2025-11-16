@@ -26,7 +26,7 @@ const PhaserGame = dynamic(() => import("@/components/PhaserGame"), {
 
 interface ProjectViewProps {
   projectID?: number;
-};
+}
 
 const ProjectView: React.FC<ProjectViewProps> = ({ projectID }) => {
   const blocklyRef = useRef<BlocklyEditorHandle>(null);
@@ -96,19 +96,22 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectID }) => {
 
     const fetchWorkspace = async () => {
       const workspace: Blockly.Workspace = blocklyRef.current?.getWorkspace()!;
-      projectsApi.get(parseInt(projectID?.toString()!)).then((project: Project) => {
-        if (project.blocks) {
-          try {
-            Blockly.serialization.workspaces.load(project.blocks, workspace);
-          } catch {
-            setErrMsg("Failed to load workspace!");
+      projectsApi
+        .get(parseInt(projectID?.toString()!))
+        .then((project: Project) => {
+          if (project.blocks) {
+            try {
+              Blockly.serialization.workspaces.load(project.blocks, workspace);
+            } catch {
+              setErrMsg("Failed to load workspace!");
+            }
           }
-        }
 
-        if (project.game_state) setPhaserState(project.game_state as PhaserExport);
+          if (project.game_state)
+            setPhaserState(project.game_state as PhaserExport);
 
-        if (project.sprites) setSpriteInstances(project.sprites);
-      });
+          if (project.sprites) setSpriteInstances(project.sprites);
+        });
     };
 
     fetchWorkspace();
@@ -328,45 +331,47 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectID }) => {
           />
         </div>
 
-        <div className="flex flex-col p-3">
+        <div className="flex flex-col h-[calc(100vh-4rem)] p-3">
           <div
-            className="rounded-xl border border-dashed border-slate-400 
-                   bg-slate-900/5 p-2 dark:border-slate-600 dark:bg-slate-100/10"
+            className="rounded-xl border border-dashed border-slate-400 dark:border-slate-600
+                    p-2  bg-light-secondary dark:bg-dark-secondary"
             onDragOver={handleDragOver}
             onDrop={handleSpriteDrop}
           >
             <PhaserGame ref={phaserRef} phaserState={phaserState} />
           </div>
-          <div className="mt-4 flex items-center gap-2">
-            <button className="btn btn-deny" onClick={changeScene}>
-              Change Scene
-            </button>
 
-            <button
-              onClick={generateCode}
-              className="btn btn-neutral"
-              aria-label="Convert Now"
-              title="Convert Now"
+          <div className="flex gap-x-3">
+            <div className="mt-4 flex items-center gap-2">
+              <button className="btn btn-deny" onClick={changeScene}>
+                Change Scene
+              </button>
+
+              <button
+                onClick={generateCode}
+                className="btn btn-neutral"
+                aria-label="Convert Now"
+                title="Convert Now"
+              >
+                Convert Now
+              </button>
+
+              <button
+                onClick={saveProject}
+                className="btn btn-alt2"
+                aria-label="Save"
+                title="Save"
+              >
+                Save
+              </button>
+            </div>
+            <div
+              className="w-max mt-4 rounded-lg border border-slate-800
+                   dark:border-slate-300 px-2 py-1 align-middle text-xs"
             >
-              Convert Now
-            </button>
-
-            <button
-              onClick={saveProject}
-              className="btn btn-alt2"
-              aria-label="Save"
-              title="Save"
-            >
-              Save
-            </button>
+              <pre className="mt-1">{`Sprite Position: { x: ${spritePosition.x}, y: ${spritePosition.y} }`}</pre>
+            </div>
           </div>
-          <div
-            className="w-max mt-6 rounded-lg border border-slate-800
-                   dark:border-slate-300 p-2 text-xs"
-          >
-            <pre className="mt-1">{`Sprite Position: { x: ${spritePosition.x}, y: ${spritePosition.y} }`}</pre>
-          </div>
-
           <SpriteEditor
             sprites={spriteInstances}
             onRemoveSprite={handleRemoveSprite}
@@ -375,6 +380,6 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectID }) => {
       </div>
     </>
   );
-}
+};
 
 export default ProjectView;
