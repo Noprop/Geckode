@@ -1,0 +1,1 @@
+export type HasKeys<T, Keys extends PropertyKey> = Keys extends keyof T ? true : false;

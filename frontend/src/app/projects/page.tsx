@@ -1,5 +1,5 @@
 "use client";
-import projectsApi from "@/lib/api/projects";
+import projectsApi from "@/lib/api/handlers/projects";
 import { Project } from "@/lib/types/api/projects";
 import { useState, useEffect, useRef } from "react";
 import { ProjectTable, ProjectTableRef } from "./ProjectTable";

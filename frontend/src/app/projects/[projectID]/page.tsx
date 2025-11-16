@@ -7,7 +7,7 @@ const ProjectPage = () => {
   const { projectID } = useParams();
 
   return (
-      <ProjectView projectID={Number(projectID)} />
+      <ProjectView projectId={Number(projectID)} />
   );
 };
 

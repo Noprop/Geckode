@@ -5,8 +5,7 @@ import { useRef, useState, useEffect, useCallback, DragEvent } from "react";
 import BlocklyEditor, { BlocklyEditorHandle } from "@/components/BlocklyEditor";
 import { javascriptGenerator } from "blockly/javascript";
 import * as Blockly from "blockly/core";
-import projectsApi from "@/lib/api/projects";
-import { Project } from "@/lib/types/api/projects";
+import projectsApi from "@/lib/api/handlers/projects";
 import { createPhaserState, PhaserExport } from "@/phaser/PhaserStateManager";
 import { Game } from "phaser";
 import MainMenu from "@/phaser/scenes/MainMenu";
@@ -25,10 +24,10 @@ const PhaserGame = dynamic(() => import("@/components/PhaserGame"), {
 });
 
 interface ProjectViewProps {
-  projectID?: number;
+  projectId?: number;
 }
 
-const ProjectView: React.FC<ProjectViewProps> = ({ projectID }) => {
+const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
   const blocklyRef = useRef<BlocklyEditorHandle>(null);
   const phaserRef = useRef<{ game?: any; scene?: any } | null>(null);
   const [spritePosition, setSpritePosition] = useState({ x: 0, y: 0 });
@@ -92,25 +91,21 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectID }) => {
   };
 
   useEffect(() => {
-    if (!projectID) return;
+    if (!projectId) return;
 
     const fetchWorkspace = async () => {
       const workspace: Blockly.Workspace = blocklyRef.current?.getWorkspace()!;
-      projectsApi
-        .get(parseInt(projectID?.toString()!))
-        .then((project: Project) => {
-          if (project.blocks) {
-            try {
-              Blockly.serialization.workspaces.load(project.blocks, workspace);
-            } catch {
-              setErrMsg("Failed to load workspace!");
-            }
+      projectsApi(parseInt(projectId?.toString()!))
+        .get()
+        .then((project) => {
+          try {
+            Blockly.serialization.workspaces.load(project.blocks, workspace);
+          } catch {
+            setErrMsg("Failed to load workspace!");
           }
 
-          if (project.game_state)
-            setPhaserState(project.game_state as PhaserExport);
-
-          if (project.sprites) setSpriteInstances(project.sprites);
+          setPhaserState(project.game_state);
+          setSpriteInstances(project.sprites);
         });
     };
 
@@ -140,7 +135,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectID }) => {
 
   // grab states of workspace and game scene, upload to backend, display msg
   const saveProject = () => {
-    if (!projectID) return;
+    if (!projectId) return;
 
     const workspace: Blockly.Workspace = blocklyRef.current?.getWorkspace()!;
     const workspaceState: { [key: string]: any } =
@@ -148,7 +143,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectID }) => {
 
     const phaserState = createPhaserState(phaserRef?.current!);
 
-    projectsApi.update(parseInt(projectID!.toString()), {
+    projectsApi(parseInt(projectId!.toString())).update({
       blocks: workspaceState,
       game_state: phaserState,
       sprites: spriteInstances,

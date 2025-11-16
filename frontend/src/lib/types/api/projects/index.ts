@@ -1,6 +1,7 @@
 import { User } from "../users";
 import { BaseFilters } from "../filters";
 import { SpriteInstance } from "@/components/SpriteEditor";
+import { PhaserExport } from "@/phaser/PhaserStateManager";
 
 export interface Project {
   id: number;
@@ -12,8 +13,8 @@ export interface Project {
   published_at: string | null;
   fork_count: number;
   thumbnail: string | null;
-  blocks?: JSON | null;
-  game_state?: JSON | null;
+  blocks?: JSON;
+  game_state?: PhaserExport;
   sprites?: SpriteInstance[];
 }
 

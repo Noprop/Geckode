@@ -8,6 +8,8 @@ export interface ProjectGroup {
   projects: number[];
 }
 
+export interface ProjectGroupFilters {}
+
 export interface ProjectGroupPayload {
   name?: string;
   projects?: number[];
