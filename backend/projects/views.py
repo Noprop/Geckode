@@ -11,6 +11,8 @@ from rest_framework.status import HTTP_200_OK
 from django.shortcuts import get_object_or_404
 from organizations.models import Organization
 from django.db.models import Q
+from accounts.models import User
+from accounts.serializers import PublicUserSerializer
 
 class ProjectGroupViewSet(ModelViewSet):
     queryset = ProjectGroup.objects.all()
@@ -42,6 +44,12 @@ class ProjectViewSet(ModelViewSet):
     serializer_class = ProjectSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_class = ProjectFilter
+    selection_fields = {
+        'owner': {
+            'model': User,
+            'serializer': PublicUserSerializer,
+        },
+    }
 
     http_method_names = ['get', 'post', 'patch', 'delete']
 
