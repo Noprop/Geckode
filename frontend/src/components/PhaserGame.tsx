@@ -58,8 +58,39 @@ const PhaserGame = ({ ref, phaserState }: Props) => {
     };
   }, [ref]);
 
+  useEffect(() => {
+    const container = document.getElementById(
+      'game-container'
+    ) as HTMLDivElement | null;
+    const keyboard = gameRef.current?.input?.keyboard;
+    if (!container || !keyboard) return;
+
+    const handleDocumentPointerDown = (event: PointerEvent) => {
+      if (!container.contains(event.target as Node) && keyboard.enabled)
+        keyboard.enabled = false;
+    };
+
+    container.addEventListener('focus', () => {
+      if (!keyboard.enabled) keyboard.enabled = true;
+    });
+    container.addEventListener('pointerdown', () => {
+      if (!keyboard.enabled) keyboard.enabled = true;
+    });
+    container.addEventListener('blur', () => {
+      if (keyboard.enabled) keyboard.enabled = false;
+    });
+    document.addEventListener('pointerdown', handleDocumentPointerDown);
+    return () => {
+      document.removeEventListener('pointerdown', handleDocumentPointerDown);
+    };
+  }, []);
+
   return (
-    <div id="game-container" style={{ width: '480px', height: '360px' }} />
+    <div
+      id="game-container"
+      tabIndex={0}
+      style={{ width: '480px', height: '360px' }}
+    />
   );
 };
 

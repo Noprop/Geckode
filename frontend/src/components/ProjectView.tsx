@@ -281,6 +281,24 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
     block?.dispose(true);
   };
 
+  const handlePhaserPointerDown = useCallback(() => {
+    // check to see if this function has been exposed;
+    // this means that Blockly has been injected
+    if (typeof Blockly.hideChaff === 'function') {
+      Blockly.hideChaff();
+    }
+
+    const activeElement = document.activeElement as HTMLElement | null;
+    if (activeElement && activeElement !== document.body) {
+      activeElement.blur();
+    }
+
+    const container = document.getElementById(
+      'game-container'
+    ) as HTMLElement | null;
+    container?.focus();
+  }, []);
+
   return (
     <>
       {successMsg && <div className="success-msg">{successMsg}</div>}
@@ -299,6 +317,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
                     p-2  bg-light-secondary dark:bg-dark-secondary"
             onDragOver={handleDragOver}
             onDrop={handleSpriteDrop}
+            onPointerDown={handlePhaserPointerDown}
           >
             <PhaserGame ref={phaserRef} phaserState={phaserState} />
           </div>
@@ -309,7 +328,10 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
             </button>
 
             <button
-              onClick={generateCode}
+              onClick={() => {
+                generateCode();
+                handlePhaserPointerDown();
+              }}
               className="btn btn-neutral"
               aria-label="Convert Now"
               title="Convert Now"
