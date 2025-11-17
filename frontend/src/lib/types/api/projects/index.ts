@@ -1,5 +1,5 @@
 import { User } from "../users";
-import { BaseFilters } from "../filters";
+import { BaseFilters } from "..";
 import { SpriteInstance } from "@/components/SpriteEditor";
 import { PhaserExport } from "@/phaser/PhaserStateManager";
 
@@ -29,7 +29,7 @@ export interface ProjectPayload {
   name: string;
   description?: string;
   thumbnail?: File;
-  blocks?: {[key: string]: any} | null;
-  game_state?: {[key: string]: any} | null;
-  sprites?: {[key: string]: any} | null;
+  blocks?: {[key: string]: any};
+  game_state?: {[key: string]: any};
+  sprites?: {[key: string]: any};
 }

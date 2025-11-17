@@ -1,6 +1,6 @@
 import api from "./axios";
 import { AxiosResponse } from "axios";
-import { PaginatedResponse } from "@/lib/types/api/pagination";
+import { PaginatedResponse } from "@/lib/types/api";
 import type { HasKeys } from "@/lib/types";
 
 export const unwrap = <T>(promise: Promise<AxiosResponse<T>>) => promise.then(res => res.data);

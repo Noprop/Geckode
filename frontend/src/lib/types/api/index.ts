@@ -9,3 +9,8 @@ export interface PaginatedResponse<T> {
   previous: string | null;
   results: T[];
 }
+
+export interface BaseFilters extends PaginationParams {
+  search?: string;
+  ordering?: string;
+}

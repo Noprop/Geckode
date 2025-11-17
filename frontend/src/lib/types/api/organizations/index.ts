@@ -1,5 +1,5 @@
 import { User } from "../users";
-import { BaseFilters } from "../filters";
+import { BaseFilters } from "..";
 
 export interface Organization {
   id: number;

@@ -1,6 +1,6 @@
 import api from "@/lib/api/axios";
-import { BaseFilters } from "../types/api/filters";
-import { PaginatedResponse } from "../types/api/pagination";
+import { BaseFilters } from "../types/api";
+import { PaginatedResponse } from "../types/api";
 import { User, UserPayload } from "../types/api/users";
 
 export const USERS_API_URL = 'users/';
