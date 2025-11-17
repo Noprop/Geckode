@@ -85,6 +85,8 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
     const code = javascriptGenerator.workspaceToCode(
       blocklyRef.current.getWorkspace() as Blockly.Workspace
     );
+    console.log('generate code()');
+    console.log(phaserRef.current.scene);
     phaserRef.current.scene?.runScript(code);
   };
 
@@ -104,17 +106,27 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
       sprites: spriteInstances,
     });
 
-    setSuccessMsg("Project Saved Successfully!");
+    setSuccessMsg('Project Saved Successfully!');
     setTimeout(() => {
       setSuccessMsg(null);
     }, 3000);
+  };
+
+  const exportWorkspaceState = () => {
+    const workspace = blocklyRef.current?.getWorkspace();
+    if (!workspace) return;
+
+    const workspaceState = Blockly.serialization.workspaces.save(workspace);
+    // Log both the raw object and JSON for easy copying into starterWorkspace.ts.
+    console.log('Current workspace state', workspaceState);
+    console.log('Workspace JSON', JSON.stringify(workspaceState, null, 2));
   };
 
   const workspaceDeleteHandler = useCallback(
     (event: Blockly.Events.Abstract) => {
       if (event.type !== Blockly.Events.BLOCK_DELETE) return;
       const deleteEvent = event as Blockly.Events.BlockDelete;
-      if (deleteEvent.oldJson?.type !== "createSprite") return;
+      if (deleteEvent.oldJson?.type !== 'createSprite') return;
       setSpriteInstances((prev) => {
         const sprite = prev.find(
           (instance) => instance.blockId === deleteEvent.blockId
@@ -159,9 +171,9 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
     workspace: Blockly.WorkspaceSvg,
     block: Blockly.BlockSvg
   ) => {
-    const [onStartBlock] = workspace.getBlocksByType("onStart", false);
+    const [onStartBlock] = workspace.getBlocksByType('onStart', false);
     if (!onStartBlock) return;
-    const input = onStartBlock.getInput("INNER");
+    const input = onStartBlock.getInput('INNER');
     const connection = input?.connection;
     if (!connection || !block.previousConnection) return;
 
@@ -179,17 +191,17 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
 
   const handleSpriteDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
-    const payloadString = event.dataTransfer.getData("application/json");
+    const payloadString = event.dataTransfer.getData('application/json');
     if (!payloadString || !blocklyRef.current || !phaserRef.current) return;
 
     let payload: SpriteDragPayload;
     try {
       payload = JSON.parse(payloadString) as SpriteDragPayload;
     } catch {
-      console.warn("Invalid payload for sprite creation.");
+      console.warn('Invalid payload for sprite creation.');
       return;
     }
-    if (payload.kind !== "sprite-blueprint") return;
+    if (payload.kind !== 'sprite-blueprint') return;
 
     const game = phaserRef.current.game;
     const scene = phaserRef.current.scene;
@@ -223,7 +235,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
     console.log(relativeX, worldX);
     console.log(relativeY, worldY);
 
-    const safeBase = payload.texture.replace(/[^\w]/g, "") || "sprite";
+    const safeBase = payload.texture.replace(/[^\w]/g, '') || 'sprite';
     const duplicateCount = spriteInstances.filter(
       (instance) => instance.texture === payload.texture
     ).length;
@@ -232,11 +244,11 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
 
     scene.addSpriteFromEditor(payload.texture, worldX, worldY, spriteId);
 
-    const newBlock = workspace.newBlock("createSprite") as Blockly.BlockSvg;
-    newBlock.setFieldValue(variableName, "NAME");
-    newBlock.setFieldValue(payload.texture, "TEXTURE");
-    newBlock.setFieldValue(String(worldX), "X");
-    newBlock.setFieldValue(String(worldY), "Y");
+    const newBlock = workspace.newBlock('createSprite') as Blockly.BlockSvg;
+    newBlock.setFieldValue(variableName, 'NAME');
+    newBlock.setFieldValue(payload.texture, 'TEXTURE');
+    newBlock.setFieldValue(String(worldX), 'X');
+    newBlock.setFieldValue(String(worldY), 'Y');
     newBlock.initSvg();
     newBlock.render();
     attachBlockToOnStart(workspace, newBlock);
@@ -257,7 +269,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
 
   const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
-    event.dataTransfer.dropEffect = "copy";
+    event.dataTransfer.dropEffect = 'copy';
   };
 
   const handleRemoveSprite = (spriteId: string) => {
@@ -291,37 +303,47 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
             <PhaserGame ref={phaserRef} phaserState={phaserState} />
           </div>
 
-          <div className="flex gap-x-3">
-            <div className="mt-4 flex items-center gap-2">
-              <button className="btn btn-deny" onClick={changeScene}>
-                Change Scene
-              </button>
+          <div className="flex gap-x-3 my-3">
+            <button className="btn btn-deny" onClick={changeScene}>
+              Change Scene
+            </button>
 
-              <button
-                onClick={generateCode}
-                className="btn btn-neutral"
-                aria-label="Convert Now"
-                title="Convert Now"
-              >
-                Convert Now
-              </button>
+            <button
+              onClick={generateCode}
+              className="btn btn-neutral"
+              aria-label="Convert Now"
+              title="Convert Now"
+            >
+              Convert Now
+            </button>
 
-              <button
-                onClick={saveProject}
-                className="btn btn-alt2"
-                aria-label="Save"
-                title="Save"
-              >
-                Save
-              </button>
-            </div>
-            <div
-              className="w-max mt-4 rounded-lg border border-slate-800
+            <button
+              onClick={saveProject}
+              className="btn btn-alt2"
+              aria-label="Save"
+              title="Save"
+            >
+              Save
+            </button>
+
+            <button
+              onClick={exportWorkspaceState}
+              className="btn btn-neutral w-1/4"
+              aria-label="Export Workspace"
+              title="Export Workspace"
+            >
+              Export Workspace
+            </button>
+
+            {/* currently adding this fucks the dimensions of the entire column and thus the phaser window :/ */}
+            {/* <div
+              className="w-full rounded-lg border border-slate-800
                    dark:border-slate-300 px-2 py-1 align-middle text-xs"
             >
               <pre className="mt-1">{`Sprite Position: { x: ${spritePosition.x}, y: ${spritePosition.y} }`}</pre>
-            </div>
+            </div> */}
           </div>
+
           <SpriteEditor
             sprites={spriteInstances}
             onRemoveSprite={handleRemoveSprite}

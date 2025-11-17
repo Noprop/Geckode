@@ -58,7 +58,7 @@ const SpriteEditor = memo(function SpriteEditor({
   };
 
   return (
-    <section className="mt-4 rounded-lg bg-light-secondary dark:bg-dark-secondary p-4 text-sm shadow flex-1 ">
+    <section className="rounded-lg bg-light-secondary dark:bg-dark-secondary p-4 text-sm shadow flex-1 ">
       <div className="flex items-center justify-between">
         <h2 className="text-base font-semibold">Sprite Editor</h2>
         <p className="text-xs">

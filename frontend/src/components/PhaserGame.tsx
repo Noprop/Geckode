@@ -58,7 +58,9 @@ const PhaserGame = ({ ref, phaserState }: Props) => {
     };
   }, [ref]);
 
-  return <div id="game-container" className="h-96" />;
+  return (
+    <div id="game-container" style={{ width: '480px', height: '360px' }} />
+  );
 };
 
 export default PhaserGame;
