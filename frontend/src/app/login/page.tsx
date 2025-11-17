@@ -1,23 +1,29 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authApi } from "@/lib/api/auth";
+import { InputBox,InputBoxRef } from "@/components/ui/InputBox";
 
 export default function LoginPage() {
   const router = useRouter();
 
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const usernameRef = useRef<InputBoxRef | null>(null);
+  const passwordRef = useRef<InputBoxRef | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
+    if (!usernameRef.current || !passwordRef.current) return;
+
     e.preventDefault();
     setLoading(true);
     setError(null);
 
     try {
-      const response = await authApi.login({ username, password });
+      const response = await authApi.login({
+        username: usernameRef.current.inputValue,
+        password: passwordRef.current.inputValue,
+      });
       console.log("Logged in:", response);
       router.push("/projects");
     } catch (err: any) {
@@ -34,21 +40,16 @@ export default function LoginPage() {
       {error && <p className="text-red-500 mb-2">{error}</p>}
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-        <input
-          type="input"
+        <InputBox
+          ref={usernameRef}
           placeholder="Username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          required
-          className="border p-2 rounded"
+          required={true}
         />
-        <input
+        <InputBox
+          ref={passwordRef}
           type="password"
           placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          className="border p-2 rounded"
+          required={true}
         />
         <button
           type="submit"

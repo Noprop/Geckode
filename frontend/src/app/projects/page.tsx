@@ -1,12 +1,13 @@
 "use client";
+
 import projectsApi from "@/lib/api/handlers/projects";
-import { Project } from "@/lib/types/api/projects";
+import { Project, ProjectFilters } from "@/lib/types/api/projects";
 import { useState, useEffect, useRef } from "react";
-import { ProjectTable, ProjectTableRef } from "./ProjectTable";
 import { authApi } from "@/lib/api/auth";
+import { Table, TableRef } from "@/components/ui/Table";
 
 export default function ProjectsPage() {
-  const tableRef = useRef<ProjectTableRef | null>(null);
+  const tableRef = useRef<TableRef| null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [errMsg, setErrMsg] = useState<string | null>(null);
 
@@ -35,7 +36,7 @@ export default function ProjectsPage() {
   }, []);
 
   const onRefreshClicked = () => {
-    tableRef?.current?.handleRefresh();
+    tableRef?.current?.refresh();
   };
 
   const createProject = () => {
@@ -67,7 +68,34 @@ export default function ProjectsPage() {
               Create
             </button>
           </div>
-          <ProjectTable ref={tableRef} data={projects} />
+          <Table<Project, ProjectFilters>
+            ref={tableRef}
+            data={projects}
+            columns={{
+              id: {
+                hidden: true,
+              },
+              thumbnail: {
+                type: 'thumbnail',
+              },
+              name: {
+                label: 'Name',
+              },
+              owner: {
+                label: 'Owner',
+                type: 'user'
+              },
+              updated_at: {
+                label: 'Last Updated',
+                type: 'datetime',
+              },
+              created_at: {
+                label: 'Created at',
+                type: 'datetime',
+              },
+            }}
+            handleRowClick={(row) => window.location.href = `/projects/${row.getValue('id')}/`}
+          />
         </>
       ) : (
         <h2 className="flex text-center justify-center text-rose-300">
