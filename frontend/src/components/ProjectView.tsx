@@ -45,51 +45,6 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
     phaserRef.current?.scene?.changeScene?.();
   };
 
-  const moveSprite = () => {
-    const scene = phaserRef.current?.scene;
-    if (scene?.key === "MainMenu") {
-      try {
-        scene.runScript(`
-          
-          scene.create = () => {
-            scene.player = scene.physics.add.sprite(50, 300, 'star');
-            scene.player.setCollideWorldBounds(true);
-
-            scene.cursors = scene.input.keyboard.createCursorKeys();
-          }
-
-          scene.update = () => {
-            scene.player.setVelocityX(0)
-            scene.player.setVelocityY(0)
-            const speed = 200
-            if (scene.cursors.right.isDown) {
-              console.log("hello45")
-              scene.player.body.velocity.x += speed
-            }
-            if (scene.cursors.left.isDown) {
-              scene.player.body.velocity.x -= speed
-            }
-            if (scene.cursors.up.isDown) {
-              scene.player.body.velocity.y -= speed
-            }
-            if (scene.cursors.down.isDown) {
-              scene.player.body.velocity.y += speed
-            }
-          }
-          
-          scene.scene.restart();
-          return { done: true };
-        `);
-      } catch (e) {
-        console.error(e);
-      }
-
-      // scene.moveLogo?.(({ x, y }: { x: number; y: number }) =>
-      //   setSpritePosition({ x, y })
-      // );
-    }
-  };
-
   useEffect(() => {
     if (!projectId) return;
 

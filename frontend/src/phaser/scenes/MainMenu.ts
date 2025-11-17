@@ -159,6 +159,7 @@ export default class MainMenu extends Phaser.Scene {
     // const px = Math.round(this.player.x);
     // const py = Math.round(this.player.y);
     // if ((px !== this.lastSent.x || py !== this.lastSent.y) && this.posCB) {
+    //   console.log('update position');
     //   this.posCB({ x: px, y: py });
     //   this.lastSent = { x: px, y: py };
     // }

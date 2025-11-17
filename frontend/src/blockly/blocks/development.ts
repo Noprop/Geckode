@@ -23,7 +23,6 @@ javascriptGenerator.forBlock['runJS'] = function (block, generator) {
   //return 'console.log("hello world!")\n'
 };
 
-
-export const miscBlocks = [
+export const developmentBlocks = [
   runJS,
 ];
