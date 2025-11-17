@@ -8,6 +8,9 @@ from rest_framework.serializers import ModelSerializer
 from django.core.paginator import Page
 
 class DynamicMetadataPagination(PageNumberPagination):
+    page_size_query_param = 'limit'
+    max_page_size = 20
+
     SELECTIONS_VIEW_KEY = 'selection_fields'
     SELECTIONS_RESPONSE_KEY = 'selections'
 

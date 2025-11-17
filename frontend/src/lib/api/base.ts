@@ -5,13 +5,13 @@ import type { HasKeys } from "@/lib/types";
 
 export const unwrap = <T>(promise: Promise<AxiosResponse<T>>) => promise.then(res => res.data);
 
-export const FUNCTION_METHODS = ["get", "update", "delete"] as const;
-export const NON_FUNCTION_METHODS = ["list", "create"] as const;
-export const API_METHODS = [...FUNCTION_METHODS, ...NON_FUNCTION_METHODS] as const;
+export const apiFunctionMethods = ["get", "update", "delete"];
+export const apiNonFunctionMethods = ["list", "create"];
+export const apiMethods = [...apiFunctionMethods, ...apiNonFunctionMethods];
 
-export type FunctionMethods = (typeof FUNCTION_METHODS)[number];
-export type NonFunctionMethods = (typeof NON_FUNCTION_METHODS)[number];
-export type ApiMethods = (typeof API_METHODS)[number];
+export type FunctionMethods = (typeof apiFunctionMethods)[number];
+export type NonFunctionMethods = (typeof apiNonFunctionMethods)[number];
+export type ApiMethods = (typeof apiMethods)[number];
 
 // This transforms the types properly for both the function and non-function methods in the sub APIs
 type FilterSubApis<
@@ -38,11 +38,15 @@ type FilterSubApis<
       : TSubApis[K];
 };
 
+type Inputs = {
+  baseUrl: string;
+}
+
 export function createBaseApi<
   TData,
   TPayload,
   TFilters,
->({ baseUrl }: { baseUrl: string }) {
+>({ baseUrl }: Inputs) {
   return (<
     TSubApis extends Record<string, any>
   >({ ...subApis }: TSubApis = {} as TSubApis) => {
@@ -57,7 +61,7 @@ export function createBaseApi<
 
       const subApiObjects = Object.entries(subApis).reduce(
         (acc, [key, value]) => {
-          if (!API_METHODS.some(k => k in value)) {
+          if (!apiMethods.some(k => k in value)) {
             acc[key] = (value as any)(id);
           }
           return acc;
@@ -75,7 +79,7 @@ export function createBaseApi<
 
     const subApiObjects = Object.entries(subApis).reduce(
       (acc, [key, value]) => {
-        if (API_METHODS.some(k => k in value)) {
+        if (apiMethods.some(k => k in value)) {
           acc[key] = value;
         }
         return acc;
@@ -86,3 +90,8 @@ export function createBaseApi<
     return Object.assign(methodsFn, methods, subApiObjects);
   });
 }
+
+export type BaseApiInnerReturn<T> =
+  T extends (args: Inputs) => (id: any) => infer R
+    ? R
+    : never;

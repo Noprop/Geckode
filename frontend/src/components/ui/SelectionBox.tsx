@@ -17,11 +17,19 @@ interface SelectionBoxProps {
   onChange?: (e: ChangeEvent<HTMLSelectElement>) => void;
   required?: boolean;
   className?: string;
+  overrideClassName?: boolean;
+  disabled?: boolean;
 }
 
 export const SelectionBox = ({
-  ref, defaultValue = '', options = [], onChange = () => {},
-  required = false, className = '',
+  ref,
+  defaultValue = '',
+  options = [],
+  onChange = () => {},
+  required = false,
+  className = '',
+  overrideClassName = false,
+  disabled = false,
 }: SelectionBoxProps) => {
   const [inputValue, setInputValue] = useState<string>(defaultValue);
 
@@ -38,7 +46,8 @@ export const SelectionBox = ({
         onChange(e);
       }}
       required={required}
-      className={"border p-2 rounded " + className}
+      className={(overrideClassName ? "" : "border p-2 rounded") + " " + className}
+      disabled={disabled}
     >
       {options.map((option) =>
         <option

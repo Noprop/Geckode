@@ -13,11 +13,20 @@ interface InputBoxProps {
   onChange?: (e: ChangeEvent<HTMLInputElement>) => void;
   required?: boolean;
   className?: string;
+  overrideClassName?: boolean;
+  disabled?: boolean;
 }
 
 export const InputBox = ({
-  ref, defaultValue = '', placeholder = '', type = "input", onChange = () => {},
-  required = false, className = '',
+  ref,
+  defaultValue = '',
+  placeholder = '',
+  type = "input",
+  onChange = () => {},
+  required = false,
+  className = '',
+  overrideClassName = false,
+  disabled = false,
 }: InputBoxProps) => {
   const [inputValue, setInputValue] = useState<string>(defaultValue);
 
@@ -36,7 +45,8 @@ export const InputBox = ({
         onChange(e);
       }}
       required={required}
-      className={"border p-2 rounded " + className}
+      className={(overrideClassName ? "" : "border p-2 rounded") + " " + className}
+      disabled={disabled}
     />
   );
 };

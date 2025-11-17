@@ -1,39 +1,13 @@
 "use client";
 
 import projectsApi from "@/lib/api/handlers/projects";
-import { Project, ProjectFilters } from "@/lib/types/api/projects";
-import { useState, useEffect, useRef } from "react";
-import { authApi } from "@/lib/api/auth";
+import { Project, ProjectFilters, ProjectSortKeys, ProjectPayload, projectSortKeys } from "@/lib/types/api/projects";
+import { useState, useRef } from "react";
 import { Table, TableRef } from "@/components/ui/Table";
 
 export default function ProjectsPage() {
-  const tableRef = useRef<TableRef| null>(null);
-  const [projects, setProjects] = useState<Project[]>([]);
+  const tableRef = useRef<TableRef | null>(null);
   const [errMsg, setErrMsg] = useState<string | null>(null);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchProjects = async () => {
-      try {
-        const userInfo = await authApi.getUserDetails();
-        const res = await projectsApi.list({ owner: userInfo.id });
-        if (isMounted) {
-          setProjects(res.results);
-        }
-      } catch (err) {
-        setErrMsg(
-          "Failed to fetch projects! Please refresh page or try again later."
-        );
-      }
-    };
-
-    fetchProjects();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
 
   const onRefreshClicked = () => {
     tableRef?.current?.refresh();
@@ -68,9 +42,9 @@ export default function ProjectsPage() {
               Create
             </button>
           </div>
-          <Table<Project, ProjectFilters>
+          <Table<Project, ProjectPayload, ProjectFilters, ProjectSortKeys, typeof projectsApi>
             ref={tableRef}
-            data={projects}
+            api={projectsApi}
             columns={{
               id: {
                 hidden: true,
@@ -94,6 +68,9 @@ export default function ProjectsPage() {
                 type: 'datetime',
               },
             }}
+            sortKeys={projectSortKeys}
+            defaultSortField="updated_at"
+            defaultSortDirection="desc"
             handleRowClick={(row) => window.location.href = `/projects/${row.getValue('id')}/`}
           />
         </>

@@ -33,3 +33,13 @@ export interface ProjectPayload {
   game_state?: {[key: string]: any};
   sprites?: {[key: string]: any};
 }
+
+export const projectSortKeys: (keyof Project)[] = [
+  "id",
+  "created_at",
+  "updated_at",
+  "owner",
+  "name",
+];
+
+export type ProjectSortKeys = (typeof projectSortKeys)[number];

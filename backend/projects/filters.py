@@ -28,6 +28,7 @@ class ProjectFilter(PrefixedFilterSet):
         'id',
         'created_at',
         'updated_at',
+        ('owner__username', 'owner'),
         *search_fields,
     ]
 
