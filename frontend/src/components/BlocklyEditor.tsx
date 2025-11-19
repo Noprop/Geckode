@@ -8,6 +8,7 @@ import {
   variableCreateButtonCallback,
   variableCategoryCallback,
 } from "@/blockly/callbacks";
+import { Geckode } from "@/blockly/theme";
 
 registerBlockly();
 
@@ -38,6 +39,7 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(
             drag: true,
             wheel: true,
           },
+          theme: Geckode,
         };
 
         workspaceRef.current = Blockly.inject(
