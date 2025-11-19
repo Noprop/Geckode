@@ -73,7 +73,7 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(
       <div
         ref={blocklyDivRef}
         id="blocklyDiv"
-        className="h-full w-full min-h-[20rem]"
+        className="h-full w-full min-h-80"
       />
     );
   }

@@ -76,7 +76,7 @@ const SpriteEditor = memo(function SpriteEditor({
             onDragStart={(event) => handleDragStart(event, sprite)}
             className="flex w-28 cursor-grab flex-col items-center rounded-md border border-dashed bg-light-tertiary dark:bg-dark-tertiary hover:bg-light-hover px-2 py-3 text-center text-xs font-medium transition hover:dark:bg-dark-hover hover:border-slate-600  active:cursor-grabbing dark:border-slate-600  dark:hover:border-slate-400 "
           >
-            <div className="mb-2 h-8 w-8 rounded-full bg-gradient-to-br from-amber-200 via-amber-400 to-amber-600 shadow-inner" />
+            <div className="mb-2 h-8 w-8 rounded-full bg-linear-to-br from-amber-200 via-amber-400 to-amber-600 shadow-inner" />
             <span>{sprite.label}</span>
             {sprite.description ? (
               <span className="mt-1 text-[10px] font-normal ">

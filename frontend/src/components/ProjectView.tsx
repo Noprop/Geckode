@@ -22,6 +22,13 @@ export type PhaserRef = {
 
 const PhaserGame = dynamic(() => import("@/components/PhaserGame"), {
   ssr: false,
+  loading: () => (
+    <div style={{
+      width: 480,
+      height: 360,
+      background: "#000"
+    }} />
+  ),
 });
 
 interface ProjectViewProps {
@@ -184,8 +191,15 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
     workspace: Blockly.WorkspaceSvg,
     block: Blockly.BlockSvg
   ) => {
-    const [onStartBlock] = workspace.getBlocksByType('onStart', false);
-    if (!onStartBlock) return;
+    let [onStartBlock] = workspace.getBlocksByType('onStart', false);
+
+    if (!onStartBlock) {
+      const newBlock = workspace.newBlock('onStart');
+      newBlock.initSvg();
+      newBlock.render();
+      [onStartBlock] = workspace.getBlocksByType('onStart', false);
+    }
+
     const input = onStartBlock.getInput('INNER');
     const connection = input?.connection;
     if (!connection || !block.previousConnection) return;
@@ -257,7 +271,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
 
     scene.addSpriteFromEditor(payload.texture, worldX, worldY, spriteId);
 
-    const newBlock = workspace.newBlock('createSprite') as Blockly.BlockSvg;
+    const newBlock = workspace.newBlock('createSprite');
     newBlock.setFieldValue(variableName, 'NAME');
     newBlock.setFieldValue(payload.texture, 'TEXTURE');
     newBlock.setFieldValue(String(worldX), 'X');
