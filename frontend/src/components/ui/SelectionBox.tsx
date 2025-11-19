@@ -6,13 +6,13 @@ export interface SelectionBoxRef {
 }
 
 interface Option {
-  label: string;
-  value: string;
+  label: string | number;
+  value: string | number;
 }
 
 interface SelectionBoxProps {
   ref?: React.Ref<SelectionBoxRef>;
-  defaultValue?: string;
+  defaultValue?: string | number;
   options?: Option[];
   onChange?: (e: ChangeEvent<HTMLSelectElement>) => void;
   required?: boolean;
@@ -31,7 +31,7 @@ export const SelectionBox = ({
   overrideClassName = false,
   disabled = false,
 }: SelectionBoxProps) => {
-  const [inputValue, setInputValue] = useState<string>(defaultValue);
+  const [inputValue, setInputValue] = useState<string>(String(defaultValue));
 
   useImperativeHandle(ref, () => ({
     inputValue: inputValue,
@@ -46,13 +46,18 @@ export const SelectionBox = ({
         onChange(e);
       }}
       required={required}
-      className={(overrideClassName ? "" : "border p-2 rounded") + " " + className}
+      className={(
+        overrideClassName
+          ? ""
+          : "border p-2 rounded"
+      ) + " " + className}
       disabled={disabled}
     >
-      {options.map((option) =>
+      {options.map((option, index) =>
         <option
+          key={index}
           value={option.value}
-          selected={option.value == inputValue}
+          className="text-black"
         >
           {option.label}
         </option>

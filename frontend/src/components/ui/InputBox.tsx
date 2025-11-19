@@ -7,6 +7,7 @@ export interface InputBoxRef {
 
 interface InputBoxProps {
   ref?: React.Ref<InputBoxRef>;
+  value?: string;
   defaultValue?: string | number;
   placeholder?: string;
   type?: React.HTMLInputTypeAttribute;
@@ -19,6 +20,7 @@ interface InputBoxProps {
 
 export const InputBox = ({
   ref,
+  value = undefined,
   defaultValue = '',
   placeholder = '',
   type = "input",
@@ -39,13 +41,13 @@ export const InputBox = ({
     <input
       placeholder={placeholder}
       type={type}
-      value={inputValue}
+      value={value ?? inputValue}
       onChange={(e) => {
-        setInputValue(e.target.value);
+        if (value === undefined) setInputValue(e.target.value);
         onChange(e);
       }}
       required={required}
-      className={(overrideClassName ? "" : "border p-2 rounded") + " " + className}
+      className={(overrideClassName ? "" : "border p-2 rounded-md") + " " + className}
       disabled={disabled}
     />
   );

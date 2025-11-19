@@ -3,12 +3,15 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authApi } from "@/lib/api/auth";
 import { InputBox,InputBoxRef } from "@/components/ui/InputBox";
+import { Button } from "@/components/ui/Button";
+import Link from "next/link";
 
 export default function LoginPage() {
   const router = useRouter();
 
   const usernameRef = useRef<InputBoxRef | null>(null);
   const passwordRef = useRef<InputBoxRef | null>(null);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,14 +54,22 @@ export default function LoginPage() {
           placeholder="Password"
           required={true}
         />
-        <button
+        <Button
           type="submit"
           disabled={loading}
-          className="bg-blue-500 text-white p-2 rounded disabled:opacity-50"
+          className="btn-alt2"
         >
           {loading ? "Logging in..." : "Login"}
-        </button>
+        </Button>
       </form>
+
+      <div className="flex justify-center mt-5">
+        <Link href='/register'>
+          <div className="hover:text-blue-500">
+            Don't have an account yet?
+          </div>
+        </Link>
+      </div>
     </div>
   );
 }

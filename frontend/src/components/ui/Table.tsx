@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useImperativeHandle, useReducer, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ColumnFilter,
   createColumnHelper,
@@ -15,20 +15,22 @@ import { BaseApiInnerReturn, createBaseApi } from "@/lib/api/base";
 import { BaseFilters } from "@/lib/types/api";
 import { Icon } from "@/components/icons/Icon";
 import { InputBox, InputBoxRef } from "./InputBox";
+import useDebounce from "@/hooks/useDebounce";
+import { SelectionBox } from "./SelectionBox";
+import { useSnackbar } from "@/hooks/useSnackbar";
 
-export interface TableRef {
-  refresh: () => void;
-}
+export interface TableRef {}
 
 interface TableProps<TData, TSortKeys, TApi> {
   ref?: React.Ref<TableRef>;
+  label?: string;
   api: TApi;
   columns: Partial<ColumnDefinitions<TData>>;
   defaultSortField?: TSortKeys;
   defaultSortDirection?: "asc" | "desc";
   sortKeys?: TSortKeys[];
   handleRowClick?: (row: Row<TData>) => void;
-  handleFetchError?: () => void;
+  extras?: React.ReactNode;
 }
 
 type ColumnTypes = "user" | "datetime" | "thumbnail" | "other";
@@ -51,16 +53,16 @@ export const Table = <
   TApi extends BaseApiInnerReturn<typeof createBaseApi<TData, TPayload, TFilters>>,
 >({
   ref,
+  label,
   api,
   columns,
   defaultSortField,
   defaultSortDirection = 'asc',
   sortKeys = [],
   handleRowClick = () => {},
-  handleFetchError = () => {},
+  extras,
 }: TableProps<TData, TSortKeys, TApi>) => {
-  const rerender = useReducer(() => ({}), {})[1];
-
+  const showSnackbar = useSnackbar();
   const pageNumberInputRef = useRef<InputBoxRef | null>(null);
 
   const [totalCount, setTotalCount] = useState<number>(0);
@@ -71,6 +73,9 @@ export const Table = <
     pageSize: 10,
   });
   const [columnFilters, setColumnFilters] = useState<ColumnFilter[]>([]);
+  const [searchInput, setSearchInput] = useState<string>('');
+
+  const debouncedSearch = useDebounce(searchInput, 1000);
 
   useEffect(() => {
     api
@@ -82,19 +87,19 @@ export const Table = <
           : defaultSortField
             ? `${defaultSortDirection === 'desc' ? '-' : ''}${defaultSortField as string}`
             : undefined,
+        search: searchInput.trim(),
       } as TFilters)
       .then(res => {
         setTotalCount(res.count);
         setData(res.results);
       })
-      .catch(err => handleFetchError());
+      .catch(err => showSnackbar("Failed to fetch the table!", "error"));
 
     // TODO: Add drop down menus for the filters and figure out how to type them properly
     //       (especially custom filters that don't use the field name directly)
     // TODO: Standardize and display error messages for api errors
-    // TODO: Typable page number input box
     // TODO: Add context to the entire app so that user details doesn't have to get fetched every time
-  }, [sorting, pagination]);
+  }, [sorting, pagination, debouncedSearch]);
 
   const cellRenderers: Partial<Record<ColumnTypes, (value: any) => any>> = {
     user: (value) => value.username,
@@ -134,12 +139,42 @@ export const Table = <
     getCoreRowModel: getCoreRowModel(),
   });
 
-  useImperativeHandle(ref, () => ({
-    refresh: rerender,
-  }));
-
   return (
     <div className="p-2">
+      <h1 className="text-3xl mb-2 font-bold">{label}</h1>
+      <div className="flex justify-between items-center">
+        <div className="ml-2">
+          <span>Display</span>
+          <SelectionBox
+            className="ml-2 mr-2"
+            defaultValue={pagination.pageSize}
+            options={[5, 10, 20, 50, 100].map(option => ({
+              label: option,
+              value: option
+            }))}
+            onChange={(e) => {
+              setPagination({
+                pageIndex: 0,
+                pageSize: Number(e.target.value)
+              });
+            }}
+          />
+          <span>per page</span>
+        </div>
+        <div className="relative w-64 mx-2 my-4">
+          <Icon
+            name="magnifying-glass"
+            size={20}
+            className="absolute left-2 top-1/2 transform -translate-y-1/2"
+          />
+          <InputBox
+            className="pl-9 pr-2 h-10 w-full border rounded"
+            placeholder="Search"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+          />
+        </div>
+      </div>
       <table className="w-full">
         <thead className="table-header">
           {table.getHeaderGroups().map((headerGroup) => (
@@ -150,7 +185,7 @@ export const Table = <
                 return (
                   <th
                     key={header.id}
-                    className="text-left select-none"
+                    className="text-left select-none pl-0.5"
                     onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
                     style={{ cursor: canSort ? "pointer" : "default" }}
                   >
@@ -171,11 +206,11 @@ export const Table = <
                         ) : null}
                       </>
                     )}
-                    {sortDirection ? (
+                    {header.column.columnDef.header ? (
                       <Icon
                         name={("sort-" + (sortDirection === "asc" ? "up" : "down")) as "sort-up" | "sort-down"}
                         size={15}
-                        className="ml-3"
+                        className={"ml-3 " + (sortDirection ? "opacity-100" : "opacity-0")}
                       />
                     ) : null}
                   </th>
@@ -200,73 +235,85 @@ export const Table = <
           ))}
         </tbody>
       </table>
-      <div className="flex justify-end items-center mt-2">
-        <span style={{ margin: "0 10px", fontWeight: "bold" }}>
-          {pagination.pageIndex * pagination.pageSize + 1} - {Math.min(
-            totalCount,
-            (pagination.pageIndex + 1) * pagination.pageSize
-          )}
-          <span style={{ fontWeight: "normal" }}> of </span>
-          {totalCount}
-        </span>
-        <Icon
-          name="angles-left"
-          size={15}
-          className="text-white ml-2 mr-2"
-          onClick={() => setPagination(old =>
-            Object.assign(old, {pageIndex: 0})
-          )}
-          disabled={pagination.pageIndex === 0}
-        />
-        <Icon
-          name="angle-left"
-          size={15}
-          className="text-white"
-          onClick={() => setPagination(old =>
-            Object.assign(old, {pageIndex: Math.max(old.pageIndex - 1, 0)})
-          )}
-          disabled={pagination.pageIndex === 0}
-        />
-        <InputBox
-          ref={pageNumberInputRef}
-          defaultValue={pagination.pageIndex + 1}
-          className="w-15 h-10 text-center ml-4 border"
-          onChange={(e) => {
-            const targetPageNumber = Number(e.target.value.replace(/\D/g, ""));
-
-            pageNumberInputRef.current?.setInputValue(
-              String(Math.min(
-                Math.ceil(totalCount / pagination.pageSize),
-                Math.max(targetPageNumber, 1))
-              )
-            );
-          }}
-        />
-        <span style={{ margin: "0 10px" }}>
-          of {Math.max(1, Math.ceil(totalCount / pagination.pageSize))}
-        </span>
-        <Icon
-          name="angle-right"
-          size={15}
-          className="text-white"
-          onClick={() => setPagination(old =>
-            Object.assign(old, {
-              pageIndex: (old.pageIndex + 1) * old.pageSize < totalCount ? old.pageIndex + 1 : old
-            })
-          )}
-          disabled={(pagination.pageIndex + 1) * pagination.pageSize >= totalCount}
-        />
-        <Icon
-          name="angles-right"
-          size={15}
-          className="text-white ml-2 mr-2"
-          onClick={() => setPagination(old =>
-            Object.assign(old, {
-              pageIndex: Math.ceil(totalCount / old.pageSize)
-            })
-          )}
-          disabled={(pagination.pageIndex + 1) * pagination.pageSize >= totalCount}
-        />
+      <div className="flex justify-between items-center mt-4">
+        <div
+          className="ml-2"
+        >{extras}</div>
+        <div>
+          <span style={{ margin: "0 10px", fontWeight: "bold" }}>
+            {totalCount ? pagination.pageIndex * pagination.pageSize + 1 : 0} - {Math.min(
+              totalCount,
+              (pagination.pageIndex + 1) * pagination.pageSize
+            )}
+            <span style={{ fontWeight: "normal" }}> of </span>
+            {totalCount}
+          </span>
+          <Icon
+            name="angles-left"
+            size={15}
+            className="text-white mx-2"
+            onClick={() => {
+              setPagination(prev => ({
+                ...prev,
+                pageIndex: 0
+              }));
+            }}
+            disabled={pagination.pageIndex === 0}
+          />
+          <Icon
+            name="angle-left"
+            size={15}
+            className="text-white"
+            onClick={() => {
+              setPagination(prev => ({
+                ...prev,
+                pageIndex: Math.max(prev.pageIndex - 1, 0)
+              }));
+            }}
+            disabled={pagination.pageIndex === 0}
+          />
+          <InputBox
+            ref={pageNumberInputRef}
+            value={String(pagination.pageIndex + 1)}
+            className="w-15 h-9 text-center ml-4 border"
+            onChange={(e) => {
+              setPagination(prev => ({
+                ...prev,
+                pageIndex: Math.min(
+                  Math.ceil(totalCount / pagination.pageSize),
+                  Math.max(Number(e.target.value.replace(/\D/g, "")), 1)
+                ) - 1
+              }));
+            }}
+          />
+          <span style={{ margin: "0 10px" }}>
+            of {Math.max(1, Math.ceil(totalCount / pagination.pageSize))}
+          </span>
+          <Icon
+            name="angle-right"
+            size={15}
+            className="text-white"
+            onClick={() => {
+              setPagination(prev => ({
+                ...prev,
+                pageIndex: (prev.pageIndex + 1) * prev.pageSize < totalCount ? prev.pageIndex + 1 : prev.pageIndex
+              }));
+            }}
+            disabled={(pagination.pageIndex + 1) * pagination.pageSize >= totalCount}
+          />
+          <Icon
+            name="angles-right"
+            size={15}
+            className="text-white mx-2"
+            onClick={() => {
+              setPagination(prev => ({
+                ...prev,
+                pageIndex: Math.ceil(totalCount / prev.pageSize) - 1
+              }));
+            }}
+            disabled={(pagination.pageIndex + 1) * pagination.pageSize >= totalCount}
+          />
+        </div>
       </div>
     </div>
   );

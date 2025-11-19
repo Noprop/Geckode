@@ -10,6 +10,8 @@ export interface User {
   avatar: string | null;
 }
 
+export interface UserFilters {}
+
 export interface UserPayload {
   username: string;
   email: string;

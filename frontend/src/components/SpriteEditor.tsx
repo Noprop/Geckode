@@ -109,7 +109,7 @@ const SpriteEditor = memo(function SpriteEditor({
                 </div>
                 <button
                   type="button"
-                  className="rounded border  px-2 py-1 text-[10px] uppercase tracking-wide transition hover:border-red-400 hover:text-red-600 dark:border-slate-600 dark:hover:border-red-400 dark:hover:text-red-300"
+                  className="cursor-pointer rounded border  px-2 py-1 text-[10px] uppercase tracking-wide transition hover:border-red-400 hover:text-red-600 dark:border-slate-600 dark:hover:border-red-400 dark:hover:text-red-300"
                   onClick={() => onRemoveSprite(sprite.id)}
                 >
                   Remove

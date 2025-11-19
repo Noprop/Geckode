@@ -14,6 +14,8 @@ import SpriteEditor, {
   SpriteDragPayload,
 } from "@/components/SpriteEditor";
 import starterWorkspace from "@/blockly/starterWorkspace";
+import { Button } from "./ui/Button";
+import { useSnackbar } from "@/hooks/useSnackbar";
 
 export type PhaserRef = {
   readonly game: Game;
@@ -36,12 +38,10 @@ interface ProjectViewProps {
 }
 
 const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
+  const showSnackbar = useSnackbar();
   const blocklyRef = useRef<BlocklyEditorHandle>(null);
   const phaserRef = useRef<{ game?: any; scene?: any } | null>(null);
-  const [spritePosition, setSpritePosition] = useState({ x: 0, y: 0 });
   const [canMoveSprite, setCanMoveSprite] = useState(true);
-  const [errMsg, setErrMsg] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [phaserState, setPhaserState] = useState<PhaserExport | null>(null);
   const [spriteInstances, setSpriteInstances] = useState<SpriteInstance[]>([]);
   const workspaceListenerRef = useRef<{
@@ -76,7 +76,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
               workspace
             );
           } catch {
-            setErrMsg("Failed to load workspace!");
+            showSnackbar("Failed to load workspace!", "error");
           }
 
           setPhaserState(project.game_state);
@@ -124,12 +124,13 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
       blocks: workspaceState,
       game_state: phaserState,
       sprites: spriteInstances,
-    });
-
-    setSuccessMsg('Project Saved Successfully!');
-    setTimeout(() => {
-      setSuccessMsg(null);
-    }, 3000);
+    })
+    .then(res =>
+      showSnackbar('Project saved successfully!', 'success')
+    )
+    .catch(err =>
+      showSnackbar('Project could not be saved. Please try again.', 'error')
+    );
   };
 
   const exportWorkspaceState = () => {
@@ -328,8 +329,6 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
 
   return (
     <>
-      {successMsg && <div className="success-msg">{successMsg}</div>}
-      {errMsg && <div className="error-msg">{errMsg}</div>}
       <div className="flex h-[calc(100vh-4rem)]">
         <div className="flex-1 min-h-0 min-w-0">
           <BlocklyEditor
@@ -349,40 +348,42 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
             <PhaserGame ref={phaserRef} phaserState={phaserState} />
           </div>
 
-          <div className="flex gap-x-3 my-3">
-            <button className="btn btn-deny" onClick={changeScene}>
+          <div className="flex justify-around my-3">
+            <Button
+              className="btn-deny"
+              onClick={changeScene}
+              title="Change Scene"
+            >
               Change Scene
-            </button>
+            </Button>
 
-            <button
+            <Button
               onClick={() => {
                 generateCode();
                 handlePhaserPointerDown();
+                showSnackbar('Code was successfully generated!', 'success');
               }}
-              className="btn btn-neutral"
-              aria-label="Convert Now"
+              className="btn-confirm"
               title="Convert Now"
             >
               Convert Now
-            </button>
+            </Button>
 
-            <button
+            <Button
               onClick={saveProject}
-              className="btn btn-alt2"
-              aria-label="Save"
+              className="btn-alt2"
               title="Save"
             >
               Save
-            </button>
+            </Button>
 
-            <button
+            <Button
               onClick={exportWorkspaceState}
-              className="btn btn-neutral w-1/4"
-              aria-label="Export Workspace"
+              className="btn-neutral w-1/3"
               title="Export Workspace"
             >
               Export Workspace
-            </button>
+            </Button>
 
             {/* currently adding this fucks the dimensions of the entire column and thus the phaser window :/ */}
             {/* <div

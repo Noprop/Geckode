@@ -2,6 +2,7 @@ import { AngleLeftIcon } from "./AngleLeftIcon";
 import { AngleRightIcon } from "./AngleRightIcon";
 import { AnglesLeftIcon } from "./AnglesLeftIcon";
 import { AnglesRightIcon } from "./AnglesRightIcon";
+import { MagnifyingGlassIcon } from "./MagnifyingGlassIcon";
 import { SortDownIcon } from "./SortDownIcon";
 import { SortUpIcon } from "./SortUpIcon";
 
@@ -12,6 +13,7 @@ export const icons = {
   "angles-right": AnglesRightIcon,
   "sort-up": SortUpIcon,
   "sort-down": SortDownIcon,
+  "magnifying-glass": MagnifyingGlassIcon,
 } as const;
 
 export type IconName = keyof typeof icons;
