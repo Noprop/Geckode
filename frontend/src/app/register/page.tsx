@@ -5,9 +5,11 @@ import usersApi from "@/lib/api/handlers/users";
 import { InputBox,InputBoxRef } from "@/components/ui/InputBox";
 import { Button } from "@/components/ui/Button";
 import Link from "next/link";
+import { useSnackbar } from "@/hooks/useSnackbar";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const showSnackbar = useSnackbar();
 
   const emailRef = useRef<InputBoxRef | null>(null);
   const usernameRef = useRef<InputBoxRef | null>(null);
@@ -20,14 +22,12 @@ export default function RegisterPage() {
   const labels = ['Email', 'Username', 'First Name', 'Last Name', 'Password', 'Re-typed Password'];
 
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     if (refs.some(ref => !ref.current)) return;
 
     e.preventDefault();
     setLoading(true);
-    setError(null);
 
     try {
       const response = await usersApi.create({
@@ -41,17 +41,15 @@ export default function RegisterPage() {
       console.log("Successfully created user:", response);
       router.push("/login");
     } catch (err: any) {
-      setError(err.message || "Register failed");
+      showSnackbar("Register failed. Please try again.", "error");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="mx-auto mt-20 p-6 border rounded shadow">
+    <div className="mx-auto mt-20 p-6 border rounded">
       <h1 className="text-xl font-bold mb-4">Register</h1>
-
-      {error && <p className="text-red-500 mb-2">{error}</p>}
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         {...Array.from({ length: refs.length / 2 }, ((_, i) => (

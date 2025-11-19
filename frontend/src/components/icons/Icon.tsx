@@ -20,7 +20,7 @@ export function Icon({
   const isInteractive = !!onClick;
 
   const commonProps = {
-    className: `inline-flex items-center justify-center ${className} ${
+    className: `inline-flex items-center justify-center ${className} text-black dark:text-white ${
       disabled ? "opacity-50 cursor-not-allowed" : isInteractive ? "cursor-pointer" : ""
     }`,
     style: { width: size, height: size },

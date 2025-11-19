@@ -137,7 +137,7 @@ body {
 
 .blocklyToolboxSelected {
   /* background-color: var(--color-primary-green); */
-  background-color: white !important;
+  /* background-color: white !important; */
   @apply text-shadow-sm;
 }
 

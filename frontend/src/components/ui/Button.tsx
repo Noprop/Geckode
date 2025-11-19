@@ -27,7 +27,7 @@ export const Button = ({
       className={
         (overrideClassName
           ? ""
-          : "cursor-pointer h-8 p-1.5 rounded-lg font-bold text-sm disabled:opacity-50"
+          : "cursor-pointer h-8 p-1.5 rounded-lg font-bold text-sm disabled:opacity-50 text-white"
         ) + " " + className
       }
       disabled={disabled}

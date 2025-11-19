@@ -251,7 +251,7 @@ export const Table = <
           <Icon
             name="angles-left"
             size={15}
-            className="text-white mx-2"
+            className="mx-2"
             onClick={() => {
               setPagination(prev => ({
                 ...prev,
@@ -263,7 +263,6 @@ export const Table = <
           <Icon
             name="angle-left"
             size={15}
-            className="text-white"
             onClick={() => {
               setPagination(prev => ({
                 ...prev,
@@ -292,7 +291,6 @@ export const Table = <
           <Icon
             name="angle-right"
             size={15}
-            className="text-white"
             onClick={() => {
               setPagination(prev => ({
                 ...prev,
@@ -304,7 +302,7 @@ export const Table = <
           <Icon
             name="angles-right"
             size={15}
-            className="text-white mx-2"
+            className="mx-2"
             onClick={() => {
               setPagination(prev => ({
                 ...prev,
