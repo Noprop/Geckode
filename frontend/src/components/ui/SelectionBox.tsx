@@ -1,8 +1,8 @@
-import { ChangeEvent, useImperativeHandle, useState } from "react";
+import { ChangeEvent, Dispatch, SetStateAction, useImperativeHandle, useState } from "react";
 
 export interface SelectionBoxRef {
   inputValue: string;
-  setInputValue: (input: string) => void;
+  setInputValue: Dispatch<SetStateAction<string>>;
 }
 
 interface Option {

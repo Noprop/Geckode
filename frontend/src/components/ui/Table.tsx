@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useImperativeHandle, useReducer, useState } from "react";
+import { useEffect, useImperativeHandle, useReducer, useRef, useState } from "react";
 import {
   ColumnFilter,
   createColumnHelper,
@@ -13,6 +13,8 @@ import {
 } from "@tanstack/react-table";
 import { BaseApiInnerReturn, createBaseApi } from "@/lib/api/base";
 import { BaseFilters } from "@/lib/types/api";
+import { Icon } from "@/components/icons/Icon";
+import { InputBox, InputBoxRef } from "./InputBox";
 
 export interface TableRef {
   refresh: () => void;
@@ -58,6 +60,8 @@ export const Table = <
   handleFetchError = () => {},
 }: TableProps<TData, TSortKeys, TApi>) => {
   const rerender = useReducer(() => ({}), {})[1];
+
+  const pageNumberInputRef = useRef<InputBoxRef | null>(null);
 
   const [totalCount, setTotalCount] = useState<number>(0);
   const [data, setData] = useState<TData[]>([]);
@@ -146,7 +150,7 @@ export const Table = <
                 return (
                   <th
                     key={header.id}
-                    className="text-left"
+                    className="text-left select-none"
                     onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
                     style={{ cursor: canSort ? "pointer" : "default" }}
                   >
@@ -167,7 +171,13 @@ export const Table = <
                         ) : null}
                       </>
                     )}
-                    {sortDirection === "asc" ? " 🔼" : sortDirection === "desc" ? " 🔽" : ""}
+                    {sortDirection ? (
+                      <Icon
+                        name={("sort-" + (sortDirection === "asc" ? "up" : "down")) as "sort-up" | "sort-down"}
+                        size={15}
+                        className="ml-3"
+                      />
+                    ) : null}
                   </th>
                 );
               })}
@@ -182,7 +192,7 @@ export const Table = <
               className="table-row"
             >
               {row.getVisibleCells().map((cell) => (
-                <td key={cell.id}>
+                <td key={cell.id} className="border-b border-gray-500">
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </td>
               ))}
@@ -190,26 +200,73 @@ export const Table = <
           ))}
         </tbody>
       </table>
-      <div style={{ marginTop: 10 }}>
-        <button
+      <div className="flex justify-end items-center mt-2">
+        <span style={{ margin: "0 10px", fontWeight: "bold" }}>
+          {pagination.pageIndex * pagination.pageSize + 1} - {Math.min(
+            totalCount,
+            (pagination.pageIndex + 1) * pagination.pageSize
+          )}
+          <span style={{ fontWeight: "normal" }}> of </span>
+          {totalCount}
+        </span>
+        <Icon
+          name="angles-left"
+          size={15}
+          className="text-white ml-2 mr-2"
+          onClick={() => setPagination(old =>
+            Object.assign(old, {pageIndex: 0})
+          )}
+          disabled={pagination.pageIndex === 0}
+        />
+        <Icon
+          name="angle-left"
+          size={15}
+          className="text-white"
           onClick={() => setPagination(old =>
             Object.assign(old, {pageIndex: Math.max(old.pageIndex - 1, 0)})
           )}
           disabled={pagination.pageIndex === 0}
-        >
-          Previous
-        </button>
-        <span style={{ margin: "0 10px" }}>Page {pagination.pageIndex + 1}/{Math.ceil(totalCount / pagination.pageSize)}</span>
-        <button
+        />
+        <InputBox
+          ref={pageNumberInputRef}
+          defaultValue={pagination.pageIndex + 1}
+          className="w-15 h-10 text-center ml-4 border"
+          onChange={(e) => {
+            const targetPageNumber = Number(e.target.value.replace(/\D/g, ""));
+
+            pageNumberInputRef.current?.setInputValue(
+              String(Math.min(
+                Math.ceil(totalCount / pagination.pageSize),
+                Math.max(targetPageNumber, 1))
+              )
+            );
+          }}
+        />
+        <span style={{ margin: "0 10px" }}>
+          of {Math.max(1, Math.ceil(totalCount / pagination.pageSize))}
+        </span>
+        <Icon
+          name="angle-right"
+          size={15}
+          className="text-white"
           onClick={() => setPagination(old =>
             Object.assign(old, {
               pageIndex: (old.pageIndex + 1) * old.pageSize < totalCount ? old.pageIndex + 1 : old
             })
           )}
           disabled={(pagination.pageIndex + 1) * pagination.pageSize >= totalCount}
-        >
-          Next
-        </button>
+        />
+        <Icon
+          name="angles-right"
+          size={15}
+          className="text-white ml-2 mr-2"
+          onClick={() => setPagination(old =>
+            Object.assign(old, {
+              pageIndex: Math.ceil(totalCount / old.pageSize)
+            })
+          )}
+          disabled={(pagination.pageIndex + 1) * pagination.pageSize >= totalCount}
+        />
       </div>
     </div>
   );

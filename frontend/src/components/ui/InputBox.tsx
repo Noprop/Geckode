@@ -1,13 +1,13 @@
-import { ChangeEvent, useImperativeHandle, useState } from "react";
+import { ChangeEvent, Dispatch, SetStateAction, useImperativeHandle, useState } from "react";
 
 export interface InputBoxRef {
   inputValue: string;
-  setInputValue: (input: string) => void;
+  setInputValue: Dispatch<SetStateAction<string>>;
 }
 
 interface InputBoxProps {
   ref?: React.Ref<InputBoxRef>;
-  defaultValue?: string;
+  defaultValue?: string | number;
   placeholder?: string;
   type?: React.HTMLInputTypeAttribute;
   onChange?: (e: ChangeEvent<HTMLInputElement>) => void;
@@ -28,7 +28,7 @@ export const InputBox = ({
   overrideClassName = false,
   disabled = false,
 }: InputBoxProps) => {
-  const [inputValue, setInputValue] = useState<string>(defaultValue);
+  const [inputValue, setInputValue] = useState<string>(String(defaultValue));
 
   useImperativeHandle(ref, () => ({
     inputValue: inputValue,
