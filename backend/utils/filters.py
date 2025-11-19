@@ -1,7 +1,8 @@
 from django_filters import FilterSet, CharFilter
 from functools import reduce
 from operator import or_
-from django.db.models import Q
+from django.db.models import Q, CharField, TextField, F
+from django.db.models.functions import Lower
 from rest_framework.exceptions import ValidationError
 
 '''
@@ -52,7 +53,29 @@ class PrefixedFilterSet(FilterSet):
 
             fields[i] = (ordering_prefix, self.ordering_fields[field])
 
-        return queryset.order_by(*[f'{ordering_prefix}{self.prefix}{field}' for ordering_prefix, field in fields])
+        order_expressions = []
+
+        for ordering_prefix, field_name in fields:
+            full_field_name = f'{self.prefix}{field_name}'
+
+            # This makes text ordering non-case-sensitive
+            try:
+                field = queryset.model._meta.get_field(full_field_name)
+                if isinstance(field, (CharField, TextField)):
+                    expr = Lower(F(full_field_name))
+                else:
+                    expr = full_field_name
+            except Exception:
+                expr = full_field_name
+
+            if ordering_prefix == '-':
+                expr = expr.desc() if hasattr(expr, 'desc') else f'-{expr}'
+            elif ordering_prefix == '':
+                expr = expr.asc() if hasattr(expr, 'asc') else expr
+
+            order_expressions.append(expr)
+
+        return queryset.order_by(*order_expressions)
 
 '''
 Custom owner ID field creator
