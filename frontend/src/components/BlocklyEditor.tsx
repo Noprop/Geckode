@@ -4,7 +4,6 @@ import { useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import * as Blockly from "blockly/core";
 import { registerBlockly } from "@/blockly/index";
 import toolbox from "@/blockly/toolbox";
-import starterWorkspace from "@/blockly/starterWorkspace";
 import {
   variableCreateButtonCallback,
   variableCategoryCallback,
@@ -57,15 +56,6 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(
           "CUSTOM_VARIABLES",
           variableCategoryCallback
         );
-
-        const hasExistingBlocks =
-          workspaceRef.current.getAllBlocks(false).length > 0;
-        if (!hasExistingBlocks) {
-          Blockly.serialization.workspaces.load(
-            starterWorkspace,
-            workspaceRef.current
-          );
-        }
       }
 
       return () => {

@@ -13,6 +13,7 @@ import SpriteEditor, {
   SpriteInstance,
   SpriteDragPayload,
 } from "@/components/SpriteEditor";
+import starterWorkspace from "@/blockly/starterWorkspace";
 
 export type PhaserRef = {
   readonly game: Game;
@@ -46,15 +47,27 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
   };
 
   useEffect(() => {
-    if (!projectId) return;
+    const workspace: Blockly.Workspace = blocklyRef.current?.getWorkspace()!;
+
+    if (!projectId) {
+      if (workspace.getAllBlocks(false).length <= 0) {
+        Blockly.serialization.workspaces.load(
+          starterWorkspace,
+          workspace
+        );
+      }
+      return;
+    }
 
     const fetchWorkspace = async () => {
-      const workspace: Blockly.Workspace = blocklyRef.current?.getWorkspace()!;
       projectsApi(parseInt(projectId?.toString()!))
         .get()
         .then((project) => {
           try {
-            Blockly.serialization.workspaces.load(project.blocks, workspace);
+            Blockly.serialization.workspaces.load(
+              project.blocks,
+              workspace
+            );
           } catch {
             setErrMsg("Failed to load workspace!");
           }
