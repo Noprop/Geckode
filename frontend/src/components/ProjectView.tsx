@@ -25,10 +25,9 @@ export type PhaserRef = {
 const PhaserGame = dynamic(() => import("@/components/PhaserGame"), {
   ssr: false,
   loading: () => (
-    <div style={{
+    <div className="bg-white dark:bg-black" style={{
       width: 480,
       height: 360,
-      background: "#000"
     }} />
   ),
 });

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useImperativeHandle, useRef, useState } from "react";
 import {
   ColumnFilter,
   createColumnHelper,
@@ -19,7 +19,9 @@ import useDebounce from "@/hooks/useDebounce";
 import { SelectionBox } from "./SelectionBox";
 import { useSnackbar } from "@/hooks/useSnackbar";
 
-export interface TableRef {}
+export interface TableRef {
+  refresh: () => void;
+}
 
 interface TableProps<TData, TSortKeys, TApi> {
   ref?: React.Ref<TableRef>;
@@ -77,7 +79,7 @@ export const Table = <
 
   const debouncedSearch = useDebounce(searchInput, 1000);
 
-  useEffect(() => {
+  const fetchData = () => {
     api
       .list({
         page: pagination.pageIndex + 1,
@@ -94,12 +96,15 @@ export const Table = <
         setData(res.results);
       })
       .catch(err => showSnackbar("Failed to fetch the table!", "error"));
+  };
 
-    // TODO: Add drop down menus for the filters and figure out how to type them properly
-    //       (especially custom filters that don't use the field name directly)
-    // TODO: Standardize and display error messages for api errors
-    // TODO: Add context to the entire app so that user details doesn't have to get fetched every time
-  }, [sorting, pagination, debouncedSearch]);
+  useEffect(() => {
+    fetchData();
+  }, [sorting, pagination]);
+
+  useEffect(() => {
+    setPagination(prev => ({...prev, pageIndex: 0}));
+  }, [debouncedSearch]);
 
   const cellRenderers: Partial<Record<ColumnTypes, (value: any) => any>> = {
     user: (value) => value.username,
@@ -138,6 +143,10 @@ export const Table = <
     getSortedRowModel: getSortedRowModel(),
     getCoreRowModel: getCoreRowModel(),
   });
+
+  useImperativeHandle(ref, () => ({
+    refresh: fetchData,
+  }))
 
   return (
     <div className="p-2">

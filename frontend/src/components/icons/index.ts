@@ -2,6 +2,8 @@ import { AngleLeftIcon } from "./AngleLeftIcon";
 import { AngleRightIcon } from "./AngleRightIcon";
 import { AnglesLeftIcon } from "./AnglesLeftIcon";
 import { AnglesRightIcon } from "./AnglesRightIcon";
+import { CircleInfoIcon } from "./CircleInfoIcon";
+import { FilePlusIcon } from "./FilePlusIcon";
 import { MagnifyingGlassIcon } from "./MagnifyingGlassIcon";
 import { SortDownIcon } from "./SortDownIcon";
 import { SortUpIcon } from "./SortUpIcon";
@@ -14,6 +16,8 @@ export const icons = {
   "sort-up": SortUpIcon,
   "sort-down": SortDownIcon,
   "magnifying-glass": MagnifyingGlassIcon,
+  "file-plus": FilePlusIcon,
+  "circle-info": CircleInfoIcon,
 } as const;
 
 export type IconName = keyof typeof icons;
