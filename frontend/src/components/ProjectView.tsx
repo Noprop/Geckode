@@ -16,6 +16,7 @@ import SpriteEditor, {
 import starterWorkspace from "@/blockly/starterWorkspace";
 import { Button } from "./ui/Button";
 import { useSnackbar } from "@/hooks/useSnackbar";
+import starterWorkspaceNewProject from "@/blockly/starterWorkspaceNewProject";
 
 export type PhaserRef = {
   readonly game: Game;
@@ -71,7 +72,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
         .then((project) => {
           try {
             Blockly.serialization.workspaces.load(
-              project.blocks,
+              Object.keys(project.blocks).length ? project.blocks : starterWorkspaceNewProject,
               workspace
             );
           } catch {

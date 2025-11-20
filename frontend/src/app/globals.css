@@ -115,6 +115,9 @@ body {
   display: none;
 }
 
+.blocklyFlyoutButton {
+  @apply cursor-pointer;
+}
 
 #toolbox-search-input input:focus-visible {
   @apply outline-0;

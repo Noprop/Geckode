@@ -1,6 +1,4 @@
 from django.core.cache import cache
-from accounts.models import User
-from accounts.serializers import PublicUserSerializer
 
 def _key(group_name):
     return f"group_users:{group_name}"
