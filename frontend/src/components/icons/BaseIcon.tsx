@@ -1,7 +1,7 @@
-export function BaseIcon({ children, ...props }: React.SVGProps<SVGSVGElement>) {
+export function BaseIcon({ children, viewBox, ...props }: React.SVGProps<SVGSVGElement>) {
   return (
     <svg 
-      viewBox="0 0 16 16"
+      viewBox={viewBox}
       fill="currentColor"
       stroke="none"
       {...props}

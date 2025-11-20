@@ -9,6 +9,7 @@ interface ModalProps {
   onClose?: () => void;
   icon?: keyof typeof icons;
   actions?: React.ReactNode;
+  className?: string;
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -17,6 +18,7 @@ export const Modal: React.FC<ModalProps> = ({
   onClose = () => {},
   icon,
   actions,
+  className = '',
 }) => {
   return (
     <>
@@ -30,7 +32,7 @@ export const Modal: React.FC<ModalProps> = ({
           className="relative transform overflow-hidden rounded-lg bg-gray-800 text-left shadow-xl outline outline-white/10 transition-all"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="bg-primary-green px-4 pt-5 pb-4 sm:p-6 sm:pb-4 flex sm:items-start">
+          <div className={`${className} bg-primary-green px-4 pt-5 pb-4 sm:p-6 sm:pb-4 flex sm:items-start`}>
             {icon && (
               <div className="mx-auto flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-black/20 sm:mx-0 sm:h-10 sm:w-10">
                 {<Icon name={icon} className="text-white"/>}

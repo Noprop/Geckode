@@ -1,9 +1,10 @@
+import { MouseEvent } from "react";
 import { icons, IconName, IconComponent } from ".";
 import { BaseIcon } from "./BaseIcon";
 
 type IconProps = {
   name: IconName;
-  onClick?: () => void;
+  onClick?: (e: MouseEvent) => void;
   disabled?: boolean;
   size?: number | string;
   className?: string;
@@ -25,6 +26,7 @@ export function Icon({
     }`,
     style: { width: size, height: size },
     onClick: disabled ? undefined : onClick,
+    viewBox: Component.viewBox ?? "0 0 16 16",
   };
 
   if (isInteractive) {

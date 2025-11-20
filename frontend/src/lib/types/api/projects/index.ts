@@ -13,6 +13,7 @@ export interface Project {
   published_at: string | null;
   fork_count: number;
   thumbnail: string | null;
+  permission: string | null;
   blocks?: JSON;
   game_state?: PhaserExport;
   sprites?: SpriteInstance[];

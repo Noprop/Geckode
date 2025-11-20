@@ -7,6 +7,8 @@ import { FilePlusIcon } from "./FilePlusIcon";
 import { MagnifyingGlassIcon } from "./MagnifyingGlassIcon";
 import { SortDownIcon } from "./SortDownIcon";
 import { SortUpIcon } from "./SortUpIcon";
+import { TrashIcon } from "./TrashIcon";
+import { WarningIcon } from "./WarningIcon";
 
 export const icons = {
   "angle-left": AngleLeftIcon,
@@ -18,7 +20,11 @@ export const icons = {
   "magnifying-glass": MagnifyingGlassIcon,
   "file-plus": FilePlusIcon,
   "circle-info": CircleInfoIcon,
+  "trash": TrashIcon,
+  "warning": WarningIcon,
 } as const;
 
 export type IconName = keyof typeof icons;
-export type IconComponent = React.FC<React.SVGProps<SVGSVGElement>>;
+export type IconComponent = React.FC<React.SVGProps<SVGSVGElement>> & {
+  viewBox?: string;
+};

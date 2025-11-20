@@ -36,15 +36,19 @@ class ProjectSerializer(ModelSerializer):
     owner = PublicUserSerializer(read_only=True)
     is_published = BooleanField(write_only=True, required=False)
     fork_count = SerializerMethodField()
+    permission = SerializerMethodField()
 
     class Meta:
         model = Project
         fields = ['id', 'owner', 'created_at', 'updated_at', 'name', 'description', 'published_at',
-                    'is_published', 'fork_count', 'blocks', 'game_state', 'thumbnail', 'sprites']
+                    'is_published', 'fork_count', 'blocks', 'game_state', 'thumbnail', 'sprites', 'permission']
         read_only_fields = ['created_at', 'updated_at', 'published_at']
 
     def get_fork_count(self, instance):
         return instance.forked_by.count()
+
+    def get_permission(self, instance):
+        return instance.get_permission(self.context['request'].user)
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

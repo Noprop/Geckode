@@ -7,13 +7,16 @@ import { Table, TableRef } from "@/components/ui/Table";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { InputBox, InputBoxRef } from "@/components/ui/InputBox";
+import { useSnackbar } from "@/hooks/useSnackbar";
 
 export default function ProjectsPage() {
-  const tableRef = useRef<TableRef | null>(null);
+  const showSnackbar = useSnackbar();
+
+  const tableRef = useRef<TableRef<Project> | null>(null);
   const projectNameRef = useRef<InputBoxRef | null>(null);
   const autoProjectOpenRef = useRef<InputBoxRef | null>(null);
 
-  const [showProjectCreateModal, setShowProjectCreateModal] = useState<boolean>(false);
+  const [showModal, setShowModal] = useState<null | 'create' | 'delete'>(null);
 
   const createProject = () => {
     projectsApi.create({
@@ -23,10 +26,25 @@ export default function ProjectsPage() {
         window.location.href = `/projects/${project.id}`;
       } else {
         tableRef.current?.refresh();
-        setShowProjectCreateModal(false);
+        setShowModal(null);
       }
     });
   };
+
+  const deleteProject = () => {
+    const projectId = tableRef.current?.data[tableRef.current?.dataIndex]['id'];
+
+    if (!projectId) return;
+
+    projectsApi(projectId)
+      .delete()
+      .then(res => {
+        showSnackbar("Succesfully deleted the project!", "success");
+        setShowModal(null);
+        tableRef.current?.refresh();
+      })
+      .catch(err => showSnackbar("Something went wrong. Please try again.", "error"))
+  }
 
   return (
     <div className="mx-20 my-5">
@@ -61,10 +79,19 @@ export default function ProjectsPage() {
         defaultSortField="updated_at"
         defaultSortDirection="desc"
         handleRowClick={(row) => window.location.href = `/projects/${row.getValue('id')}/`}
+        actions={[
+          {
+            rowIcon: 'trash',
+            rowIconSize: 24,
+            rowIconClicked: () => setShowModal('delete'),
+            rowIconClassName: 'hover:text-red-500 mt-1',
+            canUse: (project) => project.permission === 'owner',
+          },
+        ]}
         extras={(
           <>
             <Button
-              onClick={() => setShowProjectCreateModal(true)}
+              onClick={() => setShowModal('create')}
               className="btn-confirm"
             >
               Create Project
@@ -73,9 +100,9 @@ export default function ProjectsPage() {
         )}
       />
 
-      {showProjectCreateModal ? (
+      {showModal === 'create' ? (
         <Modal
-          onClose={() => setShowProjectCreateModal(false)}
+          onClose={() => setShowModal(null)}
           title="Create project"
           icon="file-plus"
           actions={
@@ -87,7 +114,7 @@ export default function ProjectsPage() {
                 Create
               </Button>
               <Button
-                onClick={() => setShowProjectCreateModal(false)}
+                onClick={() => setShowModal(null)}
                 className="btn-neutral"
               >
                 Cancel
@@ -112,6 +139,32 @@ export default function ProjectsPage() {
               Automatically open the project after creation
             </div>
           </div>
+        </Modal>
+      ) : showModal === 'delete' ? (
+        <Modal
+          className="bg-red-500"
+          onClose={() => setShowModal(null)}
+          title={`Delete project (${tableRef.current?.data?.[tableRef.current.dataIndex]['name']})`}
+          icon="warning"
+          actions={
+            <>
+              <Button
+                onClick={deleteProject}
+                className="btn-deny ml-3"
+              >
+                Delete
+              </Button>
+              <Button
+                onClick={() => setShowModal(null)}
+                className="btn-neutral"
+              >
+                Cancel
+              </Button>
+            </>
+          }
+        >
+          Are you sure you would like to delete this project?
+          This is a permanent change that cannot be undone.
         </Modal>
       ) : null}
     </div>

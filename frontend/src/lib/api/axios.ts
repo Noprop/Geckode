@@ -1,4 +1,4 @@
-import axios, { AxiosRequestConfig } from 'axios';
+import axios, { AxiosError, AxiosRequestConfig } from 'axios';
 import { redirect } from 'next/navigation';
 
 export const BASE_API_URL = 'http://localhost:8000/api/'
@@ -47,24 +47,9 @@ async function request<T = any>(
     });
 
     return response;
-  } catch (err: any) {
-    if (err.response) {
-      /* diabling this for now to see my errors
-      if (isBrowser) {
-        window.location.href = '/login';
-      } else {
-        redirect('/login');
-      }
-      */
-      console.error('API Error:', err.response.status, err.response.data);
-      throw new Error(`API Error ${err.response.status}: ${err.response.data.detail || 'Unknown'}`);
-    } else if (err.request) {
-      console.error('No response received:', err.request);
-      throw new Error('No response from server.');
-    } else {
-      console.error('Error setting up request:', err.message);
-      throw err;
-    }
+  } catch (error: any) {
+    if (axios.isAxiosError(error)) throw error as AxiosError;
+    console.error("API error", error);
   }
 }
 

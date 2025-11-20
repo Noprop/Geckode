@@ -56,6 +56,15 @@ class Project(Model):
             members=user
         ).exists()
 
+    def get_permission(self, user):
+        if user == self.owner:
+            return 'owner'
+
+        try:
+            return ProjectCollaborator.objects.get(project=self, collaborator=user).permission
+        except:
+            return None
+
 class ProjectCollaborator(Model):
     project = ForeignKey(Project, related_name='project_collaborators', on_delete=CASCADE)
     collaborator = ForeignKey(User, related_name='project_collaborators', on_delete=CASCADE)

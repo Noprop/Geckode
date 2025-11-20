@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useImperativeHandle, useRef, useState } from "react";
+import { useEffect, useImperativeHandle, useRef, useState, HTMLAttributes } from "react";
 import {
   ColumnFilter,
   createColumnHelper,
@@ -18,13 +18,16 @@ import { InputBox, InputBoxRef } from "./InputBox";
 import useDebounce from "@/hooks/useDebounce";
 import { SelectionBox } from "./SelectionBox";
 import { useSnackbar } from "@/hooks/useSnackbar";
+import { icons } from "../icons";
 
-export interface TableRef {
+export interface TableRef<TData> {
   refresh: () => void;
+  data: TData[];
+  dataIndex: number;
 }
 
 interface TableProps<TData, TSortKeys, TApi> {
-  ref?: React.Ref<TableRef>;
+  ref?: React.Ref<TableRef<TData>>;
   label?: string;
   api: TApi;
   columns: Partial<ColumnDefinitions<TData>>;
@@ -32,10 +35,24 @@ interface TableProps<TData, TSortKeys, TApi> {
   defaultSortDirection?: "asc" | "desc";
   sortKeys?: TSortKeys[];
   handleRowClick?: (row: Row<TData>) => void;
+  actions?: TableAction<TData>[];
   extras?: React.ReactNode;
 }
 
 type ColumnTypes = "user" | "datetime" | "thumbnail" | "other";
+
+interface TableAction<TData> {
+  rowIcon: keyof typeof icons;
+  rowIconClicked: () => void;
+  rowIconClassName?: HTMLAttributes<HTMLElement>["className"];
+  rowIconSize?: number;
+  canUse?: (row: TData) => boolean;
+  modalIcon?: keyof typeof icons;
+  modalIconClassName?: HTMLAttributes<HTMLElement>["className"];
+  modalTitle?: string;
+  modalContent?: React.ReactNode;
+  modalActions?: React.ReactNode;
+}
 
 type ColumnDefinitions<T> = {
   [K in keyof T]: ColumnDefinition;
@@ -62,11 +79,13 @@ export const Table = <
   defaultSortDirection = 'asc',
   sortKeys = [],
   handleRowClick = () => {},
+  actions,
   extras,
 }: TableProps<TData, TSortKeys, TApi>) => {
   const showSnackbar = useSnackbar();
   const pageNumberInputRef = useRef<InputBoxRef | null>(null);
 
+  const [hoveredRowId, setHoveredRowId] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [data, setData] = useState<TData[]>([]);
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -95,7 +114,15 @@ export const Table = <
         setTotalCount(res.count);
         setData(res.results);
       })
-      .catch(err => showSnackbar("Failed to fetch the table!", "error"));
+      .catch(err => {
+        // Try again with previous page (ex: if a deletion occurs on the last page
+        //                  it will through an error due to the page not existing)
+        if (err?.response?.data?.detail === "Invalid page.") {
+          setPagination(prev => ({...prev, pageIndex: prev.pageIndex - 1}));
+        } else {
+          showSnackbar("Failed to fetch the table!", "error")
+        }
+    });
   };
 
   useEffect(() => {
@@ -114,7 +141,7 @@ export const Table = <
   const defaultRenderer = (value: any) => value?.toString() ?? "";
 
   const columnHelper = createColumnHelper<TData>();
-  const columnDefinitions = (Object.keys(columns) as Array<keyof TData>).map((key) => {
+  const columnDefinitions = [...(Object.keys(columns) as Array<keyof TData>).map((key) => {
     const column = columns[key];
     const renderer = cellRenderers[column?.type ?? 'other'] ?? defaultRenderer;
     
@@ -125,7 +152,38 @@ export const Table = <
       enableSorting: (sortKeys as Array<keyof TData>).includes(key),
       enableColumnFilter: false, // Temporary
     });
-  });
+  }), ...(actions?.length
+    ? [
+      columnHelper.accessor('actions' as any, {
+        id: 'actions',
+        cell: (context) => actions.map((action, index) => {
+          const canUseAction =
+            action.canUse === undefined ||
+            action.canUse(data[Number(context.row.id)]);
+
+          return (
+            <Icon
+              key={index}
+              name={action.rowIcon}
+              size={action.rowIconSize}
+              className={action.rowIconClassName + " " + (
+                hoveredRowId === context.row.id && canUseAction ? "opacity-100" : "opacity-0"
+              )}
+              onClick={(e) => {
+                if (!canUseAction) return;
+                e.stopPropagation();
+                action.rowIconClicked();
+              }}
+            />
+          );
+        }),
+        header: '',
+        enableSorting: false,
+        enableColumnFilter: false,
+      })
+    ]
+    : []
+  )];
 
   const table = useReactTable({
     data,
@@ -134,6 +192,7 @@ export const Table = <
       sorting,
       columnFilters,
     },
+    getRowId: (_row, index) => index.toString(),
     manualPagination: true,
     manualSorting: true,
     manualFiltering: true,
@@ -146,6 +205,8 @@ export const Table = <
 
   useImperativeHandle(ref, () => ({
     refresh: fetchData,
+    data: data,
+    dataIndex: Number(hoveredRowId),
   }))
 
   return (
@@ -234,6 +295,8 @@ export const Table = <
               onClick={() => handleRowClick(row)}
               key={row.id}
               className="table-row"
+              onMouseEnter={() => setHoveredRowId(row.id)}
+              onMouseLeave={() => setHoveredRowId(null)}
             >
               {row.getVisibleCells().map((cell) => (
                 <td key={cell.id} className="border-b border-gray-500">
