@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useImperativeHandle, useRef, useState, HTMLAttributes } from "react";
 import {
   ColumnFilter,
@@ -117,6 +118,7 @@ export const Table = <
       .catch(err => {
         // Try again with previous page (ex: if a deletion occurs on the last page
         //                  it will through an error due to the page not existing)
+        console.log("Failed to fetch table", err);
         if (err?.response?.data?.detail === "Invalid page.") {
           setPagination(prev => ({...prev, pageIndex: prev.pageIndex - 1}));
         } else {
@@ -127,7 +129,7 @@ export const Table = <
 
   useEffect(() => {
     fetchData();
-  }, [sorting, pagination]);
+  }, [sorting, pagination.pageIndex, pagination.pageSize]);
 
   useEffect(() => {
     setPagination(prev => ({...prev, pageIndex: 0}));

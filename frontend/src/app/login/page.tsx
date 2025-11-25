@@ -1,13 +1,14 @@
 "use client";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { authApi } from "@/lib/api/auth";
 import { InputBox,InputBoxRef } from "@/components/ui/InputBox";
 import { Button } from "@/components/ui/Button";
 import Link from "next/link";
 import { useSnackbar } from "@/hooks/useSnackbar";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function LoginPage() {
+  const { login } = useAuth();
   const router = useRouter();
   const showSnackbar = useSnackbar();
 
@@ -23,11 +24,10 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const response = await authApi.login({
-        username: usernameRef.current.inputValue,
-        password: passwordRef.current.inputValue,
-      });
-      console.log("Logged in:", response);
+      await login(
+        usernameRef.current.inputValue,
+        passwordRef.current.inputValue,
+      );
       router.push("/projects");
     } catch (err: any) {
       showSnackbar("Login failed. Please try again.", "error");

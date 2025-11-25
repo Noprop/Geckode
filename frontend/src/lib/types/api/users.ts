@@ -1,3 +1,5 @@
+import { pick } from "..";
+
 export interface User {
   id: number;
   created_at?: string;
@@ -9,6 +11,19 @@ export interface User {
   is_superuser?: boolean;
   avatar: string | null;
 }
+
+export const publicUserKeys = [
+  "id",
+  "username",
+  "first_name",
+  "last_name",
+  "avatar",
+] as const;
+
+export type PublicUser = Pick<User, typeof publicUserKeys[number]>;
+
+export const toPublicUser = (user: User) =>
+  pick(user, publicUserKeys);
 
 export interface UserFilters {}
 

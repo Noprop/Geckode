@@ -1,4 +1,4 @@
-from django.db.models import Model, ImageField, ForeignKey, CASCADE, DateTimeField, CharField, TextField, SET_NULL, ManyToManyField, JSONField
+from django.db.models import Model, ImageField, ForeignKey, CASCADE, DateTimeField, CharField, TextField, SET_NULL, ManyToManyField, JSONField, BinaryField
 from accounts.models import User
 from organizations.models import Organization
 from utils.permissions import create_permissions_allowed_hierarchy
@@ -36,6 +36,7 @@ class Project(Model):
     published_at = DateTimeField(null=True, blank=True)
     forked_by = ManyToManyField(User, related_name='forked_projects', blank=True)
     blocks = JSONField(default=dict, blank=True)
+    blocks_binary = BinaryField(default=b'', blank=True)
     game_state = JSONField(default=dict, blank=True)
     thumbnail = ImageField(upload_to=project_thumbnail_path, blank=True, null=True)
     sprites = JSONField(default=list, blank=True) # This is temporary and definitely should be its own model
@@ -64,6 +65,12 @@ class Project(Model):
             return ProjectCollaborator.objects.get(project=self, collaborator=user).permission
         except:
             return None
+
+class ProjectSnapshot(Model):
+    project = ForeignKey(Project, related_name='snapshots', on_delete=CASCADE)
+    created_at = DateTimeField(auto_now_add=True)
+    events = BinaryField()
+    blocks = JSONField()
 
 class ProjectCollaborator(Model):
     project = ForeignKey(Project, related_name='project_collaborators', on_delete=CASCADE)

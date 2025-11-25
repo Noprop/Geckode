@@ -1,5 +1,4 @@
 import axios, { AxiosError, AxiosRequestConfig } from 'axios';
-import { redirect } from 'next/navigation';
 
 export const BASE_API_URL = 'http://localhost:8000/api/'
 
@@ -36,21 +35,16 @@ async function request<T = any>(
     }
   }
 
-  try {
-    const response = await axios({
-      method,
-      url: `${BASE_API_URL}${url}`,
-      data,
-      withCredentials: true,
-      headers,
-      ...config,
-    });
+  const response = await axios({
+    method,
+    url: `${BASE_API_URL}${url}`,
+    data,
+    withCredentials: true,
+    headers,
+    ...config,
+  });
 
-    return response;
-  } catch (error: any) {
-    if (axios.isAxiosError(error)) throw error as AxiosError;
-    console.error("API error", error);
-  }
+  return response;
 }
 
 const api = {

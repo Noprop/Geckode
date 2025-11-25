@@ -40,7 +40,8 @@ export default function RegisterPage() {
       });
       console.log("Successfully created user:", response);
       router.push("/login");
-    } catch (err: any) {
+    } catch (err) {
+      console.log("Register failed", err);
       showSnackbar("Register failed. Please try again.", "error");
     } finally {
       setLoading(false);

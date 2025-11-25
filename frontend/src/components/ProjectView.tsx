@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useRef, useState, useEffect, useCallback, DragEvent } from "react";
-import BlocklyEditor, { BlocklyEditorHandle } from "@/components/BlocklyEditor";
+import BlocklyEditor, { BlocklyEditorRef } from "@/components/BlocklyEditor";
 import { javascriptGenerator } from "blockly/javascript";
 import * as Blockly from "blockly/core";
 import projectsApi from "@/lib/api/handlers/projects";
@@ -16,7 +16,11 @@ import SpriteEditor, {
 import starterWorkspace from "@/blockly/starterWorkspace";
 import { Button } from "./ui/Button";
 import { useSnackbar } from "@/hooks/useSnackbar";
-import starterWorkspaceNewProject from "@/blockly/starterWorkspaceNewProject";
+import { HocuspocusProvider } from "@hocuspocus/provider";
+import type { YArrayEvent, Doc } from 'yjs';
+import { authApi } from "@/lib/api/auth";
+import { useAuth } from "@/contexts/AuthContext";
+import { PublicUser, toPublicUser } from "@/lib/types/api/users";
 
 export type PhaserRef = {
   readonly game: Game;
@@ -33,14 +37,36 @@ const PhaserGame = dynamic(() => import("@/components/PhaserGame"), {
   ),
 });
 
+type BlockDrag = {
+  blockId: string;
+  group: string;
+  newCoordinate: string;
+  oldCoordinate: string;
+}
+
+type BlockSelection = {
+  blockId: string;
+  oldBlockId: string;
+}
+
+type Client = {
+  id: number;
+  user: PublicUser;
+  blockDrag?: BlockDrag;
+  blockSelection?: BlockSelection;
+};
+
 interface ProjectViewProps {
   projectId?: number;
 }
 
 const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
+  const { user } = useAuth();
   const showSnackbar = useSnackbar();
-  const blocklyRef = useRef<BlocklyEditorHandle>(null);
+  const blocklyRef = useRef<BlocklyEditorRef>(null);
   const phaserRef = useRef<{ game?: any; scene?: any } | null>(null);
+  const yDocRef = useRef<Doc | null>(null);
+
   const [canMoveSprite, setCanMoveSprite] = useState(true);
   const [phaserState, setPhaserState] = useState<PhaserExport | null>(null);
   const [spriteInstances, setSpriteInstances] = useState<SpriteInstance[]>([]);
@@ -48,44 +74,286 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
     workspace: Blockly.WorkspaceSvg;
     listener: (event: Blockly.Events.Abstract) => void;
   } | null>(null);
+  const [clients, setClients] = useState<Client[]>([]);
 
   const changeScene = () => {
     phaserRef.current?.scene?.changeScene?.();
   };
 
-  useEffect(() => {
-    const workspace: Blockly.Workspace = blocklyRef.current?.getWorkspace()!;
+  const applyBlocklyEvent = (event: any, workspace: Blockly.Workspace) => {
+    try {
+        const blocklyEvent = Blockly.Events.fromJson(event, workspace);
+        Blockly.Events.disable();
+        blocklyEvent.run(true);
+    } catch (error) {
+        console.error("Error applying remote Blockly event:", error);
+    } finally {
+        Blockly.Events.enable();
+    }
+  };
 
-    if (!projectId) {
-      if (workspace.getAllBlocks(false).length <= 0) {
+  const applyClientBlockProperties = (workspace: Blockly.Workspace, oldBlockId?: string, blockId?: string) => {
+    if (oldBlockId) {
+      const block = workspace.getBlockById(oldBlockId) as Blockly.BlockSvg;
+      if (!block) return;
+      block.setMovable(true);
+
+      const path = block.pathObject.svgPath || block.getSvgRoot();
+      path.classList.remove("stroke-red-500");
+      path.classList.remove("stroke-4");
+    }
+    if (blockId) {
+      const block = workspace.getBlockById(blockId) as Blockly.BlockSvg;
+      if (!block) return;
+      block.setMovable(false);
+
+      const path = block.pathObject.svgPath || block.getSvgRoot();
+      path.classList.add("stroke-red-500");
+      path.classList.add("stroke-4");
+    }
+  };
+
+  useEffect(() => {
+    let cleanupFunc = () => {};
+
+    async function init() {
+      const workspace: Blockly.Workspace = blocklyRef.current?.getWorkspace()!;
+
+      if (!projectId) {
+        if (workspace.getAllBlocks(false).length <= 0) {
+          Blockly.serialization.workspaces.load(
+            starterWorkspace,
+            workspace
+          );
+        }
+        return;
+      }
+
+      const project = await projectsApi(parseInt(projectId?.toString()!)).get();
+
+      try {
         Blockly.serialization.workspaces.load(
-          starterWorkspace,
+          project.blocks,
           workspace
         );
+      } catch {
+        showSnackbar("Failed to load workspace!", "error");
       }
-      return;
+
+      setPhaserState(project.game_state);
+      setSpriteInstances(project.sprites);
+
+      const provider = new HocuspocusProvider({
+        url: 'http://localhost:1234',
+        name: String(projectId),
+        token: await authApi.getAccessToken(),
+      });
+
+      const awareness = provider.awareness!;
+
+      awareness?.setLocalStateField('user', toPublicUser(user!));
+
+      const yDoc = provider.document;
+      yDocRef.current = yDoc;
+
+      const yEvents = yDoc.getArray<object>('blockly-events');
+
+      let pollingInterval: NodeJS.Timeout | null = null;
+      let oldCoordinate: Blockly.utils.Coordinate | null = null;
+
+      const stopDragPolling = () => {
+        if (pollingInterval) {
+          clearInterval(pollingInterval);
+          pollingInterval = null;
+          awareness.setLocalStateField('blockDrag', null);
+        }
+      };
+
+      const eventsListener = (event: Blockly.Events.Abstract) => {
+        //console.log(event.toJson());
+        if (event.type === Blockly.Events.BLOCK_DRAG) {
+          const block = workspace.getBlockById((event as any).blockId);
+          if (!block) return;
+
+          if ((event as any).isStart) {
+            oldCoordinate = block.getRelativeToSurfaceXY();
+
+            pollingInterval = setInterval(() => {
+              const pos = block.getRelativeToSurfaceXY();
+              //console.log("Polling position:", pos.x, pos.y);
+
+              // yDoc.transact(() => {
+              //   yEvents.push([{
+              //     clientID: yDoc.clientID.toString(),
+              //     event: {
+              //       type: 'move',
+              //       blockId: (event as any).blockId,
+              //       group: (event as any).group,
+              //       newCoordinate: `${pos.x}, ${pos.y}`,
+              //       oldCoordinate: `${oldCoordinate!.x}, ${oldCoordinate!.y}`,
+              //       reason: ['drag'],
+              //     },
+              //   }]);
+              // });
+
+              awareness.setLocalStateField('blockDrag', {
+                blockId: (event as any).blockId,
+                group: (event as any).group,
+                newCoordinate: `${pos.x}, ${pos.y}`,
+                oldCoordinate: `${oldCoordinate!.x}, ${oldCoordinate!.y}`,
+              });
+
+              oldCoordinate = block.getRelativeToSurfaceXY();
+            }, 25);
+          } else {
+            stopDragPolling();
+          }
+        }
+
+        if (event.type === Blockly.Events.SELECTED) {
+          awareness.setLocalStateField('blockSelection', {
+            blockId: (event as any).newElementId,
+            oldBlockId: (event as any).oldElementId,
+          });
+        }
+
+        // Only these events will get pushed straight to the doc
+        if (![
+          Blockly.Events.BLOCK_CREATE,
+          Blockly.Events.BLOCK_DELETE,
+          Blockly.Events.BLOCK_MOVE,
+          Blockly.Events.BLOCK_CHANGE,
+          Blockly.Events.VAR_CREATE,
+          Blockly.Events.VAR_RENAME,
+          Blockly.Events.VAR_DELETE,
+        ].some(type => type === event.type)) {
+          return;
+        }
+
+        if (event.type === Blockly.Events.BLOCK_DELETE) {
+          stopDragPolling(); // This stops the polling when dragging the block to the toolbox to delete
+        }
+
+        if (event.type === Blockly.Events.BLOCK_MOVE) {
+          if ((event as any)?.reason?.includes('bump')) {
+            return; // This prevents a weird desync issue when blockly automatically moves blocks out of the way
+          }
+        }
+
+        yDoc.transact(() => {
+          yEvents.push([{
+            clientID: yDoc.clientID.toString(),
+            event: event.toJson(),
+          }]);
+        });
+      };
+
+      awareness.on('update', ({ added, updated, removed }: Record<string, Array<any>>) => {
+        if (added.length || removed.length) {
+          setClients(clients => [
+            ...clients.filter(({ id }) => !removed.includes(id)),
+            ...added.map(id => ({
+              id: id,
+              user: awareness.getStates().get(id)?.user,
+            }))
+          ]);
+        }
+
+        if (updated.length) {
+          // setClientBlockDrags(blockDrags => Object.assign(
+          //   {},
+          //   blockDrags,
+          //   Object.fromEntries(updated.map(clientId => [
+          //     clientId,
+          //     awareness.getStates().get(clientId)?.blockDrag,
+          //   ])),
+          // ));
+
+          updated.forEach(clientId => {
+            if (clientId === yDoc.clientID) return;
+
+            const currentBlockDragState = awareness.getStates().get(clientId)?.blockDrag;
+
+            if (currentBlockDragState) {
+              applyBlocklyEvent(
+                Object.assign(
+                  {},
+                  currentBlockDragState,
+                  {
+                    type: 'move',
+                    reason: ['drag'],
+                  }
+                ),
+                workspace
+              );
+            }
+
+            const currentBlockSelectionState = awareness.getStates().get(clientId)?.blockSelection;
+
+            if (currentBlockSelectionState) {
+              applyClientBlockProperties(
+                workspace,
+                currentBlockSelectionState.oldBlockId,
+                currentBlockSelectionState.blockId,
+              );
+            }
+          });
+        }
+      });
+
+      const eventsObserver = (yEvent: YArrayEvent<object>) => {
+        yEvent.changes.added.forEach(item => {
+          item.content.getContent().forEach((content: any) => {
+            if (content.clientID === yDoc.clientID.toString()) {
+                return;
+            }
+
+            applyBlocklyEvent(content.event, workspace);
+          });
+        });
+      };
+
+      workspace.addChangeListener(eventsListener);
+      yEvents.observe(eventsObserver);
+
+      cleanupFunc = () => {
+        workspace.removeChangeListener(eventsListener);
+        yEvents.unobserve(eventsObserver);
+        provider.destroy();
+      };
     }
 
-    const fetchWorkspace = async () => {
-      projectsApi(parseInt(projectId?.toString()!))
-        .get()
-        .then((project) => {
-          try {
-            Blockly.serialization.workspaces.load(
-              Object.keys(project.blocks).length ? project.blocks : starterWorkspaceNewProject,
-              workspace
-            );
-          } catch {
-            showSnackbar("Failed to load workspace!", "error");
-          }
+    init();
 
-          setPhaserState(project.game_state);
-          setSpriteInstances(project.sprites);
-        });
-    };
-
-    fetchWorkspace();
+    return cleanupFunc;
   }, []);
+
+  useEffect(() => {
+    console.log('clients', clients);
+  }, [clients]);
+
+  // useEffect(() => {
+  //   //console.log('userBlockSelections', userBlockSelections);
+  //   const workspace: Blockly.Workspace = blocklyRef.current?.getWorkspace()!;
+
+  //   Object.entries(userBlockSelections).forEach(([userId, selection]) => {
+  //     //console.log('userBlockSelections map', userId, selection);
+  //     if (userId === yDocRef?.current?.clientID.toString()) return;
+  //     if (selection?.oldBlockId) {
+  //       const block = workspace.getBlockById(selection?.oldBlockId) as Blockly.BlockSvg;
+  //       if (!block) return;
+  //       const path = block.pathObject.svgPath || block.getSvgRoot();
+  //       path.removeAttribute("stroke");
+  //     }
+  //     if (selection?.blockId) {
+  //       const block = workspace.getBlockById(selection?.blockId) as Blockly.BlockSvg;
+  //       if (!block) return;
+  //       const path = block.pathObject.svgPath || block.getSvgRoot();
+  //       path.setAttribute("stroke", "#FF0000");
+  //       path.setAttribute("stroke-width", "4");
+  //     }
+  //   });
+  // }, [userBlockSelections]);
 
   const addSprite = () => {
     phaserRef.current?.scene?.addStar?.();
