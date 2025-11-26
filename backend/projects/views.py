@@ -1,6 +1,6 @@
 from rest_framework.viewsets import ModelViewSet
 from .models import ProjectGroup, Project, ProjectCollaborator, OrganizationProject
-from .serializers import ProjectGroupSerializer, ProjectSerializer, ProjectCollaboratorSerializer, OrganizationProjectSerializer
+from .serializers import ProjectGroupSerializer, ProjectSerializer, ProjectWebsocketSaveSerializer, ProjectCollaboratorSerializer, OrganizationProjectSerializer
 from django_filters.rest_framework import DjangoFilterBackend
 from .filters import ProjectFilter, apply_project_access_filters, ProjectCollaboratorFilter, OrganizationProjectFilter
 from utils.permissions import create_user_permission_class, AnyOf
@@ -100,6 +100,22 @@ class ProjectViewSet(ModelViewSet):
         project.save()
 
         return Response({"status": "forked"}, status=HTTP_200_OK)
+
+    # This is only temporary in dev so that we can still use the sqlite3 database
+    @action(detail=True, methods=['post'], url_path='websocket-save')
+    def websocket_save(self, request, pk=None):
+        serializer = ProjectWebsocketSaveSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        update = serializer.validated_data["update"]
+        blocks = serializer.validated_data["blocks"]
+
+        project = self.get_object()
+        project.blocks = blocks
+        project.snapshots.create(update=update)
+        project.save()
+
+        return Response({"status": "saved"}, status=HTTP_200_OK)
 
 class ProjectCollaboratorViewSet(ModelViewSet):
     queryset = ProjectCollaborator.objects.all()

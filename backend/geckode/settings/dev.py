@@ -6,33 +6,9 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEBUG = True
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'geckode',
-        'USER': 'django',
-        'PASSWORD': 'testing',
-        'HOST': 'localhost',
-    }
-}
-
-SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
-    "AUTH_HEADER_TYPES": ("Bearer",),
-    "BLACKLIST_AFTER_ROTATION": True,
-    "ROTATE_REFRESH_TOKENS": True,
-}
-
-JWT_COOKIE = {
-    "name": "refresh",
-    "httponly": True,
-    "secure": False,
-    "samesite": "Strict",
-    "max_age": timedelta(days=7),
-}
-
 ALLOWED_HOSTS = ['*']
+
+JWT_MAX_AGE = timedelta(minutes=30)
 
 # Redis
 CHANNEL_LAYERS = {

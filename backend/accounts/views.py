@@ -40,8 +40,7 @@ class GetJWTToken(APIView):
         token = jwt.encode(
             {
                 "user_id": request.user.id,
-                "username": request.user.username,
-                "exp": datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=5)
+                "exp": datetime.datetime.now(datetime.timezone.utc) + settings.JWT_MAX_AGE
             },
             settings.SECRET_KEY,
             algorithm="HS256"

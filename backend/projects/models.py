@@ -69,8 +69,7 @@ class Project(Model):
 class ProjectSnapshot(Model):
     project = ForeignKey(Project, related_name='snapshots', on_delete=CASCADE)
     created_at = DateTimeField(auto_now_add=True)
-    events = BinaryField()
-    blocks = JSONField()
+    update = BinaryField()
 
 class ProjectCollaborator(Model):
     project = ForeignKey(Project, related_name='project_collaborators', on_delete=CASCADE)

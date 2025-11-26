@@ -16,8 +16,9 @@ import SpriteEditor, {
 import starterWorkspace from "@/blockly/starterWorkspace";
 import { Button } from "./ui/Button";
 import { useSnackbar } from "@/hooks/useSnackbar";
+import starterWorkspaceNewProject from "@/blockly/starterWorkspaceNewProject";
 import { HocuspocusProvider } from "@hocuspocus/provider";
-import type { YArrayEvent, Doc } from 'yjs';
+import type { YArrayEvent, Doc, Transaction } from 'yjs';
 import { authApi } from "@/lib/api/auth";
 import { useAuth } from "@/contexts/AuthContext";
 import { PublicUser, toPublicUser } from "@/lib/types/api/users";
@@ -80,15 +81,15 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
     phaserRef.current?.scene?.changeScene?.();
   };
 
-  const applyBlocklyEvent = (event: any, workspace: Blockly.Workspace) => {
+  const applyBlocklyEvent = (event: any, workspace: Blockly.Workspace, forward: boolean = true) => {
     try {
-        const blocklyEvent = Blockly.Events.fromJson(event, workspace);
-        Blockly.Events.disable();
-        blocklyEvent.run(true);
+      const blocklyEvent = Blockly.Events.fromJson(event, workspace);
+      Blockly.Events.disable();
+      blocklyEvent.run(forward);
     } catch (error) {
-        console.error("Error applying remote Blockly event:", error);
+      console.error("Error applying remote Blockly event:", error);
     } finally {
-        Blockly.Events.enable();
+      Blockly.Events.enable();
     }
   };
 
@@ -99,8 +100,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
       block.setMovable(true);
 
       const path = block.pathObject.svgPath || block.getSvgRoot();
-      path.classList.remove("stroke-red-500");
-      path.classList.remove("stroke-4");
+      path.classList.remove("stroke-red-500", "stroke-4");
     }
     if (blockId) {
       const block = workspace.getBlockById(blockId) as Blockly.BlockSvg;
@@ -108,8 +108,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
       block.setMovable(false);
 
       const path = block.pathObject.svgPath || block.getSvgRoot();
-      path.classList.add("stroke-red-500");
-      path.classList.add("stroke-4");
+      path.classList.add("stroke-red-500", "stroke-4");
     }
   };
 
@@ -132,10 +131,12 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
       const project = await projectsApi(parseInt(projectId?.toString()!)).get();
 
       try {
+        Blockly.Events.disable();
         Blockly.serialization.workspaces.load(
-          project.blocks,
+          Object.keys(project.blocks).length ? project.blocks : starterWorkspaceNewProject,
           workspace
         );
+        Blockly.Events.enable();
       } catch {
         showSnackbar("Failed to load workspace!", "error");
       }
@@ -146,17 +147,22 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
       const provider = new HocuspocusProvider({
         url: 'http://localhost:1234',
         name: String(projectId),
-        token: await authApi.getAccessToken(),
+        token: authApi.getAccessToken,
       });
 
-      const awareness = provider.awareness!;
+      const awareness = provider.awareness;
 
-      awareness?.setLocalStateField('user', toPublicUser(user!));
+      if (!awareness) {
+        provider.destroy();
+        return;
+      };
+
+      awareness.setLocalStateField('user', toPublicUser(user!));
 
       const yDoc = provider.document;
       yDocRef.current = yDoc;
 
-      const yEvents = yDoc.getArray<object>('blockly-events');
+      const blocklyEvents = yDoc.getArray<object>('blockly-events');
 
       let pollingInterval: NodeJS.Timeout | null = null;
       let oldCoordinate: Blockly.utils.Coordinate | null = null;
@@ -170,7 +176,6 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
       };
 
       const eventsListener = (event: Blockly.Events.Abstract) => {
-        //console.log(event.toJson());
         if (event.type === Blockly.Events.BLOCK_DRAG) {
           const block = workspace.getBlockById((event as any).blockId);
           if (!block) return;
@@ -180,21 +185,6 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
 
             pollingInterval = setInterval(() => {
               const pos = block.getRelativeToSurfaceXY();
-              //console.log("Polling position:", pos.x, pos.y);
-
-              // yDoc.transact(() => {
-              //   yEvents.push([{
-              //     clientID: yDoc.clientID.toString(),
-              //     event: {
-              //       type: 'move',
-              //       blockId: (event as any).blockId,
-              //       group: (event as any).group,
-              //       newCoordinate: `${pos.x}, ${pos.y}`,
-              //       oldCoordinate: `${oldCoordinate!.x}, ${oldCoordinate!.y}`,
-              //       reason: ['drag'],
-              //     },
-              //   }]);
-              // });
 
               awareness.setLocalStateField('blockDrag', {
                 blockId: (event as any).blockId,
@@ -241,11 +231,8 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
         }
 
         yDoc.transact(() => {
-          yEvents.push([{
-            clientID: yDoc.clientID.toString(),
-            event: event.toJson(),
-          }]);
-        });
+          blocklyEvents.push([event.toJson()]);
+        }, yDoc.clientID);
       };
 
       awareness.on('update', ({ added, updated, removed }: Record<string, Array<any>>) => {
@@ -260,15 +247,6 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
         }
 
         if (updated.length) {
-          // setClientBlockDrags(blockDrags => Object.assign(
-          //   {},
-          //   blockDrags,
-          //   Object.fromEntries(updated.map(clientId => [
-          //     clientId,
-          //     awareness.getStates().get(clientId)?.blockDrag,
-          //   ])),
-          // ));
-
           updated.forEach(clientId => {
             if (clientId === yDoc.clientID) return;
 
@@ -301,24 +279,32 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
         }
       });
 
-      const eventsObserver = (yEvent: YArrayEvent<object>) => {
-        yEvent.changes.added.forEach(item => {
-          item.content.getContent().forEach((content: any) => {
-            if (content.clientID === yDoc.clientID.toString()) {
-                return;
-            }
-
-            applyBlocklyEvent(content.event, workspace);
+      const eventsObserver = (yEvent: YArrayEvent<object>, transaction: Transaction) => {
+        if (transaction.origin !== yDoc.clientID) {
+          yEvent.changes.added.forEach(item => {
+            item.content.getContent().forEach((event: any) => {
+              applyBlocklyEvent(event, workspace);
+            });
           });
-        });
+        }
+
+        // This if statement needs to get fixed; should only not run when the document is being reset
+        // For some reason the client's transaction origins are always its own provider and doesn't know what the server set it as
+        if (transaction.origin !== provider) {
+          yEvent.changes.deleted.forEach(item => {
+            item.content.getContent().forEach((event: any) => {
+              applyBlocklyEvent(event, workspace, false);
+            });
+          });
+        }
       };
 
       workspace.addChangeListener(eventsListener);
-      yEvents.observe(eventsObserver);
+      blocklyEvents.observe(eventsObserver);
 
       cleanupFunc = () => {
         workspace.removeChangeListener(eventsListener);
-        yEvents.unobserve(eventsObserver);
+        blocklyEvents.unobserve(eventsObserver);
         provider.destroy();
       };
     }
@@ -331,29 +317,6 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
   useEffect(() => {
     console.log('clients', clients);
   }, [clients]);
-
-  // useEffect(() => {
-  //   //console.log('userBlockSelections', userBlockSelections);
-  //   const workspace: Blockly.Workspace = blocklyRef.current?.getWorkspace()!;
-
-  //   Object.entries(userBlockSelections).forEach(([userId, selection]) => {
-  //     //console.log('userBlockSelections map', userId, selection);
-  //     if (userId === yDocRef?.current?.clientID.toString()) return;
-  //     if (selection?.oldBlockId) {
-  //       const block = workspace.getBlockById(selection?.oldBlockId) as Blockly.BlockSvg;
-  //       if (!block) return;
-  //       const path = block.pathObject.svgPath || block.getSvgRoot();
-  //       path.removeAttribute("stroke");
-  //     }
-  //     if (selection?.blockId) {
-  //       const block = workspace.getBlockById(selection?.blockId) as Blockly.BlockSvg;
-  //       if (!block) return;
-  //       const path = block.pathObject.svgPath || block.getSvgRoot();
-  //       path.setAttribute("stroke", "#FF0000");
-  //       path.setAttribute("stroke-width", "4");
-  //     }
-  //   });
-  // }, [userBlockSelections]);
 
   const addSprite = () => {
     phaserRef.current?.scene?.addStar?.();

@@ -1,8 +1,9 @@
-from rest_framework.serializers import ModelSerializer, PrimaryKeyRelatedField, BooleanField, SerializerMethodField, ValidationError
+from rest_framework.serializers import ModelSerializer, PrimaryKeyRelatedField, BooleanField, SerializerMethodField, ValidationError, Serializer, JSONField
 from accounts.serializers import PublicUserSerializer
 from django.utils import timezone
 from .models import ProjectGroup, Project, ProjectCollaborator, OrganizationProject
 from accounts.models import User
+from utils.fields import Base64BinaryField
 
 class ProjectGroupSerializer(ModelSerializer):
     owner = PublicUserSerializer(read_only=True)
@@ -84,6 +85,10 @@ class ProjectSerializer(ModelSerializer):
             raise ValidationError('You can only assign your own projects to your own project groups.')
 
         return attrs
+
+class ProjectWebsocketSaveSerializer(Serializer):
+    update = Base64BinaryField()
+    blocks = JSONField()
 
 class ProjectCollaboratorSerializer(ModelSerializer):
     collaborator = PublicUserSerializer(read_only=True)
