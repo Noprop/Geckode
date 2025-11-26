@@ -28,3 +28,12 @@ export interface OrganizationPayload {
   default_member_permission?: string;
   thumbnail?: File;
 }
+
+export const organizationSortKeys: (keyof Organization)[] = [
+  "id",
+  "created_at",
+  "owner",
+  "name",
+];
+
+export type OrganizationSortKeys = (typeof organizationSortKeys)[number];
