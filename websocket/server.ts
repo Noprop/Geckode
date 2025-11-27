@@ -45,7 +45,7 @@ async function saveDocument({ document, documentName, context }: SaveDocumentInp
       const type = document.get(key);
 
       if (type instanceof Y.Text || type instanceof Y.Array) {
-        type.delete(0, type.length); 
+        type.delete(0, type.length);
       } else if (type instanceof Y.Map) {
         type.forEach((_value, key) => type.delete(key));
       }
@@ -60,7 +60,7 @@ const server = new Server({
 
   async onAuthenticate({ token, documentName, connectionConfig }) {
     console.log('token', token);
-    if (!token || !documentName) return;
+    if (!token || !documentName) return false;
 
     try {
       const res = await fetch(`http://localhost:8000/api/projects/${documentName}/`, {

@@ -16,7 +16,6 @@ import SpriteEditor, {
 import starterWorkspace from "@/blockly/starterWorkspace";
 import { Button } from "./ui/Button";
 import { useSnackbar } from "@/hooks/useSnackbar";
-import starterWorkspaceNewProject from "@/blockly/starterWorkspaceNewProject";
 import { HocuspocusProvider } from "@hocuspocus/provider";
 import type { YArrayEvent, Doc, Transaction } from 'yjs';
 import { authApi } from "@/lib/api/auth";
@@ -133,7 +132,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
       try {
         Blockly.Events.disable();
         Blockly.serialization.workspaces.load(
-          Object.keys(project.blocks).length ? project.blocks : starterWorkspaceNewProject,
+          project.blocks,
           workspace
         );
         Blockly.Events.enable();
