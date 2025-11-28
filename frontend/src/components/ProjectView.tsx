@@ -17,6 +17,7 @@ import starterWorkspace from "@/blockly/starterWorkspace";
 import { Button } from "./ui/Button";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import starterWorkspaceNewProject from "@/blockly/starterWorkspaceNewProject";
+import { useWorkspaceView } from "@/contexts/WorkspaceViewContext";
 
 export type PhaserRef = {
   readonly game: Game;
@@ -39,6 +40,7 @@ interface ProjectViewProps {
 
 const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
   const showSnackbar = useSnackbar();
+  const { view } = useWorkspaceView();
   const blocklyRef = useRef<BlocklyEditorHandle>(null);
   const phaserRef = useRef<{ game?: any; scene?: any } | null>(null);
   const [canMoveSprite, setCanMoveSprite] = useState(true);
@@ -112,7 +114,10 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
 
   // grab states of workspace and game scene, upload to backend, display msg
   const saveProject = () => {
-    if (!projectId) return;
+    if (!projectId) {
+      console.log('No project id associated, returning.');
+      return;
+    }
 
     const workspace: Blockly.Workspace = blocklyRef.current?.getWorkspace()!;
     const workspaceState: { [key: string]: any } =
@@ -120,17 +125,16 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
 
     const phaserState = createPhaserState(phaserRef?.current!);
 
-    projectsApi(parseInt(projectId!.toString())).update({
-      blocks: workspaceState,
-      game_state: phaserState,
-      sprites: spriteInstances,
-    })
-    .then(res =>
-      showSnackbar('Project saved successfully!', 'success')
-    )
-    .catch(err =>
-      showSnackbar('Project could not be saved. Please try again.', 'error')
-    );
+    projectsApi(parseInt(projectId!.toString()))
+      .update({
+        blocks: workspaceState,
+        game_state: phaserState,
+        sprites: spriteInstances,
+      })
+      .then((res) => showSnackbar('Project saved successfully!', 'success'))
+      .catch((err) =>
+        showSnackbar('Project could not be saved. Please try again.', 'error')
+      );
   };
 
   const exportWorkspaceState = () => {
@@ -237,6 +241,27 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
       blocklyRef.current.getWorkspace() as Blockly.WorkspaceSvg | null;
     if (!game || !scene || !workspace || !game.canvas) return;
 
+    if (payload.dataUrl && !scene.textures.exists(payload.texture)) {
+      try {
+        scene.textures.addBase64(payload.texture, payload.dataUrl);
+      } catch (error) {
+        console.warn('Could not add uploaded sprite texture to Phaser.', error);
+        showSnackbar(
+          'Could not load that sprite image. Please try again.',
+          'error'
+        );
+        return;
+      }
+    }
+
+    if (!scene.textures.exists(payload.texture)) {
+      showSnackbar(
+        'Upload a sprite image before dragging it into the game.',
+        'error'
+      );
+      return;
+    }
+
     const canvasRect = game.canvas.getBoundingClientRect();
     const relativeX = event.clientX - canvasRect.left;
     const relativeY = event.clientY - canvasRect.top;
@@ -297,7 +322,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
 
   const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
-    event.dataTransfer.dropEffect = 'copy';
+    event.dataTransfer.dropEffect = 'move';
   };
 
   const handleRemoveSprite = (spriteId: string) => {
@@ -327,17 +352,50 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
     container?.focus();
   }, []);
 
+  useEffect(() => {
+    if (view !== 'blocks') return;
+    const workspace = blocklyRef.current?.getWorkspace() as Blockly.WorkspaceSvg | null;
+    if (!workspace) return;
+    requestAnimationFrame(() => Blockly.svgResize(workspace));
+  }, [view]);
+
   return (
     <>
       <div className="flex h-[calc(100vh-4rem)]">
-        <div className="flex-1 min-h-0 min-w-0">
-          <BlocklyEditor
-            ref={blocklyRef}
-            onWorkspaceReady={handleWorkspaceReady}
-          />
+        <div className="relative flex-1 min-h-0 min-w-0 bg-light-whiteboard dark:bg-dark-whiteboard rounded-lg mr-3 overflow-hidden">
+          <div
+            className={`absolute inset-0 transition-opacity duration-150 ${
+              view === 'blocks'
+                ? 'opacity-100'
+                : 'opacity-0 pointer-events-none'
+            }`}
+            aria-hidden={view !== 'blocks'}
+          >
+            <BlocklyEditor
+              ref={blocklyRef}
+              onWorkspaceReady={handleWorkspaceReady}
+            />
+          </div>
+          <div
+            className={`absolute inset-0 flex items-center justify-center p-8 transition-opacity duration-150 ${
+              view === 'sprite'
+                ? 'opacity-100'
+                : 'opacity-0 pointer-events-none'
+            }`}
+            aria-hidden={view !== 'sprite'}
+          >
+            <div className="w-full max-w-3xl rounded-2xl border border-dashed border-slate-400 bg-white/80 p-8 text-center shadow-md backdrop-blur-sm dark:border-slate-700 dark:bg-dark-secondary/80">
+              <h2 className="text-2xl font-bold text-primary-green drop-shadow-sm">
+                Sprite Editor Workspace
+              </h2>
+              <p className="mt-3 text-sm text-slate-700 dark:text-slate-200">
+                A dedicated sprite editor will live here. For now, continue using the tools on the right.
+              </p>
+            </div>
+          </div>
         </div>
 
-        <div className="flex flex-col h-[calc(100vh-4rem)] p-3">
+        <div className="flex flex-col h-[calc(100vh-4rem)] p-3 w-[480px] max-w-full">
           <div
             className="rounded-xl border border-dashed border-slate-400 dark:border-slate-600
                     p-2  bg-light-secondary dark:bg-dark-secondary"

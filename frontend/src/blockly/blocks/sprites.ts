@@ -55,11 +55,9 @@ const createSprite = {
       text: "sprite1",
     },
     {
-      type: "field_dropdown",
+      type: "field_input",
       name: "TEXTURE",
-      options: [
-        ["Star", "star"],
-      ],
+      text: "star",
     },
     {
       type: "field_number",

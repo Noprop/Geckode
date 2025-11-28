@@ -4,7 +4,7 @@
 /* put custom colors/parametres here. tailwind handles these automatically */
 @theme {
   /* main design colors */
-  --color-primary-green: #25c583;
+  --color-primary-green: #25A76F;
   --color-accent-green: #a7f1cd;
 
   --color-light-bg: #b0b0c0;

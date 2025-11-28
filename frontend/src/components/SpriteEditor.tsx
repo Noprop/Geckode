@@ -1,12 +1,13 @@
 "use client";
 
-import { memo } from "react";
-import type { DragEvent } from "react";
+import { memo, useState } from 'react';
+import type { DragEvent, ChangeEvent } from 'react';
 
 export type SpriteDragPayload = {
-  kind: "sprite-blueprint";
+  kind: 'sprite-blueprint';
   texture: string;
   label: string;
+  dataUrl?: string;
 };
 
 export type SpriteInstance = {
@@ -19,21 +20,12 @@ export type SpriteInstance = {
   blockId?: string;
 };
 
-type SpritePaletteItem = {
+type UploadedSprite = {
   key: string;
   label: string;
   texture: string;
-  description?: string;
+  dataUrl: string;
 };
-
-const SPRITE_PALETTE: SpritePaletteItem[] = [
-  {
-    key: "star",
-    label: "Star",
-    texture: "star",
-    description: "Default arcade star sprite",
-  },
-];
 
 type Props = {
   sprites: SpriteInstance[];
@@ -44,17 +36,50 @@ const SpriteEditor = memo(function SpriteEditor({
   sprites,
   onRemoveSprite,
 }: Props) {
-  const handleDragStart = (
-    event: DragEvent<HTMLDivElement>,
-    sprite: SpritePaletteItem
-  ) => {
-    const payload: SpriteDragPayload = {
-      kind: "sprite-blueprint",
-      label: sprite.label,
-      texture: sprite.texture,
+  const [uploadedSprite, setUploadedSprite] = useState<UploadedSprite | null>(
+    null
+  );
+  const [error, setError] = useState<string | null>(null);
+
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setError('Please upload an image file (png, jpg, gif, or webp).');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string | null;
+      if (!dataUrl) {
+        setError('Could not read image file. Please try again.');
+        return;
+      }
+      const baseName = file.name.replace(/\.[^/.]+$/, '');
+      const safeKeyBase = baseName.replace(/[^\w]/g, '') || 'sprite';
+      const textureKey = `${safeKeyBase}-${Date.now()}`;
+      setUploadedSprite({
+        key: textureKey,
+        label: baseName || 'Uploaded Sprite',
+        texture: textureKey,
+        dataUrl,
+      });
+      setError(null);
     };
-    event.dataTransfer.setData("application/json", JSON.stringify(payload));
-    event.dataTransfer.effectAllowed = "copy";
+    reader.readAsDataURL(file);
+  };
+
+  const handleDragStart = (event: DragEvent<HTMLDivElement>) => {
+    if (!uploadedSprite) return;
+    const payload: SpriteDragPayload = {
+      kind: 'sprite-blueprint',
+      label: uploadedSprite.label,
+      texture: uploadedSprite.texture,
+      dataUrl: uploadedSprite.dataUrl,
+    };
+    event.dataTransfer.setData('application/json', JSON.stringify(payload));
+    event.dataTransfer.effectAllowed = 'move';
   };
 
   return (
@@ -67,27 +92,62 @@ const SpriteEditor = memo(function SpriteEditor({
       </div>
 
       <div className="mt-3 flex flex-wrap gap-3">
-        {SPRITE_PALETTE.map((sprite) => (
+        <label className="flex w-full cursor-pointer flex-col items-center justify-center rounded-md border border-dashed border-slate-400 bg-light-tertiary px-4 py-6 text-center text-xs font-medium shadow-inner transition hover:border-slate-600 hover:bg-light-hover dark:border-slate-700 dark:bg-dark-tertiary dark:hover:border-slate-500 dark:hover:bg-dark-hover">
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+          <div className="mb-2 h-10 w-10 rounded-full bg-linear-to-br from-amber-200 via-amber-400 to-amber-600 shadow-inner" />
+          <span>Upload a sprite image</span>
+          <span className="mt-1 text-[10px] font-normal">
+            PNG, JPG, GIF, or WEBP
+          </span>
+        </label>
+
+        {uploadedSprite ? (
           <div
-            key={sprite.key}
+            key={uploadedSprite.key}
             draggable
             role="button"
             tabIndex={0}
-            onDragStart={(event) => handleDragStart(event, sprite)}
-            className="flex w-28 cursor-grab flex-col items-center rounded-md border border-dashed bg-light-tertiary dark:bg-dark-tertiary hover:bg-light-hover px-2 py-3 text-center text-xs font-medium transition hover:dark:bg-dark-hover hover:border-slate-600  active:cursor-grabbing dark:border-slate-600  dark:hover:border-slate-400 "
+            onDragStart={handleDragStart}
+            className="flex w-full cursor-grab items-center gap-3 rounded-md border border-dashed bg-white px-3 py-2 text-left text-xs font-medium transition hover:border-slate-600 hover:bg-light-hover active:cursor-grabbing dark:border-slate-600 dark:bg-dark-tertiary dark:hover:border-slate-500"
           >
-            <div className="mb-2 h-8 w-8 rounded-full bg-linear-to-br from-amber-200 via-amber-400 to-amber-600 shadow-inner" />
-            <span>{sprite.label}</span>
-            {sprite.description ? (
-              <span className="mt-1 text-[10px] font-normal ">
-                {sprite.description}
+            <div className="h-12 w-12 overflow-hidden rounded-md border border-slate-200 bg-slate-100 shadow-inner dark:border-slate-700 dark:bg-slate-800">
+              <img
+                src={uploadedSprite.dataUrl}
+                alt={uploadedSprite.label}
+                className="h-full w-full object-cover"
+              />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold">
+                {uploadedSprite.label}
               </span>
-            ) : null}
+              <span className="text-[10px] text-slate-600 dark:text-slate-300">
+                Drag into the game view to place it.
+              </span>
+            </div>
           </div>
-        ))}
+        ) : (
+          <div></div>
+          // <div
+          // //className="flex rounded-md border border-dashed border-slate-300 bg-white px-3 py-2 text-xs text-slate-600 shadow-inner dark:border-slate-700 dark:bg-dark-tertiary dark:text-slate-300">
+          // >
+          //   Upload an image to enable dragging a sprite into the game.
+          // </div>
+        )}
+
+        {error ? (
+          <p className="w-full text-xs text-red-600 dark:text-red-400">
+            {error}
+          </p>
+        ) : null}
       </div>
 
-      <div className="mt-5 flex flex-col flex-1 overflow-hidden">
+      {/* <div className="mt-5 flex flex-col flex-1 overflow-hidden">
         <h3 className="text-xs font-semibold uppercase tracking-wide">
           Scene Sprites
         </h3>
@@ -118,7 +178,7 @@ const SpriteEditor = memo(function SpriteEditor({
             ))}
           </ul>
         )}
-      </div>
+      </div> */}
     </section>
   );
 });
