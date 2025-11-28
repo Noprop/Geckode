@@ -9,10 +9,8 @@ import projectsApi from "@/lib/api/handlers/projects";
 import { createPhaserState, PhaserExport } from "@/phaser/PhaserStateManager";
 import { Game } from "phaser";
 import MainMenu from "@/phaser/scenes/MainMenu";
-import SpriteEditor, {
-  SpriteInstance,
-  SpriteDragPayload,
-} from "@/components/SpriteEditor";
+import SpriteEditor, { SpriteInstance } from '@/components/SpriteEditor';
+import { SpriteDragPayload } from '@/components/SpriteModal';
 import starterWorkspace from "@/blockly/starterWorkspace";
 import { Button } from "./ui/Button";
 import { useSnackbar } from "@/hooks/useSnackbar";
