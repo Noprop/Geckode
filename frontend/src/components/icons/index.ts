@@ -9,6 +9,7 @@ import { SortDownIcon } from "./SortDownIcon";
 import { SortUpIcon } from "./SortUpIcon";
 import { TrashIcon } from "./TrashIcon";
 import { WarningIcon } from "./WarningIcon";
+import { LeaveIcon } from "./LeaveIcon";
 
 export const icons = {
   "angle-left": AngleLeftIcon,
@@ -22,6 +23,7 @@ export const icons = {
   "circle-info": CircleInfoIcon,
   "trash": TrashIcon,
   "warning": WarningIcon,
+  "leave": LeaveIcon,
 } as const;
 
 export type IconName = keyof typeof icons;

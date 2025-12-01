@@ -11,3 +11,9 @@ export interface OrganizationProjectPayload {
   project_id: number;
   permission: string;
 }
+
+export const organizationProjectSortKeys: (keyof OrganizationProject)[] = [
+  "project"
+];
+
+export type OrganizationProjectSortKeys = (typeof organizationProjectSortKeys)[number];

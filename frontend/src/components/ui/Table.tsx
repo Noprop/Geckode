@@ -1,24 +1,8 @@
 "use client";
-import {
-  useEffect,
-  useImperativeHandle,
-  useRef,
-  useState,
-  HTMLAttributes,
-} from "react";
-import {
-  ColumnFilter,
-  createColumnHelper,
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  PaginationState,
-  Row,
-  SortingState,
-  useReactTable,
-} from "@tanstack/react-table";
+import { useEffect, useImperativeHandle, useRef, useState, HTMLAttributes } from "react";
+import { ColumnFilter, createColumnHelper, flexRender, getCoreRowModel, getSortedRowModel, PaginationState, Row, SortingState, useReactTable } from "@tanstack/react-table";
 import { BaseApiInnerReturn, createBaseApi } from "@/lib/api/base";
-import { BaseFilters } from "@/lib/types/api";
+import { BaseFilters, PaginatedResponse } from "@/lib/types/api";
 import { Icon } from "@/components/icons/Icon";
 import { InputBox, InputBoxRef } from "./InputBox";
 import useDebounce from "@/hooks/useDebounce";
@@ -36,7 +20,7 @@ interface TableProps<TData, TSortKeys, TApi> {
   ref?: React.Ref<TableRef<TData>>;
   label?: string;
   api: TApi;
-  columns: Partial<ColumnDefinitions<TData>>;
+  columns: TableColumns<TData>;
   defaultSortField?: TSortKeys;
   defaultSortDirection?: "asc" | "desc";
   sortKeys?: TSortKeys[];
@@ -60,25 +44,22 @@ interface TableAction<TData> {
   modalActions?: React.ReactNode;
 }
 
-type ColumnDefinitions<T> = {
-  [K in keyof T]: ColumnDefinition;
-};
+interface ListApi<TData, TFilters> {
+  list: (filters?: TFilters) => Promise<PaginatedResponse<TData>>;
+}
 
-type ColumnDefinition = {
-  label?: string;
+// Column Map specifies fields/methods for each column
+type ColumnMap<TData> = {
+  key: string;
+  value?: (field: any) => any;
   type?: ColumnTypes;
   hidden?: boolean;
 };
 
-export const Table = <
-  TData extends Record<string, any>,
-  TPayload extends Record<string, any>,
-  TFilters extends BaseFilters,
-  TSortKeys extends keyof TData,
-  TApi extends BaseApiInnerReturn<
-    typeof createBaseApi<TData, TPayload, TFilters>
-  >
->({
+// A map for each column with the key being the column label
+type TableColumns<TData> = Record<string, ColumnMap<TData>>;
+
+export const Table = <TData extends Record<string, any>, TPayload extends Record<string, any>, TFilters extends BaseFilters, TSortKeys extends keyof TData, TApi extends ListApi<TData, TFilters>>({
   ref,
   label,
   api,
@@ -111,13 +92,7 @@ export const Table = <
       .list({
         page: pagination.pageIndex + 1,
         limit: pagination.pageSize,
-        ordering: sorting.length
-          ? `${sorting[0].desc ? "-" : ""}${sorting[0].id}`
-          : defaultSortField
-          ? `${defaultSortDirection === "desc" ? "-" : ""}${
-              defaultSortField as string
-            }`
-          : undefined,
+        ordering: sorting.length ? `${sorting[0].desc ? "-" : ""}${sorting[0].id}` : defaultSortField ? `${defaultSortDirection === "desc" ? "-" : ""}${defaultSortField as string}` : undefined,
         search: searchInput.trim(),
       } as TFilters)
       .then((res) => {
@@ -152,16 +127,16 @@ export const Table = <
 
   const columnHelper = createColumnHelper<TData>();
   const columnDefinitions = [
-    ...(Object.keys(columns) as Array<keyof TData>).map((key) => {
-      const column = columns[key];
-      const renderer =
-        cellRenderers[column?.type ?? "other"] ?? defaultRenderer;
+    ...Object.keys(columns).map((label) => {
+      const columnMapper = columns[label];
+      console.log(columnMapper);
+      const renderer = cellRenderers[columnMapper.type ?? "other"] ?? defaultRenderer;
 
-      return columnHelper.accessor((row: TData) => row[key], {
-        id: key as string,
-        cell: (context) => (column?.hidden ? "" : renderer(context.getValue())),
-        header: column?.label ?? "",
-        enableSorting: (sortKeys as Array<keyof TData>).includes(key),
+      return columnHelper.accessor((row: TData) => row[columnMapper["key"]], {
+        id: label,
+        cell: (context) => (columnMapper.hidden ? "" : renderer(columnMapper.value ? columnMapper.value(context.getValue()) : context.getValue())),
+        header: columnMapper.hidden ? "" : label,
+        enableSorting: (sortKeys as Array<keyof TData>).includes(columnMapper["key"]),
         enableColumnFilter: false, // Temporary
       });
     }),
@@ -171,22 +146,14 @@ export const Table = <
             id: "actions",
             cell: (context) =>
               actions.map((action, index) => {
-                const canUseAction =
-                  action.canUse === undefined ||
-                  action.canUse(data[Number(context.row.id)]);
+                const canUseAction = action.canUse === undefined || action.canUse(data[Number(context.row.id)]);
 
                 return (
                   <Icon
                     key={index}
                     name={action.rowIcon}
                     size={action.rowIconSize}
-                    className={
-                      action.rowIconClassName +
-                      " " +
-                      (hoveredRowId === context.row.id && canUseAction
-                        ? "opacity-100"
-                        : "opacity-0")
-                    }
+                    className={action.rowIconClassName + " mx-1 " + (hoveredRowId === context.row.id && canUseAction ? "opacity-100" : "opacity-0")}
                     onClick={(e) => {
                       if (!canUseAction) return;
                       e.stopPropagation();
@@ -250,17 +217,8 @@ export const Table = <
           <span>per page</span>
         </div>
         <div className="relative w-64 mx-2 my-4">
-          <Icon
-            name="magnifying-glass"
-            size={20}
-            className="absolute left-2 top-1/2 transform -translate-y-1/2"
-          />
-          <InputBox
-            className="pl-9 pr-2 h-10 w-full border rounded"
-            placeholder="Search"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-          />
+          <Icon name="magnifying-glass" size={20} className="absolute left-2 top-1/2 transform -translate-y-1/2" />
+          <InputBox className="pl-9 pr-2 h-10 w-full border rounded" placeholder="Search" value={searchInput} onChange={(e) => setSearchInput(e.target.value)} />
         </div>
       </div>
       <table className="w-full">
@@ -274,11 +232,7 @@ export const Table = <
                   <th
                     key={header.id}
                     className="text-left select-none pl-0.5"
-                    onClick={
-                      canSort
-                        ? header.column.getToggleSortingHandler()
-                        : undefined
-                    }
+                    onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
                     style={{ cursor: canSort ? "pointer" : "default" }}
                   >
                     {header.isPlaceholder ? null : (
@@ -299,19 +253,7 @@ export const Table = <
                       </>
                     )}
                     {header.column.columnDef.header ? (
-                      <Icon
-                        name={
-                          ("sort-" +
-                            (sortDirection === "asc" ? "up" : "down")) as
-                            | "sort-up"
-                            | "sort-down"
-                        }
-                        size={15}
-                        className={
-                          "ml-3 " +
-                          (sortDirection ? "opacity-100" : "opacity-0")
-                        }
-                      />
+                      <Icon name={("sort-" + (sortDirection === "asc" ? "up" : "down")) as "sort-up" | "sort-down"} size={15} className={"ml-3 " + (sortDirection ? "opacity-100" : "opacity-0")} />
                     ) : null}
                   </th>
                 );
@@ -321,13 +263,7 @@ export const Table = <
         </thead>
         <tbody>
           {table.getRowModel().rows.map((row) => (
-            <tr
-              onClick={() => handleRowClick(row)}
-              key={row.id}
-              className="table-row"
-              onMouseEnter={() => setHoveredRowId(row.id)}
-              onMouseLeave={() => setHoveredRowId(null)}
-            >
+            <tr onClick={() => handleRowClick(row)} key={row.id} className="table-row" onMouseEnter={() => setHoveredRowId(row.id)} onMouseLeave={() => setHoveredRowId(null)}>
               {row.getVisibleCells().map((cell) => (
                 <td key={cell.id} className="border-b border-gray-500">
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -341,11 +277,7 @@ export const Table = <
         <div className="ml-2">{extras}</div>
         <div>
           <span style={{ margin: "0 10px", fontWeight: "bold" }}>
-            {totalCount ? pagination.pageIndex * pagination.pageSize + 1 : 0} -{" "}
-            {Math.min(
-              totalCount,
-              (pagination.pageIndex + 1) * pagination.pageSize
-            )}
+            {totalCount ? pagination.pageIndex * pagination.pageSize + 1 : 0} - {Math.min(totalCount, (pagination.pageIndex + 1) * pagination.pageSize)}
             <span style={{ fontWeight: "normal" }}> of </span>
             {totalCount}
           </span>
@@ -379,32 +311,21 @@ export const Table = <
             onChange={(e) => {
               setPagination((prev) => ({
                 ...prev,
-                pageIndex:
-                  Math.min(
-                    Math.ceil(totalCount / pagination.pageSize),
-                    Math.max(Number(e.target.value.replace(/\D/g, "")), 1)
-                  ) - 1,
+                pageIndex: Math.min(Math.ceil(totalCount / pagination.pageSize), Math.max(Number(e.target.value.replace(/\D/g, "")), 1)) - 1,
               }));
             }}
           />
-          <span style={{ margin: "0 10px" }}>
-            of {Math.max(1, Math.ceil(totalCount / pagination.pageSize))}
-          </span>
+          <span style={{ margin: "0 10px" }}>of {Math.max(1, Math.ceil(totalCount / pagination.pageSize))}</span>
           <Icon
             name="angle-right"
             size={15}
             onClick={() => {
               setPagination((prev) => ({
                 ...prev,
-                pageIndex:
-                  (prev.pageIndex + 1) * prev.pageSize < totalCount
-                    ? prev.pageIndex + 1
-                    : prev.pageIndex,
+                pageIndex: (prev.pageIndex + 1) * prev.pageSize < totalCount ? prev.pageIndex + 1 : prev.pageIndex,
               }));
             }}
-            disabled={
-              (pagination.pageIndex + 1) * pagination.pageSize >= totalCount
-            }
+            disabled={(pagination.pageIndex + 1) * pagination.pageSize >= totalCount}
           />
           <Icon
             name="angles-right"
@@ -416,9 +337,7 @@ export const Table = <
                 pageIndex: Math.ceil(totalCount / prev.pageSize) - 1,
               }));
             }}
-            disabled={
-              (pagination.pageIndex + 1) * pagination.pageSize >= totalCount
-            }
+            disabled={(pagination.pageIndex + 1) * pagination.pageSize >= totalCount}
           />
         </div>
       </div>

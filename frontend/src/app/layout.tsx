@@ -25,13 +25,16 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased min-h-screen flex flex-col">
-        <header className="bg-primary-green flex items-center h-16">
-          <h1 className="text-shadow-sm text-white pl-4 text-3xl font-bold">Geckode</h1>
+        <header className="bg-primary-green flex items-center h-12">
+          <h1 className="text-shadow-sm text-white pl-4 text-2xl font-bold">
+            Geckode
+          </h1>
         </header>
-        <main className="flex-1 flex flex-col bg-gray-100 dark:bg-dark-secondary" id="app">
-          <SnackbarProvider>
-            {children}
-          </SnackbarProvider>
+        <main
+          className="flex-1 flex flex-col bg-gray-100 dark:bg-dark-secondary"
+          id="app"
+        >
+          <SnackbarProvider>{children}</SnackbarProvider>
         </main>
       </body>
     </html>

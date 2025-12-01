@@ -1,40 +1,48 @@
 "use client";
 
-import projectsApi from "@/lib/api/handlers/projects";
-import { Project, ProjectFilters, ProjectSortKeys, ProjectPayload, projectSortKeys } from "@/lib/types/api/projects";
+import organizationsApi from "@/lib/api/handlers/organizations";
+import { OrganizationProject, OrganizationProjectFilter, OrganizationProjectPayload, organizationProjectSortKeys, OrganizationProjectSortKeys } from "@/lib/types/api/organizations/projects";
 import { useRef, useState } from "react";
+import { useParams } from "next/navigation";
 import { Table, TableRef } from "@/components/ui/Table";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { InputBox, InputBoxRef } from "@/components/ui/InputBox";
 import { useSnackbar } from "@/hooks/useSnackbar";
+import projectsApi from "@/lib/api/handlers/projects";
+import { Project } from "@/lib/types/api/projects";
 
 export default function ProjectsPage() {
   const showSnackbar = useSnackbar();
 
-  const tableRef = useRef<TableRef<Project> | null>(null);
+  const { _oid } = useParams();
+  const orgProjectsApi = organizationsApi(Number(_oid)).projects;
+
+  const tableRef = useRef<TableRef<OrganizationProject> | null>(null);
   const projectNameRef = useRef<InputBoxRef | null>(null);
   const autoProjectOpenRef = useRef<InputBoxRef | null>(null);
 
   const [showModal, setShowModal] = useState<null | "create" | "delete">(null);
-
   const createProject = () => {
+    // first create project with projects API, then register it as an org project with orgProjectsApi
     projectsApi
       .create({
         name: projectNameRef?.current?.inputValue || "",
       })
       .then((project) => {
-        if (autoProjectOpenRef.current?.isChecked) {
-          window.location.href = `/projects/${project.id}`;
-        } else {
-          tableRef.current?.refresh();
-          setShowModal(null);
-        }
+        orgProjectsApi.create({ project_id: project.id, permission: "view" }).then(() => {
+          if (autoProjectOpenRef.current?.isChecked) {
+            window.location.href = `/projects/${project.id}`;
+          } else {
+            tableRef.current?.refresh();
+            setShowModal(null);
+          }
+        });
       });
   };
 
   const deleteProject = () => {
-    const projectId = tableRef.current?.data[tableRef.current?.dataIndex]["id"];
+    const projectId = tableRef.current?.data[tableRef.current?.dataIndex]["project"]["id"];
 
     if (!projectId) return;
 
@@ -50,33 +58,38 @@ export default function ProjectsPage() {
 
   return (
     <div className="mx-20 my-5">
-      <Table<Project, ProjectPayload, ProjectFilters, ProjectSortKeys, typeof projectsApi>
+      <Table<OrganizationProject, OrganizationProjectPayload, OrganizationProjectFilter, OrganizationProjectSortKeys, typeof orgProjectsApi>
         ref={tableRef}
         label="Projects"
-        api={projectsApi}
+        api={orgProjectsApi}
         columns={{
           id: {
-            key: "id",
+            key: "project",
+            value: (orgProj: Project) => orgProj.id,
             hidden: true,
           },
           Thumbnail: {
-            key: "thumbnail",
+            key: "project",
+            value: (orgProj: Project) => orgProj.thumbnail,
             type: "thumbnail",
           },
           Name: {
-            key: "name",
+            key: "project",
+            value: (orgProj: Project) => orgProj.name,
           },
           Owner: {
-            key: "owner",
+            key: "project",
+            value: (orgProj: Project) => orgProj.owner,
             type: "user",
           },
           "Created At": {
-            key: "created_at",
+            key: "project",
+            value: (orgProj: Project) => orgProj.created_at,
             type: "datetime",
           },
         }}
-        sortKeys={projectSortKeys}
-        defaultSortField="updated_at"
+        sortKeys={organizationProjectSortKeys}
+        defaultSortField="project"
         defaultSortDirection="desc"
         handleRowClick={(row) => (window.location.href = `/projects/${row.getValue("id")}/`)}
         actions={[
@@ -126,7 +139,7 @@ export default function ProjectsPage() {
         <Modal
           className="bg-red-500"
           onClose={() => setShowModal(null)}
-          title={`Delete project (${tableRef.current?.data?.[tableRef.current.dataIndex]["name"]})`}
+          title={`Delete project (${tableRef.current?.data?.[tableRef.current.dataIndex].project["name"]})`}
           icon="warning"
           actions={
             <>
