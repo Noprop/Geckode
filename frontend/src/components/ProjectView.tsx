@@ -16,6 +16,8 @@ import { Button } from "./ui/Button";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import starterWorkspaceNewProject from "@/blockly/starterWorkspaceNewProject";
 import { useWorkspaceView } from "@/contexts/WorkspaceViewContext";
+import { EventBus } from "@/phaser/EventBus";
+import { setSpriteDropdownOptions } from "@/blockly/spriteRegistry";
 
 export type PhaserRef = {
   readonly game: Game;
@@ -190,6 +192,32 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
     };
   }, []);
 
+  useEffect(() => {
+    const handleSpriteMove = ({ id, x, y }: { id: string; x: number; y: number }) => {
+      const workspace = blocklyRef.current?.getWorkspace() as Blockly.WorkspaceSvg | null;
+      setSpriteInstances((prev) =>
+        prev.map((sprite) => {
+          if (sprite.id !== id) return sprite;
+          if (workspace && sprite.blockId) {
+            const block = workspace.getBlockById(sprite.blockId);
+            block?.setFieldValue(String(x), 'X');
+            block?.setFieldValue(String(y), 'Y');
+          }
+          return { ...sprite, x, y };
+        })
+      );
+    };
+
+    EventBus.on('editor-sprite-moved', handleSpriteMove);
+    return () => {
+      EventBus.off('editor-sprite-moved', handleSpriteMove);
+    };
+  }, []);
+
+  useEffect(() => {
+    setSpriteDropdownOptions(spriteInstances);
+  }, [spriteInstances]);
+
   const attachBlockToOnStart = useCallback(
     (workspace: Blockly.WorkspaceSvg, block: Blockly.BlockSvg) => {
       let [onStartBlock] = workspace.getBlocksByType('onStart', false);
@@ -242,7 +270,21 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
 
         const isDataUrl = payload.dataUrl.startsWith('data:');
         if (isDataUrl) {
-          scene.textures.addBase64(payload.texture, payload.dataUrl);
+          const textureReady = new Promise<void>((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => {
+              try {
+                scene.textures.addImage(payload.texture, img);
+                resolve();
+              } catch (err) {
+                reject(err);
+              }
+            };
+            img.onerror = () =>
+              reject(new Error('Failed to load base64 texture data.'));
+            img.src = payload.dataUrl;
+          });
+          await textureReady;
           return;
         }
 
