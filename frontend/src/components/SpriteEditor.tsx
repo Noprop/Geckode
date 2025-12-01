@@ -3,7 +3,7 @@
 import { memo, useState } from 'react';
 import { MixerHorizontalIcon } from '@radix-ui/react-icons';
 import { Button } from './ui/Button';
-import SpriteModal from './SpriteModal';
+import SpriteModal, { type SpriteDragPayload } from './SpriteModal';
 
 export type SpriteInstance = {
   id: string;
@@ -18,11 +18,13 @@ export type SpriteInstance = {
 type Props = {
   sprites: SpriteInstance[];
   onRemoveSprite: (spriteId: string) => void;
+  onAssetClick: (payload: SpriteDragPayload) => Promise<boolean>;
 };
 
 const SpriteEditor = memo(function SpriteEditor({
   sprites,
   onRemoveSprite,
+  onAssetClick,
 }: Props) {
   const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
 
@@ -102,6 +104,7 @@ const SpriteEditor = memo(function SpriteEditor({
       <SpriteModal
         isAssetModalOpen={isAssetModalOpen}
         setIsAssetModalOpen={setIsAssetModalOpen}
+        onAssetClick={onAssetClick}
       />
     </section>
   );

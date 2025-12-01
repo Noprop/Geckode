@@ -10,7 +10,7 @@ import { createPhaserState, PhaserExport } from "@/phaser/PhaserStateManager";
 import { Game } from "phaser";
 import MainMenu from "@/phaser/scenes/MainMenu";
 import SpriteEditor, { SpriteInstance } from '@/components/SpriteEditor';
-import { SpriteDragPayload } from '@/components/SpriteModal';
+import { type SpriteDragPayload } from '@/components/SpriteModal';
 import starterWorkspace from "@/blockly/starterWorkspace";
 import { Button } from "./ui/Button";
 import { useSnackbar } from "@/hooks/useSnackbar";
@@ -190,36 +190,144 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
     };
   }, []);
 
-  const attachBlockToOnStart = (
-    workspace: Blockly.WorkspaceSvg,
-    block: Blockly.BlockSvg
-  ) => {
-    let [onStartBlock] = workspace.getBlocksByType('onStart', false);
+  const attachBlockToOnStart = useCallback(
+    (workspace: Blockly.WorkspaceSvg, block: Blockly.BlockSvg) => {
+      let [onStartBlock] = workspace.getBlocksByType('onStart', false);
 
-    if (!onStartBlock) {
-      const newBlock = workspace.newBlock('onStart');
+      if (!onStartBlock) {
+        const newBlock = workspace.newBlock('onStart');
+        newBlock.initSvg();
+        newBlock.render();
+        [onStartBlock] = workspace.getBlocksByType('onStart', false);
+      }
+
+      const input = onStartBlock.getInput('INNER');
+      const connection = input?.connection;
+      if (!connection || !block.previousConnection) return;
+
+      if (!connection.targetConnection) {
+        connection.connect(block.previousConnection);
+        return;
+      }
+
+      let current = connection.targetBlock();
+      while (current && current.getNextBlock()) {
+        current = current.getNextBlock();
+      }
+      current?.nextConnection?.connect(block.previousConnection);
+    },
+    []
+  );
+
+  const addSpriteToGame = useCallback(
+    async (
+      payload: SpriteDragPayload,
+      position?: { x: number; y: number }
+    ) => {
+      const game = phaserRef.current?.game;
+      const scene = phaserRef.current?.scene;
+      const workspace =
+        blocklyRef.current?.getWorkspace() as Blockly.WorkspaceSvg | null;
+
+      if (!game || !scene || !workspace) {
+        showSnackbar('Game is not ready yet. Try again in a moment.', 'error');
+        return false;
+      }
+
+      const ensureTexture = async () => {
+        if (scene.textures.exists(payload.texture)) return;
+        if (!payload.dataUrl) {
+          throw new Error('Missing texture data for sprite payload.');
+        }
+
+        const isDataUrl = payload.dataUrl.startsWith('data:');
+        if (isDataUrl) {
+          scene.textures.addBase64(payload.texture, payload.dataUrl);
+          return;
+        }
+
+        await new Promise<void>((resolve, reject) => {
+          const handleComplete = () => {
+            scene.load.off('loaderror', handleError);
+            resolve();
+          };
+          const handleError = () => {
+            scene.load.off('complete', handleComplete);
+            reject(new Error('Failed to load texture from URL.'));
+          };
+          scene.load.once('complete', handleComplete);
+          scene.load.once('loaderror', handleError);
+          scene.load.image(payload.texture, payload.dataUrl);
+          scene.load.start();
+        });
+      };
+
+      try {
+        await ensureTexture();
+      } catch (error) {
+        console.warn('Could not load sprite texture.', error);
+        showSnackbar(
+          'Could not load that sprite image. Please try again.',
+          'error'
+        );
+        return false;
+      }
+
+      if (!scene.textures.exists(payload.texture)) {
+        showSnackbar(
+          'Upload a sprite image before adding it to the game.',
+          'error'
+        );
+        return false;
+      }
+
+      const width = game.scale?.width || game.canvas?.width;
+      const height = game.scale?.height || game.canvas?.height;
+      if (!width || !height) {
+        showSnackbar('Could not determine game size. Try again.', 'error');
+        return false;
+      }
+
+      const worldX = position?.x ?? Math.round(width / 2);
+      const worldY = position?.y ?? Math.round(height / 2);
+
+      const safeBase = payload.texture.replace(/[^\w]/g, '') || 'sprite';
+      const duplicateCount = spriteInstances.filter(
+        (instance) => instance.texture === payload.texture
+      ).length;
+      const variableName = `${safeBase}${duplicateCount + 1}`;
+      const spriteId = `sprite-${Date.now()}-${Math.round(Math.random() * 1e4)}`;
+
+      scene.addSpriteFromEditor(payload.texture, worldX, worldY, spriteId);
+
+      const newBlock = workspace.newBlock('createSprite');
+      newBlock.setFieldValue(variableName, 'NAME');
+      newBlock.setFieldValue(payload.texture, 'TEXTURE');
+      newBlock.setFieldValue(String(worldX), 'X');
+      newBlock.setFieldValue(String(worldY), 'Y');
       newBlock.initSvg();
       newBlock.render();
-      [onStartBlock] = workspace.getBlocksByType('onStart', false);
-    }
+      attachBlockToOnStart(workspace, newBlock);
 
-    const input = onStartBlock.getInput('INNER');
-    const connection = input?.connection;
-    if (!connection || !block.previousConnection) return;
+      setSpriteInstances((prev) => [
+        ...prev,
+        {
+          id: spriteId,
+          label: payload.label,
+          texture: payload.texture,
+          variableName,
+          x: worldX,
+          y: worldY,
+          blockId: newBlock.id,
+        },
+      ]);
 
-    if (!connection.targetConnection) {
-      connection.connect(block.previousConnection);
-      return;
-    }
+      return true;
+    },
+    [attachBlockToOnStart, showSnackbar, spriteInstances]
+  );
 
-    let current = connection.targetBlock();
-    while (current && current.getNextBlock()) {
-      current = current.getNextBlock();
-    }
-    current?.nextConnection?.connect(block.previousConnection);
-  };
-
-  const handleSpriteDrop = (event: DragEvent<HTMLDivElement>) => {
+  const handleSpriteDrop = async (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     const payloadString = event.dataTransfer.getData('application/json');
     if (!payloadString || !blocklyRef.current || !phaserRef.current) return;
@@ -234,35 +342,13 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
     if (payload.kind !== 'sprite-blueprint') return;
 
     const game = phaserRef.current.game;
-    const scene = phaserRef.current.scene;
-    const workspace =
-      blocklyRef.current.getWorkspace() as Blockly.WorkspaceSvg | null;
-    if (!game || !scene || !workspace || !game.canvas) return;
+    if (!game || !game.canvas) return;
 
-    if (payload.dataUrl && !scene.textures.exists(payload.texture)) {
-      try {
-        scene.textures.addBase64(payload.texture, payload.dataUrl);
-      } catch (error) {
-        console.warn('Could not add uploaded sprite texture to Phaser.', error);
-        showSnackbar(
-          'Could not load that sprite image. Please try again.',
-          'error'
-        );
-        return;
-      }
-    }
-
-    if (!scene.textures.exists(payload.texture)) {
-      showSnackbar(
-        'Upload a sprite image before dragging it into the game.',
-        'error'
-      );
-      return;
-    }
+    const { clientX, clientY } = event;
 
     const canvasRect = game.canvas.getBoundingClientRect();
-    const relativeX = event.clientX - canvasRect.left;
-    const relativeY = event.clientY - canvasRect.top;
+    const relativeX = clientX - canvasRect.left;
+    const relativeY = clientY - canvasRect.top;
 
     if (
       relativeX < 0 ||
@@ -273,9 +359,6 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
       return;
     }
 
-    console.log(canvasRect.width, game.scale.width);
-    console.log(canvasRect.height, game.scale.height);
-
     const worldX = Math.round(
       (relativeX / canvasRect.width) * game.scale.width
     );
@@ -283,39 +366,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
       (relativeY / canvasRect.height) * game.scale.height
     );
 
-    console.log(relativeX, worldX);
-    console.log(relativeY, worldY);
-
-    const safeBase = payload.texture.replace(/[^\w]/g, '') || 'sprite';
-    const duplicateCount = spriteInstances.filter(
-      (instance) => instance.texture === payload.texture
-    ).length;
-    const variableName = `${safeBase}${duplicateCount + 1}`;
-    const spriteId = `sprite-${Date.now()}-${Math.round(Math.random() * 1e4)}`;
-
-    scene.addSpriteFromEditor(payload.texture, worldX, worldY, spriteId);
-
-    const newBlock = workspace.newBlock('createSprite');
-    newBlock.setFieldValue(variableName, 'NAME');
-    newBlock.setFieldValue(payload.texture, 'TEXTURE');
-    newBlock.setFieldValue(String(worldX), 'X');
-    newBlock.setFieldValue(String(worldY), 'Y');
-    newBlock.initSvg();
-    newBlock.render();
-    attachBlockToOnStart(workspace, newBlock);
-
-    setSpriteInstances((prev) => [
-      ...prev,
-      {
-        id: spriteId,
-        label: payload.label,
-        texture: payload.texture,
-        variableName,
-        x: worldX,
-        y: worldY,
-        blockId: newBlock.id,
-      },
-    ]);
+    await addSpriteToGame(payload, { x: worldX, y: worldY });
   };
 
   const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
@@ -453,6 +504,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
           <SpriteEditor
             sprites={spriteInstances}
             onRemoveSprite={handleRemoveSprite}
+            onAssetClick={addSpriteToGame}
           />
         </div>
       </div>

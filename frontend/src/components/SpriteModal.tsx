@@ -1,99 +1,13 @@
 "use client";
 
-import { useState, useMemo } from 'react'
+import { useMemo, useState } from 'react';
 import type { Dispatch, DragEvent, SetStateAction } from 'react';
 import {
   Cross2Icon,
   MagnifyingGlassIcon,
   MixerHorizontalIcon,
-  StarFilledIcon,
 } from '@radix-ui/react-icons';
 import { Button } from './ui/Button';
-
-const buildPreviewDataUrl = (label: string, palette: string[]): string => {
-  const [start, mid = start, end = mid] = palette;
-  const initials = label.slice(0, 2).toUpperCase();
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="160" viewBox="0 0 240 160">
-    <defs>
-      <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-        <stop stop-color="${start}" offset="0%"/>
-        <stop stop-color="${mid}" offset="55%"/>
-        <stop stop-color="${end}" offset="100%"/>
-      </linearGradient>
-    </defs>
-    <rect rx="24" width="240" height="160" fill="url(#g)"/>
-    <circle cx="60" cy="60" r="22" fill="white" fill-opacity="0.15"/>
-    <circle cx="190" cy="40" r="18" fill="white" fill-opacity="0.18"/>
-    <text x="32" y="118" font-family="Inter, sans-serif" font-size="48" font-weight="700" fill="#0f172a" fill-opacity="0.75">${initials}</text>
-  </svg>`;
-  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
-};
-
-const SPRITE_LIBRARY: SpriteAsset[] = [
-  {
-    id: 'aurora-guardian',
-    name: 'Aurora Guardian',
-    category: 'Creatures',
-    tags: ['ally', 'air', 'support'],
-    palette: ['#e0f2fe', '#c084fc', '#7c3aed'],
-    accent: '#7c3aed',
-    description: 'A bright guardian placeholder for aerial routes and allies.',
-    preview: '',
-  },
-  {
-    id: 'ember-runner',
-    name: 'Ember Runner',
-    category: 'Creatures',
-    tags: ['agile', 'fire', 'dash'],
-    palette: ['#fff7ed', '#fdba74', '#ea580c'],
-    accent: '#ea580c',
-    description: 'Fast, warm-toned runner for chase sequences.',
-    preview: '',
-  },
-  {
-    id: 'clockwork-drone',
-    name: 'Clockwork Drone',
-    category: 'Props',
-    tags: ['mechanical', 'ally', 'hover'],
-    palette: ['#e2e8f0', '#a5b4fc', '#4338ca'],
-    accent: '#4338ca',
-    description: 'Floating helper suited for puzzle hints or pickups.',
-    preview: '',
-  },
-  {
-    id: 'luminous-shard',
-    name: 'Luminous Shard',
-    category: 'Environment',
-    tags: ['crystal', 'collectible', 'light'],
-    palette: ['#ecfeff', '#67e8f9', '#0ea5e9'],
-    accent: '#0ea5e9',
-    description: 'Glowing shard placeholder for collectibles or portals.',
-    preview: '',
-  },
-  {
-    id: 'mist-platform',
-    name: 'Mist Platform',
-    category: 'Environment',
-    tags: ['platform', 'floating', 'support'],
-    palette: ['#f8fafc', '#cbd5e1', '#475569'],
-    accent: '#475569',
-    description: 'Soft platform tile for traversal tests.',
-    preview: '',
-  },
-  {
-    id: 'coral-banner',
-    name: 'Coral Banner',
-    category: 'Props',
-    tags: ['ui', 'flag', 'marker'],
-    palette: ['#fff1f2', '#fb7185', '#be123c'],
-    accent: '#be123c',
-    description: 'Marker/banner graphic for checkpoints or HUD callouts.',
-    preview: '',
-  },
-].map((asset) => ({
-  ...asset,
-  preview: buildPreviewDataUrl(asset.name, asset.palette),
-}));
 
 export type SpriteDragPayload = {
   kind: 'sprite-blueprint';
@@ -107,20 +21,53 @@ type SpriteAsset = {
   name: string;
   category: string;
   tags: string[];
-  palette: string[];
-  accent: string;
   preview: string;
-  description: string;
 };
+
+const HERO_WALK_FRONT = '/heroWalkFront1.bmp';
+const HERO_WALK_BACK = '/heroWalkBack1.bmp';
+const HERO_WALK_LEFT = '/heroWalkSideLeft2.bmp';
+const HERO_WALK_RIGHT = '/heroWalkSideRight2.bmp';
+
+const SPRITE_LIBRARY: SpriteAsset[] = [
+  {
+    id: 'hero-walk-front',
+    name: 'Hero Walk Front',
+    category: 'Hero',
+    tags: ['front', 'walk', 'bitmap'],
+    preview: HERO_WALK_FRONT,
+  },
+  {
+    id: 'hero-walk-back',
+    name: 'Hero Walk Back',
+    category: 'Hero',
+    tags: ['back', 'walk', 'bitmap'],
+    preview: HERO_WALK_BACK,
+  },
+  {
+    id: 'hero-walk-left',
+    name: 'Hero Walk Left',
+    category: 'Hero',
+    tags: ['left', 'walk', 'bitmap'],
+    preview: HERO_WALK_LEFT,
+  },
+  {
+    id: 'hero-walk-right',
+    name: 'Hero Walk Right',
+    category: 'Hero',
+    tags: ['right', 'walk', 'bitmap'],
+    preview: HERO_WALK_RIGHT,
+  },
+];
 
 type Props = {
   isAssetModalOpen: boolean;
   setIsAssetModalOpen: Dispatch<SetStateAction<boolean>>;
-}
+  onAssetClick: (payload: SpriteDragPayload) => Promise<boolean>;
+};
 
-const SpriteModal = ({ isAssetModalOpen, setIsAssetModalOpen, }: Props) => {
-
-    const [searchQuery, setSearchQuery] = useState('');
+const SpriteModal = ({ isAssetModalOpen, setIsAssetModalOpen, onAssetClick }: Props) => {
+  const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
 
   const categories = useMemo(
@@ -141,19 +88,27 @@ const SpriteModal = ({ isAssetModalOpen, setIsAssetModalOpen, }: Props) => {
     });
   }, [searchQuery, activeCategory]);
 
+  const buildPayload = (asset: SpriteAsset): SpriteDragPayload => ({
+    kind: 'sprite-blueprint',
+    label: asset.name,
+    texture: asset.id,
+    dataUrl: asset.preview,
+  });
+
   const handleDragStart =
     (asset: SpriteAsset) => (event: DragEvent<HTMLDivElement>) => {
-      const payload: SpriteDragPayload = {
-        kind: 'sprite-blueprint',
-        label: asset.name,
-        texture: asset.id,
-        dataUrl: asset.preview,
-      };
+      const payload = buildPayload(asset);
       event.dataTransfer.setData('application/json', JSON.stringify(payload));
       event.dataTransfer.effectAllowed = 'move';
     };
 
+  const handleAssetClick = (asset: SpriteAsset) => async () => {
+    const success = await onAssetClick(buildPayload(asset));
+    if (success) setIsAssetModalOpen(false);
+  };
+
   if (!isAssetModalOpen) return <></>;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8">
       <div
@@ -174,16 +129,15 @@ const SpriteModal = ({ isAssetModalOpen, setIsAssetModalOpen, }: Props) => {
         <div className="flex items-start justify-between gap-3 px-6 pt-5">
           <div>
             <h3 className="text-lg font-semibold leading-tight">
-              Choose a sprite asset
+              Choose a bitmap sprite
             </h3>
             <p className="text-xs text-slate-600 dark:text-slate-300">
-              Search, filter, and drag a card into the game canvas to place it.
-              Asset files will connect here later.
+              Search, filter, and drag a bitmap frame into the game canvas to
+              place it, or click a card to drop it in the center.
             </p>
           </div>
           <div className="hidden items-center gap-2 rounded-full bg-primary-green/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-primary-green sm:flex">
-            <StarFilledIcon className="h-3.5 w-3.5" />
-            Prototype view
+            Bitmap ready
           </div>
         </div>
 
@@ -231,8 +185,7 @@ const SpriteModal = ({ isAssetModalOpen, setIsAssetModalOpen, }: Props) => {
             <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center text-sm text-slate-600 shadow-sm dark:border-slate-700 dark:bg-dark-secondary dark:text-slate-300">
               <p>No assets match your search yet.</p>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Once assets are uploaded, they will appear here for quick
-                placement.
+                Once assets are uploaded, they will appear here for you.
               </p>
             </div>
           ) : (
@@ -243,60 +196,32 @@ const SpriteModal = ({ isAssetModalOpen, setIsAssetModalOpen, }: Props) => {
                   className="flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:border-slate-700 dark:bg-dark-secondary"
                 >
                   <div
-                    className="relative h-32 cursor-grab overflow-hidden"
+                    className="relative flex aspect-4/3 cursor-grab items-center justify-center bg-white dark:bg-slate-900"
                     draggable
                     onDragStart={handleDragStart(asset)}
-                    title="Drag into the game window"
+                    onClick={handleAssetClick(asset)}
+                    title="Click to add to center or drag into the game window"
                   >
-                    <div
-                      className="absolute inset-0"
-                      style={{
-                        backgroundImage: `linear-gradient(135deg, ${asset.palette[0]}, ${asset.palette[1]}, ${asset.palette[2]})`,
-                      }}
-                    />
                     <img
                       src={asset.preview}
-                      alt={`${asset.name} placeholder`}
-                      className="absolute inset-0 h-full w-full object-cover opacity-70 mix-blend-luminosity"
+                      alt={asset.name}
+                      className="h-28 w-auto max-w-[85%] object-contain drop-shadow-sm"
+                      style={{ imageRendering: 'pixelated' }}
                     />
-                    <div className="absolute right-3 top-3 rounded-full bg-white/80 px-3 py-1 text-[11px] font-semibold text-slate-700 shadow-sm dark:bg-slate-900/80 dark:text-slate-100">
+                    <div className="absolute right-3 top-3 rounded-full bg-black/5 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-700 dark:bg-white/10 dark:text-slate-100">
                       {asset.category}
                     </div>
-                    <div className="absolute bottom-3 left-3 rounded-md bg-black/40 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">
-                      Drag to game
-                    </div>
                   </div>
-                  <div className="flex flex-1 flex-col gap-3 p-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="text-sm font-semibold">
-                          {asset.name}
-                        </div>
-                        <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-                          {asset.description}
-                        </p>
-                      </div>
-                      <StarFilledIcon
-                        className="h-4 w-4 text-amber-400"
-                        aria-hidden
-                      />
+                  <div className="flex items-center justify-between px-3 py-2">
+                    <div>
+                      <div className="text-sm font-semibold">{asset.name}</div>
+                      <p className="text-[11px] text-slate-600 dark:text-slate-300">
+                        {asset.tags.join(' • ')}
+                      </p>
                     </div>
-                    <div className="flex flex-wrap gap-2 text-[11px]">
-                      {asset.tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="rounded-full bg-slate-100 px-2 py-1 font-semibold text-slate-700 shadow-sm dark:bg-slate-800 dark:text-slate-200"
-                        >
-                          #{tag}
-                        </span>
-                      ))}
-                    </div>
-                    <div className="mt-auto flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-300">
-                      <span>Coming soon: attach real assets</span>
-                      <span className="rounded-full bg-primary-green/10 px-2 py-1 font-semibold text-primary-green">
-                        Placeholder
-                      </span>
-                    </div>
+                    <span className="rounded-full bg-primary-green/10 px-2 py-1 text-[11px] font-semibold text-primary-green">
+                      BMP
+                    </span>
                   </div>
                 </div>
               ))}
@@ -320,6 +245,6 @@ const SpriteModal = ({ isAssetModalOpen, setIsAssetModalOpen, }: Props) => {
       </div>
     </div>
   );
-}
+};
 
 export default SpriteModal;
