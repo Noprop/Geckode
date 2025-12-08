@@ -26,7 +26,7 @@ export interface OrganizationPayload {
   description?: string;
   is_public?: boolean;
   default_member_permission?: string;
-  thumbnail?: File;
+  thumbnail?: File | null;
 }
 
 export const organizationSortKeys: (keyof Organization)[] = [

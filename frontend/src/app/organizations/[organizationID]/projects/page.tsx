@@ -1,7 +1,13 @@
 "use client";
 
 import organizationsApi from "@/lib/api/handlers/organizations";
-import { OrganizationProject, OrganizationProjectFilter, OrganizationProjectPayload, organizationProjectSortKeys, OrganizationProjectSortKeys } from "@/lib/types/api/organizations/projects";
+import {
+  OrganizationProject,
+  OrganizationProjectFilter,
+  OrganizationProjectPayload,
+  organizationProjectSortKeys,
+  OrganizationProjectSortKeys,
+} from "@/lib/types/api/organizations/projects";
 import { useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { Table, TableRef } from "@/components/ui/Table";
@@ -11,38 +17,64 @@ import { InputBox, InputBoxRef } from "@/components/ui/InputBox";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import projectsApi from "@/lib/api/handlers/projects";
 import { Project } from "@/lib/types/api/projects";
+import { ProjectPermissions } from "@/lib/types/api/projects/collaborators";
+import DragAndDrop, { DragAndDropRef } from "@/components/DragAndDrop";
 
 export default function ProjectsPage() {
   const showSnackbar = useSnackbar();
 
-  const { _oid } = useParams();
-  const orgProjectsApi = organizationsApi(Number(_oid)).projects;
+  const { organizationID } = useParams();
+  const orgProjectsApi = organizationsApi(Number(organizationID)).projects;
 
+  const dropboxRef = useRef<DragAndDropRef>(null);
   const tableRef = useRef<TableRef<OrganizationProject> | null>(null);
   const projectNameRef = useRef<InputBoxRef | null>(null);
   const autoProjectOpenRef = useRef<InputBoxRef | null>(null);
+  const permissionDropdownView = useRef<HTMLSelectElement | null>(null);
+  const [thumbnail, setThumbnail] = useState<string | null>(null);
 
   const [showModal, setShowModal] = useState<null | "create" | "delete">(null);
+
   const createProject = () => {
     // first create project with projects API, then register it as an org project with orgProjectsApi
+    console.log({
+      name: projectNameRef?.current?.inputValue || "",
+      thumbnail:
+        dropboxRef.current?.files?.length! > 0
+          ? dropboxRef.current?.files![0]
+          : null,
+    });
     projectsApi
       .create({
         name: projectNameRef?.current?.inputValue || "",
+        thumbnail:
+          dropboxRef.current?.files?.length! > 0
+            ? dropboxRef.current?.files![0]
+            : null,
       })
       .then((project) => {
-        orgProjectsApi.create({ project_id: project.id, permission: "view" }).then(() => {
-          if (autoProjectOpenRef.current?.isChecked) {
-            window.location.href = `/projects/${project.id}`;
-          } else {
-            tableRef.current?.refresh();
-            setShowModal(null);
-          }
-        });
-      });
+        const _permission = permissionDropdownView.current?.value ?? "view";
+        orgProjectsApi
+          .create({ project_id: project.id, permission: _permission })
+          .then(() => {
+            if (autoProjectOpenRef.current?.isChecked) {
+              window.location.href = `/projects/${project.id}`;
+            } else {
+              tableRef.current?.refresh();
+              setShowModal(null);
+            }
+          })
+          .catch(() => {
+            showSnackbar("Assigning project to organization failed!", "error");
+            projectsApi(project.id).delete(); // remove project from database
+          });
+      })
+      .catch(() => showSnackbar("Creating project failed!", "error"));
   };
 
   const deleteProject = () => {
-    const projectId = tableRef.current?.data[tableRef.current?.dataIndex]["project"]["id"];
+    const projectId =
+      tableRef.current?.data[tableRef.current?.dataIndex]["project"]["id"];
 
     if (!projectId) return;
 
@@ -53,12 +85,20 @@ export default function ProjectsPage() {
         setShowModal(null);
         tableRef.current?.refresh();
       })
-      .catch((err) => showSnackbar("Something went wrong. Please try again.", "error"));
+      .catch((err) =>
+        showSnackbar("Something went wrong. Please try again.", "error")
+      );
   };
 
   return (
     <div className="mx-20 my-5">
-      <Table<OrganizationProject, OrganizationProjectPayload, OrganizationProjectFilter, OrganizationProjectSortKeys, typeof orgProjectsApi>
+      <Table<
+        OrganizationProject,
+        OrganizationProjectPayload,
+        OrganizationProjectFilter,
+        OrganizationProjectSortKeys,
+        typeof orgProjectsApi
+      >
         ref={tableRef}
         label="Projects"
         api={orgProjectsApi}
@@ -89,9 +129,10 @@ export default function ProjectsPage() {
           },
         }}
         sortKeys={organizationProjectSortKeys}
-        defaultSortField="project"
         defaultSortDirection="desc"
-        handleRowClick={(row) => (window.location.href = `/projects/${row.getValue("id")}/`)}
+        handleRowClick={(row) =>
+          (window.location.href = `/projects/${row.getValue("id")}/`)
+        }
         actions={[
           {
             rowIcon: "trash",
@@ -103,7 +144,10 @@ export default function ProjectsPage() {
         ]}
         extras={
           <>
-            <Button onClick={() => setShowModal("create")} className="btn-confirm">
+            <Button
+              onClick={() => setShowModal("create")}
+              className="btn-confirm"
+            >
               Create Project
             </Button>
           </>
@@ -120,7 +164,13 @@ export default function ProjectsPage() {
               <Button onClick={createProject} className="btn-confirm ml-3">
                 Create
               </Button>
-              <Button onClick={() => setShowModal(null)} className="btn-neutral">
+              <Button
+                onClick={() => {
+                  setShowModal(null);
+                  setThumbnail(null);
+                }}
+                className="btn-neutral"
+              >
                 Cancel
               </Button>
             </>
@@ -128,9 +178,31 @@ export default function ProjectsPage() {
         >
           Please enter a name for your project:
           <div className="flex flex-col">
-            <InputBox ref={projectNameRef} placeholder="Project name" className="bg-white text-black my-3 border-0" />
+            <InputBox
+              ref={projectNameRef}
+              placeholder="Project name"
+              className="bg-white text-black mb-3 border-0"
+            />
+            <p>Default user permission:</p>
+            <select
+              ref={permissionDropdownView}
+              className="bg-white text-black mb-3 p-2 rounded-md"
+            >
+              {ProjectPermissions.map((p) => (
+                <option key={p[0]} value={p[0]}>
+                  {p.join(" - ")}
+                </option>
+              ))}
+            </select>
+            <p>Project Thumbnail:</p>
+            <DragAndDrop ref={dropboxRef} accept="image/*" multiple={false} />
             <div className="flex align-center">
-              <InputBox ref={autoProjectOpenRef} type="checkbox" defaultChecked={true} className="mr-2" />
+              <InputBox
+                ref={autoProjectOpenRef}
+                type="checkbox"
+                defaultChecked={true}
+                className="mr-2"
+              />
               Automatically open the project after creation
             </div>
           </div>
@@ -139,20 +211,29 @@ export default function ProjectsPage() {
         <Modal
           className="bg-red-500"
           onClose={() => setShowModal(null)}
-          title={`Delete project (${tableRef.current?.data?.[tableRef.current.dataIndex].project["name"]})`}
+          title={`Delete project (${
+            tableRef.current?.data?.[tableRef.current.dataIndex].project["name"]
+          })`}
           icon="warning"
           actions={
             <>
               <Button onClick={deleteProject} className="btn-deny ml-3">
                 Delete
               </Button>
-              <Button onClick={() => setShowModal(null)} className="btn-neutral">
+              <Button
+                onClick={() => {
+                  setShowModal(null);
+                  dropboxRef.current?.setFiles([]);
+                }}
+                className="btn-neutral"
+              >
                 Cancel
               </Button>
             </>
           }
         >
-          Are you sure you would like to delete this project? This is a permanent change that cannot be undone.
+          Are you sure you would like to delete this project? This is a
+          permanent change that cannot be undone.
         </Modal>
       ) : null}
     </div>

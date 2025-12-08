@@ -129,7 +129,6 @@ export const Table = <TData extends Record<string, any>, TPayload extends Record
   const columnDefinitions = [
     ...Object.keys(columns).map((label) => {
       const columnMapper = columns[label];
-      console.log(columnMapper);
       const renderer = cellRenderers[columnMapper.type ?? "other"] ?? defaultRenderer;
 
       return columnHelper.accessor((row: TData) => row[columnMapper["key"]], {

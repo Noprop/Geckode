@@ -2,17 +2,25 @@
 
 import organizationsApi from "@/lib/api/handlers/organizations";
 import { authApi } from "@/lib/api/auth";
-import { Organization, OrganizationFilters, OrganizationSortKeys, OrganizationPayload, organizationSortKeys } from "@/lib/types/api/organizations";
+import {
+  Organization,
+  OrganizationFilters,
+  OrganizationSortKeys,
+  OrganizationPayload,
+  organizationSortKeys,
+} from "@/lib/types/api/organizations";
 import { useEffect, useRef, useState } from "react";
 import { Table, TableRef } from "@/components/ui/Table";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { InputBox, InputBoxRef } from "@/components/ui/InputBox";
 import { useSnackbar } from "@/hooks/useSnackbar";
+import DragAndDrop, { DragAndDropRef } from "@/components/DragAndDrop";
 
 export default function OrganizationsPage() {
   const showSnackbar = useSnackbar();
 
+  const dropboxRef = useRef<DragAndDropRef>(null);
   const tableRef = useRef<TableRef<Organization> | null>(null);
   const organizationNameRef = useRef<InputBoxRef | null>(null);
   const autoOrganizationOpenRef = useRef<InputBoxRef | null>(null);
@@ -20,7 +28,9 @@ export default function OrganizationsPage() {
   const [userId, setUserId] = useState<number>(-1);
   const [slug, setSlug] = useState<string>("");
 
-  const [showModal, setShowModal] = useState<null | "create" | "delete" | "leave">(null);
+  const [showModal, setShowModal] = useState<
+    null | "create" | "delete" | "leave"
+  >(null);
 
   useEffect(() => {
     const fetchUserInfo = () => {
@@ -29,7 +39,9 @@ export default function OrganizationsPage() {
         .then((res) => {
           setUserId(res.id);
         })
-        .catch((err) => showSnackbar("Something went wrong. Please try again.", "error"));
+        .catch((err) =>
+          showSnackbar("Something went wrong. Please try again.", "error")
+        );
     };
 
     fetchUserInfo();
@@ -52,6 +64,10 @@ export default function OrganizationsPage() {
       .create({
         slug: slug,
         name: orgName,
+        thumbnail:
+          dropboxRef.current?.files?.length! > 0
+            ? dropboxRef.current?.files![0]
+            : null,
       })
       .then((organization) => {
         if (autoOrganizationOpenRef.current?.isChecked) {
@@ -64,7 +80,8 @@ export default function OrganizationsPage() {
   };
 
   const deleteOrganization = () => {
-    const organizationId = tableRef.current?.data[tableRef.current?.dataIndex]["id"];
+    const organizationId =
+      tableRef.current?.data[tableRef.current?.dataIndex]["id"];
 
     if (!organizationId) return;
 
@@ -75,12 +92,20 @@ export default function OrganizationsPage() {
         setShowModal(null);
         tableRef.current?.refresh();
       })
-      .catch((err) => showSnackbar("Something went wrong. Please try again.", "error"));
+      .catch((err) =>
+        showSnackbar("Something went wrong. Please try again.", "error")
+      );
   };
 
   return (
     <div className="mx-20 my-5">
-      <Table<Organization, OrganizationPayload, OrganizationFilters, OrganizationSortKeys, typeof organizationsApi>
+      <Table<
+        Organization,
+        OrganizationPayload,
+        OrganizationFilters,
+        OrganizationSortKeys,
+        typeof organizationsApi
+      >
         ref={tableRef}
         label="Organizations"
         api={organizationsApi}
@@ -108,7 +133,11 @@ export default function OrganizationsPage() {
         sortKeys={organizationSortKeys}
         defaultSortField="name"
         defaultSortDirection="desc"
-        handleRowClick={(row) => (window.location.href = `/organizations/${row.getValue("id")}/projects/`)}
+        handleRowClick={(row) =>
+          (window.location.href = `/organizations/${row.getValue(
+            "id"
+          )}/projects/`)
+        }
         actions={[
           {
             rowIcon: "trash",
@@ -126,7 +155,10 @@ export default function OrganizationsPage() {
         ]}
         extras={
           <>
-            <Button onClick={() => setShowModal("create")} className="btn-confirm">
+            <Button
+              onClick={() => setShowModal("create")}
+              className="btn-confirm"
+            >
               Create Organization
             </Button>
           </>
@@ -157,10 +189,22 @@ export default function OrganizationsPage() {
         >
           Please enter a name for your organization:
           <div className="flex flex-col">
-            <InputBox ref={organizationNameRef} placeholder="Organization name" className="bg-white text-black mt-3 border-0" onChange={(e) => createSlug(e.target.value)} />
-            <p className="mt-3 mb-4 h-4 text-white">{slug}</p>
+            <InputBox
+              ref={organizationNameRef}
+              placeholder="Organization name"
+              className="bg-white text-black mt-3 border-0"
+              onChange={(e) => createSlug(e.target.value)}
+            />
+            <p className="mt-3 mb-2 h-4 text-white">{slug}</p>
+            <p>Organization Thumbnail:</p>
+            <DragAndDrop ref={dropboxRef} accept="image/*" multiple={false} />
             <div className="flex align-center">
-              <InputBox ref={autoOrganizationOpenRef} type="checkbox" defaultChecked={true} className="mr-2" />
+              <InputBox
+                ref={autoOrganizationOpenRef}
+                type="checkbox"
+                defaultChecked={true}
+                className="mr-2"
+              />
               Automatically open the organization after creation
             </div>
           </div>
@@ -169,7 +213,9 @@ export default function OrganizationsPage() {
         <Modal
           className="bg-red-500"
           onClose={() => setShowModal(null)}
-          title={`Delete organization (${tableRef.current?.data?.[tableRef.current.dataIndex]["name"]})`}
+          title={`Delete organization (${
+            tableRef.current?.data?.[tableRef.current.dataIndex]["name"]
+          })`}
           icon="warning"
           actions={
             <>
@@ -188,13 +234,16 @@ export default function OrganizationsPage() {
             </>
           }
         >
-          Are you sure you would like to delete this organization? This is a permanent change that cannot be undone.
+          Are you sure you would like to delete this organization? This is a
+          permanent change that cannot be undone.
         </Modal>
       ) : showModal === "leave" ? (
         <Modal
           className="bg-yellow-600"
           onClose={() => setShowModal(null)}
-          title={`Leave organization (${tableRef.current?.data?.[tableRef.current.dataIndex]["name"]})`}
+          title={`Leave organization (${
+            tableRef.current?.data?.[tableRef.current.dataIndex]["name"]
+          })`}
           icon="warning"
           actions={
             <>
@@ -212,7 +261,8 @@ export default function OrganizationsPage() {
             </>
           }
         >
-          Are you sure you would like to leave this organization? You may not be able to be added back
+          Are you sure you would like to leave this organization? You may not be
+          able to be added back
         </Modal>
       ) : null}
     </div>

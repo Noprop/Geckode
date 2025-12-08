@@ -1,17 +1,25 @@
 "use client";
 
 import projectsApi from "@/lib/api/handlers/projects";
-import { Project, ProjectFilters, ProjectSortKeys, ProjectPayload, projectSortKeys } from "@/lib/types/api/projects";
+import {
+  Project,
+  ProjectFilters,
+  ProjectSortKeys,
+  ProjectPayload,
+  projectSortKeys,
+} from "@/lib/types/api/projects";
 import { useRef, useState } from "react";
 import { Table, TableRef } from "@/components/ui/Table";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { InputBox, InputBoxRef } from "@/components/ui/InputBox";
 import { useSnackbar } from "@/hooks/useSnackbar";
+import DragAndDrop, { DragAndDropRef } from "@/components/DragAndDrop";
 
 export default function ProjectsPage() {
   const showSnackbar = useSnackbar();
 
+  const dropboxRef = useRef<DragAndDropRef>(null);
   const tableRef = useRef<TableRef<Project> | null>(null);
   const projectNameRef = useRef<InputBoxRef | null>(null);
   const autoProjectOpenRef = useRef<InputBoxRef | null>(null);
@@ -22,6 +30,10 @@ export default function ProjectsPage() {
     projectsApi
       .create({
         name: projectNameRef?.current?.inputValue || "",
+        thumbnail:
+          dropboxRef.current?.files?.length! > 0
+            ? dropboxRef.current?.files![0]
+            : null,
       })
       .then((project) => {
         if (autoProjectOpenRef.current?.isChecked) {
@@ -45,12 +57,20 @@ export default function ProjectsPage() {
         setShowModal(null);
         tableRef.current?.refresh();
       })
-      .catch((err) => showSnackbar("Something went wrong. Please try again.", "error"));
+      .catch((err) =>
+        showSnackbar("Something went wrong. Please try again.", "error")
+      );
   };
 
   return (
     <div className="mx-20 my-5">
-      <Table<Project, ProjectPayload, ProjectFilters, ProjectSortKeys, typeof projectsApi>
+      <Table<
+        Project,
+        ProjectPayload,
+        ProjectFilters,
+        ProjectSortKeys,
+        typeof projectsApi
+      >
         ref={tableRef}
         label="Projects"
         api={projectsApi}
@@ -78,7 +98,9 @@ export default function ProjectsPage() {
         sortKeys={projectSortKeys}
         defaultSortField="updated_at"
         defaultSortDirection="desc"
-        handleRowClick={(row) => (window.location.href = `/projects/${row.getValue("id")}/`)}
+        handleRowClick={(row) =>
+          (window.location.href = `/projects/${row.getValue("id")}/`)
+        }
         actions={[
           {
             rowIcon: "trash",
@@ -90,7 +112,10 @@ export default function ProjectsPage() {
         ]}
         extras={
           <>
-            <Button onClick={() => setShowModal("create")} className="btn-confirm">
+            <Button
+              onClick={() => setShowModal("create")}
+              className="btn-confirm"
+            >
               Create Project
             </Button>
           </>
@@ -107,7 +132,10 @@ export default function ProjectsPage() {
               <Button onClick={createProject} className="btn-confirm ml-3">
                 Create
               </Button>
-              <Button onClick={() => setShowModal(null)} className="btn-neutral">
+              <Button
+                onClick={() => setShowModal(null)}
+                className="btn-neutral"
+              >
                 Cancel
               </Button>
             </>
@@ -115,9 +143,20 @@ export default function ProjectsPage() {
         >
           Please enter a name for your project:
           <div className="flex flex-col">
-            <InputBox ref={projectNameRef} placeholder="Project name" className="bg-white text-black my-3 border-0" />
+            <InputBox
+              ref={projectNameRef}
+              placeholder="Project name"
+              className="bg-white text-black my-3 border-0"
+            />
+            <p>Project Thumbnail:</p>
+            <DragAndDrop ref={dropboxRef} accept="image/*" multiple={false} />
             <div className="flex align-center">
-              <InputBox ref={autoProjectOpenRef} type="checkbox" defaultChecked={true} className="mr-2" />
+              <InputBox
+                ref={autoProjectOpenRef}
+                type="checkbox"
+                defaultChecked={true}
+                className="mr-2"
+              />
               Automatically open the project after creation
             </div>
           </div>
@@ -126,20 +165,26 @@ export default function ProjectsPage() {
         <Modal
           className="bg-red-500"
           onClose={() => setShowModal(null)}
-          title={`Delete project (${tableRef.current?.data?.[tableRef.current.dataIndex]["name"]})`}
+          title={`Delete project (${
+            tableRef.current?.data?.[tableRef.current.dataIndex]["name"]
+          })`}
           icon="warning"
           actions={
             <>
               <Button onClick={deleteProject} className="btn-deny ml-3">
                 Delete
               </Button>
-              <Button onClick={() => setShowModal(null)} className="btn-neutral">
+              <Button
+                onClick={() => setShowModal(null)}
+                className="btn-neutral"
+              >
                 Cancel
               </Button>
             </>
           }
         >
-          Are you sure you would like to delete this project? This is a permanent change that cannot be undone.
+          Are you sure you would like to delete this project? This is a
+          permanent change that cannot be undone.
         </Modal>
       ) : null}
     </div>
