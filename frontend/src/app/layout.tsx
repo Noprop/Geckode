@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 // import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import WorkspaceToggle from "@/components/WorkspaceToggle";
+import Header from '@/components/Header';
 import { WorkspaceViewProvider } from "@/contexts/WorkspaceViewContext";
 import { SnackbarProvider } from "@/providers/SnackbarProvider";
 
@@ -28,16 +28,12 @@ export default function RootLayout({
     <html lang="en">
       <body className="antialiased min-h-screen flex flex-col">
         <WorkspaceViewProvider>
-          <header className="bg-primary-green relative flex items-center h-16 px-4">
-            <h1 className="text-shadow-sm text-white text-3xl font-bold absolute left-4">
-              Geckode
-            </h1>
-            <WorkspaceToggle />
-          </header>
-          <main className="flex-1 flex flex-col bg-gray-100 dark:bg-dark-secondary" id="app">
-            <SnackbarProvider>
-              {children}
-            </SnackbarProvider>
+          <Header />
+          <main
+            className="flex-1 flex flex-col bg-gray-100 dark:bg-dark-secondary"
+            id="app"
+          >
+            <SnackbarProvider>{children}</SnackbarProvider>
           </main>
         </WorkspaceViewProvider>
       </body>
