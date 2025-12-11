@@ -45,8 +45,7 @@ const DragAndDrop = ({
   }, [files]);
 
   const handleOnDrop = (fs: FileList) => {
-    if (fs.length === 0) return;
-    const fsList = Array.from(fs);
+    let fsList = Array.from(fs);
 
     // filter fs on accept parametres (matches with MIME type)
     const rules = accept!.split(",").map((x) => x.trim().toLowerCase());
@@ -66,17 +65,34 @@ const DragAndDrop = ({
       });
     });
 
-    if (fs.length === 0) return;
+    if (fsList.length === 0) {
+      setFiles(fsList);
+      return;
+    }
 
-    // get file url paths for image and and file display
+    // only take first entry if multiple is disabled
+    if (!multiple && fsList.length > 0) fsList = [fsList[0]];
+
+    // set files by write mode
     if (dropAgain === "overwrite") setFiles(fsList);
-    else setFiles(files && files.concat(fsList));
-
-    // only take first enrty if multiple is disabled
-    if (!multiple && files.length > 0) setFiles([files[0]]);
+    else setFiles(files.concat(fsList));
 
     // handle OnFileDrop given
     if (OnFileDrop) OnFileDrop(files);
+  };
+
+  const removeFile = (idx: number) => {
+    let fcopy = Object.assign([], files);
+    fcopy.splice(idx, 1);
+    setFiles(fcopy);
+  };
+
+  // cut off fileName display at 20 characters for consistent formatting
+  const fileNameDisplay = (fileName: string): string => {
+    if (fileName.length >= 20) {
+      const displayName = fileName.substring(0, 18) + "...";
+      return displayName;
+    } else return fileName;
   };
 
   return (
@@ -109,10 +125,10 @@ const DragAndDrop = ({
         </div>
       </div>
       <ul>
-        {files?.map((f) => (
+        {files?.map((f, idx) => (
           <li
-            key={f.name}
-            className="bg-light-hover dark:bg-dark-hover rounded-lg w-full my-1 flex"
+            key={idx}
+            className="bg-light-hover dark:bg-dark-hover rounded-lg w-full my-1 flex pr-4"
           >
             {f.type.startsWith("image") && (
               <img
@@ -120,7 +136,13 @@ const DragAndDrop = ({
                 className="h-9 rounded-l-lg"
               ></img>
             )}
-            <p className="p-2">{f.name}</p>
+            <p className="p-2">{fileNameDisplay(f.name)}</p>
+            <button
+              className="ml-auto"
+              onClick={() => removeFile(idx)} //remove element
+            >
+              x
+            </button>
           </li>
         ))}
       </ul>

@@ -15,6 +15,7 @@ import { Modal } from "@/components/ui/Modal";
 import { InputBox, InputBoxRef } from "@/components/ui/InputBox";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import DragAndDrop, { DragAndDropRef } from "@/components/DragAndDrop";
+import { convertFormData } from "@/lib/api/base";
 
 export default function ProjectsPage() {
   const showSnackbar = useSnackbar();
@@ -28,13 +29,15 @@ export default function ProjectsPage() {
 
   const createProject = () => {
     projectsApi
-      .create({
-        name: projectNameRef?.current?.inputValue || "",
-        thumbnail:
-          dropboxRef.current?.files?.length! > 0
-            ? dropboxRef.current?.files![0]
-            : null,
-      })
+      .create(
+        convertFormData<ProjectPayload>({
+          name: projectNameRef?.current?.inputValue || "",
+          thumbnail:
+            dropboxRef.current?.files?.length! > 0
+              ? dropboxRef.current?.files![0]
+              : null,
+        })
+      )
       .then((project) => {
         if (autoProjectOpenRef.current?.isChecked) {
           window.location.href = `/projects/${project.id}`;
