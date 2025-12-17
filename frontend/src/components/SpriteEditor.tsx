@@ -1,13 +1,9 @@
 "use client";
 
-import { memo } from "react";
-import type { DragEvent } from "react";
-
-export type SpriteDragPayload = {
-  kind: "sprite-blueprint";
-  texture: string;
-  label: string;
-};
+import { memo, useState } from 'react';
+import { MixerHorizontalIcon } from '@radix-ui/react-icons';
+import { Button } from './ui/Button';
+import SpriteModal, { type SpriteDragPayload } from './SpriteModal';
 
 export type SpriteInstance = {
   id: string;
@@ -19,97 +15,82 @@ export type SpriteInstance = {
   blockId?: string;
 };
 
-type SpritePaletteItem = {
-  key: string;
-  label: string;
-  texture: string;
-  description?: string;
-};
-
-const SPRITE_PALETTE: SpritePaletteItem[] = [
-  {
-    key: "star",
-    label: "Star",
-    texture: "star",
-    description: "Default arcade star sprite",
-  },
-];
-
 type Props = {
   sprites: SpriteInstance[];
   onRemoveSprite: (spriteId: string) => void;
+  onAssetClick: (payload: SpriteDragPayload) => Promise<boolean>;
 };
 
 const SpriteEditor = memo(function SpriteEditor({
   sprites,
   onRemoveSprite,
+  onAssetClick,
 }: Props) {
-  const handleDragStart = (
-    event: DragEvent<HTMLDivElement>,
-    sprite: SpritePaletteItem
-  ) => {
-    const payload: SpriteDragPayload = {
-      kind: "sprite-blueprint",
-      label: sprite.label,
-      texture: sprite.texture,
-    };
-    event.dataTransfer.setData("application/json", JSON.stringify(payload));
-    event.dataTransfer.effectAllowed = "copy";
-  };
+  const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
 
   return (
-    <section className="rounded-lg bg-light-secondary dark:bg-dark-secondary p-4 text-sm shadow flex-1 ">
-      <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold">Sprite Editor</h2>
-        <p className="text-xs">
-          Drag sprites into the game view to place them.
+    <section className="flex-1 rounded-lg bg-light-secondary p-4 text-sm shadow dark:bg-dark-secondary">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-base font-semibold">Sprite Editor</h2>
+          <p className="text-xs text-slate-600 dark:text-slate-300">
+            Plan your sprite library and drag assets into the game view.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-slate-700 shadow-sm dark:bg-dark-tertiary dark:text-slate-200">
+            {sprites.length} in scene
+          </span>
+          <Button
+            className="btn-confirm whitespace-nowrap px-4"
+            onClick={() => setIsAssetModalOpen(true)}
+            title="Open asset library"
+          >
+            Add sprite to game
+          </Button>
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-lg border border-dashed border-slate-400 bg-light-tertiary p-4 text-xs text-slate-700 shadow-inner dark:border-slate-600 dark:bg-dark-tertiary dark:text-slate-200">
+        <div className="flex items-center gap-2 font-semibold uppercase tracking-wide">
+          <MixerHorizontalIcon className="h-4 w-4" />
+          <span>Asset library preview</span>
+        </div>
+        <p className="mt-2 text-[13px] leading-relaxed">
+          Click &ldquo;Add sprite to game&rdquo; to open the asset picker. You
+          can search, filter, and drag a placeholder card into the Phaser window
+          to prototype placement while the real asset library is being wired up.
         </p>
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-3">
-        {SPRITE_PALETTE.map((sprite) => (
-          <div
-            key={sprite.key}
-            draggable
-            role="button"
-            tabIndex={0}
-            onDragStart={(event) => handleDragStart(event, sprite)}
-            className="flex w-28 cursor-grab flex-col items-center rounded-md border border-dashed bg-light-tertiary dark:bg-dark-tertiary hover:bg-light-hover px-2 py-3 text-center text-xs font-medium transition hover:dark:bg-dark-hover hover:border-slate-600  active:cursor-grabbing dark:border-slate-600  dark:hover:border-slate-400 "
-          >
-            <div className="mb-2 h-8 w-8 rounded-full bg-linear-to-br from-amber-200 via-amber-400 to-amber-600 shadow-inner" />
-            <span>{sprite.label}</span>
-            {sprite.description ? (
-              <span className="mt-1 text-[10px] font-normal ">
-                {sprite.description}
-              </span>
-            ) : null}
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-5 flex flex-col flex-1 overflow-hidden">
-        <h3 className="text-xs font-semibold uppercase tracking-wide">
-          Scene Sprites
-        </h3>
+      <div className="mt-6 flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-dark-tertiary">
+        <div className="flex items-center justify-between bg-light-hover px-3 py-2 text-[11px] font-semibold uppercase tracking-wide dark:bg-dark-hover">
+          <span>Active sprites</span>
+          <span className="text-slate-500 dark:text-slate-300">
+            {sprites.length > 0 ? 'Click remove to clear' : 'Empty'}
+          </span>
+        </div>
         {sprites.length === 0 ? (
-          <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-            No sprites yet. Drag one from the palette and drop it onto the game
-            window.
+          <p className="px-3 py-4 text-xs text-slate-500 dark:text-slate-300">
+            No sprites yet. Choose an asset and drag it into the game to
+            generate one.
           </p>
         ) : (
-          <ul className="mt-2 space-y-2 overflow-y-auto flex-1">
+          <ul className="max-h-40 space-y-2 overflow-y-auto p-3">
             {sprites.map((sprite) => (
               <li
                 key={sprite.id}
-                className="flex items-center justify-between rounded-md border bg-light-tertiary dark:bg-dark-tertiary hover:bg-light-hover hover:dark:bg-dark-hover   px-3 py-2 text-xs shadow-sm dark:border-slate-700 "
+                className="flex items-center justify-between rounded-md border border-slate-200 bg-light-tertiary px-3 py-2 text-xs shadow-sm transition hover:border-primary-green/70 hover:bg-white dark:border-slate-700 dark:bg-dark-secondary dark:hover:border-primary-green/60 dark:hover:bg-dark-hover"
               >
-                <div className="font-semibold">{sprite.variableName}</div>
-                <div className="w-full ml-5   text-[10px]">
-                  {sprite.label} @ ({sprite.x}, {sprite.y})
+                <div className="flex flex-col">
+                  <span className="font-semibold">{sprite.variableName}</span>
+                  <span className="text-[11px] text-slate-600 dark:text-slate-300">
+                    {sprite.label} @ ({sprite.x}, {sprite.y})
+                  </span>
                 </div>
                 <button
                   type="button"
-                  className="cursor-pointer rounded border  px-2 py-1 text-[10px] uppercase tracking-wide transition hover:border-red-400 hover:text-red-600 dark:border-slate-600 dark:hover:border-red-400 dark:hover:text-red-300"
+                  className="rounded border border-red-300 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-red-600 transition hover:bg-red-50 dark:border-red-500/60 dark:text-red-300 dark:hover:bg-red-500/10"
                   onClick={() => onRemoveSprite(sprite.id)}
                 >
                   Remove
@@ -119,6 +100,12 @@ const SpriteEditor = memo(function SpriteEditor({
           </ul>
         )}
       </div>
+
+      <SpriteModal
+        isAssetModalOpen={isAssetModalOpen}
+        setIsAssetModalOpen={setIsAssetModalOpen}
+        onAssetClick={onAssetClick}
+      />
     </section>
   );
 });

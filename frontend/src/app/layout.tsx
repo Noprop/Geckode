@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 // import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import Header from '@/components/Header';
+import { WorkspaceViewProvider } from "@/contexts/WorkspaceViewContext";
 import { SnackbarProvider } from "@/providers/SnackbarProvider";
+import { ThemeProvider } from '@/providers/ThemeProvider';
 
 // const geistSans = Geist({
 //   variable: '--font-geist-sans',
@@ -23,19 +26,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className="antialiased min-h-screen flex flex-col">
-        <header className="bg-primary-green flex items-center h-12">
-          <h1 className="text-shadow-sm text-white pl-4 text-2xl font-bold">
-            Geckode
-          </h1>
-        </header>
-        <main
-          className="flex-1 flex flex-col bg-gray-100 dark:bg-dark-secondary"
-          id="app"
-        >
-          <SnackbarProvider>{children}</SnackbarProvider>
-        </main>
+        <ThemeProvider>
+          <WorkspaceViewProvider>
+            <Header />
+            <main
+              className="flex-1 flex flex-col bg-light-secondary dark:bg-dark-secondary"
+              id="app"
+            >
+              <SnackbarProvider>{children}</SnackbarProvider>
+            </main>
+          </WorkspaceViewProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
