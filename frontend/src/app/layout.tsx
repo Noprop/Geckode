@@ -4,6 +4,7 @@ import "./globals.css";
 import Header from '@/components/Header';
 import { WorkspaceViewProvider } from "@/contexts/WorkspaceViewContext";
 import { SnackbarProvider } from "@/providers/SnackbarProvider";
+import { ThemeProvider } from '@/providers/ThemeProvider';
 
 // const geistSans = Geist({
 //   variable: '--font-geist-sans',
@@ -25,17 +26,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className="antialiased min-h-screen flex flex-col">
-        <WorkspaceViewProvider>
-          <Header />
-          <main
-            className="flex-1 flex flex-col bg-gray-100 dark:bg-dark-secondary"
-            id="app"
-          >
-            <SnackbarProvider>{children}</SnackbarProvider>
-          </main>
-        </WorkspaceViewProvider>
+        <ThemeProvider>
+          <WorkspaceViewProvider>
+            <Header />
+            <main
+              className="flex-1 flex flex-col bg-light-secondary dark:bg-dark-secondary"
+              id="app"
+            >
+              <SnackbarProvider>{children}</SnackbarProvider>
+            </main>
+          </WorkspaceViewProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
