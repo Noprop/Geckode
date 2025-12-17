@@ -72,6 +72,11 @@ body {
   @apply bg-rose-500 hover:bg-rose-400 active:bg-rose-600 shadow-md;
 }
 
+.btn-warn {
+  @apply bg-yellow-600 hover:bg-yellow-500 active:bg-yellow-700 shadow-md;
+}
+
+
 .btn-neutral {
   @apply bg-neutral-500 hover:bg-neutral-400 active:bg-neutral-600 shadow-md;
 }
@@ -229,3 +234,4 @@ body {
 .table-header {
   @apply h-12 bg-light-tertiary dark:bg-dark-tertiary;
 }
+

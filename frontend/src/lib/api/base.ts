@@ -42,6 +42,21 @@ type Inputs = {
   baseUrl: string;
 }
 
+interface BonusFields {toFormData?: boolean}
+
+// converts object into form data (provided every key has a return type of string | Blob)
+export function convertFormData<TPayload>(payload : TPayload) {
+  var formData = new FormData();
+
+  for ( const key in payload ) {
+      formData.append(key, payload[key] as string | Blob);
+  }
+
+  return formData
+}
+
+
+
 export function createBaseApi<
   TData,
   TPayload,
@@ -74,7 +89,7 @@ export function createBaseApi<
 
     const methods = {
       list: (filters?: TFilters) => unwrap<PaginatedResponse<TData>>(api.get(baseUrl, { params: filters })),
-      create: (data: TPayload) => unwrap<Required<TData>>(api.post(baseUrl, data)),
+      create: (data: TPayload | FormData ) => unwrap<Required<TData>>(api.post(baseUrl, data)),
     };
 
     const subApiObjects = Object.entries(subApis).reduce(

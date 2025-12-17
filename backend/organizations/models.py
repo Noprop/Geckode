@@ -69,7 +69,7 @@ class Organization(Model):
             invitee=user,
         ).delete()
 
-    def ban_user(self, user : User, banned_by : User | None, days : int | None =None, reason : str | None = None) -> None:
+    def ban_user(self, user : User, banned_by : User | None, days : int | None =None, reason : str | None = None) -> OrganizationBannedMember:
         return OrganizationBannedMember.objects.create(
             organization=self,
             user=user,

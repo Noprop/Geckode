@@ -29,7 +29,7 @@ export interface ProjectFilters extends BaseFilters {
 export interface ProjectPayload {
   name: string;
   description?: string;
-  thumbnail?: File;
+  thumbnail?: File | null;
   blocks?: {[key: string]: any};
   game_state?: {[key: string]: any};
   sprites?: {[key: string]: any};
