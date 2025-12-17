@@ -1,8 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { HomeIcon, QuestionMarkCircledIcon, PersonIcon } from "@radix-ui/react-icons";
-import WorkspaceToggle from "./WorkspaceToggle";
+import Image from 'next/image';
+import {
+  HomeIcon,
+  QuestionMarkCircledIcon,
+  PersonIcon,
+} from '@radix-ui/react-icons';
+import WorkspaceToggle from './WorkspaceToggle';
 
 export default function Header() {
   return (
@@ -11,9 +16,17 @@ export default function Header() {
       <div className="flex items-center flex-1">
         <Link
           href="/"
-          className="text-white text-2xl font-bold tracking-tight hover:opacity-90 transition-opacity"
+          className="hover:opacity-90 transition-opacity overflow-hidden h-10"
         >
-          Geckode
+          <Image
+            src="/Geckode-logo.png"
+            alt="Geckode"
+            width={180}
+            height={40}
+            className="h-10 w-auto object-cover object-center"
+            style={{ objectPosition: 'center 42%' }}
+            priority
+          />
         </Link>
       </div>
 
