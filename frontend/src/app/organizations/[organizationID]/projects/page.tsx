@@ -31,7 +31,6 @@ export default function ProjectsPage() {
   const projectNameRef = useRef<InputBoxRef | null>(null);
   const autoProjectOpenRef = useRef<InputBoxRef | null>(null);
   const permissionDropdownView = useRef<HTMLSelectElement | null>(null);
-  const [thumbnail, setThumbnail] = useState<string | null>(null);
 
   const [showModal, setShowModal] = useState<null | "create" | "delete">(null);
 
@@ -131,7 +130,9 @@ export default function ProjectsPage() {
         sortKeys={organizationProjectSortKeys}
         defaultSortDirection="desc"
         handleRowClick={(row) =>
-          (window.location.href = `/projects/${row.getValue("id")}/`)
+          (window.location.href = `/projects/${
+            (row.getValue("id") as Project).id
+          }/`)
         }
         actions={[
           {
@@ -167,7 +168,6 @@ export default function ProjectsPage() {
               <Button
                 onClick={() => {
                   setShowModal(null);
-                  setThumbnail(null);
                 }}
                 className="btn-neutral"
               >

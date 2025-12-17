@@ -19,16 +19,19 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
+  headerContent,
 }: Readonly<{
   children: React.ReactNode;
+  headerContent: React.ReactNode;
 }>) {
   return (
     <html lang="en">
       <body className="antialiased min-h-screen flex flex-col">
-        <header className="bg-primary-green flex items-center h-12">
-          <h1 className="text-shadow-sm text-white pl-4 text-2xl font-bold">
+        <header className="bg-primary-green flex items-center h-12 p-4">
+          <h1 className="text-shadow-sm text-white text-2xl font-bold">
             Geckode
           </h1>
+          <div className="ml-auto">{headerContent}</div>
         </header>
         <main
           className="flex-1 flex flex-col bg-gray-100 dark:bg-dark-secondary"

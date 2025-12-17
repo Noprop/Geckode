@@ -1,6 +1,14 @@
 import { User } from "../users";
 import { BaseFilters } from "..";
 
+export const OrgPermissions = [
+  ['view', 'Can view projects'],
+  ['contribute', 'Can contribute projects'],
+  ['invite', 'Can invite members'],
+  ['manage', 'Can remove members'],
+  ['admin', 'Can modify details'],
+]
+
 export interface OrganizationInvitation {
   id: number;
   invited_at: string;

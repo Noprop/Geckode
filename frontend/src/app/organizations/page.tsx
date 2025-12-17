@@ -17,6 +17,15 @@ import { InputBox, InputBoxRef } from "@/components/ui/InputBox";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import DragAndDrop, { DragAndDropRef } from "@/components/DragAndDrop";
 
+//spaces -> dashes, non-alphanumeric characters removed
+export const createSlug = (val: string) => {
+  return val
+    .toLowerCase()
+    .replace(/[^A-Za-z0-9_ -]/g, "")
+    .trim()
+    .replaceAll(" ", "-");
+};
+
 export default function OrganizationsPage() {
   const showSnackbar = useSnackbar();
 
@@ -46,17 +55,6 @@ export default function OrganizationsPage() {
 
     fetchUserInfo();
   }, []);
-
-  //spaces -> dashes, non-alphanumeric characters removed
-  const createSlug = (val: string) => {
-    setSlug(
-      val
-        .toLowerCase()
-        .replace(/[^A-Za-z0-9_ -]/g, "")
-        .trim()
-        .replaceAll(" ", "-")
-    );
-  };
 
   const createOrganization = () => {
     const orgName = organizationNameRef?.current?.inputValue || "";
@@ -193,7 +191,7 @@ export default function OrganizationsPage() {
               ref={organizationNameRef}
               placeholder="Organization name"
               className="bg-white text-black mt-3 border-0"
-              onChange={(e) => createSlug(e.target.value)}
+              onChange={(e) => setSlug(createSlug(e.target.value))}
             />
             <p className="mt-3 mb-2 h-4 text-white">{slug}</p>
             <p>Organization Thumbnail:</p>
