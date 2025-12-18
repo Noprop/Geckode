@@ -34,10 +34,9 @@ const PhaserGame = dynamic(() => import('@/components/PhaserGame'), {
   ssr: false,
   loading: () => (
     <div
-      className="bg-white dark:bg-black"
+      className="bg-white dark:bg-black w-full"
       style={{
-        width: 480,
-        height: 360,
+        aspectRatio: '480 / 360',
       }}
     />
   ),
