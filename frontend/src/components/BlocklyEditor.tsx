@@ -38,16 +38,25 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(
         const blocklyOptions: Blockly.BlocklyOptions = {
           toolbox: toolbox as Blockly.utils.toolbox.ToolboxDefinition,
           sounds: false,
-          renderer: "zelos",
+          renderer: 'zelos',
           readOnly: false,
           trashcan: true,
-          media: "media/",
+          media: 'media/',
           move: {
             scrollbars: true,
             drag: true,
             wheel: true,
           },
           theme: Geckode,
+          zoom: {
+            controls: true,
+            wheel: true,
+            startScale: 1.0,
+            maxScale: 3.0,
+            minScale: 0.5,
+            scaleSpeed: 1.35,
+            pinch: true,
+          },
         };
 
         workspaceRef.current = Blockly.inject(
