@@ -8,10 +8,33 @@ type PosCB = (pos: { x: number; y: number }) => void;
 
 export type GameAPI = {
   moveBy: (dx: number, dy: number) => void;
-  createPlayer: (xPos: number|null, yPos: number|null, starKey: string|null) => void;
-  addStar: (xPos: number|null, yPos: number|null, starKey: string|null) => void;
-  addSpriteFromEditor: (texture: string, x: number, y: number, id: string) => void;
+  createPlayer: (
+    xPos: number | null,
+    yPos: number | null,
+    starKey: string | null
+  ) => void;
+  addStar: (
+    xPos: number | null,
+    yPos: number | null,
+    starKey: string | null
+  ) => void;
+  addSpriteFromEditor: (
+    texture: string,
+    x: number,
+    y: number,
+    id: string
+  ) => void;
   removeEditorSprite: (id: string) => void;
+  updateEditorSprite: (
+    id: string,
+    updates: {
+      x?: number;
+      y?: number;
+      visible?: boolean;
+      size?: number;
+      direction?: number;
+    }
+  ) => void;
   wait: (ms: number) => Promise<void>;
   stopAll: () => void;
 };
@@ -40,15 +63,14 @@ export default class MainMenu extends Phaser.Scene {
   private posCB?: PosCB;
   private lastSent = { x: -1, y: -1 };
   private editorSprites = new Map<string, Phaser.Physics.Arcade.Sprite>();
-  private static readonly EDITOR_SPRITE_BASE_DEPTH = Number.MAX_SAFE_INTEGER - 100;
+  private static readonly EDITOR_SPRITE_BASE_DEPTH =
+    Number.MAX_SAFE_INTEGER - 100;
   private editorLayer!: Phaser.GameObjects.Layer;
-  private activeDrag:
-    | {
-        sprite: Phaser.Physics.Arcade.Sprite;
-        start: { x: number; y: number };
-        lastWorld: { x: number; y: number };
-      }
-    | null = null;
+  private activeDrag: {
+    sprite: Phaser.Physics.Arcade.Sprite;
+    start: { x: number; y: number };
+    lastWorld: { x: number; y: number };
+  } | null = null;
 
   constructor() {
     super(MAIN_MENU_SCENE_KEY);
@@ -86,23 +108,26 @@ export default class MainMenu extends Phaser.Scene {
     this.editorLayer = this.add.layer();
     this.editorLayer.setDepth(MainMenu.EDITOR_SPRITE_BASE_DEPTH);
 
-    this.start()
+    this.start();
     this.registerDragEvents();
   }
 
-  public createPlayer(xPos: number|null, yPos: number|null, starKey: string|null) {
+  public createPlayer(
+    xPos: number | null,
+    yPos: number | null,
+    starKey: string | null
+  ) {
     const x = xPos ? xPos : 400;
     const y = yPos ? yPos : 300;
-    const key = starKey ? starKey : 'player'
-    
+    const key = starKey ? starKey : 'player';
+
     // Create a physics-enabled sprite
     this.player = this.physics.add.sprite(x, y, key);
     this.player.name = 'player';
     this.player.setCollideWorldBounds(true);
   }
 
-  start(){
-  }
+  start() {}
 
   /**
    * Keep your existing React contract:
@@ -121,10 +146,14 @@ export default class MainMenu extends Phaser.Scene {
   /**
    * Optional: If you already have addStar() wired from React, keep it.
    */
-  public addStar(xPos: number|null = null, yPos: number|null = null, starKey: string|null = null) {
-    const x = xPos ? xPos :Phaser.Math.Between(50, 750);
+  public addStar(
+    xPos: number | null = null,
+    yPos: number | null = null,
+    starKey: string | null = null
+  ) {
+    const x = xPos ? xPos : Phaser.Math.Between(50, 750);
     const y = yPos ? yPos : Phaser.Math.Between(50, 550);
-    const key = starKey ? starKey : 'star'
+    const key = starKey ? starKey : 'star';
     this.physics.add.sprite(x, y, key);
   }
 
@@ -150,6 +179,39 @@ export default class MainMenu extends Phaser.Scene {
     if (!sprite) return;
     sprite.destroy();
     this.editorSprites.delete(id);
+  }
+
+  public updateEditorSprite(
+    id: string,
+    updates: {
+      x?: number;
+      y?: number;
+      visible?: boolean;
+      size?: number;
+      direction?: number;
+    }
+  ) {
+    const sprite = this.editorSprites.get(id);
+    if (!sprite) return;
+
+    if (updates.x !== undefined) {
+      sprite.setX(updates.x);
+    }
+    if (updates.y !== undefined) {
+      sprite.setY(updates.y);
+    }
+    if (updates.visible !== undefined) {
+      sprite.setVisible(updates.visible);
+    }
+    if (updates.size !== undefined) {
+      // Size is a percentage (100 = 100% = scale 1)
+      const scale = updates.size / 100;
+      sprite.setScale(scale);
+    }
+    if (updates.direction !== undefined) {
+      // Direction in degrees, Phaser uses angle property
+      sprite.setAngle(updates.direction - 90); // Scratch-style: 90 = right, convert to Phaser
+    }
   }
 
   update() {
@@ -189,10 +251,17 @@ export default class MainMenu extends Phaser.Scene {
         this.player.setX(this.player.x + dx);
         this.player.setY(this.player.y + dy);
       },
-      createPlayer: (xPos, yPos, starKey) => this.createPlayer(xPos, yPos, starKey),
+      createPlayer: (xPos, yPos, starKey) =>
+        this.createPlayer(xPos, yPos, starKey),
       addStar: (xPos, yPos, starKey) => this.addStar(xPos, yPos, starKey),
-      addSpriteFromEditor: (texture: string, x: number, y: number, id: string) => this.addSpriteFromEditor(texture, x, y, id),
+      addSpriteFromEditor: (
+        texture: string,
+        x: number,
+        y: number,
+        id: string
+      ) => this.addSpriteFromEditor(texture, x, y, id),
       removeEditorSprite: (id: string) => this.removeEditorSprite(id),
+      updateEditorSprite: (id, updates) => this.updateEditorSprite(id, updates),
       wait: (ms: number) => new Promise((r) => setTimeout(r, ms)),
       stopAll: () => {
         if (!this.player) return;
@@ -211,7 +280,10 @@ export default class MainMenu extends Phaser.Scene {
 
     this.input.on(
       'dragstart',
-      (_pointer: Phaser.Input.Pointer, gameObject: Phaser.GameObjects.GameObject) => {
+      (
+        _pointer: Phaser.Input.Pointer,
+        gameObject: Phaser.GameObjects.GameObject
+      ) => {
         const sprite = gameObject as Phaser.Physics.Arcade.Sprite;
         const editorId = sprite.getData('editorSpriteId');
         if (!editorId) return;
@@ -226,12 +298,12 @@ export default class MainMenu extends Phaser.Scene {
       }
     );
 
-    this.input.on(
-      'drag',
-      (pointer: Phaser.Input.Pointer) => {
-        this.updateDragPositionFromEvent(pointer.event as PointerEvent | undefined, pointer);
-      }
-    );
+    this.input.on('drag', (pointer: Phaser.Input.Pointer) => {
+      this.updateDragPositionFromEvent(
+        pointer.event as PointerEvent | undefined,
+        pointer
+      );
+    });
 
     this.input.on(
       'dragend',
@@ -248,14 +320,22 @@ export default class MainMenu extends Phaser.Scene {
 
   private attachGlobalDragListeners() {
     if (typeof window === 'undefined') return;
-    window.addEventListener('pointermove', this.handleGlobalPointerMove, { capture: true });
-    window.addEventListener('pointerup', this.handleGlobalPointerUp, { capture: true });
+    window.addEventListener('pointermove', this.handleGlobalPointerMove, {
+      capture: true,
+    });
+    window.addEventListener('pointerup', this.handleGlobalPointerUp, {
+      capture: true,
+    });
   }
 
   private detachGlobalDragListeners() {
     if (typeof window === 'undefined') return;
-    window.removeEventListener('pointermove', this.handleGlobalPointerMove, { capture: true });
-    window.removeEventListener('pointerup', this.handleGlobalPointerUp, { capture: true });
+    window.removeEventListener('pointermove', this.handleGlobalPointerMove, {
+      capture: true,
+    });
+    window.removeEventListener('pointerup', this.handleGlobalPointerUp, {
+      capture: true,
+    });
   }
 
   private handleGlobalPointerMove = (event: PointerEvent) => {

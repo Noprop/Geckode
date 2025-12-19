@@ -452,34 +452,49 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
     (spriteId: string, updates: Partial<SpriteInstance>) => {
       const workspace =
         blocklyRef.current?.getWorkspace() as Blockly.WorkspaceSvg | null;
-      const sprite = spriteInstances.find(
-        (instance) => instance.id === spriteId
-      );
+      const scene = phaserRef.current?.scene;
 
-      // Update Blockly block fields if they exist
-      if (workspace && sprite?.blockId) {
-        const block = workspace.getBlockById(sprite.blockId);
-        if (block) {
-          if ('x' in updates && updates.x !== undefined) {
-            block.setFieldValue(String(updates.x), 'X');
-          }
-          if ('y' in updates && updates.y !== undefined) {
-            block.setFieldValue(String(updates.y), 'Y');
-          }
-          if ('variableName' in updates && updates.variableName !== undefined) {
-            block.setFieldValue(updates.variableName, 'NAME');
+      setSpriteInstances((prev) => {
+        const sprite = prev.find((instance) => instance.id === spriteId);
+        if (!sprite) return prev;
+
+        // Update Blockly block fields if they exist
+        if (workspace && sprite.blockId) {
+          const block = workspace.getBlockById(sprite.blockId);
+          if (block) {
+            if ('x' in updates && updates.x !== undefined) {
+              block.setFieldValue(String(updates.x), 'X');
+            }
+            if ('y' in updates && updates.y !== undefined) {
+              block.setFieldValue(String(updates.y), 'Y');
+            }
+            if (
+              'variableName' in updates &&
+              updates.variableName !== undefined
+            ) {
+              block.setFieldValue(updates.variableName, 'NAME');
+            }
           }
         }
-      }
 
-      // Update sprite instances state
-      setSpriteInstances((prev) =>
-        prev.map((instance) =>
+        // Update Phaser sprite in the scene
+        if (scene?.updateEditorSprite) {
+          scene.updateEditorSprite(spriteId, {
+            x: updates.x,
+            y: updates.y,
+            visible: updates.visible,
+            size: updates.size,
+            direction: updates.direction,
+          });
+        }
+
+        // Update sprite instances state
+        return prev.map((instance) =>
           instance.id === spriteId ? { ...instance, ...updates } : instance
-        )
-      );
+        );
+      });
     },
-    [spriteInstances]
+    []
   );
 
   const handlePhaserPointerDown = useCallback(() => {
