@@ -19,11 +19,6 @@ import starterWorkspaceNewProject from '@/blockly/starterWorkspaceNewProject';
 import { useWorkspaceView } from '@/contexts/WorkspaceViewContext';
 import { EventBus } from '@/phaser/EventBus';
 import { setSpriteDropdownOptions } from '@/blockly/spriteRegistry';
-import {
-  CounterClockwiseClockIcon,
-  ResetIcon,
-  ArrowRightIcon,
-} from '@radix-ui/react-icons';
 
 export type PhaserRef = {
   readonly game: Game;
@@ -453,6 +448,40 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
     block?.dispose(true);
   };
 
+  const handleUpdateSprite = useCallback(
+    (spriteId: string, updates: Partial<SpriteInstance>) => {
+      const workspace =
+        blocklyRef.current?.getWorkspace() as Blockly.WorkspaceSvg | null;
+      const sprite = spriteInstances.find(
+        (instance) => instance.id === spriteId
+      );
+
+      // Update Blockly block fields if they exist
+      if (workspace && sprite?.blockId) {
+        const block = workspace.getBlockById(sprite.blockId);
+        if (block) {
+          if ('x' in updates && updates.x !== undefined) {
+            block.setFieldValue(String(updates.x), 'X');
+          }
+          if ('y' in updates && updates.y !== undefined) {
+            block.setFieldValue(String(updates.y), 'Y');
+          }
+          if ('variableName' in updates && updates.variableName !== undefined) {
+            block.setFieldValue(updates.variableName, 'NAME');
+          }
+        }
+      }
+
+      // Update sprite instances state
+      setSpriteInstances((prev) =>
+        prev.map((instance) =>
+          instance.id === spriteId ? { ...instance, ...updates } : instance
+        )
+      );
+    },
+    [spriteInstances]
+  );
+
   const handlePhaserPointerDown = useCallback(() => {
     // check to see if this function has been exposed;
     // this means that Blockly has been injected
@@ -516,7 +545,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
           </div>
         </div>
 
-        <div className="flex flex-col h-[calc(100vh-4rem-3.5rem)] p-3 w-[480px] max-w-full">
+        <div className="flex flex-col h-[calc(100vh-4rem-3.5rem)] py-3 pr-2 w-[480px] max-w-full">
           <div
             className="rounded-xl border border-dashed border-slate-400 dark:border-slate-600
                     p-2  bg-light-secondary dark:bg-dark-secondary"
@@ -531,6 +560,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
             sprites={spriteInstances}
             onRemoveSprite={handleRemoveSprite}
             onAssetClick={addSpriteToGame}
+            onUpdateSprite={handleUpdateSprite}
           />
         </div>
       </div>
