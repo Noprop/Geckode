@@ -128,7 +128,7 @@ const DragAndDrop = ({
         {files?.map((f, idx) => (
           <li
             key={idx}
-            className="bg-light-hover dark:bg-dark-hover rounded-lg w-full my-1 flex pr-4"
+            className="bg-light-hover dark:bg-dark-hover rounded-lg w-full my-1 flex pr-4 h-9"
           >
             {f.type.startsWith("image") && (
               <img

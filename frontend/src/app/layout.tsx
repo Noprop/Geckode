@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 // import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Header from '@/components/Header';
+import Header from "@/components/Header";
 import { WorkspaceViewProvider } from "@/contexts/WorkspaceViewContext";
 import { SnackbarProvider } from "@/providers/SnackbarProvider";
-import { ThemeProvider } from '@/providers/ThemeProvider';
+import { ThemeProvider } from "@/providers/ThemeProvider";
 
 // const geistSans = Geist({
 //   variable: '--font-geist-sans',
@@ -22,8 +22,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
+  headerContent,
 }: Readonly<{
   children: React.ReactNode;
+  headerContent: React.ReactNode;
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>

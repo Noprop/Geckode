@@ -60,6 +60,13 @@ body {
 /* Background classes */
 
 
+.header-1 {
+  @apply text-3xl mb-2 font-bold;
+}
+.header-2 {
+  @apply text-2xl mb-2 font-bold;
+}
+
 .btn {
   @apply items-center justify-center rounded-lg border border-slate-300 px-2 py-1 text-xs text-dark-txt text-shadow-2xs cursor-pointer disabled:cursor-not-allowed disabled:opacity-50;
 }
@@ -234,4 +241,5 @@ body {
 .table-header {
   @apply h-12 bg-light-tertiary dark:bg-dark-tertiary;
 }
+
 

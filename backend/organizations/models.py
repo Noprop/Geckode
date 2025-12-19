@@ -6,7 +6,7 @@ import string
 import random
 
 def org_thumbnail_path(_instance, filename : str):
-    characters = string.ascii_letters + string.digits + string.punctuation
+    characters = string.ascii_letters + string.digits
     random_string = ''.join(random.choices(characters, k=20))
     file_ext = filename.split('.')[-1]
     return f"org-thumbnails/{random_string}.{file_ext}"
