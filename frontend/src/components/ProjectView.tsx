@@ -1,36 +1,45 @@
 "use client";
 
-import dynamic from "next/dynamic";
-import { useRef, useState, useEffect, useCallback, DragEvent } from "react";
-import BlocklyEditor, { BlocklyEditorHandle } from "@/components/BlocklyEditor";
-import { javascriptGenerator } from "blockly/javascript";
-import * as Blockly from "blockly/core";
-import projectsApi from "@/lib/api/handlers/projects";
-import { createPhaserState, PhaserExport } from "@/phaser/PhaserStateManager";
-import { Game } from "phaser";
-import MainMenu from "@/phaser/scenes/MainMenu";
+import Image from 'next/image';
+import dynamic from 'next/dynamic';
+import { useRef, useState, useEffect, useCallback, DragEvent } from 'react';
+import BlocklyEditor, { BlocklyEditorHandle } from '@/components/BlocklyEditor';
+import { javascriptGenerator } from 'blockly/javascript';
+import * as Blockly from 'blockly/core';
+import projectsApi from '@/lib/api/handlers/projects';
+import { createPhaserState, PhaserExport } from '@/phaser/PhaserStateManager';
+import { Game } from 'phaser';
+import MainMenu from '@/phaser/scenes/MainMenu';
 import SpriteEditor, { SpriteInstance } from '@/components/SpriteEditor';
 import { type SpriteDragPayload } from '@/components/SpriteModal';
-import starterWorkspace from "@/blockly/starterWorkspace";
-import { Button } from "./ui/Button";
-import { useSnackbar } from "@/hooks/useSnackbar";
-import starterWorkspaceNewProject from "@/blockly/starterWorkspaceNewProject";
-import { useWorkspaceView } from "@/contexts/WorkspaceViewContext";
-import { EventBus } from "@/phaser/EventBus";
-import { setSpriteDropdownOptions } from "@/blockly/spriteRegistry";
+import starterWorkspace from '@/blockly/starterWorkspace';
+import { Button } from './ui/Button';
+import { useSnackbar } from '@/hooks/useSnackbar';
+import starterWorkspaceNewProject from '@/blockly/starterWorkspaceNewProject';
+import { useWorkspaceView } from '@/contexts/WorkspaceViewContext';
+import { EventBus } from '@/phaser/EventBus';
+import { setSpriteDropdownOptions } from '@/blockly/spriteRegistry';
+import {
+  CounterClockwiseClockIcon,
+  ResetIcon,
+  ArrowRightIcon,
+} from '@radix-ui/react-icons';
 
 export type PhaserRef = {
   readonly game: Game;
   readonly scene: MainMenu;
 } | null;
 
-const PhaserGame = dynamic(() => import("@/components/PhaserGame"), {
+const PhaserGame = dynamic(() => import('@/components/PhaserGame'), {
   ssr: false,
   loading: () => (
-    <div className="bg-white dark:bg-black" style={{
-      width: 480,
-      height: 360,
-    }} />
+    <div
+      className="bg-white dark:bg-black"
+      style={{
+        width: 480,
+        height: 360,
+      }}
+    />
   ),
 });
 
@@ -60,10 +69,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
 
     if (!projectId) {
       if (workspace.getAllBlocks(false).length <= 0) {
-        Blockly.serialization.workspaces.load(
-          starterWorkspace,
-          workspace
-        );
+        Blockly.serialization.workspaces.load(starterWorkspace, workspace);
       }
       return;
     }
@@ -74,11 +80,13 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
         .then((project) => {
           try {
             Blockly.serialization.workspaces.load(
-              Object.keys(project.blocks).length ? project.blocks : starterWorkspaceNewProject,
+              Object.keys(project.blocks).length
+                ? project.blocks
+                : starterWorkspaceNewProject,
               workspace
             );
           } catch {
-            showSnackbar("Failed to load workspace!", "error");
+            showSnackbar('Failed to load workspace!', 'error');
           }
 
           setPhaserState(project.game_state);
@@ -94,7 +102,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
   };
 
   const currentScene = (scene: { scene: { key: string } }) => {
-    setCanMoveSprite(scene.scene.key !== "MainMenu");
+    setCanMoveSprite(scene.scene.key !== 'MainMenu');
   };
 
   const generateCode = () => {
@@ -147,6 +155,18 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
     console.log('Workspace JSON', JSON.stringify(workspaceState, null, 2));
   };
 
+  const undoWorkspace = () => {
+    const workspace = blocklyRef.current?.getWorkspace();
+    if (!workspace) return;
+    workspace.undo(false);
+  };
+
+  const redoWorkspace = () => {
+    const workspace = blocklyRef.current?.getWorkspace();
+    if (!workspace) return;
+    workspace.undo(true);
+  };
+
   const workspaceDeleteHandler = useCallback(
     (event: Blockly.Events.Abstract) => {
       if (event.type !== Blockly.Events.BLOCK_DELETE) return;
@@ -193,8 +213,17 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
   }, []);
 
   useEffect(() => {
-    const handleSpriteMove = ({ id, x, y }: { id: string; x: number; y: number }) => {
-      const workspace = blocklyRef.current?.getWorkspace() as Blockly.WorkspaceSvg | null;
+    const handleSpriteMove = ({
+      id,
+      x,
+      y,
+    }: {
+      id: string;
+      x: number;
+      y: number;
+    }) => {
+      const workspace =
+        blocklyRef.current?.getWorkspace() as Blockly.WorkspaceSvg | null;
       setSpriteInstances((prev) =>
         prev.map((sprite) => {
           if (sprite.id !== id) return sprite;
@@ -248,10 +277,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
   );
 
   const addSpriteToGame = useCallback(
-    async (
-      payload: SpriteDragPayload,
-      position?: { x: number; y: number }
-    ) => {
+    async (payload: SpriteDragPayload, position?: { x: number; y: number }) => {
       const game = phaserRef.current?.game;
       const scene = phaserRef.current?.scene;
       const workspace =
@@ -268,10 +294,11 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
           throw new Error('Missing texture data for sprite payload.');
         }
 
-        const isDataUrl = payload.dataUrl.startsWith('data:');
+        const dataUrl = payload.dataUrl;
+        const isDataUrl = dataUrl.startsWith('data:');
         if (isDataUrl) {
           const textureReady = new Promise<void>((resolve, reject) => {
-            const img = new Image();
+            const img = new window.Image();
             img.onload = () => {
               try {
                 scene.textures.addImage(payload.texture, img);
@@ -282,7 +309,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
             };
             img.onerror = () =>
               reject(new Error('Failed to load base64 texture data.'));
-            img.src = payload.dataUrl;
+            img.src = dataUrl;
           });
           await textureReady;
           return;
@@ -299,7 +326,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
           };
           scene.load.once('complete', handleComplete);
           scene.load.once('loaderror', handleError);
-          scene.load.image(payload.texture, payload.dataUrl);
+          scene.load.image(payload.texture, dataUrl);
           scene.load.start();
         });
       };
@@ -338,7 +365,9 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
         (instance) => instance.texture === payload.texture
       ).length;
       const variableName = `${safeBase}${duplicateCount + 1}`;
-      const spriteId = `sprite-${Date.now()}-${Math.round(Math.random() * 1e4)}`;
+      const spriteId = `sprite-${Date.now()}-${Math.round(
+        Math.random() * 1e4
+      )}`;
 
       scene.addSpriteFromEditor(payload.texture, worldX, worldY, spriteId);
 
@@ -445,14 +474,15 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
 
   useEffect(() => {
     if (view !== 'blocks') return;
-    const workspace = blocklyRef.current?.getWorkspace() as Blockly.WorkspaceSvg | null;
+    const workspace =
+      blocklyRef.current?.getWorkspace() as Blockly.WorkspaceSvg | null;
     if (!workspace) return;
     requestAnimationFrame(() => Blockly.svgResize(workspace));
   }, [view]);
 
   return (
     <>
-      <div className="flex h-[calc(100vh-4rem)]">
+      <div className="flex h-[calc(100vh-4rem-3.5rem)]">
         <div className="relative flex-1 min-h-0 min-w-0 bg-light-whiteboard dark:bg-dark-whiteboard rounded-lg mr-3 overflow-hidden">
           <div
             className={`absolute inset-0 transition-opacity duration-150 ${
@@ -480,13 +510,14 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
                 Sprite Editor Workspace
               </h2>
               <p className="mt-3 text-sm text-slate-700 dark:text-slate-200">
-                A dedicated sprite editor will live here. For now, continue using the tools on the right.
+                A dedicated sprite editor will live here. For now, continue
+                using the tools on the right.
               </p>
             </div>
           </div>
         </div>
 
-        <div className="flex flex-col h-[calc(100vh-4rem)] p-3 w-[480px] max-w-full">
+        <div className="flex flex-col h-[calc(100vh-4rem-3.5rem)] p-3 w-[480px] max-w-full">
           <div
             className="rounded-xl border border-dashed border-slate-400 dark:border-slate-600
                     p-2  bg-light-secondary dark:bg-dark-secondary"
@@ -497,52 +528,6 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
             <PhaserGame ref={phaserRef} phaserState={phaserState} />
           </div>
 
-          <div className="flex justify-around my-3">
-            <Button
-              className="btn-deny"
-              onClick={changeScene}
-              title="Change Scene"
-            >
-              Change Scene
-            </Button>
-
-            <Button
-              onClick={() => {
-                generateCode();
-                handlePhaserPointerDown();
-                showSnackbar('Code was successfully generated!', 'success');
-              }}
-              className="btn-confirm"
-              title="Convert Now"
-            >
-              Convert Now
-            </Button>
-
-            <Button
-              onClick={saveProject}
-              className="btn-alt2"
-              title="Save"
-            >
-              Save
-            </Button>
-
-            <Button
-              onClick={exportWorkspaceState}
-              className="btn-neutral w-1/3"
-              title="Export Workspace"
-            >
-              Export Workspace
-            </Button>
-
-            {/* currently adding this fucks the dimensions of the entire column and thus the phaser window :/ */}
-            {/* <div
-              className="w-full rounded-lg border border-slate-800
-                   dark:border-slate-300 px-2 py-1 align-middle text-xs"
-            >
-              <pre className="mt-1">{`Sprite Position: { x: ${spritePosition.x}, y: ${spritePosition.y} }`}</pre>
-            </div> */}
-          </div>
-
           <SpriteEditor
             sprites={spriteInstances}
             onRemoveSprite={handleRemoveSprite}
@@ -550,6 +535,98 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
           />
         </div>
       </div>
+      <footer className="fixed bottom-0 left-0 right-0 h-14 bg-light-secondary dark:bg-dark-secondary border-t border-slate-300 dark:border-slate-600 flex items-center justify-between px-4 z-50">
+        {/* Left group */}
+        <div className="flex gap-2">
+          <Button
+            className="btn-deny"
+            onClick={changeScene}
+            title="Change Scene"
+          >
+            Change Scene
+          </Button>
+        </div>
+
+        {/* Center group */}
+        <div className="flex gap-2">
+          <Button
+            onClick={() => {
+              generateCode();
+              handlePhaserPointerDown();
+              showSnackbar('Code was successfully generated!', 'success');
+            }}
+            className="btn-confirm"
+            title="Convert Now"
+          >
+            Convert Now
+          </Button>
+          <Button onClick={saveProject} className="btn-alt2" title="Save">
+            Save
+          </Button>
+        </div>
+
+        {/* Right group */}
+        <div className="flex gap-2">
+          <Button
+            onClick={exportWorkspaceState}
+            className="btn-neutral"
+            title="Export Workspace"
+          >
+            Export Workspace
+          </Button>
+
+          {/* The ResetIcon is also viable. IMO, the svg looks better now as of Dec 18, 2025 */}
+          <Button onClick={undoWorkspace} className="btn-neutral" title="Undo">
+            <svg
+              aria-hidden="true"
+              focusable="false"
+              className="octicon octicon-undo"
+              viewBox="0 0 16 16"
+              width="16"
+              height="16"
+              fill="currentColor"
+              display="inline-block"
+              overflow="visible"
+            >
+              <path d="M1.22 6.28a.749.749 0 0 1 0-1.06l3.5-3.5a.749.749 0 1 1 1.06 1.06L3.561 5h7.188l.001.007L10.749 5c.058 0 .116.007.171.019A4.501 4.501 0 0 1 10.5 14H8.796a.75.75 0 0 1 0-1.5H10.5a3 3 0 1 0 0-6H3.561L5.78 8.72a.749.749 0 1 1-1.06 1.06l-3.5-3.5Z"></path>
+            </svg>
+            {/* <ResetIcon
+              width={20}
+              height={20}
+              style={{ verticalAlign: 'middle' }}
+            /> */}
+          </Button>
+          <Button onClick={redoWorkspace} className="btn-neutral" title="Redo">
+            <span
+              style={{
+                display: 'inline-block',
+                transform: 'rotate(180deg) scaleY(-1)',
+                verticalAlign: 'middle',
+              }}
+            >
+              {/* <ResetIcon
+                width={20}
+                height={20}
+                style={{ verticalAlign: 'middle' }}
+              /> */}
+              <svg
+                aria-hidden="true"
+                focusable="false"
+                className="octicon octicon-undo"
+                viewBox="0 0 16 16"
+                width="16"
+                height="16"
+                fill="currentColor"
+                display="inline-block"
+                overflow="visible"
+                style={{ verticalAlign: 'middle' }}
+              >
+                <path d="M1.22 6.28a.749.749 0 0 1 0-1.06l3.5-3.5a.749.749 0 1 1 1.06 1.06L3.561 5h7.188l.001.007L10.749 5c.058 0 .116.007.171.019A4.501 4.501 0 0 1 10.5 14H8.796a.75.75 0 0 1 0-1.5H10.5a3 3 0 1 0 0-6H3.561L5.78 8.72a.749.749 0 1 1-1.06 1.06l-3.5-3.5Z"></path>
+              </svg>
+            </span>
+          </Button>
+        </div>
+      </footer>
     </>
   );
 };

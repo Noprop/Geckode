@@ -38,16 +38,25 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(
         const blocklyOptions: Blockly.BlocklyOptions = {
           toolbox: toolbox as Blockly.utils.toolbox.ToolboxDefinition,
           sounds: false,
-          renderer: "zelos",
+          renderer: 'zelos',
           readOnly: false,
-          trashcan: true,
-          media: "media/",
+          trashcan: false,
+          media: '/',
           move: {
             scrollbars: true,
             drag: true,
             wheel: true,
           },
           theme: Geckode,
+          zoom: {
+            controls: true,
+            wheel: true,
+            startScale: 0.75,
+            maxScale: 2.0,
+            minScale: 0.4,
+            scaleSpeed: 1.35,
+            pinch: true,
+          },
         };
 
         workspaceRef.current = Blockly.inject(
@@ -55,10 +64,96 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(
           blocklyOptions
         );
 
+        // Customize zoom controls to use custom +/- icons
+        const customizeZoomControl = (
+          zoomGroup: SVGGElement,
+          iconPath: string
+        ) => {
+          // Remove all existing children (images and clip-paths)
+          while (zoomGroup.firstChild) {
+            zoomGroup.removeChild(zoomGroup.firstChild);
+          }
+
+          // Create a new image element with our custom SVG
+          const customImage = document.createElementNS(
+            'http://www.w3.org/2000/svg',
+            'image'
+          );
+          customImage.setAttribute('href', iconPath);
+          customImage.setAttribute('width', '32');
+          customImage.setAttribute('height', '32');
+          customImage.setAttribute('x', '0');
+          customImage.setAttribute('y', '0');
+          zoomGroup.appendChild(customImage);
+        };
+
+        const customizeZoomControls = (container: Element) => {
+          const zoomIn = container.querySelector(
+            '.blocklyZoomIn'
+          ) as SVGGElement | null;
+          const zoomOut = container.querySelector(
+            '.blocklyZoomOut'
+          ) as SVGGElement | null;
+          const zoomReset = container.querySelector(
+            '.blocklyZoomReset'
+          ) as SVGGElement | null;
+
+          if (zoomIn) {
+            customizeZoomControl(zoomIn, '/zoom-plus.svg');
+          }
+          if (zoomOut) {
+            customizeZoomControl(zoomOut, '/zoom-minus.svg');
+          }
+          // Hide the reset button - only show +/-
+          if (zoomReset) {
+            zoomReset.style.display = 'none';
+          }
+        };
+
+        // Look for existing zoom controls or observe for their creation
+        const blocklyContainer = blocklyDivRef.current;
+        const existingZoomIn = blocklyContainer.querySelector('.blocklyZoomIn');
+
+        if (existingZoomIn) {
+          customizeZoomControls(blocklyContainer);
+        } else {
+          // Observe for zoom controls being added to the DOM
+          const observer = new MutationObserver((mutations) => {
+            for (const mutation of mutations) {
+              for (const node of mutation.addedNodes) {
+                if (node instanceof Element) {
+                  const hasZoomControls =
+                    node.classList?.contains('blocklyZoom') ||
+                    node.querySelector?.('.blocklyZoom');
+                  if (hasZoomControls) {
+                    customizeZoomControls(blocklyContainer);
+                    observer.disconnect();
+                    return;
+                  }
+                }
+              }
+            }
+          });
+
+          observer.observe(blocklyContainer, {
+            childList: true,
+            subtree: true,
+          });
+
+          // Fallback timeout
+          setTimeout(() => {
+            observer.disconnect();
+            const zoomIn = blocklyContainer.querySelector('.blocklyZoomIn');
+            if (zoomIn) {
+              customizeZoomControls(blocklyContainer);
+            }
+          }, 500);
+        }
+
         onWorkspaceReady?.(workspaceRef.current);
 
         workspaceRef.current.registerButtonCallback(
-          "createVariableButton",
+          'createVariableButton',
           (button: Blockly.FlyoutButton) => {
             const ws = button.getTargetWorkspace();
             const toolbox = ws.getToolbox();
@@ -69,7 +164,7 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(
         );
 
         workspaceRef.current.registerToolboxCategoryCallback(
-          "CUSTOM_VARIABLES",
+          'CUSTOM_VARIABLES',
           variableCategoryCallback
         );
       }
