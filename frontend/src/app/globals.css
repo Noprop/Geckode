@@ -1,19 +1,23 @@
 @import "tailwindcss";
 
+/* Enable class-based dark mode for manual toggle */
+@custom-variant dark (&:where(.dark, .dark *));
 
 /* put custom colors/parametres here. tailwind handles these automatically */
 @theme {
   /* main design colors */
-  --color-primary-green: #25c583;
+  --color-primary-green: #25A76F;
   --color-accent-green: #a7f1cd;
 
-  --color-light-bg: #b0b0c0;
-  --color-light-secondary: #9797a9;
-  --color-light-tertiary: #b4b4c4;
-  --color-light-hover: #d5d5e5;
-  --color-light-whiteboard: #d0d0de;
-  --color-light-txt: #404040;
+  /* Light theme - clean, high contrast */
+  --color-light-bg: #f5f5f7;
+  --color-light-secondary: #e8e8ec;
+  --color-light-tertiary: #dcdce2;
+  --color-light-hover: #d0d0d8;
+  --color-light-whiteboard: #ffffff;
+  --color-light-txt: #1a1a1a;
 
+  /* Dark theme */
   --color-dark-bg: #151525;
   --color-dark-secondary: #25253b;
   --color-dark-tertiary: #313152;
@@ -35,11 +39,16 @@
   --foreground: var(--color-light-txt);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: var(--color-dark-bg);
-    --foreground: var(--color-dark-txt);
-  }
+/* Class-based dark mode */
+:root.dark {
+  --background: var(--color-dark-bg);
+  --foreground: var(--color-dark-txt);
+}
+
+/* Class-based light mode */
+:root.light {
+  --background: var(--color-light-bg);
+  --foreground: var(--color-light-txt);
 }
 
 body {
@@ -177,34 +186,47 @@ body {
   @apply w-full rounded-md border border-slate-300 bg-white/90 px-2 py-1 text-xs text-dark-txt placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-green;
 }
 
-@media (prefers-color-scheme: dark) {
-  .blocklyToolbox {
-    /* @apply bg-dark-secondary px-3 rounded-l-lg; */
-    @apply bg-dark-secondary;
-  }
-  .blocklyToolboxCategory {
-    /* @apply bg-dark-tertiary m-1 rounded-2xl text-center; */
-    /* @apply text-2xl; */
-  }
-  #toolbox-search-input.blocklyToolboxCategoryContainer {
-    /* @apply bg-white; */
-    @apply text-black;
-  }
-  .blocklyToolboxFlyout {
-    @apply bg-dark-tertiary
-  }
-  .blocklySvg {
-    @apply bg-dark-whiteboard rounded-lg 
-  }
-  .blocklyScrollbarHandle {
-    @apply fill-neutral-400
-  }
-  .blockly-toolbox-search {
-    @apply bg-dark-secondary/80;
-  }
-  .blockly-toolbox-search-input {
-    @apply border-slate-600 bg-slate-900/80 text-light-txt placeholder:text-slate-400;
-  }
+/* Light mode blockly styles */
+.light .blocklyToolbox {
+  @apply bg-light-tertiary;
+}
+.light .blocklyToolboxFlyout {
+  @apply bg-light-tertiary;
+}
+.light .blocklySvg {
+  @apply bg-light-whiteboard rounded-lg;
+}
+.light .blocklyScrollbarHandle {
+  @apply fill-neutral-500;
+}
+.light .blockly-toolbox-search {
+  @apply bg-light-secondary/90;
+}
+.light .blockly-toolbox-search-input {
+  @apply border-slate-300 bg-white/90 text-dark-txt placeholder:text-slate-500;
+}
+
+/* Dark mode blockly styles */
+.dark .blocklyToolbox {
+  @apply bg-dark-secondary;
+}
+.dark #toolbox-search-input.blocklyToolboxCategoryContainer {
+  @apply text-black;
+}
+.dark .blocklyToolboxFlyout {
+  @apply bg-dark-tertiary;
+}
+.dark .blocklySvg {
+  @apply bg-dark-whiteboard rounded-lg;
+}
+.dark .blocklyScrollbarHandle {
+  @apply fill-neutral-400;
+}
+.dark .blockly-toolbox-search {
+  @apply bg-dark-secondary/80;
+}
+.dark .blockly-toolbox-search-input {
+  @apply border-slate-600 bg-slate-900/80 text-light-txt placeholder:text-slate-400;
 }
 
 .blocklyFlyoutBackground {

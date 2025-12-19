@@ -75,7 +75,13 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(
       }
 
       return () => {
-        workspaceRef.current?.dispose();
+        try {
+          workspaceRef.current?.dispose();
+        } catch (error) {
+          console.warn("Failed to dispose Blockly workspace", error);
+        } finally {
+          workspaceRef.current = null;
+        }
       };
     }, []);
 

@@ -1,4 +1,5 @@
 import { javascriptGenerator, Order } from "blockly/javascript";
+import { getSpriteDropdownOptions } from "@/blockly/spriteRegistry";
 
 const setProperty = {
   type: "setProperty",
@@ -55,11 +56,9 @@ const createSprite = {
       text: "sprite1",
     },
     {
-      type: "field_dropdown",
+      type: "field_input",
       name: "TEXTURE",
-      options: [
-        ["Star", "star"],
-      ],
+      text: "star",
     },
     {
       type: "field_number",
@@ -83,14 +82,18 @@ javascriptGenerator.forBlock['createSprite'] = function (block) {
   const x = block.getFieldValue('X') ?? 0;
   const y = block.getFieldValue('Y') ?? 0;
   const texture = block.getFieldValue('TEXTURE') || 'star';
-  return `const ${safeName} = scene.physics.add.sprite(${x}, ${y}, '${texture}');\n`;
+  return `
+const ${safeName} = scene.physics.add.sprite(${x}, ${y}, '${texture}');
+scene.__sprites = scene.__sprites || {};
+scene.__sprites['${safeName}'] = ${safeName};
+`.trim() + '\n';
 };
 
 const changeProperty = {
   type: "changeProperty",
   tooltip: "Change the property of a sprite by a certain amount",
   helpUrl: "",
-  message0: "change %1 by %2",
+  message0: "change %1 of %2 by %3",
   args0: [
     {
       type: "field_dropdown",
@@ -115,6 +118,11 @@ const changeProperty = {
       ]
     },
     {
+      type: "field_dropdown",
+      name: "SPRITE",
+      options: getSpriteDropdownOptions,
+    },
+    {
       type: "input_value",
       name: "VALUE"
     }
@@ -125,8 +133,15 @@ const changeProperty = {
 }
 
 javascriptGenerator.forBlock['changeProperty'] = function (block, generator) {
-  const value = generator.valueToCode(block, 'VALUE', Order.NONE);
-  return `scene.player.body.${block.getFieldValue('PROPERTY')} += ${value}\n`;
+  const value = generator.valueToCode(block, 'VALUE', Order.NONE) || 0;
+  const spriteKey = block.getFieldValue('SPRITE') || '__player__';
+  const spriteExpr =
+    spriteKey === '__player__'
+      ? 'scene.player'
+      : spriteKey.startsWith('scene.')
+        ? spriteKey
+        : `(scene.__sprites?.["${spriteKey}"] ?? scene.player)`;
+  return `${spriteExpr}.body.${block.getFieldValue('PROPERTY')} += ${value}\n`;
 };
 
 const getProperty = {
