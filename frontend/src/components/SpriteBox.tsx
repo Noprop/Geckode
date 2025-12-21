@@ -34,6 +34,12 @@ const SpriteEditor = memo(function SpriteEditor({
   const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
   const [selectedSpriteId, setSelectedSpriteId] = useState<string | null>(null);
 
+  // Track editing state for inputs (allows empty while editing)
+  const [editingValues, setEditingValues] = useState<Record<string, string>>(
+    {}
+  );
+  const [originalName, setOriginalName] = useState<string>('');
+
   // Auto-select first sprite or clear selection when sprites change
   useEffect(() => {
     if (selectedSpriteId && !sprites.find((s) => s.id === selectedSpriteId)) {
@@ -57,6 +63,50 @@ const SpriteEditor = memo(function SpriteEditor({
     [selectedSpriteId, onUpdateSprite]
   );
 
+  const handleFocus = useCallback(
+    (field: string, currentValue: string | number) => {
+      setEditingValues((prev) => ({ ...prev, [field]: String(currentValue) }));
+      if (field === 'variableName') {
+        setOriginalName(String(currentValue));
+      }
+    },
+    []
+  );
+
+  const handleInputChange = useCallback((field: string, value: string) => {
+    setEditingValues((prev) => ({ ...prev, [field]: value }));
+  }, []);
+
+  const handleBlur = useCallback(
+    (field: keyof SpriteInstance, defaultValue: string | number) => {
+      const editedValue = editingValues[field];
+
+      // Determine final value
+      let finalValue: string | number;
+      if (editedValue === '' || editedValue === undefined) {
+        // Empty - use default
+        finalValue = defaultValue;
+      } else if (field === 'variableName') {
+        finalValue = editedValue;
+      } else {
+        // Parse as number
+        const parsed = parseInt(editedValue);
+        finalValue = isNaN(parsed) ? defaultValue : parsed;
+      }
+
+      // Update sprite
+      handleFieldChange(field, finalValue);
+
+      // Clear editing state
+      setEditingValues((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    },
+    [editingValues, handleFieldChange]
+  );
+
   return (
     <section className="flex-1 rounded-lg bg-light-secondary p-3 text-sm shadow dark:bg-dark-secondary flex flex-col min-h-0 overflow-hidden">
       {/* Sprite Info Panel - Full Width Top */}
@@ -69,10 +119,18 @@ const SpriteEditor = memo(function SpriteEditor({
             </label>
             <input
               type="text"
-              value={selectedSprite?.variableName || ''}
-              onChange={(e) =>
-                handleFieldChange('variableName', e.target.value)
+              value={
+                'variableName' in editingValues
+                  ? editingValues.variableName
+                  : selectedSprite?.variableName || ''
               }
+              onFocus={() =>
+                handleFocus('variableName', selectedSprite?.variableName || '')
+              }
+              onChange={(e) =>
+                handleInputChange('variableName', e.target.value)
+              }
+              onBlur={() => handleBlur('variableName', originalName)}
               disabled={!selectedSprite}
               className="w-28 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs outline-none transition focus:border-primary-green focus:ring-2 focus:ring-primary-green/20 disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-600 dark:bg-dark-hover dark:text-slate-100 dark:disabled:bg-dark-tertiary dark:disabled:text-slate-500"
               placeholder="—"
@@ -85,12 +143,14 @@ const SpriteEditor = memo(function SpriteEditor({
             <label className="text-slate-600 dark:text-slate-400">x</label>
             <input
               type="number"
-              value={selectedSprite?.x ?? ''}
-              onChange={(e) =>
-                handleFieldChange('x', parseInt(e.target.value) || 0)
+              value={
+                'x' in editingValues ? editingValues.x : selectedSprite?.x ?? ''
               }
+              onFocus={() => handleFocus('x', selectedSprite?.x ?? 0)}
+              onChange={(e) => handleInputChange('x', e.target.value)}
+              onBlur={() => handleBlur('x', 0)}
               disabled={!selectedSprite}
-              className="w-14 rounded-full border border-slate-300 bg-white px-2 py-1.5 text-xs text-center outline-none transition focus:border-primary-green focus:ring-2 focus:ring-primary-green/20 disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-600 dark:bg-dark-hover dark:text-slate-100 dark:disabled:bg-dark-tertiary dark:disabled:text-slate-500"
+              className="w-14 rounded-full border border-slate-300 bg-white px-2 py-1.5 text-xs text-center outline-none transition focus:border-primary-green focus:ring-2 focus:ring-primary-green/20 disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-600 dark:bg-dark-hover dark:text-slate-100 dark:disabled:bg-dark-tertiary dark:disabled:text-slate-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
           </div>
 
@@ -100,25 +160,27 @@ const SpriteEditor = memo(function SpriteEditor({
             <label className="text-slate-600 dark:text-slate-400">y</label>
             <input
               type="number"
-              value={selectedSprite?.y ?? ''}
-              onChange={(e) =>
-                handleFieldChange('y', parseInt(e.target.value) || 0)
+              value={
+                'y' in editingValues ? editingValues.y : selectedSprite?.y ?? ''
               }
+              onFocus={() => handleFocus('y', selectedSprite?.y ?? 0)}
+              onChange={(e) => handleInputChange('y', e.target.value)}
+              onBlur={() => handleBlur('y', 0)}
               disabled={!selectedSprite}
-              className="w-14 rounded-full border border-slate-300 bg-white px-2 py-1.5 text-xs text-center outline-none transition focus:border-primary-green focus:ring-2 focus:ring-primary-green/20 disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-600 dark:bg-dark-hover dark:text-slate-100 dark:disabled:bg-dark-tertiary dark:disabled:text-slate-500"
+              className="w-14 rounded-full border border-slate-300 bg-white px-2 py-1.5 text-xs text-center outline-none transition focus:border-primary-green focus:ring-2 focus:ring-primary-green/20 disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-600 dark:bg-dark-hover dark:text-slate-100 dark:disabled:bg-dark-tertiary dark:disabled:text-slate-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
           </div>
 
           {/* Show/Hide Toggle */}
-          <div className="flex items-center gap-2">
-            <label className="font-semibold text-slate-600 dark:text-slate-400">
+          <div className="flex items-center gap-0">
+            <label className="font-semibold text-slate-600 dark:text-slate-400 mr-2">
               Show
             </label>
             <button
               type="button"
               onClick={() => handleFieldChange('visible', true)}
               disabled={!selectedSprite}
-              className={`rounded-full p-1.5 border transition ${
+              className={`rounded-l-md p-1.5 border transition cursor-pointer ${
                 selectedSprite?.visible !== false
                   ? 'border-primary-green bg-primary-green text-white'
                   : 'border-slate-300 bg-white text-slate-400 dark:border-slate-600 dark:bg-dark-hover dark:text-slate-500'
@@ -131,7 +193,7 @@ const SpriteEditor = memo(function SpriteEditor({
               type="button"
               onClick={() => handleFieldChange('visible', false)}
               disabled={!selectedSprite}
-              className={`rounded-full p-1.5 border transition ${
+              className={`rounded-r-md p-1.5 border transition cursor-pointer ${
                 selectedSprite?.visible === false
                   ? 'border-primary-green bg-primary-green text-white'
                   : 'border-slate-300 bg-white text-slate-400 dark:border-slate-600 dark:bg-dark-hover dark:text-slate-500'
@@ -149,14 +211,18 @@ const SpriteEditor = memo(function SpriteEditor({
             </label>
             <input
               type="number"
-              value={selectedSprite?.size ?? 100}
-              onChange={(e) =>
-                handleFieldChange('size', parseInt(e.target.value) || 100)
+              value={
+                'size' in editingValues
+                  ? editingValues.size
+                  : selectedSprite?.size ?? 100
               }
+              onFocus={() => handleFocus('size', selectedSprite?.size ?? 100)}
+              onChange={(e) => handleInputChange('size', e.target.value)}
+              onBlur={() => handleBlur('size', 100)}
               disabled={!selectedSprite}
               min="1"
               max="1000"
-              className="w-14 rounded-full border border-slate-300 bg-white px-2 py-1.5 text-xs text-center outline-none transition focus:border-primary-green focus:ring-2 focus:ring-primary-green/20 disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-600 dark:bg-dark-hover dark:text-slate-100 dark:disabled:bg-dark-tertiary dark:disabled:text-slate-500"
+              className="w-14 rounded-full border border-slate-300 bg-white px-2 py-1.5 text-xs text-center outline-none transition focus:border-primary-green focus:ring-2 focus:ring-primary-green/20 disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-600 dark:bg-dark-hover dark:text-slate-100 dark:disabled:bg-dark-tertiary dark:disabled:text-slate-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
           </div>
 
@@ -167,14 +233,20 @@ const SpriteEditor = memo(function SpriteEditor({
             </label>
             <input
               type="number"
-              value={selectedSprite?.direction ?? 90}
-              onChange={(e) =>
-                handleFieldChange('direction', parseInt(e.target.value) || 90)
+              value={
+                'direction' in editingValues
+                  ? editingValues.direction
+                  : selectedSprite?.direction ?? 90
               }
+              onFocus={() =>
+                handleFocus('direction', selectedSprite?.direction ?? 90)
+              }
+              onChange={(e) => handleInputChange('direction', e.target.value)}
+              onBlur={() => handleBlur('direction', 0)}
               disabled={!selectedSprite}
               min="-180"
               max="180"
-              className="w-14 rounded-full border border-slate-300 bg-white px-2 py-1.5 text-xs text-center outline-none transition focus:border-primary-green focus:ring-2 focus:ring-primary-green/20 disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-600 dark:bg-dark-hover dark:text-slate-100 dark:disabled:bg-dark-tertiary dark:disabled:text-slate-500"
+              className="w-14 rounded-full border border-slate-300 bg-white px-2 py-1.5 text-xs text-center outline-none transition focus:border-primary-green focus:ring-2 focus:ring-primary-green/20 disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-600 dark:bg-dark-hover dark:text-slate-100 dark:disabled:bg-dark-tertiary dark:disabled:text-slate-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
           </div>
         </div>
@@ -226,7 +298,7 @@ const SpriteEditor = memo(function SpriteEditor({
                       </div>
 
                       {/* Sprite Name Label */}
-                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-1 py-1">
+                      <div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/70 to-transparent px-1 py-1">
                         <p className="text-[9px] text-white truncate text-center font-medium">
                           {sprite.variableName}
                         </p>
@@ -266,7 +338,7 @@ const SpriteEditor = memo(function SpriteEditor({
           {/* Stage Content */}
           <div className="flex-1 pt-2 flex flex-col gap-3">
             {/* Backdrop Thumbnail Preview */}
-            <div className="w-full aspect-[4/3] rounded-lg border border-slate-200 dark:border-slate-600 overflow-hidden">
+            <div className="w-full aspect-4/3 rounded-lg border border-slate-200 dark:border-slate-600 overflow-hidden">
               <div
                 className="w-full h-full"
                 style={{
