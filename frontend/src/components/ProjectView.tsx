@@ -1,6 +1,5 @@
 "use client";
 
-import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import { useRef, useState, useEffect, useCallback, DragEvent } from 'react';
 import BlocklyEditor, { BlocklyEditorHandle } from '@/components/BlocklyEditor';
@@ -25,13 +24,14 @@ export type PhaserRef = {
   readonly scene: MainMenu;
 } | null;
 
-const PhaserGame = dynamic(() => import('@/components/PhaserGame'), {
+const PhaserContainer = dynamic(() => import('@/components/PhaserContainer'), {
   ssr: false,
   loading: () => (
     <div
-      className="bg-white dark:bg-black w-full"
+      className="bg-white dark:bg-black"
       style={{
-        aspectRatio: '480 / 360',
+        width: '480px',
+        height: '360px',
       }}
     />
   ),
@@ -46,7 +46,6 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
   const { view } = useWorkspaceView();
   const blocklyRef = useRef<BlocklyEditorHandle>(null);
   const phaserRef = useRef<{ game?: any; scene?: any } | null>(null);
-  const [canMoveSprite, setCanMoveSprite] = useState(true);
   const [phaserState, setPhaserState] = useState<PhaserExport | null>(null);
   const [spriteInstances, setSpriteInstances] = useState<SpriteInstance[]>([]);
   const workspaceListenerRef = useRef<{
@@ -90,14 +89,6 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
 
     fetchWorkspace();
   }, []);
-
-  const addSprite = () => {
-    phaserRef.current?.scene?.addStar?.();
-  };
-
-  const currentScene = (scene: { scene: { key: string } }) => {
-    setCanMoveSprite(scene.scene.key !== 'MainMenu');
-  };
 
   const generateCode = () => {
     if (
@@ -526,7 +517,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
   return (
     <>
       <div className="flex h-[calc(100vh-4rem-3.5rem)]">
-        <div className="relative flex-1 min-h-0 min-w-0 bg-light-whiteboard dark:bg-dark-whiteboard rounded-lg mr-3 overflow-hidden">
+        <div className="relative flex-1 min-h-0 min-w-0 bg-light-whiteboard dark:bg-dark-whiteboard rounded-lg mr-2 overflow-hidden">
           <div
             className={`absolute inset-0 transition-opacity duration-150 ${
               view === 'blocks'
@@ -560,15 +551,20 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
           </div>
         </div>
 
-        <div className="flex flex-col h-[calc(100vh-4rem-3.5rem)] py-3 pr-2 w-[480px] max-w-full">
+        <div
+          className="flex flex-col h-[calc(100vh-4rem-3.5rem)] py-3 pr-2"
+          style={{ width: '492px' }}
+        >
           <div
-            className="rounded-xl border border-dashed border-slate-400 dark:border-slate-600
-                    p-2  bg-light-secondary dark:bg-dark-secondary"
+            className="rounded-2xl"
+            // className="rounded-xl border border-dashed border-slate-400 dark:border-slate-600
+            // p-2 bg-light-secondary dark:bg-dark-secondary shrink-0"
+            // style={{ width: '496px', height: '376px' }}
             onDragOver={handleDragOver}
             onDrop={handleSpriteDrop}
             onPointerDown={handlePhaserPointerDown}
           >
-            <PhaserGame ref={phaserRef} phaserState={phaserState} />
+            <PhaserContainer ref={phaserRef} phaserState={phaserState} />
           </div>
 
           <SpriteEditor
