@@ -64,6 +64,12 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(
           blocklyOptions
         );
 
+        // hide the scrollbars while keeping scroll functionality
+        const scrollbar = (workspaceRef.current as any).scrollbar;
+        if (scrollbar) {
+          scrollbar.setVisible(false);
+        }
+
         // Customize zoom controls to use custom +/- icons
         const customizeZoomControl = (
           zoomGroup: SVGGElement,
@@ -186,65 +192,83 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(
       getWorkspace: () => workspaceRef.current,
     }));
 
-    return <>
-      <div
-        ref={blocklyDivRef}
-        id="blocklyDiv"
-        className="h-full w-full min-h-80"
-      />
+    return (
+      <>
+        <div
+          ref={blocklyDivRef}
+          id="blocklyDiv"
+          className="h-full w-full min-h-80 scrollbar-hide"
+        />
 
-      {showVariableModal ? (
-        <Modal
-          onClose={() => setShowVariableModal(false)}
-          title="Create variable"
-          icon="circle-info"
-          actions={
-            <>
-              <Button
-                onClick={() => {
-                  if (!workspaceRef.current || !variableInputRef.current) {
-                    showSnackbar("Something went wrong", "error");
-                    return;
-                  }
-                  if (!variableInputRef.current.inputValue) {
-                    showSnackbar("Please input a variable name.");
-                    return;
-                  }
-                  if (workspaceRef.current.getVariableMap().getAllVariables().some(variable =>
-                    variable.getName() == variableInputRef.current!.inputValue
-                  )) {
-                    showSnackbar("A variable with that name already exists. Please enter another name.");
-                    return;
-                  }
-                  workspaceRef.current.getVariableMap().createVariable(variableInputRef.current.inputValue);
-                  workspaceRef.current.getToolbox()?.setSelectedItem(selectedToolboxItem);
-                  setShowVariableModal(false);
-                  showSnackbar(`Variable "${variableInputRef.current.inputValue}" successfully created!`, 'success');
-                }}
-                className="btn-confirm ml-3"
-              >
-                Create
-              </Button>
-              <Button
-                onClick={() => setShowVariableModal(false)}
-                className="btn-neutral"
-              >
-                Cancel
-              </Button>
-            </>
-          }
-        >
-          Please enter a name for your variable:
-          <div className="flex flex-col">
-            <InputBox
-              ref={variableInputRef}
-              placeholder="Variable name"
-              className="bg-white text-black my-3 border-0"
-            />
-          </div>
-        </Modal>
-      ) : null}
-    </>;
+        {showVariableModal ? (
+          <Modal
+            onClose={() => setShowVariableModal(false)}
+            title="Create variable"
+            icon="circle-info"
+            actions={
+              <>
+                <Button
+                  onClick={() => {
+                    if (!workspaceRef.current || !variableInputRef.current) {
+                      showSnackbar('Something went wrong', 'error');
+                      return;
+                    }
+                    if (!variableInputRef.current.inputValue) {
+                      showSnackbar('Please input a variable name.');
+                      return;
+                    }
+                    if (
+                      workspaceRef.current
+                        .getVariableMap()
+                        .getAllVariables()
+                        .some(
+                          (variable) =>
+                            variable.getName() ==
+                            variableInputRef.current!.inputValue
+                        )
+                    ) {
+                      showSnackbar(
+                        'A variable with that name already exists. Please enter another name.'
+                      );
+                      return;
+                    }
+                    workspaceRef.current
+                      .getVariableMap()
+                      .createVariable(variableInputRef.current.inputValue);
+                    workspaceRef.current
+                      .getToolbox()
+                      ?.setSelectedItem(selectedToolboxItem);
+                    setShowVariableModal(false);
+                    showSnackbar(
+                      `Variable "${variableInputRef.current.inputValue}" successfully created!`,
+                      'success'
+                    );
+                  }}
+                  className="btn-confirm ml-3"
+                >
+                  Create
+                </Button>
+                <Button
+                  onClick={() => setShowVariableModal(false)}
+                  className="btn-neutral"
+                >
+                  Cancel
+                </Button>
+              </>
+            }
+          >
+            Please enter a name for your variable:
+            <div className="flex flex-col">
+              <InputBox
+                ref={variableInputRef}
+                placeholder="Variable name"
+                className="bg-white text-black my-3 border-0"
+              />
+            </div>
+          </Modal>
+        ) : null}
+      </>
+    );
   }
 );
 

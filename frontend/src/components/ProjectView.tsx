@@ -556,10 +556,6 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
           style={{ width: '492px' }}
         >
           <div
-            className="rounded-2xl"
-            // className="rounded-xl border border-dashed border-slate-400 dark:border-slate-600
-            // p-2 bg-light-secondary dark:bg-dark-secondary shrink-0"
-            // style={{ width: '496px', height: '376px' }}
             onDragOver={handleDragOver}
             onDrop={handleSpriteDrop}
             onPointerDown={handlePhaserPointerDown}
