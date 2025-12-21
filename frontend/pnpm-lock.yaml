@@ -35,6 +35,9 @@ importers:
       next-navigation:
         specifier: ^1.0.6
         version: 1.0.6
+      next-themes:
+        specifier: ^0.4.6
+        version: 0.4.6(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       phaser:
         specifier: 4.0.0-rc.5
         version: 4.0.0-rc.5
@@ -53,6 +56,9 @@ importers:
       tanstack:
         specifier: ^1.0.3
         version: 1.0.3(@opentelemetry/api@1.9.0)(@tiptap/core@2.27.1(@tiptap/pm@2.27.1))(@tiptap/extension-code-block@2.27.1(@tiptap/core@2.27.1(@tiptap/pm@2.27.1))(@tiptap/pm@2.27.1))(@tiptap/pm@2.27.1)(@types/react-dom@19.2.2(@types/react@19.2.2))(@types/react@19.2.2)(highlight.js@11.11.1)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(video.js@8.23.4)(ws@8.18.3)(zod@3.25.76)
+      zustand:
+        specifier: ^5.0.9
+        version: 5.0.9(@types/react@19.2.2)(react@19.1.0)(use-sync-external-store@1.6.0(react@19.1.0))
     devDependencies:
       '@biomejs/biome':
         specifier: 2.2.0
@@ -2652,6 +2658,24 @@ packages:
 
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
+
+  zustand@5.0.9:
+    resolution: {integrity: sha512-ALBtUj0AfjJt3uNRQoL1tL2tMvj6Gp/6e39dnfT6uzpelGru8v1tPOGBzayOWbPJvujM8JojDk3E1LxeFisBNg==}
+    engines: {node: '>=12.20.0'}
+    peerDependencies:
+      '@types/react': '>=18.0.0'
+      immer: '>=9.0.6'
+      react: '>=18.0.0'
+      use-sync-external-store: '>=1.2.0'
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+      immer:
+        optional: true
+      react:
+        optional: true
+      use-sync-external-store:
+        optional: true
 
 snapshots:
 
@@ -5311,3 +5335,9 @@ snapshots:
       zod: 3.25.76
 
   zod@3.25.76: {}
+
+  zustand@5.0.9(@types/react@19.2.2)(react@19.1.0)(use-sync-external-store@1.6.0(react@19.1.0)):
+    optionalDependencies:
+      '@types/react': 19.2.2
+      react: 19.1.0
+      use-sync-external-store: 1.6.0(react@19.1.0)
