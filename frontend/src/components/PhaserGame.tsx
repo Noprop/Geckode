@@ -89,7 +89,7 @@ const PhaserGame = ({ ref, phaserState }: Props) => {
     <div
       id="game-container"
       tabIndex={0}
-      style={{ width: '480px', height: '360px' }}
+      style={{ width: '100%', aspectRatio: '480 / 360' }}
     />
   );
 };

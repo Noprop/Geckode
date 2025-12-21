@@ -1,6 +1,6 @@
 import { User } from "../users";
 import { BaseFilters } from "..";
-import { SpriteInstance } from "@/components/SpriteEditor";
+import { SpriteInstance } from '@/components/SpriteBox';
 import { PhaserExport } from "@/phaser/PhaserStateManager";
 
 export interface Project {
