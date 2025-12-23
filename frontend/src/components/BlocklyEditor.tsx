@@ -12,6 +12,7 @@ import { Modal } from "./ui/Modal";
 import { Button } from "./ui/Button";
 import { InputBox, InputBoxRef } from "./ui/InputBox";
 import { useSnackbar } from "@/hooks/useSnackbar";
+import { useEditorStore } from '@/stores/editorStore';
 
 registerBlockly();
 
@@ -31,7 +32,8 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(
     const variableInputRef = useRef<InputBoxRef | null>(null);
 
     const [showVariableModal, setShowVariableModal] = useState<boolean>(false);
-    const [selectedToolboxItem, setSelectedToolboxItem] = useState<Blockly.IToolboxItem | null>(null);
+    const [selectedToolboxItem, setSelectedToolboxItem] =
+      useState<Blockly.IToolboxItem | null>(null);
 
     useEffect(() => {
       if (blocklyDivRef.current && !workspaceRef.current) {
@@ -56,6 +58,12 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(
             minScale: 0.4,
             scaleSpeed: 1.35,
             pinch: true,
+          },
+          grid: {
+            spacing: 50,
+            length: 0.5,
+            colour: '#ccc',
+            snap: false,
           },
         };
 
@@ -167,84 +175,118 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(
           'CUSTOM_VARIABLES',
           variableCategoryCallback
         );
+
+        // Listen for workspace changes to update undo/redo state
+        workspaceRef.current.addChangeListener((event) => {
+          // Update on any event that could affect undo/redo stacks
+          if (event.isUiEvent) return; // Skip UI-only events
+          // Get fresh reference from store to avoid stale closure
+          useEditorStore.getState().updateUndoRedoState();
+        });
+
+        // Initial update of undo/redo state
+        useEditorStore.getState().updateUndoRedoState();
       }
 
       return () => {
         try {
           workspaceRef.current?.dispose();
         } catch (error) {
-          console.warn("Failed to dispose Blockly workspace", error);
+          console.warn('Failed to dispose Blockly workspace', error);
         } finally {
           workspaceRef.current = null;
         }
       };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     if (workspaceRef.current) Blockly.svgResize(workspaceRef.current);
 
-    useImperativeHandle(ref, () => ({
-      getWorkspace: () => workspaceRef.current,
-    }));
+    useImperativeHandle(
+      ref,
+      () => ({
+        getWorkspace: () => workspaceRef.current,
+      }),
+      []
+    );
 
-    return <>
-      <div
-        ref={blocklyDivRef}
-        id="blocklyDiv"
-        className="h-full w-full min-h-80"
-      />
+    return (
+      <>
+        <div
+          ref={blocklyDivRef}
+          id="blocklyDiv"
+          className="h-full w-full min-h-80 scrollbar-hide"
+        />
 
-      {showVariableModal ? (
-        <Modal
-          onClose={() => setShowVariableModal(false)}
-          title="Create variable"
-          icon="circle-info"
-          actions={
-            <>
-              <Button
-                onClick={() => {
-                  if (!workspaceRef.current || !variableInputRef.current) {
-                    showSnackbar("Something went wrong", "error");
-                    return;
-                  }
-                  if (!variableInputRef.current.inputValue) {
-                    showSnackbar("Please input a variable name.");
-                    return;
-                  }
-                  if (workspaceRef.current.getVariableMap().getAllVariables().some(variable =>
-                    variable.getName() == variableInputRef.current!.inputValue
-                  )) {
-                    showSnackbar("A variable with that name already exists. Please enter another name.");
-                    return;
-                  }
-                  workspaceRef.current.getVariableMap().createVariable(variableInputRef.current.inputValue);
-                  workspaceRef.current.getToolbox()?.setSelectedItem(selectedToolboxItem);
-                  setShowVariableModal(false);
-                  showSnackbar(`Variable "${variableInputRef.current.inputValue}" successfully created!`, 'success');
-                }}
-                className="btn-confirm ml-3"
-              >
-                Create
-              </Button>
-              <Button
-                onClick={() => setShowVariableModal(false)}
-                className="btn-neutral"
-              >
-                Cancel
-              </Button>
-            </>
-          }
-        >
-          Please enter a name for your variable:
-          <div className="flex flex-col">
-            <InputBox
-              ref={variableInputRef}
-              placeholder="Variable name"
-              className="bg-white text-black my-3 border-0"
-            />
-          </div>
-        </Modal>
-      ) : null}
-    </>;
+        {showVariableModal ? (
+          <Modal
+            onClose={() => setShowVariableModal(false)}
+            title="Create variable"
+            icon="circle-info"
+            actions={
+              <>
+                <Button
+                  onClick={() => {
+                    if (!workspaceRef.current || !variableInputRef.current) {
+                      showSnackbar('Something went wrong', 'error');
+                      return;
+                    }
+                    if (!variableInputRef.current.inputValue) {
+                      showSnackbar('Please input a variable name.');
+                      return;
+                    }
+                    if (
+                      workspaceRef.current
+                        .getVariableMap()
+                        .getAllVariables()
+                        .some(
+                          (variable) =>
+                            variable.getName() ==
+                            variableInputRef.current!.inputValue
+                        )
+                    ) {
+                      showSnackbar(
+                        'A variable with that name already exists. Please enter another name.'
+                      );
+                      return;
+                    }
+                    workspaceRef.current
+                      .getVariableMap()
+                      .createVariable(variableInputRef.current.inputValue);
+                    workspaceRef.current
+                      .getToolbox()
+                      ?.setSelectedItem(selectedToolboxItem);
+                    setShowVariableModal(false);
+                    showSnackbar(
+                      `Variable "${variableInputRef.current.inputValue}" successfully created!`,
+                      'success'
+                    );
+                  }}
+                  className="btn-confirm ml-3"
+                >
+                  Create
+                </Button>
+                <Button
+                  onClick={() => setShowVariableModal(false)}
+                  className="btn-neutral"
+                >
+                  Cancel
+                </Button>
+              </>
+            }
+          >
+            Please enter a name for your variable:
+            <div className="flex flex-col">
+              <InputBox
+                ref={variableInputRef}
+                placeholder="Variable name"
+                className="bg-white text-black my-3 border-0"
+              />
+            </div>
+          </Modal>
+        ) : null}
+      </>
+    );
   }
 );
 
