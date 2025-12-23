@@ -482,7 +482,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
   return (
     <>
       <div className="flex h-[calc(100vh-4rem-3.5rem)]">
-        <div className="relative flex-1 min-h-0 min-w-0 bg-light-whiteboard dark:bg-dark-whiteboard rounded-lg mr-2 overflow-hidden">
+        <div className="relative flex-1 min-h-0 min-w-0 bg-light-whiteboard dark:bg-dark-whiteboard mr-2 overflow-hidden">
           <div
             className={`absolute inset-0 transition-opacity duration-150 ${
               view === 'blocks'

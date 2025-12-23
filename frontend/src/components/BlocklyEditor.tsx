@@ -57,18 +57,18 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(
             scaleSpeed: 1.35,
             pinch: true,
           },
+          grid: {
+            spacing: 40,
+            length: 0.5,
+            colour: '#ccc',
+            snap: false,
+          },
         };
 
         workspaceRef.current = Blockly.inject(
           blocklyDivRef.current as HTMLDivElement,
           blocklyOptions
         );
-
-        // hide the scrollbars while keeping scroll functionality
-        const scrollbar = (workspaceRef.current as any).scrollbar;
-        if (scrollbar) {
-          scrollbar.setVisible(false);
-        }
 
         // Customize zoom controls to use custom +/- icons
         const customizeZoomControl = (
