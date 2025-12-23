@@ -50,6 +50,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
     setPhaserRef,
     setBlocklyRef,
     setProjectId,
+    setProjectName,
     spriteInstances,
     setSpriteInstances,
     phaserState,
@@ -104,6 +105,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
             showSnackbar('Failed to load workspace!', 'error');
           }
 
+          setProjectName(project.name);
           setPhaserState(project.game_state);
           setSpriteInstances(project.sprites);
         });

@@ -58,7 +58,7 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(
             pinch: true,
           },
           grid: {
-            spacing: 40,
+            spacing: 50,
             length: 0.5,
             colour: '#ccc',
             snap: false,

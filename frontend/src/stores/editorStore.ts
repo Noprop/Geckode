@@ -17,23 +17,29 @@ interface EditorState {
   // Refs
   phaserRef: PhaserRefValue;
   blocklyRef: BlocklyEditorHandle | null;
-  
+
   // State
   projectId: number | null;
+  projectName: string;
   spriteInstances: SpriteInstance[];
   phaserState: PhaserExport | null;
-  
+
   // Registration Actions
   setPhaserRef: (ref: PhaserRefValue) => void;
   setBlocklyRef: (ref: BlocklyEditorHandle | null) => void;
   setProjectId: (id: number | null) => void;
-  setSpriteInstances: (instances: SpriteInstance[] | ((prev: SpriteInstance[]) => SpriteInstance[])) => void;
+  setProjectName: (name: string) => void;
+  setSpriteInstances: (
+    instances: SpriteInstance[] | ((prev: SpriteInstance[]) => SpriteInstance[])
+  ) => void;
   setPhaserState: (state: PhaserExport | null) => void;
-  
+
   // Editor Actions
   changeScene: () => void;
   generateCode: () => void;
-  saveProject: (showSnackbar: (msg: string, type: 'success' | 'error') => void) => Promise<void>;
+  saveProject: (
+    showSnackbar: (msg: string, type: 'success' | 'error') => void
+  ) => Promise<void>;
   exportWorkspaceState: () => void;
   undoWorkspace: () => void;
   redoWorkspace: () => void;
@@ -43,15 +49,19 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   phaserRef: null,
   blocklyRef: null,
   projectId: null,
+  projectName: '',
   spriteInstances: [],
   phaserState: null,
 
   setPhaserRef: (phaserRef) => set({ phaserRef }),
   setBlocklyRef: (blocklyRef) => set({ blocklyRef }),
   setProjectId: (projectId) => set({ projectId }),
-  setSpriteInstances: (update) => set((state) => ({
-    spriteInstances: typeof update === 'function' ? update(state.spriteInstances) : update
-  })),
+  setProjectName: (projectName) => set({ projectName }),
+  setSpriteInstances: (update) =>
+    set((state) => ({
+      spriteInstances:
+        typeof update === 'function' ? update(state.spriteInstances) : update,
+    })),
   setPhaserState: (phaserState) => set({ phaserState }),
 
   changeScene: () => {
@@ -64,13 +74,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const workspace = blocklyRef?.getWorkspace();
     if (!phaserRef || !workspace) return;
 
-    const code = javascriptGenerator.workspaceToCode(workspace as Blockly.Workspace);
+    const code = javascriptGenerator.workspaceToCode(
+      workspace as Blockly.Workspace
+    );
     console.log('generate code()');
     phaserRef.scene?.runScript(code);
   },
 
   saveProject: async (showSnackbar) => {
-    const { projectId, blocklyRef, phaserRef, spriteInstances } = get();
+    const { projectId, projectName, blocklyRef, phaserRef, spriteInstances } =
+      get();
     if (!projectId) {
       console.log('No project id associated, returning.');
       return;
@@ -84,6 +97,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     try {
       await projectsApi(projectId).update({
+        name: projectName,
         blocks: workspaceState,
         game_state: phaserState,
         sprites: spriteInstances,
