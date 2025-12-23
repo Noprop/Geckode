@@ -116,20 +116,20 @@ body {
   @apply p-0 bg-light-tertiary;
 }
 .blocklyToolboxCategory {
-  @apply h-[2rem]
+  @apply h-8
 }
 
 #toolbox-search-input.blocklyToolboxCategoryContainer {
-  @apply h-[2.5rem] flex justify-center items-center mb-2;
+  @apply h-10 flex justify-center items-center mb-2;
 }
 #toolbox-search-input.blocklyToolboxCategoryContainer:hover {
   @apply cursor-text;
 }
 #toolbox-search-input .blocklyTreeRowContentContainer {
-  @apply h-[2.5rem];
+  @apply h-10;
 }
 #toolbox-search-input input {
-  @apply h-[2.5rem];
+  @apply h-10;
 }
 
 .blocklyFlyoutScrollbar {
@@ -154,13 +154,9 @@ body {
 }
 
 #toolbox-search-input.blocklyToolboxCategory {
-  @apply p-0 m-0 h-[2.5rem];
+  @apply p-0 m-0 h-10;
 }
 
-.blocklyToolboxCategory {
-  /* @apply bg-light-tertiary m-1 rounded-full text-center; */
-  /* @apply text-2xl; */
-}
 .blocklyToolboxCategoryLabel {
   @apply text-xl;
 }
