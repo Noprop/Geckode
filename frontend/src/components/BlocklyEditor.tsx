@@ -12,6 +12,7 @@ import { Modal } from "./ui/Modal";
 import { Button } from "./ui/Button";
 import { InputBox, InputBoxRef } from "./ui/InputBox";
 import { useSnackbar } from "@/hooks/useSnackbar";
+import { useEditorStore } from '@/stores/editorStore';
 
 registerBlockly();
 
@@ -31,7 +32,8 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(
     const variableInputRef = useRef<InputBoxRef | null>(null);
 
     const [showVariableModal, setShowVariableModal] = useState<boolean>(false);
-    const [selectedToolboxItem, setSelectedToolboxItem] = useState<Blockly.IToolboxItem | null>(null);
+    const [selectedToolboxItem, setSelectedToolboxItem] =
+      useState<Blockly.IToolboxItem | null>(null);
 
     useEffect(() => {
       if (blocklyDivRef.current && !workspaceRef.current) {
@@ -173,17 +175,29 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(
           'CUSTOM_VARIABLES',
           variableCategoryCallback
         );
+
+        // Listen for workspace changes to update undo/redo state
+        workspaceRef.current.addChangeListener((event) => {
+          // Update on any event that could affect undo/redo stacks
+          if (event.isUiEvent) return; // Skip UI-only events
+          // Get fresh reference from store to avoid stale closure
+          useEditorStore.getState().updateUndoRedoState();
+        });
+
+        // Initial update of undo/redo state
+        useEditorStore.getState().updateUndoRedoState();
       }
 
       return () => {
         try {
           workspaceRef.current?.dispose();
         } catch (error) {
-          console.warn("Failed to dispose Blockly workspace", error);
+          console.warn('Failed to dispose Blockly workspace', error);
         } finally {
           workspaceRef.current = null;
         }
       };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     if (workspaceRef.current) Blockly.svgResize(workspaceRef.current);

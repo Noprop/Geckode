@@ -23,6 +23,8 @@ interface EditorState {
   projectName: string;
   spriteInstances: SpriteInstance[];
   phaserState: PhaserExport | null;
+  canUndo: boolean;
+  canRedo: boolean;
 
   // Registration Actions
   setPhaserRef: (ref: PhaserRefValue) => void;
@@ -33,6 +35,7 @@ interface EditorState {
     instances: SpriteInstance[] | ((prev: SpriteInstance[]) => SpriteInstance[])
   ) => void;
   setPhaserState: (state: PhaserExport | null) => void;
+  updateUndoRedoState: () => void;
 
   // Editor Actions
   changeScene: () => void;
@@ -52,6 +55,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   projectName: '',
   spriteInstances: [],
   phaserState: null,
+  canUndo: false,
+  canRedo: false,
 
   setPhaserRef: (phaserRef) => set({ phaserRef }),
   setBlocklyRef: (blocklyRef) => set({ blocklyRef }),
@@ -63,6 +68,23 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         typeof update === 'function' ? update(state.spriteInstances) : update,
     })),
   setPhaserState: (phaserState) => set({ phaserState }),
+  updateUndoRedoState: () => {
+    const { blocklyRef } = get();
+    const workspace = blocklyRef?.getWorkspace() as Blockly.WorkspaceSvg | null;
+    if (!workspace) {
+      set({ canUndo: false, canRedo: false });
+      return;
+    }
+    // Access Blockly's internal undo stacks
+    const undoStack =
+      (workspace as unknown as { undoStack_: unknown[] }).undoStack_ || [];
+    const redoStack =
+      (workspace as unknown as { redoStack_: unknown[] }).redoStack_ || [];
+    set({
+      canUndo: undoStack.length > 0,
+      canRedo: redoStack.length > 0,
+    });
+  },
 
   changeScene: () => {
     const { phaserRef } = get();
@@ -119,13 +141,17 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   undoWorkspace: () => {
-    const { blocklyRef } = get();
+    const { blocklyRef, updateUndoRedoState } = get();
     blocklyRef?.getWorkspace()?.undo(false);
+    // Update state after a small delay to let Blockly process the undo
+    setTimeout(updateUndoRedoState, 10);
   },
 
   redoWorkspace: () => {
-    const { blocklyRef } = get();
+    const { blocklyRef, updateUndoRedoState } = get();
     blocklyRef?.getWorkspace()?.undo(true);
+    // Update state after a small delay to let Blockly process the redo
+    setTimeout(updateUndoRedoState, 10);
   },
 }));
 
