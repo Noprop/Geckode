@@ -7,6 +7,7 @@ import { PhaserExport, createPhaserState } from '@/phaser/PhaserStateManager';
 import * as Blockly from 'blockly/core';
 import { javascriptGenerator } from 'blockly/javascript';
 import projectsApi from '@/lib/api/handlers/projects';
+import { EventBus } from '@/phaser/EventBus';
 
 // Auto-convert debounce configuration
 let convertTimeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -198,10 +199,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   togglePause: () => {
     const { isPaused, phaserRef } = get();
     const newPaused = !isPaused;
+    console.log('[editorStore] togglePause:', newPaused);
     set({ isPaused: newPaused });
     if (phaserRef?.game) {
       phaserRef.game.isPaused = newPaused;
     }
+    // Emit event for Phaser to show/hide editor grid
+    console.log('[editorStore] emitting editor-pause-changed:', newPaused);
+    EventBus.emit('editor-pause-changed', newPaused);
   },
 }));
 

@@ -23,6 +23,17 @@ export type PhaserRef = {
   readonly scene: MainMenu;
 } | null;
 
+const GRID_SIZE = 50;
+const CENTER_X = 240;
+const CENTER_Y = 180;
+
+const snapToGrid = (x: number, y: number): { x: number; y: number } => {
+  // Snap to grid lines that radiate from center
+  const snappedX = CENTER_X + Math.round((x - CENTER_X) / GRID_SIZE) * GRID_SIZE;
+  const snappedY = CENTER_Y + Math.round((y - CENTER_Y) / GRID_SIZE) * GRID_SIZE;
+  return { x: snappedX, y: snappedY };
+};
+
 const PhaserContainer = dynamic(() => import('@/components/PhaserContainer'), {
   ssr: false,
   loading: () => (
@@ -75,12 +86,29 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
           scene: scene,
         });
       }
+      // Send current pause state to newly ready scene (listener is already set up)
+      const isPaused = useEditorStore.getState().isPaused;
+      console.log('[ProjectView] scene ready, sending pause state:', isPaused);
+      EventBus.emit('editor-pause-changed', isPaused);
     };
     EventBus.on('current-scene-ready', handler);
     return () => {
       EventBus.off('current-scene-ready', handler);
     };
   }, [setPhaserRef]);
+
+  // Respond to pause state sync requests from Phaser scene
+  useEffect(() => {
+    const handler = () => {
+      const isPaused = useEditorStore.getState().isPaused;
+      console.log('[ProjectView] received pause state request, responding with:', isPaused);
+      EventBus.emit('editor-pause-changed', isPaused);
+    };
+    EventBus.on('editor-request-pause-state', handler);
+    return () => {
+      EventBus.off('editor-request-pause-state', handler);
+    };
+  }, []);
 
   useEffect(() => {
     const workspace: Blockly.Workspace = blocklyRef.current?.getWorkspace()!;
@@ -180,17 +208,38 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
     }) => {
       const workspace =
         blocklyRef.current?.getWorkspace() as Blockly.WorkspaceSvg | null;
-      setSpriteInstances((prev) =>
-        prev.map((sprite) => {
-          if (sprite.id !== id) return sprite;
-          if (workspace && sprite.blockId) {
-            const block = workspace.getBlockById(sprite.blockId);
-            block?.setFieldValue(String(x), 'X');
-            block?.setFieldValue(String(y), 'Y');
-          }
-          return { ...sprite, x, y };
-        })
-      );
+      const isPaused = useEditorStore.getState().isPaused;
+
+      setSpriteInstances((prev) => {
+        const sprite = prev.find((s) => s.id === id);
+        if (!sprite) return prev;
+
+        let finalX = x;
+        let finalY = y;
+
+        // Apply snap-to-grid if enabled and paused
+        if (sprite.snapToGrid && isPaused) {
+          const snapped = snapToGrid(x, y);
+          finalX = snapped.x;
+          finalY = snapped.y;
+          // Update Phaser sprite to snapped position
+          phaserRef.current?.scene?.updateEditorSprite(id, {
+            x: finalX,
+            y: finalY,
+          });
+        }
+
+        // Update Blockly block fields
+        if (workspace && sprite.blockId) {
+          const block = workspace.getBlockById(sprite.blockId);
+          block?.setFieldValue(String(finalX), 'X');
+          block?.setFieldValue(String(finalY), 'Y');
+        }
+
+        return prev.map((s) =>
+          s.id === id ? { ...s, x: finalX, y: finalY } : s
+        );
+      });
     };
 
     EventBus.on('editor-sprite-moved', handleSpriteMove);

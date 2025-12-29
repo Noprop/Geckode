@@ -71,6 +71,7 @@ export default class MainMenu extends Phaser.Scene {
     start: { x: number; y: number };
     lastWorld: { x: number; y: number };
   } | null = null;
+  private gridGraphics: Phaser.GameObjects.Graphics | null = null;
 
   constructor() {
     super(MAIN_MENU_SCENE_KEY);
@@ -88,6 +89,7 @@ export default class MainMenu extends Phaser.Scene {
 
   create() {
     this.editorSprites.clear();
+    this.gridGraphics = null; // Reset on scene restart
     // Cursor keys
     // @ts-ignore
     this.cursors = this.input.keyboard.createCursorKeys();
@@ -101,15 +103,35 @@ export default class MainMenu extends Phaser.Scene {
       D: Phaser.Input.Keyboard.KeyCodes.D,
     }) as unknown as typeof this.wasd;
 
-    // Tell React which scene is active
-    EventBus.emit('current-scene-ready', this);
-
     // Dedicated layer to keep editor sprites above all game objects.
     this.editorLayer = this.add.layer();
     this.editorLayer.setDepth(MainMenu.EDITOR_SPRITE_BASE_DEPTH);
 
     this.start();
     this.registerDragEvents();
+
+    // Set up pause state listener for grid visibility BEFORE telling React scene is ready
+    this.setupGridListener();
+
+    // Tell React which scene is active (will trigger pause state sync)
+    EventBus.emit('current-scene-ready', this);
+  }
+
+  private pauseHandler = (isPaused: boolean) => {
+    console.log('[MainMenu] editor-pause-changed received:', isPaused);
+    if (isPaused) {
+      this.showGrid();
+    } else {
+      this.hideGrid();
+    }
+  };
+
+  private setupGridListener(): void {
+    // Remove existing listener to prevent duplicates on scene restart
+    EventBus.off('editor-pause-changed', this.pauseHandler);
+
+    console.log('[MainMenu] setting up editor-pause-changed listener');
+    EventBus.on('editor-pause-changed', this.pauseHandler);
   }
 
   public createPlayer(
@@ -211,6 +233,79 @@ export default class MainMenu extends Phaser.Scene {
     if (updates.direction !== undefined) {
       // Direction in degrees, Phaser uses angle property
       sprite.setAngle(updates.direction - 90); // Scratch-style: 90 = right, convert to Phaser
+    }
+  }
+
+  private drawGrid(): void {
+    const width = 480;
+    const height = 360;
+    const gridSpacing = 50;
+    const centerX = 240;
+    const centerY = 180;
+
+    if (!this.gridGraphics) {
+      this.gridGraphics = this.add.graphics();
+      this.gridGraphics.setDepth(Number.MAX_SAFE_INTEGER);
+    }
+
+    this.gridGraphics.clear();
+
+    // Thin grid lines radiating from center
+    this.gridGraphics.lineStyle(1, 0xffffff, 0.3);
+
+    // Vertical lines from center outward
+    for (let x = centerX - gridSpacing; x >= 0; x -= gridSpacing) {
+      this.gridGraphics.beginPath();
+      this.gridGraphics.moveTo(x, 0);
+      this.gridGraphics.lineTo(x, height);
+      this.gridGraphics.strokePath();
+    }
+    for (let x = centerX + gridSpacing; x <= width; x += gridSpacing) {
+      this.gridGraphics.beginPath();
+      this.gridGraphics.moveTo(x, 0);
+      this.gridGraphics.lineTo(x, height);
+      this.gridGraphics.strokePath();
+    }
+
+    // Horizontal lines from center outward
+    for (let y = centerY - gridSpacing; y >= 0; y -= gridSpacing) {
+      this.gridGraphics.beginPath();
+      this.gridGraphics.moveTo(0, y);
+      this.gridGraphics.lineTo(width, y);
+      this.gridGraphics.strokePath();
+    }
+    for (let y = centerY + gridSpacing; y <= height; y += gridSpacing) {
+      this.gridGraphics.beginPath();
+      this.gridGraphics.moveTo(0, y);
+      this.gridGraphics.lineTo(width, y);
+      this.gridGraphics.strokePath();
+    }
+
+    // Thick center axes
+    this.gridGraphics.lineStyle(2, 0xffffff, 0.8);
+    this.gridGraphics.beginPath();
+    this.gridGraphics.moveTo(centerX, 0);
+    this.gridGraphics.lineTo(centerX, height);
+    this.gridGraphics.strokePath();
+    this.gridGraphics.beginPath();
+    this.gridGraphics.moveTo(0, centerY);
+    this.gridGraphics.lineTo(width, centerY);
+    this.gridGraphics.strokePath();
+  }
+
+  public showGrid(): void {
+    console.log('[MainMenu] showGrid called');
+    this.drawGrid();
+    if (this.gridGraphics) {
+      this.gridGraphics.setVisible(true);
+      console.log('[MainMenu] gridGraphics visible:', this.gridGraphics.visible);
+    }
+  }
+
+  public hideGrid(): void {
+    console.log('[MainMenu] hideGrid called');
+    if (this.gridGraphics) {
+      this.gridGraphics.setVisible(false);
     }
   }
 
@@ -424,11 +519,14 @@ export default class MainMenu extends Phaser.Scene {
     const argValues = Object.values(ctx);
 
     // Wrap user code in an async IIFE so `await` works at top level.
+    // Skip scene restart when paused (editor mode) to preserve grid
     const wrapped = `
       "use strict";
       return (async () => {
         ${code}
-        scene.scene.restart();
+        if (!scene.game.isPaused) {
+          scene.scene.restart();
+        }
       })();
     `;
 
