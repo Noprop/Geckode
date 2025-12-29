@@ -7,6 +7,7 @@ import { MAIN_MENU_SCENE_KEY } from "@/phaser/scenes/MainMenu";
 import type MainMenu from "@/phaser/scenes/MainMenu";
 import type { Game } from "phaser";
 import { loadPhaserState, PhaserExport } from "@/phaser/PhaserStateManager";
+import { useEditorStore } from "@/stores/editorStore";
 
 type Props = {
   ref: any;
@@ -15,6 +16,8 @@ type Props = {
 
 // the React hooks in this component are written in order of their actual execution.
 const PhaserContainer = ({ ref, phaserState }: Props) => {
+  const isConverting = useEditorStore((state) => state.isConverting);
+  const isPaused = useEditorStore((state) => state.isPaused);
   const gameRef = useRef<Game | null>(null);
 
   useLayoutEffect(() => {
@@ -84,16 +87,28 @@ const PhaserContainer = ({ ref, phaserState }: Props) => {
   }, []);
 
   return (
-    <div
-      id="game-container"
-      tabIndex={0}
-      className="rounded-md outline-none border-2 border-transparent focus:border-primary-green transition-colors duration-200"
-      style={{
-        width: '484px',
-        height: '360px',
-        overflow: 'hidden',
-      }}
-    />
+    <div className="relative">
+      <div
+        id="game-container"
+        tabIndex={0}
+        className="rounded-md outline-none border-2 border-transparent focus:border-primary-green transition-all duration-200"
+        style={{
+          width: '484px',
+          height: '360px',
+          overflow: 'hidden',
+        }}
+      />
+      {(isConverting || isPaused) && (
+        <div
+          className="absolute inset-0 rounded-md flex items-center justify-center bg-black/40 pointer-events-none"
+          style={{ transition: 'opacity 100ms ease-in-out' }}
+        >
+          {isConverting && (
+            <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          )}
+        </div>
+      )}
+    </div>
   );
 };
 
