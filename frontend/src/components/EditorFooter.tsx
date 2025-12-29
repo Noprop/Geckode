@@ -17,6 +17,8 @@ const EditorFooter = () => {
     redoWorkspace,
     canUndo,
     canRedo,
+    isPaused,
+    togglePause,
   } = useEditorStore();
 
   const handlePhaserFocus = () => {
@@ -131,6 +133,35 @@ const EditorFooter = () => {
               <path d="M1.22 6.28a.749.749 0 0 1 0-1.06l3.5-3.5a.749.749 0 1 1 1.06 1.06L3.561 5h7.188l.001.007L10.749 5c.058 0 .116.007.171.019A4.501 4.501 0 0 1 10.5 14H8.796a.75.75 0 0 1 0-1.5H10.5a3 3 0 1 0 0-6H3.561L5.78 8.72a.749.749 0 1 1-1.06 1.06l-3.5-3.5Z"></path>
             </svg>
           </span>
+        </button>
+        <button
+          onClick={togglePause}
+          className="w-10 h-10 flex items-center justify-center rounded text-white transition-all bg-primary-green hover:bg-primary-green/90 hover:translate-y-px hover:shadow-[0_2px_0_0_#1a5c3a] active:translate-y-[3px] active:shadow-none shadow-[0_4px_0_0_#1a5c3a] cursor-pointer"
+          title={isPaused ? 'Play' : 'Pause'}
+        >
+          {isPaused ? (
+            <svg
+              aria-hidden="true"
+              focusable="false"
+              viewBox="0 0 16 16"
+              width="18"
+              height="18"
+              fill="currentColor"
+            >
+              <path d="M4 2.5a1 1 0 0 1 1.5-.85l9 5.5a1 1 0 0 1 0 1.7l-9 5.5A1 1 0 0 1 4 13.5v-11z" />
+            </svg>
+          ) : (
+            <svg
+              aria-hidden="true"
+              focusable="false"
+              viewBox="0 0 16 16"
+              width="18"
+              height="18"
+              fill="currentColor"
+            >
+              <rect x="2" y="2" width="12" height="12" rx="1.5" />
+            </svg>
+          )}
         </button>
       </div>
 

@@ -176,12 +176,30 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(
           variableCategoryCallback
         );
 
-        // Listen for workspace changes to update undo/redo state
+        // Listen for workspace changes to update undo/redo state and trigger auto-convert
         workspaceRef.current.addChangeListener((event) => {
           // Update on any event that could affect undo/redo stacks
           if (event.isUiEvent) return; // Skip UI-only events
           // Get fresh reference from store to avoid stale closure
           useEditorStore.getState().updateUndoRedoState();
+
+          // Trigger auto-convert for code-affecting changes
+          // Skip events that don't record undo (e.g., during workspace load)
+          if (!event.recordUndo) return;
+
+          const convertableEvents = [
+            Blockly.Events.BLOCK_CREATE,
+            Blockly.Events.BLOCK_DELETE,
+            Blockly.Events.BLOCK_MOVE,
+            Blockly.Events.BLOCK_CHANGE,
+            Blockly.Events.VAR_CREATE,
+            Blockly.Events.VAR_DELETE,
+            Blockly.Events.VAR_RENAME,
+          ];
+
+          if (convertableEvents.includes(event.type as typeof Blockly.Events.BLOCK_CREATE)) {
+            useEditorStore.getState().scheduleConvert();
+          }
         });
 
         // Initial update of undo/redo state

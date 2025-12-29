@@ -8,6 +8,10 @@ import * as Blockly from 'blockly/core';
 import { javascriptGenerator } from 'blockly/javascript';
 import projectsApi from '@/lib/api/handlers/projects';
 
+// Auto-convert debounce configuration
+let convertTimeoutId: ReturnType<typeof setTimeout> | null = null;
+const DEBOUNCE_MS = 400;
+
 export type PhaserRefValue = {
   readonly game: Game;
   readonly scene: MainMenu;
@@ -25,6 +29,8 @@ interface EditorState {
   phaserState: PhaserExport | null;
   canUndo: boolean;
   canRedo: boolean;
+  isConverting: boolean;
+  isPaused: boolean;
 
   // Registration Actions
   setPhaserRef: (ref: PhaserRefValue) => void;
@@ -40,12 +46,15 @@ interface EditorState {
   // Editor Actions
   changeScene: () => void;
   generateCode: () => void;
+  scheduleConvert: () => void;
+  cancelScheduledConvert: () => void;
   saveProject: (
     showSnackbar: (msg: string, type: 'success' | 'error') => void
   ) => Promise<void>;
   exportWorkspaceState: () => void;
   undoWorkspace: () => void;
   redoWorkspace: () => void;
+  togglePause: () => void;
 }
 
 export const useEditorStore = create<EditorState>((set, get) => ({
@@ -57,6 +66,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   phaserState: null,
   canUndo: false,
   canRedo: false,
+  isConverting: false,
+  isPaused: false,
 
   setPhaserRef: (phaserRef) => set({ phaserRef }),
   setBlocklyRef: (blocklyRef) => set({ blocklyRef }),
@@ -101,6 +112,36 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     );
     console.log('generate code()');
     phaserRef.scene?.runScript(code);
+  },
+
+  scheduleConvert: () => {
+    // Show loader immediately when changes are detected
+    set({ isConverting: true });
+
+    // Clear any existing debounce timer
+    if (convertTimeoutId) clearTimeout(convertTimeoutId);
+
+    // Debounce: wait for user to stop making changes
+    convertTimeoutId = setTimeout(() => {
+      const { phaserRef, blocklyRef, generateCode } = get();
+      if (!phaserRef?.scene || !blocklyRef?.getWorkspace()) {
+        set({ isConverting: false });
+        convertTimeoutId = null;
+        return;
+      }
+
+      // Execute code and hide loader immediately after
+      generateCode();
+      set({ isConverting: false });
+      convertTimeoutId = null;
+    }, DEBOUNCE_MS);
+  },
+
+  cancelScheduledConvert: () => {
+    if (convertTimeoutId) {
+      clearTimeout(convertTimeoutId);
+      convertTimeoutId = null;
+    }
   },
 
   saveProject: async (showSnackbar) => {
@@ -152,6 +193,15 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     blocklyRef?.getWorkspace()?.undo(true);
     // Update state after a small delay to let Blockly process the redo
     setTimeout(updateUndoRedoState, 10);
+  },
+
+  togglePause: () => {
+    const { isPaused, phaserRef } = get();
+    const newPaused = !isPaused;
+    set({ isPaused: newPaused });
+    if (phaserRef?.game) {
+      phaserRef.game.isPaused = newPaused;
+    }
   },
 }));
 

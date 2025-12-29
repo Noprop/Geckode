@@ -65,20 +65,22 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
     setBlocklyRef(blocklyRef.current);
   }, [setBlocklyRef]);
 
-  const updatePhaserRef = useCallback(() => {
-    if (phaserRef.current?.game && phaserRef.current?.scene) {
-      setPhaserRef({
-        game: phaserRef.current.game,
-        scene: phaserRef.current.scene,
-      });
-    } else {
-      setPhaserRef(null);
-    }
-  }, [setPhaserRef]);
-
+  // Update store when Phaser scene becomes ready
   useEffect(() => {
-    updatePhaserRef();
-  }, [updatePhaserRef]);
+    const handler = (scene: MainMenu) => {
+      if (!('key' in scene) || scene.key !== 'MainMenu') return;
+      if (phaserRef.current?.game) {
+        setPhaserRef({
+          game: phaserRef.current.game,
+          scene: scene,
+        });
+      }
+    };
+    EventBus.on('current-scene-ready', handler);
+    return () => {
+      EventBus.off('current-scene-ready', handler);
+    };
+  }, [setPhaserRef]);
 
   useEffect(() => {
     const workspace: Blockly.Workspace = blocklyRef.current?.getWorkspace()!;
@@ -161,6 +163,8 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
           workspaceListenerRef.current.listener
         );
       }
+      // Cancel any pending auto-convert on unmount
+      useEditorStore.getState().cancelScheduledConvert();
     };
   }, []);
 
