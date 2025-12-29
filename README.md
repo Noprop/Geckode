@@ -47,3 +47,20 @@ To run the server, execute:
 ```
 python manage.py runserver
 ```
+
+## Core Concept
+
+Kids learn to code by dragging and dropping visual blocks instead of typing syntax, and their programs control interactive 2D games with sprites.
+
+## Key Features
+
+- Visual code editor - Blockly-based block programming
+- Game preview - Real-time Phaser game rendering
+- Sprite editor - Create and manage game objects
+- Project management - Save, organize, and share projects
+- Collaboration - Organizations and project sharing with permissions
+
+## Tech Stack
+
+- Frontend: Next.js 15 + React 19, Blockly, Phaser 4, Zustand, Tailwind CSS
+- Backend: Django REST Framework with user accounts, projects, and organizations
