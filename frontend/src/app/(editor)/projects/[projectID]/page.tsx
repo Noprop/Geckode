@@ -6,9 +6,7 @@ import ProjectView from '@/components/ProjectView';
 const ProjectPage = () => {
   const { projectID } = useParams();
 
-  return (
-      <ProjectView projectId={Number(projectID)} />
-  );
+  return <ProjectView projectId={Number(projectID)} />;
 };
 
 export default ProjectPage;

@@ -1,7 +1,7 @@
 import { MouseEvent } from "react";
 
 interface ButtonProps {
-  children?: React.ReactNode,
+  children?: React.ReactNode;
   type?: React.ButtonHTMLAttributes<HTMLButtonElement>['type'];
   defaultValue?: string;
   onClick?: (e: MouseEvent<HTMLButtonElement>) => void;
@@ -9,6 +9,7 @@ interface ButtonProps {
   overrideClassName?: boolean;
   disabled?: boolean;
   title?: string;
+  style?: React.CSSProperties;
 }
 
 export const Button = ({
@@ -19,6 +20,7 @@ export const Button = ({
   overrideClassName = false,
   disabled = false,
   title = undefined,
+  style,
 }: ButtonProps) => {
   return (
     <button
@@ -26,12 +28,16 @@ export const Button = ({
       onClick={(e) => onClick(e)}
       className={
         (overrideClassName
-          ? ""
-          : "cursor-pointer px-3 py-2 rounded-md font-semibold text-sm disabled:opacity-50 text-white"
-        ) + " " + className
+          ? ''
+          : 'cursor-pointer px-3 py-2 rounded-md font-semibold text-sm disabled:opacity-50 text-white') +
+        ' ' +
+        className
       }
       disabled={disabled}
       title={title}
-    >{children}</button>
+      style={style}
+    >
+      {children}
+    </button>
   );
 };

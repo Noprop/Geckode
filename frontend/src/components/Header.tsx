@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from 'next/image';
+import { useEffect, useState } from 'react';
 import {
   HomeIcon,
   QuestionMarkCircledIcon,
@@ -14,6 +15,12 @@ import { useTheme } from '@/contexts/ThemeContext';
 
 export default function Header() {
   const { resolvedTheme, toggleTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  // Avoid hydration mismatch by waiting until mounted
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   return (
     <header className="bg-primary-green flex items-center h-16 px-4 shadow-md">
@@ -47,15 +54,21 @@ export default function Header() {
           onClick={toggleTheme}
           className="flex items-center justify-center w-9 h-9 rounded-full bg-white/15 text-white hover:bg-white/25 transition-colors"
           title={
-            resolvedTheme === 'dark'
+            !mounted
+              ? 'Loading theme...'
+              : resolvedTheme === 'dark'
               ? 'Switch to light mode'
               : 'Switch to dark mode'
           }
         >
-          {resolvedTheme === 'dark' ? (
-            <SunIcon className="w-5 h-5" />
+          {mounted ? (
+            resolvedTheme === 'dark' ? (
+              <SunIcon className="w-5 h-5" />
+            ) : (
+              <MoonIcon className="w-5 h-5" />
+            )
           ) : (
-            <MoonIcon className="w-5 h-5" />
+            <div className="w-5 h-5" /> // Empty placeholder with same dimensions
           )}
         </button>
 

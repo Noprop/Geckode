@@ -1,43 +1,36 @@
 "use client";
 
-import Image from 'next/image';
 import dynamic from 'next/dynamic';
-import { useRef, useState, useEffect, useCallback, DragEvent } from 'react';
+import { useRef, useEffect, useCallback, DragEvent } from 'react';
 import BlocklyEditor, { BlocklyEditorHandle } from '@/components/BlocklyEditor';
-import { javascriptGenerator } from 'blockly/javascript';
 import * as Blockly from 'blockly/core';
 import projectsApi from '@/lib/api/handlers/projects';
-import { createPhaserState, PhaserExport } from '@/phaser/PhaserStateManager';
+import { PhaserExport } from '@/phaser/PhaserStateManager';
 import { Game } from 'phaser';
 import MainMenu from '@/phaser/scenes/MainMenu';
-import SpriteEditor, { SpriteInstance } from '@/components/SpriteEditor';
+import SpriteEditor, { SpriteInstance } from '@/components/SpriteBox';
 import { type SpriteDragPayload } from '@/components/SpriteModal';
 import starterWorkspace from '@/blockly/starterWorkspace';
-import { Button } from './ui/Button';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import starterWorkspaceNewProject from '@/blockly/starterWorkspaceNewProject';
 import { useWorkspaceView } from '@/contexts/WorkspaceViewContext';
 import { EventBus } from '@/phaser/EventBus';
 import { setSpriteDropdownOptions } from '@/blockly/spriteRegistry';
-import {
-  CounterClockwiseClockIcon,
-  ResetIcon,
-  ArrowRightIcon,
-} from '@radix-ui/react-icons';
+import { useEditorStore } from '@/stores/editorStore';
 
 export type PhaserRef = {
   readonly game: Game;
   readonly scene: MainMenu;
 } | null;
 
-const PhaserGame = dynamic(() => import('@/components/PhaserGame'), {
+const PhaserContainer = dynamic(() => import('@/components/PhaserContainer'), {
   ssr: false,
   loading: () => (
     <div
       className="bg-white dark:bg-black"
       style={{
-        width: 480,
-        height: 360,
+        width: '480px',
+        height: '360px',
       }}
     />
   ),
@@ -52,17 +45,42 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
   const { view } = useWorkspaceView();
   const blocklyRef = useRef<BlocklyEditorHandle>(null);
   const phaserRef = useRef<{ game?: any; scene?: any } | null>(null);
-  const [canMoveSprite, setCanMoveSprite] = useState(true);
-  const [phaserState, setPhaserState] = useState<PhaserExport | null>(null);
-  const [spriteInstances, setSpriteInstances] = useState<SpriteInstance[]>([]);
-  const workspaceListenerRef = useRef<{
-    workspace: Blockly.WorkspaceSvg;
-    listener: (event: Blockly.Events.Abstract) => void;
-  } | null>(null);
 
-  const changeScene = () => {
-    phaserRef.current?.scene?.changeScene?.();
-  };
+  const {
+    setPhaserRef,
+    setBlocklyRef,
+    setProjectId,
+    setProjectName,
+    spriteInstances,
+    setSpriteInstances,
+    phaserState,
+    setPhaserState,
+  } = useEditorStore();
+
+  useEffect(() => {
+    setProjectId(projectId ? parseInt(projectId.toString()) : null);
+  }, [projectId, setProjectId]);
+
+  useEffect(() => {
+    setBlocklyRef(blocklyRef.current);
+  }, [setBlocklyRef]);
+
+  // Update store when Phaser scene becomes ready
+  useEffect(() => {
+    const handler = (scene: MainMenu) => {
+      if (!('key' in scene) || scene.key !== 'MainMenu') return;
+      if (phaserRef.current?.game) {
+        setPhaserRef({
+          game: phaserRef.current.game,
+          scene: scene,
+        });
+      }
+    };
+    EventBus.on('current-scene-ready', handler);
+    return () => {
+      EventBus.off('current-scene-ready', handler);
+    };
+  }, [setPhaserRef]);
 
   useEffect(() => {
     const workspace: Blockly.Workspace = blocklyRef.current?.getWorkspace()!;
@@ -89,6 +107,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
             showSnackbar('Failed to load workspace!', 'error');
           }
 
+          setProjectName(project.name);
           setPhaserState(project.game_state);
           setSpriteInstances(project.sprites);
         });
@@ -97,75 +116,10 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
     fetchWorkspace();
   }, []);
 
-  const addSprite = () => {
-    phaserRef.current?.scene?.addStar?.();
-  };
-
-  const currentScene = (scene: { scene: { key: string } }) => {
-    setCanMoveSprite(scene.scene.key !== 'MainMenu');
-  };
-
-  const generateCode = () => {
-    if (
-      !phaserRef.current ||
-      !blocklyRef.current ||
-      !blocklyRef.current.getWorkspace()
-    )
-      return;
-    const code = javascriptGenerator.workspaceToCode(
-      blocklyRef.current.getWorkspace() as Blockly.Workspace
-    );
-    console.log('generate code()');
-    console.log(phaserRef.current.scene);
-    phaserRef.current.scene?.runScript(code);
-  };
-
-  // grab states of workspace and game scene, upload to backend, display msg
-  const saveProject = () => {
-    if (!projectId) {
-      console.log('No project id associated, returning.');
-      return;
-    }
-
-    const workspace: Blockly.Workspace = blocklyRef.current?.getWorkspace()!;
-    const workspaceState: { [key: string]: any } =
-      Blockly.serialization.workspaces.save(workspace);
-
-    const phaserState = createPhaserState(phaserRef?.current!);
-
-    projectsApi(parseInt(projectId!.toString()))
-      .update({
-        blocks: workspaceState,
-        game_state: phaserState,
-        sprites: spriteInstances,
-      })
-      .then((res) => showSnackbar('Project saved successfully!', 'success'))
-      .catch((err) =>
-        showSnackbar('Project could not be saved. Please try again.', 'error')
-      );
-  };
-
-  const exportWorkspaceState = () => {
-    const workspace = blocklyRef.current?.getWorkspace();
-    if (!workspace) return;
-
-    const workspaceState = Blockly.serialization.workspaces.save(workspace);
-    // Log both the raw object and JSON for easy copying into starterWorkspace.ts.
-    console.log('Current workspace state', workspaceState);
-    console.log('Workspace JSON', JSON.stringify(workspaceState, null, 2));
-  };
-
-  const undoWorkspace = () => {
-    const workspace = blocklyRef.current?.getWorkspace();
-    if (!workspace) return;
-    workspace.undo(false);
-  };
-
-  const redoWorkspace = () => {
-    const workspace = blocklyRef.current?.getWorkspace();
-    if (!workspace) return;
-    workspace.undo(true);
-  };
+  const workspaceListenerRef = useRef<{
+    workspace: Blockly.WorkspaceSvg;
+    listener: (event: Blockly.Events.Abstract) => void;
+  } | null>(null);
 
   const workspaceDeleteHandler = useCallback(
     (event: Blockly.Events.Abstract) => {
@@ -209,6 +163,8 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
           workspaceListenerRef.current.listener
         );
       }
+      // Cancel any pending auto-convert on unmount
+      useEditorStore.getState().cancelScheduledConvert();
     };
   }, []);
 
@@ -454,6 +410,55 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
     block?.dispose(true);
   };
 
+  const handleUpdateSprite = useCallback(
+    (spriteId: string, updates: Partial<SpriteInstance>) => {
+      const workspace =
+        blocklyRef.current?.getWorkspace() as Blockly.WorkspaceSvg | null;
+      const scene = phaserRef.current?.scene;
+
+      setSpriteInstances((prev) => {
+        const sprite = prev.find((instance) => instance.id === spriteId);
+        if (!sprite) return prev;
+
+        // Update Blockly block fields if they exist
+        if (workspace && sprite.blockId) {
+          const block = workspace.getBlockById(sprite.blockId);
+          if (block) {
+            if ('x' in updates && updates.x !== undefined) {
+              block.setFieldValue(String(updates.x), 'X');
+            }
+            if ('y' in updates && updates.y !== undefined) {
+              block.setFieldValue(String(updates.y), 'Y');
+            }
+            if (
+              'variableName' in updates &&
+              updates.variableName !== undefined
+            ) {
+              block.setFieldValue(updates.variableName, 'NAME');
+            }
+          }
+        }
+
+        // Update Phaser sprite in the scene
+        if (scene?.updateEditorSprite) {
+          scene.updateEditorSprite(spriteId, {
+            x: updates.x,
+            y: updates.y,
+            visible: updates.visible,
+            size: updates.size,
+            direction: updates.direction,
+          });
+        }
+
+        // Update sprite instances state
+        return prev.map((instance) =>
+          instance.id === spriteId ? { ...instance, ...updates } : instance
+        );
+      });
+    },
+    []
+  );
+
   const handlePhaserPointerDown = useCallback(() => {
     // check to see if this function has been exposed;
     // this means that Blockly has been injected
@@ -483,7 +488,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
   return (
     <>
       <div className="flex h-[calc(100vh-4rem-3.5rem)]">
-        <div className="relative flex-1 min-h-0 min-w-0 bg-light-whiteboard dark:bg-dark-whiteboard rounded-lg mr-3 overflow-hidden">
+        <div className="relative flex-1 min-h-0 min-w-0 bg-light-whiteboard dark:bg-dark-whiteboard mr-2 overflow-hidden">
           <div
             className={`absolute inset-0 transition-opacity duration-150 ${
               view === 'blocks'
@@ -517,116 +522,26 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
           </div>
         </div>
 
-        <div className="flex flex-col h-[calc(100vh-4rem-3.5rem)] p-3 w-[480px] max-w-full">
+        <div
+          className="flex flex-col h-[calc(100vh-4rem-3.5rem)] py-3 pr-2"
+          style={{ width: '492px' }}
+        >
           <div
-            className="rounded-xl border border-dashed border-slate-400 dark:border-slate-600
-                    p-2  bg-light-secondary dark:bg-dark-secondary"
             onDragOver={handleDragOver}
             onDrop={handleSpriteDrop}
             onPointerDown={handlePhaserPointerDown}
           >
-            <PhaserGame ref={phaserRef} phaserState={phaserState} />
+            <PhaserContainer ref={phaserRef} phaserState={phaserState} />
           </div>
 
           <SpriteEditor
             sprites={spriteInstances}
             onRemoveSprite={handleRemoveSprite}
             onAssetClick={addSpriteToGame}
+            onUpdateSprite={handleUpdateSprite}
           />
         </div>
       </div>
-      <footer className="fixed bottom-0 left-0 right-0 h-14 bg-light-secondary dark:bg-dark-secondary border-t border-slate-300 dark:border-slate-600 flex items-center justify-between px-4 z-50">
-        {/* Left group */}
-        <div className="flex gap-2">
-          <Button
-            className="btn-deny"
-            onClick={changeScene}
-            title="Change Scene"
-          >
-            Change Scene
-          </Button>
-        </div>
-
-        {/* Center group */}
-        <div className="flex gap-2">
-          <Button
-            onClick={() => {
-              generateCode();
-              handlePhaserPointerDown();
-              showSnackbar('Code was successfully generated!', 'success');
-            }}
-            className="btn-confirm"
-            title="Convert Now"
-          >
-            Convert Now
-          </Button>
-          <Button onClick={saveProject} className="btn-alt2" title="Save">
-            Save
-          </Button>
-        </div>
-
-        {/* Right group */}
-        <div className="flex gap-2">
-          <Button
-            onClick={exportWorkspaceState}
-            className="btn-neutral"
-            title="Export Workspace"
-          >
-            Export Workspace
-          </Button>
-
-          {/* The ResetIcon is also viable. IMO, the svg looks better now as of Dec 18, 2025 */}
-          <Button onClick={undoWorkspace} className="btn-neutral" title="Undo">
-            <svg
-              aria-hidden="true"
-              focusable="false"
-              className="octicon octicon-undo"
-              viewBox="0 0 16 16"
-              width="16"
-              height="16"
-              fill="currentColor"
-              display="inline-block"
-              overflow="visible"
-            >
-              <path d="M1.22 6.28a.749.749 0 0 1 0-1.06l3.5-3.5a.749.749 0 1 1 1.06 1.06L3.561 5h7.188l.001.007L10.749 5c.058 0 .116.007.171.019A4.501 4.501 0 0 1 10.5 14H8.796a.75.75 0 0 1 0-1.5H10.5a3 3 0 1 0 0-6H3.561L5.78 8.72a.749.749 0 1 1-1.06 1.06l-3.5-3.5Z"></path>
-            </svg>
-            {/* <ResetIcon
-              width={20}
-              height={20}
-              style={{ verticalAlign: 'middle' }}
-            /> */}
-          </Button>
-          <Button onClick={redoWorkspace} className="btn-neutral" title="Redo">
-            <span
-              style={{
-                display: 'inline-block',
-                transform: 'rotate(180deg) scaleY(-1)',
-                verticalAlign: 'middle',
-              }}
-            >
-              {/* <ResetIcon
-                width={20}
-                height={20}
-                style={{ verticalAlign: 'middle' }}
-              /> */}
-              <svg
-                aria-hidden="true"
-                focusable="false"
-                className="octicon octicon-undo"
-                viewBox="0 0 16 16"
-                width="16"
-                height="16"
-                fill="currentColor"
-                display="inline-block"
-                overflow="visible"
-                style={{ verticalAlign: 'middle' }}
-              >
-                <path d="M1.22 6.28a.749.749 0 0 1 0-1.06l3.5-3.5a.749.749 0 1 1 1.06 1.06L3.561 5h7.188l.001.007L10.749 5c.058 0 .116.007.171.019A4.501 4.501 0 0 1 10.5 14H8.796a.75.75 0 0 1 0-1.5H10.5a3 3 0 1 0 0-6H3.561L5.78 8.72a.749.749 0 1 1-1.06 1.06l-3.5-3.5Z"></path>
-              </svg>
-            </span>
-          </Button>
-        </div>
-      </footer>
     </>
   );
 };

@@ -12,7 +12,10 @@ const config = {
   type: Phaser.AUTO,
   width: 480,
   height: 360,
-  scale: { mode: Phaser.Scale.WIDTH_CONTROLS_HEIGHT },
+  scale: {
+    mode: Phaser.Scale.NONE,
+    autoCenter: Phaser.Scale.NO_CENTER,
+  },
   parent: 'phaser-container',
   backgroundColor: '#707090',
   scene: [Boot, Preloader, MainMenu, Game, GameOver],

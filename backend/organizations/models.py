@@ -1,3 +1,4 @@
+from __future__ import annotations
 from django.db.models import Model, ImageField, DateTimeField, ForeignKey, PROTECT, SlugField, CharField, TextField, ManyToManyField, BooleanField, CASCADE, SET_NULL
 from accounts.models import User
 from rest_framework.exceptions import ValidationError

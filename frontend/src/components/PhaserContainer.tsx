@@ -7,6 +7,7 @@ import { MAIN_MENU_SCENE_KEY } from "@/phaser/scenes/MainMenu";
 import type MainMenu from "@/phaser/scenes/MainMenu";
 import type { Game } from "phaser";
 import { loadPhaserState, PhaserExport } from "@/phaser/PhaserStateManager";
+import { useEditorStore } from "@/stores/editorStore";
 
 type Props = {
   ref: any;
@@ -14,17 +15,19 @@ type Props = {
 };
 
 // the React hooks in this component are written in order of their actual execution.
-const PhaserGame = ({ ref, phaserState }: Props) => {
+const PhaserContainer = ({ ref, phaserState }: Props) => {
+  const isConverting = useEditorStore((state) => state.isConverting);
+  const isPaused = useEditorStore((state) => state.isPaused);
   const gameRef = useRef<Game | null>(null);
 
   useLayoutEffect(() => {
-    if (!gameRef.current) gameRef.current = StartGame("game-container");
+    if (!gameRef.current) gameRef.current = StartGame('game-container');
   }, []);
 
   useImperativeHandle(
     ref,
     () => {
-      console.log("useImperativeHandle(), ", gameRef);
+      console.log('useImperativeHandle(), ', gameRef);
       return {
         game: gameRef.current,
         scene: null,
@@ -36,34 +39,32 @@ const PhaserGame = ({ ref, phaserState }: Props) => {
   useEffect(() => {
     // this scene event listener will live until this Phaser react component has been torn down
     const handler = (scene: Phaser.Scene | MainMenu) => {
-      if (!("key" in scene) || !(scene.key == MAIN_MENU_SCENE_KEY)) return;
+      if (!('key' in scene) || !(scene.key == MAIN_MENU_SCENE_KEY)) return;
       ref.current.scene = scene;
     };
-    EventBus.on("current-scene-ready", handler);
+    EventBus.on('current-scene-ready', handler);
 
     return () => {
-      EventBus.off("current-scene-ready", handler);
+      EventBus.off('current-scene-ready', handler);
     };
   }, []);
 
   useEffect(() => {
-    const handler = (currentScene: any) => {
+    const handler = () => {
       if (phaserState && Object.keys(phaserState).length > 0)
         loadPhaserState((ref as any).current, phaserState);
       else (ref as any).current.scene.createPlayer();
     };
-    EventBus.on("current-scene-ready", handler);
+    EventBus.on('current-scene-ready', handler);
     return () => {
-      EventBus.removeListener("current-scene-ready", handler);
+      EventBus.off('current-scene-ready', handler);
     };
   }, [ref]);
 
   useEffect(() => {
-    const container = document.getElementById(
-      'game-container'
-    ) as HTMLDivElement | null;
-    const keyboard = gameRef.current?.input?.keyboard;
-    if (!container || !keyboard) return;
+    const container = document.getElementById('game-container') as HTMLDivElement;
+    const keyboard = gameRef.current?.input?.keyboard
+    if (!container || !keyboard) throw new Error('Game container or keyboard not found');
 
     const handleDocumentPointerDown = (event: PointerEvent) => {
       if (!container.contains(event.target as Node) && keyboard.enabled)
@@ -86,12 +87,29 @@ const PhaserGame = ({ ref, phaserState }: Props) => {
   }, []);
 
   return (
-    <div
-      id="game-container"
-      tabIndex={0}
-      style={{ width: '480px', height: '360px' }}
-    />
+    <div className="relative">
+      <div
+        id="game-container"
+        tabIndex={0}
+        className="rounded-md outline-none border-2 border-transparent focus:border-primary-green transition-all duration-200"
+        style={{
+          width: '484px',
+          height: '360px',
+          overflow: 'hidden',
+        }}
+      />
+      {(isConverting || isPaused) && (
+        <div
+          className="absolute inset-0 rounded-md flex items-center justify-center bg-black/40 pointer-events-none"
+          style={{ transition: 'opacity 100ms ease-in-out' }}
+        >
+          {isConverting && (
+            <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          )}
+        </div>
+      )}
+    </div>
   );
 };
 
-export default PhaserGame;
+export default PhaserContainer;
