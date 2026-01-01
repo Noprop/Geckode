@@ -15,8 +15,22 @@ import DragAndDrop, { DragAndDropRef } from "@/components/DragAndDrop";
 import { Button } from "@/components/ui/Button";
 import { createSlug } from "../../page";
 import { useSnackbar } from "@/hooks/useSnackbar";
+import { Table, TableRef } from "@/components/ui/Table";
+import {
+  OrganizationMember,
+  OrganizationMemberFilters,
+  OrganizationMemberPayload,
+  organizationMemberSortKeys,
+  OrganizationMemberSortKeys,
+} from "@/lib/types/api/organizations/members";
+import { User } from "@/lib/types/api/users";
+import { Modal } from "@/components/ui/Modal";
 
-const AboutOrganization = ({ org }: { org: Organization }) => {
+const AboutOrganization = (
+  org: Organization,
+  setOrg: React.Dispatch<React.SetStateAction<Organization | undefined>>,
+  user: User
+) => {
   const snackbar = useSnackbar();
   const orgNameRef = useRef<InputBoxRef | null>(null);
   const orgDescRef = useRef<InputBoxRef | null>(null);
@@ -108,15 +122,142 @@ const AboutOrganization = ({ org }: { org: Organization }) => {
   );
 };
 
+const ManageMembers = (
+  org: Organization,
+  setOrg: React.Dispatch<React.SetStateAction<Organization | undefined>>,
+  user: User
+) => {
+  const orgMemberApi = organizationsApi(org?.id).members;
+  const tableRef = useRef<TableRef<OrganizationMember> | null>(null);
+
+  // inviting members
+  const invUserSearchRef = useRef<InputBoxRef | null>(null);
+  const [invSearchResults, setInvSearchResults] = useState<User[]>([]);
+
+  // for later use
+  const [showModal, setShowModal] = useState<"remove" | "invite" | null>(null);
+
+  return (
+    <>
+      <Table<
+        OrganizationMember,
+        OrganizationMemberPayload,
+        OrganizationMemberFilters,
+        OrganizationMemberSortKeys,
+        typeof orgMemberApi
+      >
+        ref={tableRef}
+        label="Organizations"
+        api={orgMemberApi}
+        columns={{
+          Avatar: {
+            key: "member",
+            type: "thumbnail",
+            value: (u: User) => u.avatar,
+          },
+          Username: {
+            key: "member",
+            type: "user",
+          },
+          Permission: {
+            key: "permission",
+          },
+        }}
+        sortKeys={organizationMemberSortKeys}
+        //defaultSortField="permission"
+        defaultSortDirection="desc"
+        actions={[
+          {
+            rowIcon: "trash",
+            rowIconSize: 24,
+            rowIconClicked: () => setShowModal("remove"),
+            rowIconClassName: "hover:text-red-500 mt-1",
+            canUse: (a) => org.owner.id === user?.id, // WILL NEED TO CHANGE TO PROPER PERMISSIONS!!!
+          },
+        ]}
+        extras={
+          <>
+            <Button
+              onClick={() => setShowModal("invite")}
+              className="btn-confirm"
+            >
+              Invite User
+            </Button>
+          </>
+        }
+      />
+      {showModal === "invite" && (
+        <Modal
+          onClose={() => setShowModal(null)}
+          title="Create project"
+          icon="file-plus"
+          actions={
+            <>
+              <Button onClick={inviteUsers} className="btn-confirm ml-3">
+                Invite
+              </Button>
+              <Button
+                onClick={() => {
+                  setShowModal(null);
+                }}
+                className="btn-neutral"
+              >
+                Cancel
+              </Button>
+            </>
+          }
+        >
+          Username:
+          <div className="flex flex-col">
+            <InputBox
+              ref={projectNameRef}
+              placeholder="Username"
+              className="bg-white text-black mb-3 border-0"
+            />
+            <p>Default user permission:</p>
+            <select
+              ref={permissionDropdownView}
+              className="bg-white text-black mb-3 p-2 rounded-md"
+            >
+              {ProjectPermissions.map((p) => (
+                <option key={p[0]} value={p[0]}>
+                  {p.join(" - ")}
+                </option>
+              ))}
+            </select>
+            <p>Project Thumbnail:</p>
+            <DragAndDrop ref={dropboxRef} accept="image/*" multiple={false} />
+            <div className="flex align-center">
+              <InputBox
+                ref={autoProjectOpenRef}
+                type="checkbox"
+                defaultChecked={true}
+                className="mr-2"
+              />
+              Automatically open the project after creation
+            </div>
+          </div>
+        </Modal>
+      )}
+    </>
+  );
+};
+
 const OrganizationSettingsPage = () => {
   const orgID = Number(useParams().organizationID);
   const [org, setOrg] = useState<Organization>();
+
+  const [user, setUser] = useState<User | null>(null);
 
   // fetch api for org name
   useEffect(() => {
     organizationsApi(orgID)
       .get()
       .then((org) => setOrg(org));
+
+    authApi.getUserDetails().then((user) => {
+      setUser(user);
+    });
   }, []);
 
   return (
@@ -127,11 +268,11 @@ const OrganizationSettingsPage = () => {
         tabs={[
           {
             title: "About Organization",
-            element: AboutOrganization({ org: org! }),
+            element: AboutOrganization(org!, setOrg, user!),
           },
           {
             title: "Manage Members",
-            element: <h1 className="header-1">Something 2</h1>,
+            element: ManageMembers(org!, setOrg, user!),
           },
         ]}
       ></TabSystem>

@@ -16,3 +16,12 @@ export interface OrganizationMemberFilters extends BaseFilters {
 export interface OrganizationMemberPayload {
   permission: string;
 }
+
+export const organizationMemberSortKeys: (keyof OrganizationMember)[] = [
+  "permission",
+  "joined_at",
+  "member",
+  "invited_by",
+];
+
+export type OrganizationMemberSortKeys = (typeof organizationMemberSortKeys)[number];
