@@ -15,16 +15,19 @@ export function SnackbarProvider({ children }: { children: React.ReactNode }) {
   const visibleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const snackbarTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const showSnackbar = useCallback((msg: string, type: SnackbarType = "info") => {
-    if (visibleTimeoutRef.current) clearTimeout(visibleTimeoutRef.current);
-    if (snackbarTimeoutRef.current) clearTimeout(snackbarTimeoutRef.current);
+  const showSnackbar = useCallback(
+    (msg: string, type: SnackbarType = "info") => {
+      if (visibleTimeoutRef.current) clearTimeout(visibleTimeoutRef.current);
+      if (snackbarTimeoutRef.current) clearTimeout(snackbarTimeoutRef.current);
 
-    setSnackbar({ message: msg, type });
-    setVisible(true);
+      setSnackbar({ message: msg, type });
+      setVisible(true);
 
-    visibleTimeoutRef.current = setTimeout(() => setVisible(false), 3000);
-    snackbarTimeoutRef.current = setTimeout(() => setSnackbar(null), 3500);
-  }, []);
+      visibleTimeoutRef.current = setTimeout(() => setVisible(false), 3000);
+      snackbarTimeoutRef.current = setTimeout(() => setSnackbar(null), 3500);
+    },
+    []
+  );
 
   const bgColor = {
     success: "bg-green-500",

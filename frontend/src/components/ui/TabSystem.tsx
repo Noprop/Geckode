@@ -22,7 +22,7 @@ const TabSystem = ({ tabs, startTab = 0 }: Props) => {
           <button
             key={idx}
             className={
-              "w-full py-2 rounded-lg mx-auto hover:bg-accent-green hover:shadow-md active:shadow-md active:text-dark-txt hover:text-light-txt " +
+              "w-full py-2 rounded-lg mx-auto hover:bg-accent-green hover:shadow-md active:shadow-md active:text-dark-txt hover:text-light-txt cursor-pointer " +
               (openTab === idx ? "bg-primary-green" : "")
             }
             onClick={() => setOpenTab(idx)}
