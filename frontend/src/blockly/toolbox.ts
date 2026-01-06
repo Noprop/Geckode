@@ -196,13 +196,13 @@ const toolbox = {
           inputs: {
             VALUE: {
               shadow: {
-                type: 'math_number',
+                type: "text", 
                 fields: {
-                  NUM: 0,
-                },
+                  TEXT: "abc"
+                }
               },
-            },
-          },
+            }
+          }
         },
       ],
     },
