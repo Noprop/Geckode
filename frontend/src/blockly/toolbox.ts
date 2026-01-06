@@ -190,6 +190,20 @@ const toolbox = {
           kind: 'block',
           type: 'runJS',
         },
+        {
+          kind: 'block',
+          type: 'consoleLog',
+          inputs: {
+            VALUE: {
+              shadow: {
+                type: 'math_number',
+                fields: {
+                  NUM: 0,
+                },
+              },
+            },
+          },
+        },
       ],
     },
     {
