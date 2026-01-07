@@ -60,6 +60,10 @@ const toolbox = {
           kind: 'block',
           type: 'getProperty',
         },
+        {
+          kind: 'block',
+          type: 'setRotation',
+        },
       ],
     },
     {

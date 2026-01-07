@@ -1,5 +1,6 @@
 import { javascriptGenerator, Order } from "blockly/javascript";
 import { getSpriteDropdownOptions } from "@/blockly/spriteRegistry";
+import { registerFieldAngle } from '@blockly/field-angle';
 
 const setProperty = {
   type: "setProperty",
@@ -186,9 +187,33 @@ javascriptGenerator.forBlock['getProperty'] = function (block, generator) {
   return [code, Order.NONE];
 };
 
+registerFieldAngle();
+const setRotation = {
+  type: "setRotation",
+  tooltip: "Set the rotation of a sprite",
+  helpUrl: "",
+  message0: "set rotation to %1",
+  args0: [
+    {
+      type: "field_angle",
+      name: "VALUE",
+      value: 50
+    }
+  ],
+  previousStatement: null,
+  nextStatement: null,
+  colour: "%{BKY_SPRITES_HUE}"
+}
+
+javascriptGenerator.forBlock['setRotation'] = function (block, generator) {
+  const value = generator.valueToCode(block, 'VALUE', Order.NONE);
+  return `scene.player.angle = ${value}\n`;
+};
+
 export const spriteBlocks = [
   createSprite,
   setProperty,
   changeProperty,
   getProperty,
+  setRotation,
 ];
