@@ -197,7 +197,10 @@ const setRotation = {
     {
       type: "field_angle",
       name: "VALUE",
-      value: 50
+      clockwise: true,
+      offset: 90,
+      value: 90,
+      symbol: ""
     }
   ],
   previousStatement: null,
@@ -206,7 +209,8 @@ const setRotation = {
 }
 
 javascriptGenerator.forBlock['setRotation'] = function (block, generator) {
-  const value = generator.valueToCode(block, 'VALUE', Order.NONE);
+  var value = block.getFieldValue("VALUE");
+  value = (value - 90) % 360;
   return `scene.player.angle = ${value}\n`;
 };
 
