@@ -214,10 +214,41 @@ javascriptGenerator.forBlock['setRotation'] = function (block, generator) {
   return `scene.player.angle = ${value}\n`;
 };
 
+const pointAtXY = {
+  type: "pointAtXY",
+  tooltip: "Point at a positin",
+  helpUrl: "",
+  message0: "point at x:%1 y:%2",
+  args0: [
+    {
+      type: "input_value",
+      name: "x",
+      value: 0,
+    },
+    {
+      type: "input_value",
+      name: "y",
+      value: 0,
+    },
+  ],
+  previousStatement: null,
+  nextStatement: null,
+  colour: "%{BKY_SPRITES_HUE}",
+  inlineInputs: true
+}
+
+javascriptGenerator.forBlock['pointAtXY'] = function (block, generator) {
+  const x = generator.valueToCode(block, 'x', Order.NONE) || 0;
+  const y = generator.valueToCode(block, 'y', Order.NONE) || 0;
+
+  return `scene.player.rotation = Phaser.Math.Angle.Between(scene.player.x, scene.player.y, ${x}, ${y})`;
+};
+
 export const spriteBlocks = [
   createSprite,
   setProperty,
   changeProperty,
   getProperty,
   setRotation,
+  pointAtXY,
 ];

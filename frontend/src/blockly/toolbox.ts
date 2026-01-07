@@ -64,6 +64,29 @@ const toolbox = {
           kind: 'block',
           type: 'setRotation',
         },
+        {
+          kind: 'block',
+          type: 'pointAtXY',
+          inputs: {
+            x: {
+              shadow: {
+                type: 'math_number',
+                fields: {
+                  NUM: 0,
+                },
+              },
+            },
+            y: {
+              shadow: {
+                type: 'math_number',
+                fields: {
+                  NUM: 0,
+                },
+              },
+            },
+          },
+        },
+
       ],
     },
     {
