@@ -149,7 +149,7 @@ const getProperty = {
   type: "getProperty",
   tooltip: "Get the property of a sprite",
   helpUrl: "",
-  message0: "%1 %2",
+  message0: "%1",
   args0: [
     {
       type: "field_dropdown",
@@ -172,11 +172,8 @@ const getProperty = {
           "velocity.y"
         ]
       ]
-    },
-    {
-      type: "input_dummy",
-      name: "DUMMY"
     }
+
   ],
   output: null,
   colour: "%{BKY_SPRITES_HUE}"
@@ -241,7 +238,7 @@ javascriptGenerator.forBlock['pointAtXY'] = function (block, generator) {
   const x = generator.valueToCode(block, 'x', Order.NONE) || 0;
   const y = generator.valueToCode(block, 'y', Order.NONE) || 0;
 
-  return `scene.player.rotation = Phaser.Math.Angle.Between(scene.player.x, scene.player.y, ${x}, ${y})`;
+  return `scene.player.rotation = Phaser.Math.Angle.Between(scene.player.x, scene.player.y, ${x}, ${y})\n`;
 };
 
 export const spriteBlocks = [
