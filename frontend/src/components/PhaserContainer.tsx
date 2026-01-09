@@ -17,7 +17,6 @@ type Props = {
 // the React hooks in this component are written in order of their actual execution.
 const PhaserContainer = ({ ref, phaserState }: Props) => {
   const isConverting = useEditorStore((state) => state.isConverting);
-  const isPaused = useEditorStore((state) => state.isPaused);
   const gameRef = useRef<Game | null>(null);
 
   useLayoutEffect(() => {
@@ -98,14 +97,12 @@ const PhaserContainer = ({ ref, phaserState }: Props) => {
           overflow: 'hidden',
         }}
       />
-      {(isConverting || isPaused) && (
+      {isConverting && (
         <div
           className="absolute inset-0 rounded-md flex items-center justify-center bg-black/40 pointer-events-none"
           style={{ transition: 'opacity 100ms ease-in-out' }}
         >
-          {isConverting && (
-            <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-          )}
+          <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
         </div>
       )}
     </div>

@@ -454,7 +454,7 @@ const SpriteModal = ({ isAssetModalOpen, setIsAssetModalOpen, onAssetClick }: Pr
                         draggable
                         onDragStart={handleDragStart(asset)}
                         onClick={handleAssetClick(asset)}
-                        title="Click to add to center or drag into the game window"
+                        title="Click to add to center of the game window"
                       >
                         <img
                           src={asset.preview}

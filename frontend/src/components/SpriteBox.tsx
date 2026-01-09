@@ -16,6 +16,7 @@ export type SpriteInstance = {
   visible?: boolean;
   size?: number;
   direction?: number;
+  snapToGrid?: boolean;
 };
 
 type Props = {
@@ -170,6 +171,25 @@ const SpriteEditor = memo(function SpriteEditor({
               className="w-14 rounded-full border border-slate-300 bg-white px-2 py-1.5 text-xs text-center outline-none transition focus:border-primary-green focus:ring-2 focus:ring-primary-green/20 disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-600 dark:bg-dark-hover dark:text-slate-100 dark:disabled:bg-dark-tertiary dark:disabled:text-slate-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
           </div>
+
+          {/* Snap to Grid */}
+          <label className="flex cursor-pointer items-center gap-1.5">
+            <input
+              type="checkbox"
+              checked={selectedSprite?.snapToGrid ?? false}
+              onChange={() =>
+                handleFieldChange(
+                  'snapToGrid',
+                  !(selectedSprite?.snapToGrid ?? false)
+                )
+              }
+              disabled={!selectedSprite}
+              className="h-3.5 w-3.5 accent-primary-green cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            />
+            <span className="font-semibold text-slate-600 dark:text-slate-400">
+              Snap
+            </span>
+          </label>
 
           {/* Show/Hide Toggle */}
           <div className="flex items-center gap-0">
