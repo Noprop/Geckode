@@ -68,7 +68,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   canUndo: false,
   canRedo: false,
   isConverting: false,
-  isPaused: false,
+  isPaused: true,
 
   setPhaserRef: (phaserRef) => set({ phaserRef }),
   setBlocklyRef: (blocklyRef) => set({ blocklyRef }),
