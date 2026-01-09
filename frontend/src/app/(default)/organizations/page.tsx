@@ -66,6 +66,10 @@ export default function OrganizationsPage() {
           dropboxRef.current?.files?.length! > 0
             ? dropboxRef.current?.files![0]
             : null,
+      }, {
+        headers: {
+          "Content-Type": "multipart/form-data"
+        }
       })
       .then((organization) => {
         if (autoOrganizationOpenRef.current?.isChecked) {

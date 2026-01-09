@@ -42,8 +42,8 @@ async function request<T = any>(
       url: `${BASE_API_URL}${url}`,
       data,
       withCredentials: true,
-      headers,
       ...config,
+      headers: {...headers, ...config?.headers ?? {}},
     });
 
     return response;
