@@ -17,6 +17,15 @@ pnpm run lint             # Biome check
 pnpm run format           # Biome format --write
 ```
 
+### Frontend Tests (from frontend/)
+```bash
+pnpm exec playwright install   # Install browsers (first time only)
+pnpm exec playwright test      # Run all tests
+pnpm exec playwright test --ui # Run tests with interactive UI
+pnpm exec playwright test --project=chromium  # Run tests in specific browser
+pnpm exec playwright show-report   # View HTML test report
+```
+
 ### Backend (from backend/)
 ```bash
 python -m venv venv && source venv/bin/activate  # Create/activate venv
