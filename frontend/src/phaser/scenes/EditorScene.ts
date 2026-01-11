@@ -156,6 +156,7 @@ export default class MainMenu extends Phaser.Scene {
     // TODO: Add collision detection
     // this.player.setCollideWorldBounds(true);
 
+    // console.log(this.scene)
     return sprite;
   }
 
@@ -417,50 +418,5 @@ export default class MainMenu extends Phaser.Scene {
     sprite.setDepth(MainMenu.EDITOR_SPRITE_BASE_DEPTH);
     this.activeDrag = null;
     this.detachGlobalDragListeners();
-  }
-
-  /**
-   * Execute arbitrary JS in a constrained context.
-   * Example code string:
-   *   "console.log('wow'); await api.wait(250); api.moveBy(50, -20);"
-   */
-  public async runScript(code: string): Promise<any> {
-    //this.player.setVelocity(20, 0);
-    // @ts-ignore
-    console.log('this.test: ', this.test);
-    const ctx: SandboxContext = {
-      // api: this.buildAPI(),
-      scene: this,
-      phaser: Phaser,
-      console: console, // replace with your own logger if desired
-    };
-
-    // The function receives named parameters matching keys of `ctx`.
-    // It returns an awaited result of the user's script.
-    const argNames = Object.keys(ctx); // ['api','scene','phaser','console']
-    const argValues = Object.values(ctx);
-
-    // Wrap user code in an async IIFE so `await` works at top level.
-    // Skip scene restart when paused (editor mode) to preserve grid
-    const wrapped = `
-      "use strict";
-      return (async () => {
-        ${code}
-        if (!scene.game.isPaused) {
-          scene.scene.restart();
-        }
-      })();
-    `;
-
-    try {
-      const fn = new AsyncFunction(...argNames, wrapped);
-      const result = await fn(...argValues);
-      //return result;
-    } catch (err) {
-      // Surface a readable error back to caller/React UI
-      const message = err instanceof Error ? err.message : String(err);
-      console.error('[runScript error]', err);
-      throw new Error(`runScript failed: ${message}`);
-    }
   }
 }

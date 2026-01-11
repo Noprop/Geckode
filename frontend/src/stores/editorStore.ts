@@ -69,8 +69,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   projectName: '',
   spriteInstances: [
     {
-      // id: Date.now().toString(),
-      id: 'hero',
+      id:
+        'id_' + Date.now().toString() + '-' + Math.round(Math.random() * 10000),
       tid: '1',
       name: 'herowalkfront1',
       x: 200,
@@ -136,7 +136,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       workspace as Blockly.Workspace
     );
     console.log('generate code()', code);
-    phaserRef.scene?.runScript(code);
+    // phaserRef.scene?.runScript(code);
 
     const { spriteInstances } = get();
     console.log(spriteInstances);
