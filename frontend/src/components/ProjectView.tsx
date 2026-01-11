@@ -14,7 +14,7 @@ import projectsApi from '@/lib/api/handlers/projects';
 import { PhaserExport } from '@/phaser/PhaserStateManager';
 import { Game } from 'phaser';
 import MainMenu from '@/phaser/scenes/EditorScene';
-import SpritePanel, { SpriteInstance } from '@/components/SpritePanel';
+import SpritePanel from '@/components/SpritePanel';
 import { type SpriteDragPayload } from '@/components/SpriteModal';
 import starterWorkspace from '@/blockly/starterWorkspace';
 import { useSnackbar } from '@/hooks/useSnackbar';
@@ -23,6 +23,7 @@ import { useWorkspaceView } from '@/contexts/WorkspaceViewContext';
 import { EventBus } from '@/phaser/EventBus';
 import { setSpriteDropdownOptions } from '@/blockly/spriteRegistry';
 import { useEditorStore } from '@/stores/editorStore';
+import type { SpriteInstance } from '@/blockly/spriteRegistry';
 
 export type PhaserRef = {
   readonly game: Game;
@@ -260,23 +261,19 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
   const attachBlockToOnStart = useCallback(
     (workspace: Blockly.WorkspaceSvg, block: Blockly.BlockSvg) => {
       // let [onStartBlock] = workspace.getBlocksByType('onStart', false);
-
       // if (!onStartBlock) {
       //   const newBlock = workspace.newBlock('onStart');
       //   newBlock.initSvg();
       //   newBlock.render();
       //   [onStartBlock] = workspace.getBlocksByType('onStart', false);
       // }
-
       // const input = onStartBlock.getInput('INNER');
       // const connection = input?.connection;
       // if (!connection || !block.previousConnection) return;
-
       // if (!connection.targetConnection) {
       //   connection.connect(block.previousConnection);
       //   return;
       // }
-
       // let current = connection.targetBlock();
       // while (current && current.getNextBlock()) {
       //   current = current.getNextBlock();
@@ -288,6 +285,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
 
   const addSpriteToGame = useCallback(
     async (payload: SpriteDragPayload, position?: { x: number; y: number }) => {
+      console.log('addSpriteToGame???');
       const game = phaserRef.current?.game;
       const scene = phaserRef.current?.scene;
       const workspace =
@@ -336,6 +334,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
           };
           scene.load.once('complete', handleComplete);
           scene.load.once('loaderror', handleError);
+          console.log('loading image', payload.texture, dataUrl);
           scene.load.image(payload.texture, dataUrl);
           scene.load.start();
         });
@@ -372,9 +371,9 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
 
       const safeBase = payload.texture.replace(/[^\w]/g, '') || 'sprite';
       const duplicateCount = spriteInstances.filter(
-        (instance) => instance.texture === payload.texture
+        (instance) => instance.name === payload.texture
       ).length;
-      const variableName = `${safeBase}${duplicateCount + 1}`;
+      const name = `${safeBase}${duplicateCount + 1}`;
       const spriteId = `sprite-${Date.now()}-${Math.round(
         Math.random() * 1e4
       )}`;
@@ -394,9 +393,8 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
         ...prev,
         {
           id: spriteId,
-          label: payload.label,
-          texture: payload.texture,
-          variableName,
+          tid: payload.texture,
+          name: name,
           x: worldX,
           y: worldY,
         },
@@ -460,7 +458,6 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
     //   blocklyRef.current?.getWorkspace() as Blockly.WorkspaceSvg | null;
     // const sprite = spriteInstances.find((instance) => instance.id === spriteId);
     // if (!workspace) return;
-
     // console.log("continue removing");
     // const block = workspace.getBlockById(sprite.blockId);
     // if (!block) {

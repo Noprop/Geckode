@@ -125,14 +125,13 @@ const changeProperty = {
 javascriptGenerator.forBlock['changeProperty'] = function (block, generator) {
   const value = generator.valueToCode(block, 'VALUE', Order.NONE) || 0;
   const spriteKey = block.getFieldValue('SPRITE') || '__player__';
-  // const spriteExpr =
-  //   spriteKey === '__player__'
-  //     ? 'scene.player'
-  //     : spriteKey.startsWith('scene.')
-  //       ? spriteKey
-  //       : `(scene.__sprites?.["${spriteKey}"] ?? scene.player)`;
+  const spriteExpr =
+    spriteKey === '__player__'
+      ? 'scene.player'
+      : spriteKey.startsWith('scene.')
+      ? spriteKey
+      : `(scene.__sprites?.["${spriteKey}"] ?? scene.player)`;
 
-  const spriteExpr = `(scene.__sprites?.["${spriteKey}"] ?? scene.player)`;
   return `${spriteExpr}.body.${block.getFieldValue('PROPERTY')} += ${value}\n`;
 };
 

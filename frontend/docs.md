@@ -320,7 +320,7 @@ interface SpriteInstance {
   id: string;              // Unique ID (timestamp-based)
   label: string;           // Display name
   texture: string;         // Phaser texture key
-  variableName: string;    // Block variable name
+  name: string;    // Block variable name
   x: number;
   y: number;
   blockId: string;         // Associated Blockly block

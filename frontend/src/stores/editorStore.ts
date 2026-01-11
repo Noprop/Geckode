@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { Game } from 'phaser';
 import MainMenu from '@/phaser/scenes/EditorScene';
 import { BlocklyEditorHandle } from '@/components/BlocklyEditor';
-import { SpriteInstance } from '@/components/SpritePanel';
+import type { SpriteInstance } from '@/blockly/spriteRegistry';
 import { PhaserExport, createPhaserState } from '@/phaser/PhaserStateManager';
 import * as Blockly from 'blockly/core';
 import { javascriptGenerator } from 'blockly/javascript';
@@ -27,6 +27,7 @@ interface EditorState {
   projectId: number | null;
   projectName: string;
   spriteInstances: SpriteInstance[];
+  textures: Map<string, { name: string; file: string }>;
   phaserState: PhaserExport | null;
   canUndo: boolean;
   canRedo: boolean;
@@ -70,13 +71,21 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     {
       // id: Date.now().toString(),
       id: 'hero',
-      label: 'Hero Walk Front',
-      texture: 'hero-walk-front',
-      variableName: 'herowalkfront1',
+      tid: '1',
+      name: 'herowalkfront1',
       x: 200,
       y: 150,
     },
   ],
+  textures: new Map<string, { name: string; file: string }>([
+    [
+      '1',
+      {
+        name: 'hero-walk-front',
+        file: '/heroWalkFront1.bmp',
+      },
+    ],
+  ]),
   phaserState: null,
   canUndo: false,
   canRedo: false,

@@ -1,6 +1,7 @@
 // game/scenes/MainMenu.ts
 import Phaser from 'phaser';
 import { EventBus } from '@/phaser/EventBus';
+import { useEditorStore } from '@/stores/editorStore';
 
 export const MAIN_MENU_SCENE_KEY = 'MainMenu' as const;
 
@@ -63,13 +64,19 @@ export default class MainMenu extends Phaser.Scene {
   preload() {
     // Ensure you have a sprite/atlas loaded; example:
     // this.load.image('star', 'assets/star.png');
+    // this.load.image('hero-walk-front2', '/heroWalkFront1.bmp');
+
+    const textures = useEditorStore.getState().textures;
+    for (const texture of textures.values()) {
+      this.load.image(texture.name, texture.file);
+    }
   }
 
   public changeScene() {
     this.scene.start('Game');
   }
 
-  create() {
+  async create() {
     this.editorSprites.clear();
     this.gridGraphics = null; // Reset on scene restart
     // Cursor keys
@@ -94,6 +101,22 @@ export default class MainMenu extends Phaser.Scene {
 
     // Set up pause state listener for grid visibility BEFORE telling React scene is ready
     this.setupGridListener();
+    try {
+      await this.load.image('hero-walk-front2', '/heroWalkFront1.bmp');
+    } catch (error) {
+      console.error('Error loading image', error);
+    }
+
+    const spriteInstances = useEditorStore.getState().spriteInstances;
+    const textures = useEditorStore.getState().textures;
+    for (const instance of spriteInstances) {
+      this.createSprite(
+        textures.get(instance.tid)?.name || '',
+        instance.x,
+        instance.y,
+        instance.id
+      );
+    }
 
     // Tell React which scene is active (will trigger pause state sync)
     EventBus.emit('current-scene-ready', this);
@@ -119,7 +142,6 @@ export default class MainMenu extends Phaser.Scene {
   start() {}
 
   public createSprite(texture: string, x: number, y: number, id: string) {
-    console.log('createSprite()', texture, x, y, id);
     const sprite = this.physics.add.sprite(x, y, texture);
     sprite.setName(id);
     sprite.setData('editorSpriteId', id);
