@@ -1,7 +1,13 @@
 "use client";
 
 import dynamic from 'next/dynamic';
-import { useRef, useEffect, useCallback, DragEvent } from 'react';
+import {
+  useRef,
+  useEffect,
+  useCallback,
+  DragEvent,
+  useLayoutEffect,
+} from 'react';
 import BlocklyEditor, { BlocklyEditorHandle } from '@/components/BlocklyEditor';
 import * as Blockly from 'blockly/core';
 import projectsApi from '@/lib/api/handlers/projects';
@@ -247,7 +253,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
     };
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setSpriteDropdownOptions(spriteInstances);
   }, [spriteInstances]);
 
@@ -373,7 +379,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
         Math.random() * 1e4
       )}`;
 
-      scene.addSpriteFromEditor(payload.texture, worldX, worldY, spriteId);
+      scene.createSprite(payload.texture, worldX, worldY, spriteId);
 
       const newBlock = workspace.newBlock('createSprite');
       newBlock.setFieldValue(variableName, 'NAME');

@@ -77,7 +77,8 @@ const PhaserContainer = ({ ref }: Props) => {
       const phaserState = useEditorStore.getState().phaserState;
       if (phaserState && Object.keys(phaserState).length > 0)
         loadPhaserState((ref as any).current, phaserState);
-      else (ref as any).current.scene.createPlayer();
+      else
+        (ref as any).current.scene.createSprite('player', 200, 300, 'player');
     };
     EventBus.on('current-scene-ready', handler);
     return () => {
