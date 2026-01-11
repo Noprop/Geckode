@@ -107,6 +107,10 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
         '[ProjectView] received pause state request, responding with:',
         isPaused
       );
+      console.log(
+        '[ProjectView] received pause state request, responding with:',
+        isPaused
+      );
       EventBus.emit('editor-pause-changed', isPaused);
     };
     EventBus.on('editor-request-pause-state', handler);
@@ -577,6 +581,37 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
           </div>
         </div>
       </div>
+    <div className="flex h-[calc(100vh-4rem-3.5rem)]">
+      {/* Left side: Blockly editor */}
+      <div className="relative flex-1 min-h-0 min-w-0 bg-light-whiteboard dark:bg-dark-whiteboard mr-2 overflow-hidden">
+        <div
+          className={`absolute inset-0 transition-opacity duration-150 ${
+            view === 'blocks' ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          }`}
+          aria-hidden={view !== 'blocks'}
+        >
+          <BlocklyEditor
+            ref={blocklyRef}
+            onWorkspaceReady={handleWorkspaceReady}
+          />
+        </div>
+        <div
+          className={`absolute inset-0 flex items-center justify-center p-8 transition-opacity duration-150 ${
+            view === 'sprite' ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          }`}
+          aria-hidden={view !== 'sprite'}
+        >
+          <div className="w-full max-w-3xl rounded-2xl border border-dashed border-slate-400 bg-white/80 p-8 text-center shadow-md backdrop-blur-sm dark:border-slate-700 dark:bg-dark-secondary/80">
+            <h2 className="text-2xl font-bold text-primary-green drop-shadow-sm">
+              Sprite Editor Workspace
+            </h2>
+            <p className="mt-3 text-sm text-slate-700 dark:text-slate-200">
+              A dedicated sprite editor will live here. For now, continue using
+              the tools on the right.
+            </p>
+          </div>
+        </div>
+      </div>
 
       {/* Right side: Phaser game, sprite list, and scene list */}
       <div
@@ -598,6 +633,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
           onUpdateSprite={handleUpdateSprite}
         />
       </div>
+    </div>
     </div>
   );
 };
