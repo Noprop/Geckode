@@ -42,7 +42,6 @@ const SpritePanel = memo(function SpriteEditor({
 
   const handleSpriteSelect = useCallback((spriteId: string) => {
     useEditorStore.getState().loadWorkspace(spriteId);
-
     setSelectedSpriteId(spriteId);
   }, []);
 

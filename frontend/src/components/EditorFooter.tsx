@@ -72,7 +72,7 @@ const EditorFooter = () => {
         */}
 
         {/* Undo/Redo buttons on far right */}
-        <button
+        {/* <button
           onClick={() => {
             loadWorkspace("1");
           }}
@@ -87,7 +87,8 @@ const EditorFooter = () => {
           className="w-10 h-10 flex items-center justify-center rounded text-white transition-all bg-primary-green hover:bg-primary-green/90 hover:translate-y-px hover:shadow-[0_2px_0_0_#1a5c3a] active:translate-y-[3px] active:shadow-none shadow-[0_4px_0_0_#1a5c3a] cursor-pointer"
         >
           2
-        </button>
+        </button> */}
+
         <button
           onClick={undoWorkspace}
           disabled={!canUndo}

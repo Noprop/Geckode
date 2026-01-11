@@ -92,7 +92,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   isConverting: false,
   isPaused: true,
   spriteWorkspaces: new Map(),
-  spriteId: '1',
+  spriteId:
+    'id_' + Date.now().toString() + '_' + Math.round(Math.random() * 10000),
 
   setPhaserRef: (phaserRef) => set({ phaserRef }),
   setBlocklyRef: (blocklyRef) => set({ blocklyRef }),
@@ -232,6 +233,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   loadWorkspace: (spriteId) => {
+    if (spriteId === get().spriteId) return;
+    console.log('[editorStore] loadWorkspace called', spriteId);
     const { spriteWorkspaces, blocklyRef } = get();
     set({ spriteId: spriteId });
 

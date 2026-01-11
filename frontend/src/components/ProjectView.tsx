@@ -256,6 +256,9 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
 
   useLayoutEffect(() => {
     setSpriteDropdownOptions(spriteInstances);
+    useEditorStore.setState({
+      spriteId: useEditorStore.getState().spriteInstances[0].id,
+    });
   }, [spriteInstances]);
 
   const attachBlockToOnStart = useCallback(
