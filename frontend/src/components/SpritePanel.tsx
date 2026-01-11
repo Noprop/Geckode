@@ -27,7 +27,7 @@ type Props = {
   onUpdateSprite?: (spriteId: string, updates: Partial<SpriteInstance>) => void;
 };
 
-const SpriteEditor = memo(function SpriteEditor({
+const SpritePanel = memo(function SpriteEditor({
   sprites,
   onRemoveSprite,
   onAssetClick,
@@ -389,6 +389,7 @@ const SpriteEditor = memo(function SpriteEditor({
         </div>
       </div>
 
+      {/* TODO: The modal shouldn't be placed here. */}
       <SpriteModal
         isAssetModalOpen={isAssetModalOpen}
         setIsAssetModalOpen={setIsAssetModalOpen}
@@ -398,4 +399,4 @@ const SpriteEditor = memo(function SpriteEditor({
   );
 });
 
-export default SpriteEditor;
+export default SpritePanel;
