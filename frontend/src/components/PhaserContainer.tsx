@@ -43,27 +43,12 @@ const PhaserContainer = ({ ref, phaserState }: Props) => {
     };
     EventBus.on('current-scene-ready', handler);
 
-    return () => {
-      EventBus.off('current-scene-ready', handler);
-    };
-  }, []);
-
-  useEffect(() => {
-    const handler = () => {
-      if (phaserState && Object.keys(phaserState).length > 0)
-        loadPhaserState((ref as any).current, phaserState);
-      else (ref as any).current.scene.createPlayer();
-    };
-    EventBus.on('current-scene-ready', handler);
-    return () => {
-      EventBus.off('current-scene-ready', handler);
-    };
-  }, [ref]);
-
-  useEffect(() => {
-    const container = document.getElementById('game-container') as HTMLDivElement;
-    const keyboard = gameRef.current?.input?.keyboard
-    if (!container || !keyboard) throw new Error('Game container or keyboard not found');
+    const container = document.getElementById(
+      'game-container'
+    ) as HTMLDivElement;
+    const keyboard = gameRef.current?.input?.keyboard;
+    if (!container || !keyboard)
+      throw new Error('Game container or keyboard not found');
 
     const handleDocumentPointerDown = (event: PointerEvent) => {
       if (!container.contains(event.target as Node) && keyboard.enabled)
@@ -80,10 +65,24 @@ const PhaserContainer = ({ ref, phaserState }: Props) => {
       if (keyboard.enabled) keyboard.enabled = false;
     });
     document.addEventListener('pointerdown', handleDocumentPointerDown);
+
     return () => {
+      EventBus.off('current-scene-ready', handler);
       document.removeEventListener('pointerdown', handleDocumentPointerDown);
     };
   }, []);
+
+  useEffect(() => {
+    const handler = () => {
+      if (phaserState && Object.keys(phaserState).length > 0)
+        loadPhaserState((ref as any).current, phaserState);
+      else (ref as any).current.scene.createPlayer();
+    };
+    EventBus.on('current-scene-ready', handler);
+    return () => {
+      EventBus.off('current-scene-ready', handler);
+    };
+  }, [ref]);
 
   return (
     <div className="relative">
