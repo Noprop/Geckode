@@ -3,32 +3,32 @@
 import { useEffect, useLayoutEffect, useRef, useImperativeHandle } from "react";
 import StartGame from "@/phaser/phaserConfig";
 import { EventBus } from "@/phaser/EventBus";
-import { MAIN_MENU_SCENE_KEY } from "@/phaser/scenes/MainMenu";
-import type MainMenu from "@/phaser/scenes/MainMenu";
+import { MAIN_MENU_SCENE_KEY } from '@/phaser/scenes/EditorScene';
+import type MainMenu from '@/phaser/scenes/EditorScene';
 import type { Game } from "phaser";
 import { loadPhaserState, PhaserExport } from "@/phaser/PhaserStateManager";
 import { useEditorStore } from "@/stores/editorStore";
 
 type Props = {
   ref: any;
-  phaserState: PhaserExport | null;
 };
 
 // the React hooks in this component are written in order of their actual execution.
-const PhaserContainer = ({ ref, phaserState }: Props) => {
+const PhaserContainer = ({ ref }: Props) => {
   const isConverting = useEditorStore((state) => state.isConverting);
-  const gameRef = useRef<Game | null>(null);
+  const internalGameRef = useRef<Game | null>(null);
 
   useLayoutEffect(() => {
-    if (!gameRef.current) gameRef.current = StartGame('game-container');
+    if (!internalGameRef.current)
+      internalGameRef.current = StartGame('game-container');
   }, []);
 
   useImperativeHandle(
     ref,
     () => {
-      console.log('useImperativeHandle(), ', gameRef);
+      console.log('useImperativeHandle(), ', internalGameRef.current);
       return {
-        game: gameRef.current,
+        game: internalGameRef.current,
         scene: null,
       };
     },
@@ -46,7 +46,7 @@ const PhaserContainer = ({ ref, phaserState }: Props) => {
     const container = document.getElementById(
       'game-container'
     ) as HTMLDivElement;
-    const keyboard = gameRef.current?.input?.keyboard;
+    const keyboard = internalGameRef.current?.input?.keyboard;
     if (!container || !keyboard)
       throw new Error('Game container or keyboard not found');
 
@@ -74,6 +74,7 @@ const PhaserContainer = ({ ref, phaserState }: Props) => {
 
   useEffect(() => {
     const handler = () => {
+      const phaserState = useEditorStore.getState().phaserState;
       if (phaserState && Object.keys(phaserState).length > 0)
         loadPhaserState((ref as any).current, phaserState);
       else (ref as any).current.scene.createPlayer();

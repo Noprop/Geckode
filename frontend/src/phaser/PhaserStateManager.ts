@@ -1,7 +1,7 @@
 // allows phaser data to be uploaded
 
 export interface PhaserExport {
-    [key: string]: any
+  [key: string]: any;
 }
 
 // Schema mirrors the interface to 
