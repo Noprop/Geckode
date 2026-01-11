@@ -66,7 +66,17 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   blocklyRef: null,
   projectId: null,
   projectName: '',
-  spriteInstances: [],
+  spriteInstances: [
+    {
+      // id: Date.now().toString(),
+      id: 'hero',
+      label: 'Hero Walk Front',
+      texture: 'hero-walk-front',
+      variableName: 'herowalkfront1',
+      x: 200,
+      y: 150,
+    },
+  ],
   phaserState: null,
   canUndo: false,
   canRedo: false,
@@ -116,7 +126,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const code = javascriptGenerator.workspaceToCode(
       workspace as Blockly.Workspace
     );
-    console.log('generate code()');
+    console.log('generate code()', code);
     phaserRef.scene?.runScript(code);
 
     const { spriteInstances } = get();
@@ -130,6 +140,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   scheduleConvert: () => {
+    console.log('scheduleConvert()');
     // Show loader immediately when changes are detected
     set({ isConverting: true });
 
@@ -242,6 +253,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         phaserRef.game.isPaused = newPaused;
       }
     }, 1000);
+    get().scheduleConvert();
   },
 }));
 

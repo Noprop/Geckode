@@ -7,25 +7,9 @@ export const MAIN_MENU_SCENE_KEY = 'MainMenu' as const;
 type PosCB = (pos: { x: number; y: number }) => void;
 
 export type GameAPI = {
-  moveBy: (dx: number, dy: number) => void;
-  createPlayer: (
-    xPos: number | null,
-    yPos: number | null,
-    starKey: string | null
-  ) => void;
-  addStar: (
-    xPos: number | null,
-    yPos: number | null,
-    starKey: string | null
-  ) => void;
-  addSpriteFromEditor: (
-    texture: string,
-    x: number,
-    y: number,
-    id: string
-  ) => void;
-  removeEditorSprite: (id: string) => void;
-  updateEditorSprite: (
+  addGameSprite: (texture: string, x: number, y: number, id: string) => void;
+  removeGameSprite: (id: string) => void;
+  updateGameSprite: (
     id: string,
     updates: {
       x?: number;
@@ -36,7 +20,6 @@ export type GameAPI = {
     }
   ) => void;
   wait: (ms: number) => Promise<void>;
-  stopAll: () => void;
 };
 
 type SandboxContext = {
@@ -60,12 +43,10 @@ export default class MainMenu extends Phaser.Scene {
     S: Phaser.Input.Keyboard.Key;
     D: Phaser.Input.Keyboard.Key;
   };
-  private posCB?: PosCB;
-  private lastSent = { x: -1, y: -1 };
-  private editorSprites = new Map<string, Phaser.Physics.Arcade.Sprite>();
-  private static readonly EDITOR_SPRITE_BASE_DEPTH =
+  private gameSprites = new Map<string, Phaser.Physics.Arcade.Sprite>();
+  private static readonly GAME_SPRITE_BASE_DEPTH =
     Number.MAX_SAFE_INTEGER - 100;
-  private editorLayer!: Phaser.GameObjects.Layer;
+  private gameLayer!: Phaser.GameObjects.Layer;
   private activeDrag: {
     sprite: Phaser.Physics.Arcade.Sprite;
     start: { x: number; y: number };
@@ -78,18 +59,14 @@ export default class MainMenu extends Phaser.Scene {
     this.key = MAIN_MENU_SCENE_KEY;
   }
 
-  preload() {
-    // Ensure you have a sprite/atlas loaded; example:
-    // this.load.image('star', 'assets/star.png');
-  }
+  preload() {}
 
   public changeScene() {
     this.scene.start('Game');
   }
 
   create() {
-    this.editorSprites.clear();
-    this.gridGraphics = null; // Reset on scene restart
+    this.gameSprites.clear();
     // Cursor keys
     // @ts-ignore
     this.cursors = this.input.keyboard.createCursorKeys();
@@ -104,209 +81,52 @@ export default class MainMenu extends Phaser.Scene {
     }) as unknown as typeof this.wasd;
 
     // Dedicated layer to keep editor sprites above all game objects.
-    this.editorLayer = this.add.layer();
-    this.editorLayer.setDepth(MainMenu.EDITOR_SPRITE_BASE_DEPTH);
+    this.gameLayer = this.add.layer();
+    this.gameLayer.setDepth(MainMenu.GAME_SPRITE_BASE_DEPTH);
 
     this.start();
-    this.registerDragEvents();
-
-    // Set up pause state listener for grid visibility BEFORE telling React scene is ready
-    this.setupGridListener();
 
     // Tell React which scene is active (will trigger pause state sync)
     EventBus.emit('current-scene-ready', this);
   }
 
-  private pauseHandler = (isPaused: boolean) => {
-    console.log('[MainMenu] editor-pause-changed received:', isPaused);
-    if (isPaused) {
-      this.showGrid();
-    } else {
-      this.hideGrid();
-    }
-  };
-
-  private setupGridListener(): void {
-    // Remove existing listener to prevent duplicates on scene restart
-    EventBus.off('editor-pause-changed', this.pauseHandler);
-
-    console.log('[MainMenu] setting up editor-pause-changed listener');
-    EventBus.on('editor-pause-changed', this.pauseHandler);
-  }
-
-  public createPlayer(
-    xPos: number | null,
-    yPos: number | null,
-    starKey: string | null
-  ) {
-    const x = xPos ? xPos : 400;
-    const y = yPos ? yPos : 300;
-    const key = starKey ? starKey : 'player';
-
-    // Create a physics-enabled sprite
-    this.player = this.physics.add.sprite(x, y, key);
-    this.player.name = 'player';
-    this.player.setCollideWorldBounds(true);
-  }
+  /**
+   * TODO: Implement pause handler
+   */
+  // private pauseHandler = (isPaused: boolean) => {
+  //   console.log('[MainMenu] editor-pause-changed received:', isPaused);
+  //   if (isPaused) {
+  //     this.showGrid();
+  //   } else {
+  //     this.hideGrid();
+  //   }
+  // };
 
   start() {}
 
-  /**
-   * Keep your existing React contract:
-   * Home.tsx calls scene.moveLogo(cb => setSpritePosition(cb))
-   * We store the callback and call it whenever the sprite position changes.
-   */
-  public moveLogo(cb: PosCB) {
-    this.posCB = cb;
-    // Send an initial position immediately
-    this.posCB?.({
-      x: Math.round(this.player.x),
-      y: Math.round(this.player.y),
-    });
+  public updateGameSprite(id: string, updates: { x?: number; y?: number }) {
+    const sprite = this.gameSprites.get(id);
+    if (!sprite) return;
+    sprite.setX(updates.x);
+    sprite.setY(updates.y);
   }
 
-  /**
-   * Optional: If you already have addStar() wired from React, keep it.
-   */
-  public addStar(
-    xPos: number | null = null,
-    yPos: number | null = null,
-    starKey: string | null = null
-  ) {
-    const x = xPos ? xPos : Phaser.Math.Between(50, 750);
-    const y = yPos ? yPos : Phaser.Math.Between(50, 550);
-    const key = starKey ? starKey : 'star';
-    this.physics.add.sprite(x, y, key);
-  }
-
-  public addSpriteFromEditor(
-    texture: string,
-    x: number,
-    y: number,
-    id: string
-  ) {
+  public addGameSprite(texture: string, x: number, y: number, id: string) {
     const sprite = this.physics.add.sprite(x, y, texture);
     sprite.setName(id);
-    sprite.setData('editorSpriteId', id);
-    sprite.setDepth(MainMenu.EDITOR_SPRITE_BASE_DEPTH);
-    this.editorLayer.add(sprite);
-    this.editorLayer.bringToTop(sprite);
-    this.enableSpriteDragging(sprite);
-    this.editorSprites.set(id, sprite);
+    sprite.setData('gameSpriteId', id);
+    sprite.setDepth(MainMenu.GAME_SPRITE_BASE_DEPTH);
+    this.gameLayer.add(sprite);
+    this.gameLayer.bringToTop(sprite);
+    this.gameSprites.set(id, sprite);
     return sprite;
   }
 
-  public removeEditorSprite(id: string) {
-    const sprite = this.editorSprites.get(id);
+  public removeGameSprite(id: string) {
+    const sprite = this.gameSprites.get(id);
     if (!sprite) return;
     sprite.destroy();
-    this.editorSprites.delete(id);
-  }
-
-  public updateEditorSprite(
-    id: string,
-    updates: {
-      x?: number;
-      y?: number;
-      visible?: boolean;
-      size?: number;
-      direction?: number;
-    }
-  ) {
-    const sprite = this.editorSprites.get(id);
-    if (!sprite) return;
-
-    if (updates.x !== undefined) {
-      sprite.setX(updates.x);
-    }
-    if (updates.y !== undefined) {
-      sprite.setY(updates.y);
-    }
-    if (updates.visible !== undefined) {
-      sprite.setVisible(updates.visible);
-    }
-    if (updates.size !== undefined) {
-      // Size is a percentage (100 = 100% = scale 1)
-      const scale = updates.size / 100;
-      sprite.setScale(scale);
-    }
-    if (updates.direction !== undefined) {
-      // Direction in degrees, Phaser uses angle property
-      sprite.setAngle(updates.direction - 90); // Scratch-style: 90 = right, convert to Phaser
-    }
-  }
-
-  private drawGrid(): void {
-    const width = 480;
-    const height = 360;
-    const gridSpacing = 50;
-    const centerX = 240;
-    const centerY = 180;
-
-    if (!this.gridGraphics) {
-      this.gridGraphics = this.add.graphics();
-      this.gridGraphics.setDepth(Number.MAX_SAFE_INTEGER);
-    }
-
-    this.gridGraphics.clear();
-
-    // Thin grid lines radiating from center
-    this.gridGraphics.lineStyle(1, 0xffffff, 0.3);
-
-    // Vertical lines from center outward
-    for (let x = centerX - gridSpacing; x >= 0; x -= gridSpacing) {
-      this.gridGraphics.beginPath();
-      this.gridGraphics.moveTo(x, 0);
-      this.gridGraphics.lineTo(x, height);
-      this.gridGraphics.strokePath();
-    }
-    for (let x = centerX + gridSpacing; x <= width; x += gridSpacing) {
-      this.gridGraphics.beginPath();
-      this.gridGraphics.moveTo(x, 0);
-      this.gridGraphics.lineTo(x, height);
-      this.gridGraphics.strokePath();
-    }
-
-    // Horizontal lines from center outward
-    for (let y = centerY - gridSpacing; y >= 0; y -= gridSpacing) {
-      this.gridGraphics.beginPath();
-      this.gridGraphics.moveTo(0, y);
-      this.gridGraphics.lineTo(width, y);
-      this.gridGraphics.strokePath();
-    }
-    for (let y = centerY + gridSpacing; y <= height; y += gridSpacing) {
-      this.gridGraphics.beginPath();
-      this.gridGraphics.moveTo(0, y);
-      this.gridGraphics.lineTo(width, y);
-      this.gridGraphics.strokePath();
-    }
-
-    // Thick center axes
-    this.gridGraphics.lineStyle(2, 0xffffff, 0.8);
-    this.gridGraphics.beginPath();
-    this.gridGraphics.moveTo(centerX, 0);
-    this.gridGraphics.lineTo(centerX, height);
-    this.gridGraphics.strokePath();
-    this.gridGraphics.beginPath();
-    this.gridGraphics.moveTo(0, centerY);
-    this.gridGraphics.lineTo(width, centerY);
-    this.gridGraphics.strokePath();
-  }
-
-  public showGrid(): void {
-    console.log('[MainMenu] showGrid called');
-    this.drawGrid();
-    if (this.gridGraphics) {
-      this.gridGraphics.setVisible(true);
-      console.log('[MainMenu] gridGraphics visible:', this.gridGraphics.visible);
-    }
-  }
-
-  public hideGrid(): void {
-    console.log('[MainMenu] hideGrid called');
-    if (this.gridGraphics) {
-      this.gridGraphics.setVisible(false);
-    }
+    this.gameSprites.delete(id);
   }
 
   update() {
@@ -341,160 +161,13 @@ export default class MainMenu extends Phaser.Scene {
 
   private buildAPI(): GameAPI {
     return {
-      moveBy: (dx: number, dy: number) => {
-        if (!this.player) return;
-        this.player.setX(this.player.x + dx);
-        this.player.setY(this.player.y + dy);
-      },
-      createPlayer: (xPos, yPos, starKey) =>
-        this.createPlayer(xPos, yPos, starKey),
-      addStar: (xPos, yPos, starKey) => this.addStar(xPos, yPos, starKey),
-      addSpriteFromEditor: (
-        texture: string,
-        x: number,
-        y: number,
-        id: string
-      ) => this.addSpriteFromEditor(texture, x, y, id),
-      removeEditorSprite: (id: string) => this.removeEditorSprite(id),
-      updateEditorSprite: (id, updates) => this.updateEditorSprite(id, updates),
+      addGameSprite: (texture: string, x: number, y: number, id: string) =>
+        this.addGameSprite(texture, x, y, id),
+      removeGameSprite: (id: string) => this.gameSprites.delete(id),
+      updateGameSprite: (id: string, updates: { x?: number; y?: number }) =>
+        this.updateGameSprite(id, updates),
       wait: (ms: number) => new Promise((r) => setTimeout(r, ms)),
-      stopAll: () => {
-        if (!this.player) return;
-        this.player.setVelocity(0, 0);
-      },
     };
-  }
-
-  private enableSpriteDragging(sprite: Phaser.Physics.Arcade.Sprite) {
-    sprite.setInteractive({ cursor: 'grab' });
-    this.input.setDraggable(sprite);
-  }
-
-  private registerDragEvents() {
-    this.input.dragDistanceThreshold = 0;
-
-    this.input.on(
-      'dragstart',
-      (
-        _pointer: Phaser.Input.Pointer,
-        gameObject: Phaser.GameObjects.GameObject
-      ) => {
-        const sprite = gameObject as Phaser.Physics.Arcade.Sprite;
-        const editorId = sprite.getData('editorSpriteId');
-        if (!editorId) return;
-        this.activeDrag = {
-          sprite,
-          start: { x: sprite.x, y: sprite.y },
-          lastWorld: { x: sprite.x, y: sprite.y },
-        };
-        sprite.setDepth(MainMenu.EDITOR_SPRITE_BASE_DEPTH);
-        this.editorLayer.bringToTop(sprite);
-        this.attachGlobalDragListeners();
-      }
-    );
-
-    this.input.on('drag', (pointer: Phaser.Input.Pointer) => {
-      this.updateDragPositionFromEvent(
-        pointer.event as PointerEvent | undefined,
-        pointer
-      );
-    });
-
-    this.input.on(
-      'dragend',
-      (
-        pointer: Phaser.Input.Pointer,
-        gameObject: Phaser.GameObjects.GameObject,
-        _dragX: number,
-        _dragY: number
-      ) => {
-        this.finishActiveDrag(pointer.event as PointerEvent | undefined);
-      }
-    );
-  }
-
-  private attachGlobalDragListeners() {
-    if (typeof window === 'undefined') return;
-    window.addEventListener('pointermove', this.handleGlobalPointerMove, {
-      capture: true,
-    });
-    window.addEventListener('pointerup', this.handleGlobalPointerUp, {
-      capture: true,
-    });
-  }
-
-  private detachGlobalDragListeners() {
-    if (typeof window === 'undefined') return;
-    window.removeEventListener('pointermove', this.handleGlobalPointerMove, {
-      capture: true,
-    });
-    window.removeEventListener('pointerup', this.handleGlobalPointerUp, {
-      capture: true,
-    });
-  }
-
-  private handleGlobalPointerMove = (event: PointerEvent) => {
-    this.updateDragPositionFromEvent(event, undefined);
-  };
-
-  private handleGlobalPointerUp = (event: PointerEvent) => {
-    this.finishActiveDrag(event);
-  };
-
-  private updateDragPositionFromEvent(
-    event?: PointerEvent,
-    pointer?: Phaser.Input.Pointer
-  ) {
-    if (!this.activeDrag || !event) {
-      // Fallback to pointer coords if available (still keeps integers to avoid blur).
-      if (!this.activeDrag || !pointer) return;
-      const roundedX = Math.round(pointer.worldX);
-      const roundedY = Math.round(pointer.worldY);
-      this.activeDrag.sprite.setPosition(roundedX, roundedY);
-      this.activeDrag.lastWorld = { x: roundedX, y: roundedY };
-      return;
-    }
-
-    const rect = this.game.canvas.getBoundingClientRect();
-    const scaleX = this.scale.width / rect.width;
-    const scaleY = this.scale.height / rect.height;
-    const worldX = (event.clientX - rect.left) * scaleX;
-    const worldY = (event.clientY - rect.top) * scaleY;
-    const roundedX = Math.round(worldX);
-    const roundedY = Math.round(worldY);
-
-    this.activeDrag.sprite.setPosition(roundedX, roundedY);
-    this.activeDrag.lastWorld = { x: roundedX, y: roundedY };
-  }
-
-  private finishActiveDrag(event?: PointerEvent) {
-    if (!this.activeDrag) return;
-    // Ensure we have latest position before deciding.
-    this.updateDragPositionFromEvent(event);
-
-    const { sprite, start, lastWorld } = this.activeDrag;
-    const withinX = lastWorld.x >= 0 && lastWorld.x <= this.scale.width;
-    const withinY = lastWorld.y >= 0 && lastWorld.y <= this.scale.height;
-
-    if (!withinX || !withinY) {
-      sprite.setPosition(start.x, start.y);
-    } else {
-      const finalX = Phaser.Math.Clamp(lastWorld.x, 0, this.scale.width);
-      const finalY = Phaser.Math.Clamp(lastWorld.y, 0, this.scale.height);
-      const snappedX = Math.round(finalX);
-      const snappedY = Math.round(finalY);
-      sprite.setPosition(snappedX, snappedY);
-      this.editorLayer.bringToTop(sprite);
-      EventBus.emit('editor-sprite-moved', {
-        id: sprite.getData('editorSpriteId'),
-        x: snappedX,
-        y: snappedY,
-      });
-    }
-
-    sprite.setDepth(MainMenu.EDITOR_SPRITE_BASE_DEPTH);
-    this.activeDrag = null;
-    this.detachGlobalDragListeners();
   }
 
   /**
@@ -503,9 +176,6 @@ export default class MainMenu extends Phaser.Scene {
    *   "console.log('wow'); await api.wait(250); api.moveBy(50, -20);"
    */
   public async runScript(code: string): Promise<any> {
-    //this.player.setVelocity(20, 0);
-    // @ts-ignore
-    console.log('this.test: ', this.test);
     const ctx: SandboxContext = {
       api: this.buildAPI(),
       scene: this,
