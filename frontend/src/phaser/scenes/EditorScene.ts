@@ -1,56 +1,13 @@
-// game/scenes/MainMenu.ts
 import Phaser from 'phaser';
 import { EventBus } from '@/phaser/EventBus';
+import { useEditorStore } from '@/stores/editorStore';
 
-export const MAIN_MENU_SCENE_KEY = 'MainMenu' as const;
+export const EDITOR_SCENE_KEY = 'EditorScene' as const;
+import GAME_SCENE_KEY from '@/phaser/scenes/GameScene';
 
 type PosCB = (pos: { x: number; y: number }) => void;
 
-export type GameAPI = {
-  moveBy: (dx: number, dy: number) => void;
-  createPlayer: (
-    xPos: number | null,
-    yPos: number | null,
-    starKey: string | null
-  ) => void;
-  addStar: (
-    xPos: number | null,
-    yPos: number | null,
-    starKey: string | null
-  ) => void;
-  addSpriteFromEditor: (
-    texture: string,
-    x: number,
-    y: number,
-    id: string
-  ) => void;
-  removeEditorSprite: (id: string) => void;
-  updateEditorSprite: (
-    id: string,
-    updates: {
-      x?: number;
-      y?: number;
-      visible?: boolean;
-      size?: number;
-      direction?: number;
-    }
-  ) => void;
-  wait: (ms: number) => Promise<void>;
-  stopAll: () => void;
-};
-
-type SandboxContext = {
-  api: GameAPI;
-  scene: MainMenu;
-  phaser: typeof Phaser;
-  console: Console; // you can swap this with a logger collector if you want
-};
-
-// Utility to create an async function at runtime.
-const AsyncFunction = Object.getPrototypeOf(async function () {})
-  .constructor as new (...args: string[]) => (...args: any[]) => Promise<any>;
-
-export default class MainMenu extends Phaser.Scene {
+export default class EditorScene extends Phaser.Scene {
   public key: string;
   public player!: Phaser.Physics.Arcade.Sprite;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -74,51 +31,59 @@ export default class MainMenu extends Phaser.Scene {
   private gridGraphics: Phaser.GameObjects.Graphics | null = null;
 
   constructor() {
-    super(MAIN_MENU_SCENE_KEY);
-    this.key = MAIN_MENU_SCENE_KEY;
+    super(EDITOR_SCENE_KEY);
+    this.key = EDITOR_SCENE_KEY;
   }
 
   preload() {
-    // Ensure you have a sprite/atlas loaded; example:
-    // this.load.image('star', 'assets/star.png');
+    const textures = useEditorStore.getState().textures;
+    for (const texture of textures.values()) {
+      this.load.image(texture.name, texture.file);
+    }
   }
 
   public changeScene() {
-    this.scene.start('Game');
+    this.scene.start(GAME_SCENE_KEY as unknown as string);
   }
 
-  create() {
+  async create() {
+    console.log('[EditorScene] create called');
+    this.showGrid();
+
     this.editorSprites.clear();
     this.gridGraphics = null; // Reset on scene restart
-    // Cursor keys
-    // @ts-ignore
-    this.cursors = this.input.keyboard.createCursorKeys();
-
-    // WASD keys
-    // @ts-ignore
-    this.wasd = this.input.keyboard.addKeys({
-      W: Phaser.Input.Keyboard.KeyCodes.W,
-      A: Phaser.Input.Keyboard.KeyCodes.A,
-      S: Phaser.Input.Keyboard.KeyCodes.S,
-      D: Phaser.Input.Keyboard.KeyCodes.D,
-    }) as unknown as typeof this.wasd;
 
     // Dedicated layer to keep editor sprites above all game objects.
     this.editorLayer = this.add.layer();
-    this.editorLayer.setDepth(MainMenu.EDITOR_SPRITE_BASE_DEPTH);
+    this.editorLayer.setDepth(EditorScene.EDITOR_SPRITE_BASE_DEPTH);
 
     this.start();
     this.registerDragEvents();
 
     // Set up pause state listener for grid visibility BEFORE telling React scene is ready
     this.setupGridListener();
+    try {
+      await this.load.image('hero-walk-front2', '/heroWalkFront1.bmp');
+    } catch (error) {
+      console.error('Error loading image', error);
+    }
 
+    const spriteInstances = useEditorStore.getState().spriteInstances;
+    const textures = useEditorStore.getState().textures;
+    for (const instance of spriteInstances) {
+      this.createSprite(
+        textures.get(instance.tid)?.name || '',
+        instance.x,
+        instance.y,
+        instance.id
+      );
+    }
     // Tell React which scene is active (will trigger pause state sync)
     EventBus.emit('current-scene-ready', this);
   }
 
   private pauseHandler = (isPaused: boolean) => {
-    console.log('[MainMenu] editor-pause-changed received:', isPaused);
+    console.log('[EditorScene] editor-pause-changed received:', isPaused);
     if (isPaused) {
       this.showGrid();
     } else {
@@ -130,80 +95,39 @@ export default class MainMenu extends Phaser.Scene {
     // Remove existing listener to prevent duplicates on scene restart
     EventBus.off('editor-pause-changed', this.pauseHandler);
 
-    console.log('[MainMenu] setting up editor-pause-changed listener');
+    console.log('[EditorScene] setting up editor-pause-changed listener');
     EventBus.on('editor-pause-changed', this.pauseHandler);
-  }
-
-  public createPlayer(
-    xPos: number | null,
-    yPos: number | null,
-    starKey: string | null
-  ) {
-    const x = xPos ? xPos : 400;
-    const y = yPos ? yPos : 300;
-    const key = starKey ? starKey : 'player';
-
-    // Create a physics-enabled sprite
-    this.player = this.physics.add.sprite(x, y, key);
-    this.player.name = 'player';
-    this.player.setCollideWorldBounds(true);
   }
 
   start() {}
 
-  /**
-   * Keep your existing React contract:
-   * Home.tsx calls scene.moveLogo(cb => setSpritePosition(cb))
-   * We store the callback and call it whenever the sprite position changes.
-   */
-  public moveLogo(cb: PosCB) {
-    this.posCB = cb;
-    // Send an initial position immediately
-    this.posCB?.({
-      x: Math.round(this.player.x),
-      y: Math.round(this.player.y),
-    });
-  }
-
-  /**
-   * Optional: If you already have addStar() wired from React, keep it.
-   */
-  public addStar(
-    xPos: number | null = null,
-    yPos: number | null = null,
-    starKey: string | null = null
-  ) {
-    const x = xPos ? xPos : Phaser.Math.Between(50, 750);
-    const y = yPos ? yPos : Phaser.Math.Between(50, 550);
-    const key = starKey ? starKey : 'star';
-    this.physics.add.sprite(x, y, key);
-  }
-
-  public addSpriteFromEditor(
-    texture: string,
-    x: number,
-    y: number,
-    id: string
-  ) {
+  public createSprite(texture: string, x: number, y: number, id: string) {
     const sprite = this.physics.add.sprite(x, y, texture);
     sprite.setName(id);
     sprite.setData('editorSpriteId', id);
-    sprite.setDepth(MainMenu.EDITOR_SPRITE_BASE_DEPTH);
+    sprite.setDepth(EditorScene.EDITOR_SPRITE_BASE_DEPTH);
     this.editorLayer.add(sprite);
     this.editorLayer.bringToTop(sprite);
     this.enableSpriteDragging(sprite);
     this.editorSprites.set(id, sprite);
+
+    console.log('actual name: ', sprite.name, id);
+
+    // TODO: Add collision detection
+    // this.player.setCollideWorldBounds(true);
+
+    // console.log(this.scene)
     return sprite;
   }
 
-  public removeEditorSprite(id: string) {
+  public removeSprite(id: string) {
     const sprite = this.editorSprites.get(id);
     if (!sprite) return;
     sprite.destroy();
     this.editorSprites.delete(id);
   }
 
-  public updateEditorSprite(
+  public updateSprite(
     id: string,
     updates: {
       x?: number;
@@ -214,6 +138,7 @@ export default class MainMenu extends Phaser.Scene {
     }
   ) {
     const sprite = this.editorSprites.get(id);
+    console.log('updateSprite()', sprite);
     if (!sprite) return;
 
     if (updates.x !== undefined) {
@@ -237,6 +162,7 @@ export default class MainMenu extends Phaser.Scene {
   }
 
   private drawGrid(): void {
+    console.log('[EditorScene] drawGrid called');
     const width = 480;
     const height = 360;
     const gridSpacing = 50;
@@ -294,76 +220,25 @@ export default class MainMenu extends Phaser.Scene {
   }
 
   public showGrid(): void {
-    console.log('[MainMenu] showGrid called');
+    console.log('[EditorScene] showGrid called');
     this.drawGrid();
     if (this.gridGraphics) {
       this.gridGraphics.setVisible(true);
-      console.log('[MainMenu] gridGraphics visible:', this.gridGraphics.visible);
+      console.log(
+        '[EditorScene] gridGraphics visible:',
+        this.gridGraphics.visible
+      );
     }
   }
 
   public hideGrid(): void {
-    console.log('[MainMenu] hideGrid called');
+    console.log('[EditorScene] hideGrid called');
     if (this.gridGraphics) {
       this.gridGraphics.setVisible(false);
     }
   }
 
-  update() {
-    // if (!this.player) return;
-    // const speed = 200;
-    // // Reset velocity each frame, then set based on input
-    // this.player.setVelocity(0);
-    // const left = this.cursors.left?.isDown || this.wasd.A.isDown;
-    // const right = this.cursors.right?.isDown || this.wasd.D.isDown;
-    // const up = this.cursors.up?.isDown || this.wasd.W.isDown;
-    // const down = this.cursors.down?.isDown || this.wasd.S.isDown;
-    // if (left) this.player.setVelocityX(-speed);
-    // if (right) this.player.setVelocityX(speed);
-    // if (up) this.player.setVelocityY(-speed);
-    // if (down) this.player.setVelocityY(speed);
-    // // Normalize diagonal speed
-    // if ((left || right) && (up || down) && this.player.body) {
-    //   this.player.setVelocity(
-    //     this.player.body.velocity.x * 0.7071,
-    //     this.player.body.velocity.y * 0.7071
-    //   );
-    // }
-    // // Publish position only when it changes (avoids spamming React state)
-    // const px = Math.round(this.player.x);
-    // const py = Math.round(this.player.y);
-    // if ((px !== this.lastSent.x || py !== this.lastSent.y) && this.posCB) {
-    //   console.log('update position');
-    //   this.posCB({ x: px, y: py });
-    //   this.lastSent = { x: px, y: py };
-    // }
-  }
-
-  private buildAPI(): GameAPI {
-    return {
-      moveBy: (dx: number, dy: number) => {
-        if (!this.player) return;
-        this.player.setX(this.player.x + dx);
-        this.player.setY(this.player.y + dy);
-      },
-      createPlayer: (xPos, yPos, starKey) =>
-        this.createPlayer(xPos, yPos, starKey),
-      addStar: (xPos, yPos, starKey) => this.addStar(xPos, yPos, starKey),
-      addSpriteFromEditor: (
-        texture: string,
-        x: number,
-        y: number,
-        id: string
-      ) => this.addSpriteFromEditor(texture, x, y, id),
-      removeEditorSprite: (id: string) => this.removeEditorSprite(id),
-      updateEditorSprite: (id, updates) => this.updateEditorSprite(id, updates),
-      wait: (ms: number) => new Promise((r) => setTimeout(r, ms)),
-      stopAll: () => {
-        if (!this.player) return;
-        this.player.setVelocity(0, 0);
-      },
-    };
-  }
+  update() {}
 
   private enableSpriteDragging(sprite: Phaser.Physics.Arcade.Sprite) {
     sprite.setInteractive({ cursor: 'grab' });
@@ -387,7 +262,7 @@ export default class MainMenu extends Phaser.Scene {
           start: { x: sprite.x, y: sprite.y },
           lastWorld: { x: sprite.x, y: sprite.y },
         };
-        sprite.setDepth(MainMenu.EDITOR_SPRITE_BASE_DEPTH);
+        sprite.setDepth(EditorScene.EDITOR_SPRITE_BASE_DEPTH);
         this.editorLayer.bringToTop(sprite);
         this.attachGlobalDragListeners();
       }
@@ -492,53 +367,8 @@ export default class MainMenu extends Phaser.Scene {
       });
     }
 
-    sprite.setDepth(MainMenu.EDITOR_SPRITE_BASE_DEPTH);
+    sprite.setDepth(EditorScene.EDITOR_SPRITE_BASE_DEPTH);
     this.activeDrag = null;
     this.detachGlobalDragListeners();
-  }
-
-  /**
-   * Execute arbitrary JS in a constrained context.
-   * Example code string:
-   *   "console.log('wow'); await api.wait(250); api.moveBy(50, -20);"
-   */
-  public async runScript(code: string): Promise<any> {
-    //this.player.setVelocity(20, 0);
-    // @ts-ignore
-    console.log('this.test: ', this.test);
-    const ctx: SandboxContext = {
-      api: this.buildAPI(),
-      scene: this,
-      phaser: Phaser,
-      console: console, // replace with your own logger if desired
-    };
-
-    // The function receives named parameters matching keys of `ctx`.
-    // It returns an awaited result of the user's script.
-    const argNames = Object.keys(ctx); // ['api','scene','phaser','console']
-    const argValues = Object.values(ctx);
-
-    // Wrap user code in an async IIFE so `await` works at top level.
-    // Skip scene restart when paused (editor mode) to preserve grid
-    const wrapped = `
-      "use strict";
-      return (async () => {
-        ${code}
-        if (!scene.game.isPaused) {
-          scene.scene.restart();
-        }
-      })();
-    `;
-
-    try {
-      const fn = new AsyncFunction(...argNames, wrapped);
-      const result = await fn(...argValues);
-      //return result;
-    } catch (err) {
-      // Surface a readable error back to caller/React UI
-      const message = err instanceof Error ? err.message : String(err);
-      console.error('[runScript error]', err);
-      throw new Error(`runScript failed: ${message}`);
-    }
   }
 }

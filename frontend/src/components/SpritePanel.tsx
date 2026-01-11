@@ -3,33 +3,21 @@
 import { memo, useState, useCallback, useEffect } from 'react';
 import { Cross2Icon, EyeOpenIcon, EyeNoneIcon } from '@radix-ui/react-icons';
 import { Button } from './ui/Button';
+import { useEditorStore } from '@/stores/editorStore';
 import SpriteModal, { type SpriteDragPayload } from './SpriteModal';
-
-export type SpriteInstance = {
-  id: string;
-  texture: string;
-  label: string;
-  variableName: string;
-  x: number;
-  y: number;
-  blockId?: string;
-  visible?: boolean;
-  size?: number;
-  direction?: number;
-  snapToGrid?: boolean;
-};
+import type { SpriteInstance } from '@/blockly/spriteRegistry';
 
 type Props = {
   sprites: SpriteInstance[];
   onRemoveSprite: (spriteId: string) => void;
-  onAssetClick: (payload: SpriteDragPayload) => Promise<boolean>;
+  addSpriteToGame: (payload: SpriteDragPayload) => Promise<boolean>;
   onUpdateSprite?: (spriteId: string, updates: Partial<SpriteInstance>) => void;
 };
 
-const SpriteEditor = memo(function SpriteEditor({
+const SpritePanel = memo(function SpriteEditor({
   sprites,
   onRemoveSprite,
-  onAssetClick,
+  addSpriteToGame,
   onUpdateSprite,
 }: Props) {
   const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
@@ -53,6 +41,7 @@ const SpriteEditor = memo(function SpriteEditor({
   const selectedSprite = sprites.find((s) => s.id === selectedSpriteId) || null;
 
   const handleSpriteSelect = useCallback((spriteId: string) => {
+    useEditorStore.getState().loadWorkspace(spriteId);
     setSelectedSpriteId(spriteId);
   }, []);
 
@@ -87,7 +76,7 @@ const SpriteEditor = memo(function SpriteEditor({
       if (editedValue === '' || editedValue === undefined) {
         // Empty - use default
         finalValue = defaultValue;
-      } else if (field === 'variableName') {
+      } else if (field === 'name') {
         finalValue = editedValue;
       } else {
         // Parse as number
@@ -121,17 +110,13 @@ const SpriteEditor = memo(function SpriteEditor({
             <input
               type="text"
               value={
-                'variableName' in editingValues
-                  ? editingValues.variableName
-                  : selectedSprite?.variableName || ''
+                'name' in editingValues
+                  ? editingValues.name
+                  : selectedSprite?.name || ''
               }
-              onFocus={() =>
-                handleFocus('variableName', selectedSprite?.variableName || '')
-              }
-              onChange={(e) =>
-                handleInputChange('variableName', e.target.value)
-              }
-              onBlur={() => handleBlur('variableName', originalName)}
+              onFocus={() => handleFocus('name', selectedSprite?.name || '')}
+              onChange={(e) => handleInputChange('name', e.target.value)}
+              onBlur={() => handleBlur('name', originalName)}
               disabled={!selectedSprite}
               className="w-28 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs outline-none transition focus:border-primary-green focus:ring-2 focus:ring-primary-green/20 disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-600 dark:bg-dark-hover dark:text-slate-100 dark:disabled:bg-dark-tertiary dark:disabled:text-slate-500"
               placeholder="—"
@@ -313,14 +298,14 @@ const SpriteEditor = memo(function SpriteEditor({
                       {/* Sprite Thumbnail Placeholder */}
                       <div className="w-full h-full flex items-center justify-center">
                         <div className="w-10 h-10 rounded-md bg-slate-200 dark:bg-slate-600 flex items-center justify-center text-lg font-bold text-slate-400 dark:text-slate-400">
-                          {sprite.variableName.charAt(0).toUpperCase()}
+                          {sprite.name.charAt(0).toUpperCase()}
                         </div>
                       </div>
 
                       {/* Sprite Name Label */}
                       <div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/70 to-transparent px-1 py-1">
                         <p className="text-[9px] text-white truncate text-center font-medium">
-                          {sprite.variableName}
+                          {sprite.name}
                         </p>
                       </div>
 
@@ -386,13 +371,14 @@ const SpriteEditor = memo(function SpriteEditor({
         </div>
       </div>
 
+      {/* TODO: The modal shouldn't be placed here. */}
       <SpriteModal
         isAssetModalOpen={isAssetModalOpen}
         setIsAssetModalOpen={setIsAssetModalOpen}
-        onAssetClick={onAssetClick}
+        addSpriteToGame={addSpriteToGame}
       />
     </section>
   );
 });
 
-export default SpriteEditor;
+export default SpritePanel;

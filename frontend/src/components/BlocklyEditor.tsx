@@ -26,6 +26,7 @@ type BlocklyEditorProps = {
 
 const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(
   ({ onWorkspaceReady }, ref) => {
+    console.log('BlocklyEditor()');
     const showSnackbar = useSnackbar();
     const blocklyDivRef = useRef<HTMLDivElement>(null);
     const workspaceRef = useRef<Blockly.WorkspaceSvg | null>(null);
@@ -197,6 +198,13 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(
             Blockly.Events.VAR_RENAME,
           ];
 
+          console.log('event', event);
+          console.log(
+            'convertableEvents',
+            convertableEvents.includes(
+              event.type as typeof Blockly.Events.BLOCK_CREATE
+            )
+          );
           if (convertableEvents.includes(event.type as typeof Blockly.Events.BLOCK_CREATE)) {
             useEditorStore.getState().scheduleConvert();
           }
