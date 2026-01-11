@@ -13,7 +13,6 @@ export type SpriteInstance = {
   variableName: string;
   x: number;
   y: number;
-  blockId?: string;
   visible?: boolean;
   size?: number;
   direction?: number;
