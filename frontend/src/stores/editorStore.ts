@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { Game } from 'phaser';
 import MainMenu from '@/phaser/scenes/MainMenu';
 import { BlocklyEditorHandle } from '@/components/BlocklyEditor';
-import { SpriteInstance } from '@/components/SpriteBox';
+import { SpriteInstance } from '@/components/SpritePanel';
 import { PhaserExport, createPhaserState } from '@/phaser/PhaserStateManager';
 import * as Blockly from 'blockly/core';
 import { javascriptGenerator } from 'blockly/javascript';

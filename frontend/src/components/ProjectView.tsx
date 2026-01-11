@@ -8,7 +8,7 @@ import projectsApi from '@/lib/api/handlers/projects';
 import { PhaserExport } from '@/phaser/PhaserStateManager';
 import { Game } from 'phaser';
 import MainMenu from '@/phaser/scenes/MainMenu';
-import SpriteEditor, { SpriteInstance } from '@/components/SpriteBox';
+import SpritePanel, { SpriteInstance } from '@/components/SpritePanel';
 import { type SpriteDragPayload } from '@/components/SpriteModal';
 import starterWorkspace from '@/blockly/starterWorkspace';
 import { useSnackbar } from '@/hooks/useSnackbar';
@@ -29,8 +29,10 @@ const CENTER_Y = 180;
 
 const snapToGrid = (x: number, y: number): { x: number; y: number } => {
   // Snap to grid lines that radiate from center
-  const snappedX = CENTER_X + Math.round((x - CENTER_X) / GRID_SIZE) * GRID_SIZE;
-  const snappedY = CENTER_Y + Math.round((y - CENTER_Y) / GRID_SIZE) * GRID_SIZE;
+  const snappedX =
+    CENTER_X + Math.round((x - CENTER_X) / GRID_SIZE) * GRID_SIZE;
+  const snappedY =
+    CENTER_Y + Math.round((y - CENTER_Y) / GRID_SIZE) * GRID_SIZE;
   return { x: snappedX, y: snappedY };
 };
 
@@ -101,7 +103,10 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
   useEffect(() => {
     const handler = () => {
       const isPaused = useEditorStore.getState().isPaused;
-      console.log('[ProjectView] received pause state request, responding with:', isPaused);
+      console.log(
+        '[ProjectView] received pause state request, responding with:',
+        isPaused
+      );
       EventBus.emit('editor-pause-changed', isPaused);
     };
     EventBus.on('editor-request-pause-state', handler);
@@ -541,63 +546,59 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
   }, [view]);
 
   return (
-    <>
-      <div className="flex h-[calc(100vh-4rem-3.5rem)]">
-        <div className="relative flex-1 min-h-0 min-w-0 bg-light-whiteboard dark:bg-dark-whiteboard mr-2 overflow-hidden">
-          <div
-            className={`absolute inset-0 transition-opacity duration-150 ${
-              view === 'blocks'
-                ? 'opacity-100'
-                : 'opacity-0 pointer-events-none'
-            }`}
-            aria-hidden={view !== 'blocks'}
-          >
-            <BlocklyEditor
-              ref={blocklyRef}
-              onWorkspaceReady={handleWorkspaceReady}
-            />
-          </div>
-          <div
-            className={`absolute inset-0 flex items-center justify-center p-8 transition-opacity duration-150 ${
-              view === 'sprite'
-                ? 'opacity-100'
-                : 'opacity-0 pointer-events-none'
-            }`}
-            aria-hidden={view !== 'sprite'}
-          >
-            <div className="w-full max-w-3xl rounded-2xl border border-dashed border-slate-400 bg-white/80 p-8 text-center shadow-md backdrop-blur-sm dark:border-slate-700 dark:bg-dark-secondary/80">
-              <h2 className="text-2xl font-bold text-primary-green drop-shadow-sm">
-                Sprite Editor Workspace
-              </h2>
-              <p className="mt-3 text-sm text-slate-700 dark:text-slate-200">
-                A dedicated sprite editor will live here. For now, continue
-                using the tools on the right.
-              </p>
-            </div>
-          </div>
-        </div>
-
+    <div className="flex h-[calc(100vh-4rem-3.5rem)]">
+      {/* Left side: Blockly editor */}
+      <div className="relative flex-1 min-h-0 min-w-0 bg-light-whiteboard dark:bg-dark-whiteboard mr-2 overflow-hidden">
         <div
-          className="flex flex-col h-[calc(100vh-4rem-3.5rem)] py-3 pr-2"
-          style={{ width: '492px' }}
+          className={`absolute inset-0 transition-opacity duration-150 ${
+            view === 'blocks' ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          }`}
+          aria-hidden={view !== 'blocks'}
         >
-          <div
-            onDragOver={handleDragOver}
-            onDrop={handleSpriteDrop}
-            onPointerDown={handlePhaserPointerDown}
-          >
-            <PhaserContainer ref={phaserRef} phaserState={phaserState} />
-          </div>
-
-          <SpriteEditor
-            sprites={spriteInstances}
-            onRemoveSprite={handleRemoveSprite}
-            onAssetClick={addSpriteToGame}
-            onUpdateSprite={handleUpdateSprite}
+          <BlocklyEditor
+            ref={blocklyRef}
+            onWorkspaceReady={handleWorkspaceReady}
           />
         </div>
+        <div
+          className={`absolute inset-0 flex items-center justify-center p-8 transition-opacity duration-150 ${
+            view === 'sprite' ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          }`}
+          aria-hidden={view !== 'sprite'}
+        >
+          <div className="w-full max-w-3xl rounded-2xl border border-dashed border-slate-400 bg-white/80 p-8 text-center shadow-md backdrop-blur-sm dark:border-slate-700 dark:bg-dark-secondary/80">
+            <h2 className="text-2xl font-bold text-primary-green drop-shadow-sm">
+              Sprite Editor Workspace
+            </h2>
+            <p className="mt-3 text-sm text-slate-700 dark:text-slate-200">
+              A dedicated sprite editor will live here. For now, continue using
+              the tools on the right.
+            </p>
+          </div>
+        </div>
       </div>
-    </>
+
+      {/* Right side: Phaser game, sprite list, and scene list */}
+      <div
+        className="flex flex-col h-[calc(100vh-4rem-3.5rem)] py-3 pr-2"
+        style={{ width: '492px' }}
+      >
+        <div
+          onDragOver={handleDragOver}
+          onDrop={handleSpriteDrop}
+          onPointerDown={handlePhaserPointerDown}
+        >
+          <PhaserContainer ref={phaserRef} phaserState={phaserState} />
+        </div>
+
+        <SpritePanel
+          sprites={spriteInstances}
+          onRemoveSprite={handleRemoveSprite}
+          onAssetClick={addSpriteToGame}
+          onUpdateSprite={handleUpdateSprite}
+        />
+      </div>
+    </div>
   );
 };
 
