@@ -11,9 +11,9 @@ import {
 import BlocklyEditor, { BlocklyEditorHandle } from '@/components/BlocklyEditor';
 import * as Blockly from 'blockly/core';
 import projectsApi from '@/lib/api/handlers/projects';
-import { PhaserExport } from '@/phaser/PhaserStateManager';
 import { Game } from 'phaser';
-import MainMenu from '@/phaser/scenes/EditorScene';
+import EditorScene from '@/phaser/scenes/EditorScene';
+import GameScene from '@/phaser/scenes/GameScene';
 import SpritePanel from '@/components/SpritePanel';
 import { type SpriteDragPayload } from '@/components/SpriteModal';
 import starterWorkspace from '@/blockly/starterWorkspace';
@@ -27,7 +27,7 @@ import type { SpriteInstance } from '@/blockly/spriteRegistry';
 
 export type PhaserRef = {
   readonly game: Game;
-  readonly scene: MainMenu;
+  readonly scene: EditorScene | GameScene;
 } | null;
 
 const GRID_SIZE = 50;
@@ -64,7 +64,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
   const showSnackbar = useSnackbar();
   const { view } = useWorkspaceView();
   const blocklyRef = useRef<BlocklyEditorHandle>(null);
-  const phaserRef = useRef<{ game?: any; scene?: any } | null>(null);
+  const phaserRef = useRef<{ game?: Game; scene?: Phaser.Scene } | null>(null);
 
   const {
     setPhaserRef,
@@ -81,12 +81,11 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
 
   // Update store when Phaser scene becomes ready
   useEffect(() => {
-    const handler = (scene: MainMenu) => {
-      if (!('key' in scene) || scene.key !== 'MainMenu') return;
+    const handler = (scene: Phaser.Scene) => {
       if (phaserRef.current?.game) {
         setPhaserRef({
           game: phaserRef.current.game,
-          scene: scene,
+          scene: scene as unknown as Phaser.Scene,
         });
       }
       // Send current pause state to newly ready scene (listener is already set up)
@@ -94,6 +93,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
       console.log('[ProjectView] scene ready, sending pause state:', isPaused);
       EventBus.emit('editor-pause-changed', isPaused);
     };
+
     EventBus.on('current-scene-ready', handler);
     return () => {
       EventBus.off('current-scene-ready', handler);
@@ -229,7 +229,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
           finalX = snapped.x;
           finalY = snapped.y;
           // Update Phaser sprite to snapped position
-          phaserRef.current?.scene?.updateEditorSprite(id, {
+          (phaserRef.current?.scene as EditorScene)?.updateSprite(id, {
             x: finalX,
             y: finalY,
           });
@@ -378,7 +378,12 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
         Math.random() * 1e4
       )}`;
 
-      scene.createSprite(payload.texture, worldX, worldY, spriteId);
+      (scene as EditorScene).createSprite(
+        payload.texture,
+        worldX,
+        worldY,
+        spriteId
+      );
 
       // const newBlock = workspace.newBlock('createSprite');
       // newBlock.setFieldValue(variableName, 'NAME');
@@ -497,13 +502,10 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
         // }
 
         // Update Phaser sprite in the scene
-        if (scene?.updateEditorSprite) {
-          scene.updateEditorSprite(spriteId, {
-            x: updates.x,
-            y: updates.y,
-            visible: updates.visible,
-            size: updates.size,
-            direction: updates.direction,
+        if (scene && 'updateSprite' in scene) {
+          (scene as EditorScene).updateSprite(spriteId, {
+            x: updates.x as number,
+            y: updates.y as number,
           });
         }
 

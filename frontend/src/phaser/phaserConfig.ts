@@ -1,7 +1,6 @@
 import { Boot } from './scenes/Boot';
-import { Game } from './scenes/Game';
-import { GameOver } from './scenes/GameOver';
-import MainMenu from './scenes/EditorScene';
+import EditorScene from './scenes/EditorScene';
+import GameScene from './scenes/GameScene';
 import * as Phaser from 'phaser';
 import { Preloader } from './scenes/Preloader';
 
@@ -18,7 +17,7 @@ const config = {
   },
   parent: 'phaser-container',
   backgroundColor: '#707090',
-  scene: [Boot, Preloader, MainMenu, Game, GameOver],
+  scene: [Boot, Preloader, EditorScene, GameScene],
   physics: {
     default: 'arcade',
     arcade: {

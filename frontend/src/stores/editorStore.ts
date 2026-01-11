@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { Game } from 'phaser';
-import MainMenu from '@/phaser/scenes/EditorScene';
 import { BlocklyEditorHandle } from '@/components/BlocklyEditor';
 import type { SpriteInstance } from '@/blockly/spriteRegistry';
 import { PhaserExport, createPhaserState } from '@/phaser/PhaserStateManager';
@@ -8,6 +7,7 @@ import * as Blockly from 'blockly/core';
 import { javascriptGenerator } from 'blockly/javascript';
 import projectsApi from '@/lib/api/handlers/projects';
 import { EventBus } from '@/phaser/EventBus';
+import EditorScene from '@/phaser/scenes/EditorScene';
 
 // Auto-convert debounce configuration
 let convertTimeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -15,7 +15,7 @@ const DEBOUNCE_MS = 400;
 
 export type PhaserRefValue = {
   readonly game: Game;
-  readonly scene: MainMenu;
+  readonly scene: Phaser.Scene;
 } | null;
 
 interface EditorState {
@@ -70,7 +70,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   spriteInstances: [
     {
       id:
-        'id_' + Date.now().toString() + '-' + Math.round(Math.random() * 10000),
+        'id_' + Date.now().toString() + '_' + Math.round(Math.random() * 10000),
       tid: '1',
       name: 'herowalkfront1',
       x: 200,
@@ -124,7 +124,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   changeScene: () => {
     const { phaserRef } = get();
-    phaserRef?.scene?.changeScene?.();
+    (phaserRef?.scene as EditorScene).changeScene();
   },
 
   generateCode: () => {
@@ -248,21 +248,44 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   togglePause: () => {
-    const { isPaused, phaserRef } = get();
+    const { isPaused, phaserRef, blocklyRef } = get();
     const newPaused = !isPaused;
-    console.log('[editorStore] togglePause:', newPaused);
     set({ isPaused: newPaused });
 
-    // Emit event for Phaser to show/hide editor grid
-    console.log('[editorStore] emitting editor-pause-changed:', newPaused);
-    EventBus.emit('editor-pause-changed', newPaused);
+    if (!newPaused) {
+      // PLAY: Switch to GameScene
+      const workspace = blocklyRef?.getWorkspace();
+      const code = workspace
+        ? javascriptGenerator.workspaceToCode(workspace)
+        : '';
+      const { spriteInstances, textures } = get();
 
-    setTimeout(() => {
-      if (phaserRef?.game) {
-        phaserRef.game.isPaused = newPaused;
-      }
-    }, 1000);
-    get().scheduleConvert();
+      // Pass data to GameScene
+      phaserRef?.scene?.scene.start('GameScene', {
+        spriteInstances,
+        textures,
+        code,
+      });
+    } else {
+      // STOP: Switch back to EditorScene
+      phaserRef?.scene?.scene.start('EditorScene');
+    }
+
+    // const { isPaused, phaserRef } = get();
+    // const newPaused = !isPaused;
+    // console.log('[editorStore] togglePause:', newPaused);
+    // set({ isPaused: newPaused });
+
+    // // Emit event for Phaser to show/hide editor grid
+    // console.log('[editorStore] emitting editor-pause-changed:', newPaused);
+    // EventBus.emit('editor-pause-changed', newPaused);
+
+    // setTimeout(() => {
+    //   if (phaserRef?.game) {
+    //     phaserRef.game.isPaused = newPaused;
+    //   }
+    // }, 1000);
+    // get().scheduleConvert();
   },
 }));
 

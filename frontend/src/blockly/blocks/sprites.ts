@@ -36,7 +36,9 @@ javascriptGenerator.forBlock['setProperty'] = function (block, generator) {
   const value = generator.valueToCode(block, 'VALUE', Order.NONE) || 0;
   const spriteKey = block.getFieldValue('SPRITE');
 
-  return `scene.${spriteKey}.set${block.getFieldValue('PROPERTY')}(${value})\n`;
+  return `scene.getSprite("${spriteKey}").set${block.getFieldValue(
+    'PROPERTY'
+  )}(${value})\n`;
 };
 
 const changeProperty = {
@@ -74,7 +76,7 @@ javascriptGenerator.forBlock['changeProperty'] = function (block, generator) {
   const value = generator.valueToCode(block, 'VALUE', Order.NONE) || 0;
   const spriteKey = block.getFieldValue('SPRITE');
 
-  return `scene.${spriteKey}.body.${block.getFieldValue(
+  return `scene.getSprite("${spriteKey}").body.${block.getFieldValue(
     'PROPERTY'
   )} += ${value}\n`;
 };
@@ -107,7 +109,9 @@ const getProperty = {
 
 javascriptGenerator.forBlock['getProperty'] = function (block, generator) {
   const spriteKey = block.getFieldValue('SPRITE');
-  const code = `scene.${spriteKey}.${block.getFieldValue('PROPERTY')}`;
+  const code = `scene.getSprite("${spriteKey}").${block.getFieldValue(
+    'PROPERTY'
+  )}`;
   return [code, Order.NONE];
 };
 

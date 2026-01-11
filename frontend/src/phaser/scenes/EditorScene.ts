@@ -1,39 +1,13 @@
-// game/scenes/MainMenu.ts
 import Phaser from 'phaser';
 import { EventBus } from '@/phaser/EventBus';
 import { useEditorStore } from '@/stores/editorStore';
 
-export const MAIN_MENU_SCENE_KEY = 'MainMenu' as const;
+export const EDITOR_SCENE_KEY = 'EditorScene' as const;
+import GAME_SCENE_KEY from '@/phaser/scenes/GameScene';
 
 type PosCB = (pos: { x: number; y: number }) => void;
 
-// export type GameAPI = {
-//   createSprite: (texture: string, x: number, y: number, id: string) => void;
-//   removeSprite: (id: string) => void;
-//   updateSprite: (
-//     id: string,
-//     updates: {
-//       x?: number;
-//       y?: number;
-//       visible?: boolean;
-//       size?: number;
-//       direction?: number;
-//     }
-//   ) => void;
-// };
-
-type SandboxContext = {
-  // api: GameAPI;
-  scene: MainMenu;
-  phaser: typeof Phaser;
-  console: Console; // you can swap this with a logger collector if you want
-};
-
-// Utility to create an async function at runtime.
-const AsyncFunction = Object.getPrototypeOf(async function () {})
-  .constructor as new (...args: string[]) => (...args: any[]) => Promise<any>;
-
-export default class MainMenu extends Phaser.Scene {
+export default class EditorScene extends Phaser.Scene {
   public key: string;
   public player!: Phaser.Physics.Arcade.Sprite;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -57,15 +31,11 @@ export default class MainMenu extends Phaser.Scene {
   private gridGraphics: Phaser.GameObjects.Graphics | null = null;
 
   constructor() {
-    super(MAIN_MENU_SCENE_KEY);
-    this.key = MAIN_MENU_SCENE_KEY;
+    super(EDITOR_SCENE_KEY);
+    this.key = EDITOR_SCENE_KEY;
   }
 
   preload() {
-    // Ensure you have a sprite/atlas loaded; example:
-    // this.load.image('star', 'assets/star.png');
-    // this.load.image('hero-walk-front2', '/heroWalkFront1.bmp');
-
     const textures = useEditorStore.getState().textures;
     for (const texture of textures.values()) {
       this.load.image(texture.name, texture.file);
@@ -73,28 +43,19 @@ export default class MainMenu extends Phaser.Scene {
   }
 
   public changeScene() {
-    this.scene.start('Game');
+    this.scene.start(GAME_SCENE_KEY as unknown as string);
   }
 
   async create() {
+    console.log('[EditorScene] create called');
+    this.showGrid();
+
     this.editorSprites.clear();
     this.gridGraphics = null; // Reset on scene restart
-    // Cursor keys
-    // @ts-ignore
-    this.cursors = this.input.keyboard.createCursorKeys();
-
-    // WASD keys
-    // @ts-ignore
-    this.wasd = this.input.keyboard.addKeys({
-      W: Phaser.Input.Keyboard.KeyCodes.W,
-      A: Phaser.Input.Keyboard.KeyCodes.A,
-      S: Phaser.Input.Keyboard.KeyCodes.S,
-      D: Phaser.Input.Keyboard.KeyCodes.D,
-    }) as unknown as typeof this.wasd;
 
     // Dedicated layer to keep editor sprites above all game objects.
     this.editorLayer = this.add.layer();
-    this.editorLayer.setDepth(MainMenu.EDITOR_SPRITE_BASE_DEPTH);
+    this.editorLayer.setDepth(EditorScene.EDITOR_SPRITE_BASE_DEPTH);
 
     this.start();
     this.registerDragEvents();
@@ -117,13 +78,12 @@ export default class MainMenu extends Phaser.Scene {
         instance.id
       );
     }
-
     // Tell React which scene is active (will trigger pause state sync)
     EventBus.emit('current-scene-ready', this);
   }
 
   private pauseHandler = (isPaused: boolean) => {
-    console.log('[MainMenu] editor-pause-changed received:', isPaused);
+    console.log('[EditorScene] editor-pause-changed received:', isPaused);
     if (isPaused) {
       this.showGrid();
     } else {
@@ -135,7 +95,7 @@ export default class MainMenu extends Phaser.Scene {
     // Remove existing listener to prevent duplicates on scene restart
     EventBus.off('editor-pause-changed', this.pauseHandler);
 
-    console.log('[MainMenu] setting up editor-pause-changed listener');
+    console.log('[EditorScene] setting up editor-pause-changed listener');
     EventBus.on('editor-pause-changed', this.pauseHandler);
   }
 
@@ -145,7 +105,7 @@ export default class MainMenu extends Phaser.Scene {
     const sprite = this.physics.add.sprite(x, y, texture);
     sprite.setName(id);
     sprite.setData('editorSpriteId', id);
-    sprite.setDepth(MainMenu.EDITOR_SPRITE_BASE_DEPTH);
+    sprite.setDepth(EditorScene.EDITOR_SPRITE_BASE_DEPTH);
     this.editorLayer.add(sprite);
     this.editorLayer.bringToTop(sprite);
     this.enableSpriteDragging(sprite);
@@ -202,6 +162,7 @@ export default class MainMenu extends Phaser.Scene {
   }
 
   private drawGrid(): void {
+    console.log('[EditorScene] drawGrid called');
     const width = 480;
     const height = 360;
     const gridSpacing = 50;
@@ -259,34 +220,25 @@ export default class MainMenu extends Phaser.Scene {
   }
 
   public showGrid(): void {
-    console.log('[MainMenu] showGrid called');
+    console.log('[EditorScene] showGrid called');
     this.drawGrid();
     if (this.gridGraphics) {
       this.gridGraphics.setVisible(true);
       console.log(
-        '[MainMenu] gridGraphics visible:',
+        '[EditorScene] gridGraphics visible:',
         this.gridGraphics.visible
       );
     }
   }
 
   public hideGrid(): void {
-    console.log('[MainMenu] hideGrid called');
+    console.log('[EditorScene] hideGrid called');
     if (this.gridGraphics) {
       this.gridGraphics.setVisible(false);
     }
   }
 
   update() {}
-
-  // private buildAPI(): GameAPI {
-  //   return {
-  //     createSprite: (texture: string, x: number, y: number, id: string) =>
-  //       this.createSprite(texture, x, y, id),
-  //     removeSprite: (id: string) => this.removeSprite(id),
-  //     updateSprite: (id, updates) => this.updateSprite(id, updates),
-  //   };
-  // }
 
   private enableSpriteDragging(sprite: Phaser.Physics.Arcade.Sprite) {
     sprite.setInteractive({ cursor: 'grab' });
@@ -310,7 +262,7 @@ export default class MainMenu extends Phaser.Scene {
           start: { x: sprite.x, y: sprite.y },
           lastWorld: { x: sprite.x, y: sprite.y },
         };
-        sprite.setDepth(MainMenu.EDITOR_SPRITE_BASE_DEPTH);
+        sprite.setDepth(EditorScene.EDITOR_SPRITE_BASE_DEPTH);
         this.editorLayer.bringToTop(sprite);
         this.attachGlobalDragListeners();
       }
@@ -415,7 +367,7 @@ export default class MainMenu extends Phaser.Scene {
       });
     }
 
-    sprite.setDepth(MainMenu.EDITOR_SPRITE_BASE_DEPTH);
+    sprite.setDepth(EditorScene.EDITOR_SPRITE_BASE_DEPTH);
     this.activeDrag = null;
     this.detachGlobalDragListeners();
   }

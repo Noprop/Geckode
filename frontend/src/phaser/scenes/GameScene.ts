@@ -1,30 +1,12 @@
-// game/scenes/MainMenu.ts
 import Phaser from 'phaser';
 import { EventBus } from '@/phaser/EventBus';
+import type { SpriteInstance } from '@/blockly/spriteRegistry';
 
-export const MAIN_MENU_SCENE_KEY = 'MainMenu' as const;
-
-type PosCB = (pos: { x: number; y: number }) => void;
-
-export type GameAPI = {
-  addGameSprite: (texture: string, x: number, y: number, id: string) => void;
-  removeGameSprite: (id: string) => void;
-  updateGameSprite: (
-    id: string,
-    updates: {
-      x?: number;
-      y?: number;
-      visible?: boolean;
-      size?: number;
-      direction?: number;
-    }
-  ) => void;
-  wait: (ms: number) => Promise<void>;
-};
+export const GAME_SCENE_KEY = 'GameScene' as const;
+import EDITOR_SCENE_KEY from '@/phaser/scenes/EditorScene';
 
 type SandboxContext = {
-  api: GameAPI;
-  scene: MainMenu;
+  scene: GameScene;
   phaser: typeof Phaser;
   console: Console; // you can swap this with a logger collector if you want
 };
@@ -33,7 +15,7 @@ type SandboxContext = {
 const AsyncFunction = Object.getPrototypeOf(async function () {})
   .constructor as new (...args: string[]) => (...args: any[]) => Promise<any>;
 
-export default class MainMenu extends Phaser.Scene {
+export default class GameScene extends Phaser.Scene {
   public key: string;
   public player!: Phaser.Physics.Arcade.Sprite;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -55,25 +37,25 @@ export default class MainMenu extends Phaser.Scene {
   private gridGraphics: Phaser.GameObjects.Graphics | null = null;
 
   constructor() {
-    super(MAIN_MENU_SCENE_KEY);
-    this.key = MAIN_MENU_SCENE_KEY;
+    super(GAME_SCENE_KEY);
+    this.key = GAME_SCENE_KEY;
   }
 
   preload() {}
 
   public changeScene() {
-    this.scene.start('Game');
+    this.scene.start(EDITOR_SCENE_KEY as unknown as string);
   }
 
-  create() {
-    this.gameSprites.clear();
-    // Cursor keys
-    // @ts-ignore
-    this.cursors = this.input.keyboard.createCursorKeys();
+  create(data: {
+    spriteInstances: SpriteInstance[];
+    textures: Map<string, { name: string; file: string }>;
+    code: string;
+  }) {
+    console.log('[GameScene] create called', data);
 
-    // WASD keys
-    // @ts-ignore
-    this.wasd = this.input.keyboard.addKeys({
+    this.cursors = this.input.keyboard?.createCursorKeys()!;
+    this.wasd = this.input.keyboard?.addKeys({
       W: Phaser.Input.Keyboard.KeyCodes.W,
       A: Phaser.Input.Keyboard.KeyCodes.A,
       S: Phaser.Input.Keyboard.KeyCodes.S,
@@ -82,9 +64,19 @@ export default class MainMenu extends Phaser.Scene {
 
     // Dedicated layer to keep editor sprites above all game objects.
     this.gameLayer = this.add.layer();
-    this.gameLayer.setDepth(MainMenu.GAME_SPRITE_BASE_DEPTH);
+    this.gameLayer.setDepth(GameScene.GAME_SPRITE_BASE_DEPTH);
 
     this.start();
+
+    for (const instance of data.spriteInstances) {
+      const textureName = data.textures.get(instance.tid)?.name || '';
+      this.addGameSprite(textureName, instance.x, instance.y, instance.id);
+    }
+
+    // Execute the Blockly-generated code
+    if (data.code) {
+      this.runScript(data.code);
+    }
 
     // Tell React which scene is active (will trigger pause state sync)
     EventBus.emit('current-scene-ready', this);
@@ -112,10 +104,11 @@ export default class MainMenu extends Phaser.Scene {
   }
 
   public addGameSprite(texture: string, x: number, y: number, id: string) {
+    console.log('[GameScene] addGameSprite called', texture, x, y, id);
     const sprite = this.physics.add.sprite(x, y, texture);
     sprite.setName(id);
     sprite.setData('gameSpriteId', id);
-    sprite.setDepth(MainMenu.GAME_SPRITE_BASE_DEPTH);
+    sprite.setDepth(GameScene.GAME_SPRITE_BASE_DEPTH);
     this.gameLayer.add(sprite);
     this.gameLayer.bringToTop(sprite);
     this.gameSprites.set(id, sprite);
@@ -129,45 +122,12 @@ export default class MainMenu extends Phaser.Scene {
     this.gameSprites.delete(id);
   }
 
-  update() {
-    // if (!this.player) return;
-    // const speed = 200;
-    // // Reset velocity each frame, then set based on input
-    // this.player.setVelocity(0);
-    // const left = this.cursors.left?.isDown || this.wasd.A.isDown;
-    // const right = this.cursors.right?.isDown || this.wasd.D.isDown;
-    // const up = this.cursors.up?.isDown || this.wasd.W.isDown;
-    // const down = this.cursors.down?.isDown || this.wasd.S.isDown;
-    // if (left) this.player.setVelocityX(-speed);
-    // if (right) this.player.setVelocityX(speed);
-    // if (up) this.player.setVelocityY(-speed);
-    // if (down) this.player.setVelocityY(speed);
-    // // Normalize diagonal speed
-    // if ((left || right) && (up || down) && this.player.body) {
-    //   this.player.setVelocity(
-    //     this.player.body.velocity.x * 0.7071,
-    //     this.player.body.velocity.y * 0.7071
-    //   );
-    // }
-    // // Publish position only when it changes (avoids spamming React state)
-    // const px = Math.round(this.player.x);
-    // const py = Math.round(this.player.y);
-    // if ((px !== this.lastSent.x || py !== this.lastSent.y) && this.posCB) {
-    //   console.log('update position');
-    //   this.posCB({ x: px, y: py });
-    //   this.lastSent = { x: px, y: py };
-    // }
-  }
+  update() {}
 
-  private buildAPI(): GameAPI {
-    return {
-      addGameSprite: (texture: string, x: number, y: number, id: string) =>
-        this.addGameSprite(texture, x, y, id),
-      removeGameSprite: (id: string) => this.gameSprites.delete(id),
-      updateGameSprite: (id: string, updates: { x?: number; y?: number }) =>
-        this.updateGameSprite(id, updates),
-      wait: (ms: number) => new Promise((r) => setTimeout(r, ms)),
-    };
+  public getSprite(id: string) {
+    console.log('[GameScene] getSprite called', id);
+    console.log('[GameScene] getSprite called', this.gameSprites.get(id));
+    return this.gameSprites.get(id);
   }
 
   /**
@@ -177,7 +137,6 @@ export default class MainMenu extends Phaser.Scene {
    */
   public async runScript(code: string): Promise<any> {
     const ctx: SandboxContext = {
-      api: this.buildAPI(),
       scene: this,
       phaser: Phaser,
       console: console, // replace with your own logger if desired
@@ -188,15 +147,15 @@ export default class MainMenu extends Phaser.Scene {
     const argNames = Object.keys(ctx); // ['api','scene','phaser','console']
     const argValues = Object.values(ctx);
 
+    console.log('[GameScene] runScript called', code);
+    console.log('[GameScene] runScript called', argNames, argValues);
+
     // Wrap user code in an async IIFE so `await` works at top level.
     // Skip scene restart when paused (editor mode) to preserve grid
     const wrapped = `
       "use strict";
       return (async () => {
         ${code}
-        if (!scene.game.isPaused) {
-          scene.scene.restart();
-        }
       })();
     `;
 

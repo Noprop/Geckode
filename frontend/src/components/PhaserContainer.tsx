@@ -3,11 +3,11 @@
 import { useEffect, useLayoutEffect, useRef, useImperativeHandle } from "react";
 import StartGame from "@/phaser/phaserConfig";
 import { EventBus } from "@/phaser/EventBus";
-import { MAIN_MENU_SCENE_KEY } from '@/phaser/scenes/EditorScene';
-import type MainMenu from '@/phaser/scenes/EditorScene';
-import type { Game } from "phaser";
-import { loadPhaserState, PhaserExport } from "@/phaser/PhaserStateManager";
-import { useEditorStore } from "@/stores/editorStore";
+import { EDITOR_SCENE_KEY } from '@/phaser/scenes/EditorScene';
+import type EditorScene from '@/phaser/scenes/EditorScene';
+import type { Game } from 'phaser';
+import { loadPhaserState, PhaserExport } from '@/phaser/PhaserStateManager';
+import { useEditorStore } from '@/stores/editorStore';
 
 type Props = {
   ref: any;
@@ -37,8 +37,8 @@ const PhaserContainer = ({ ref }: Props) => {
 
   useEffect(() => {
     // this scene event listener will live until this Phaser react component has been torn down
-    const handler = (scene: Phaser.Scene | MainMenu) => {
-      if (!('key' in scene) || !(scene.key == MAIN_MENU_SCENE_KEY)) return;
+    const handler = (scene: Phaser.Scene | EditorScene) => {
+      if (!('key' in scene) || !(scene.key == EDITOR_SCENE_KEY)) return;
       ref.current.scene = scene;
     };
     EventBus.on('current-scene-ready', handler);
