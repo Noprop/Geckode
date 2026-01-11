@@ -7,7 +7,7 @@ import * as Blockly from 'blockly/core';
 import projectsApi from '@/lib/api/handlers/projects';
 import { PhaserExport } from '@/phaser/PhaserStateManager';
 import { Game } from 'phaser';
-import MainMenu from '@/phaser/scenes/MainMenu';
+import MainMenu from '@/phaser/scenes/EditorScene';
 import SpritePanel, { SpriteInstance } from '@/components/SpritePanel';
 import { type SpriteDragPayload } from '@/components/SpriteModal';
 import starterWorkspace from '@/blockly/starterWorkspace';
@@ -62,17 +62,11 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
   const {
     setPhaserRef,
     setBlocklyRef,
-    setProjectId,
     setProjectName,
     spriteInstances,
     setSpriteInstances,
-    phaserState,
     setPhaserState,
   } = useEditorStore();
-
-  useEffect(() => {
-    setProjectId(projectId ? parseInt(projectId.toString()) : null);
-  }, [projectId, setProjectId]);
 
   useEffect(() => {
     setBlocklyRef(blocklyRef.current);
@@ -582,13 +576,13 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
           onDrop={handleSpriteDrop}
           onPointerDown={handlePhaserPointerDown}
         >
-          <PhaserContainer ref={phaserRef} phaserState={phaserState} />
+          <PhaserContainer ref={phaserRef} />
         </div>
 
         <SpritePanel
           sprites={spriteInstances}
           onRemoveSprite={handleRemoveSprite}
-          onAssetClick={addSpriteToGame}
+          addSpriteToGame={addSpriteToGame}
           onUpdateSprite={handleUpdateSprite}
         />
       </div>

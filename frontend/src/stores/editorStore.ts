@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { Game } from 'phaser';
-import MainMenu from '@/phaser/scenes/MainMenu';
+import MainMenu from '@/phaser/scenes/EditorScene';
 import { BlocklyEditorHandle } from '@/components/BlocklyEditor';
 import { SpriteInstance } from '@/components/SpritePanel';
 import { PhaserExport, createPhaserState } from '@/phaser/PhaserStateManager';
@@ -34,7 +34,6 @@ interface EditorState {
   isPaused: boolean;
   spriteWorkspaces: Map<string, Blockly.serialization.workspaceComments.State>;
   spriteId: string;
-
 
   // Registration Actions
   setPhaserRef: (ref: PhaserRefValue) => void;
@@ -74,7 +73,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   isConverting: false,
   isPaused: true,
   spriteWorkspaces: new Map(),
-  spriteId: "1",
+  spriteId: '1',
 
   setPhaserRef: (phaserRef) => set({ phaserRef }),
   setBlocklyRef: (blocklyRef) => set({ blocklyRef }),
@@ -121,15 +120,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     phaserRef.scene?.runScript(code);
 
     const { spriteInstances } = get();
-    console.log(spriteInstances)
-
-    
+    console.log(spriteInstances);
 
     // save workspace (should be moved later)
     const { spriteWorkspaces, spriteId } = get();
     const state = Blockly.serialization.workspaces.save(workspace);
 
-    spriteWorkspaces.set(spriteId, state)
+    spriteWorkspaces.set(spriteId, state);
   },
 
   scheduleConvert: () => {
@@ -196,8 +193,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     const workspaceState = Blockly.serialization.workspaces.save(workspace);
 
-
-
     console.log('Current workspace state', workspaceState);
     console.log('Workspace JSON', JSON.stringify(workspaceState, null, 2));
   },
@@ -218,11 +213,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   loadWorkspace: (spriteId) => {
     const { spriteWorkspaces, blocklyRef } = get();
-    set({ spriteId: spriteId })
+    set({ spriteId: spriteId });
 
     const workspace = blocklyRef?.getWorkspace();
     if (!workspace) return;
-    workspace.clear()
+    workspace.clear();
 
     const state = spriteWorkspaces.get(spriteId);
     if (!state) return;
@@ -237,12 +232,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const newPaused = !isPaused;
     console.log('[editorStore] togglePause:', newPaused);
     set({ isPaused: newPaused });
-    if (phaserRef?.game) {
-      phaserRef.game.isPaused = newPaused;
-    }
+
     // Emit event for Phaser to show/hide editor grid
     console.log('[editorStore] emitting editor-pause-changed:', newPaused);
     EventBus.emit('editor-pause-changed', newPaused);
+
+    setTimeout(() => {
+      if (phaserRef?.game) {
+        phaserRef.game.isPaused = newPaused;
+      }
+    }, 1000);
   },
 }));
 
