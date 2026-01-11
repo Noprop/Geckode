@@ -22,14 +22,14 @@ export type SpriteInstance = {
 type Props = {
   sprites: SpriteInstance[];
   onRemoveSprite: (spriteId: string) => void;
-  onAssetClick: (payload: SpriteDragPayload) => Promise<boolean>;
+  addSpriteToGame: (payload: SpriteDragPayload) => Promise<boolean>;
   onUpdateSprite?: (spriteId: string, updates: Partial<SpriteInstance>) => void;
 };
 
-const SpriteEditor = memo(function SpriteEditor({
+const SpritePanel = memo(function SpriteEditor({
   sprites,
   onRemoveSprite,
-  onAssetClick,
+  addSpriteToGame,
   onUpdateSprite,
 }: Props) {
   const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
@@ -388,13 +388,14 @@ const SpriteEditor = memo(function SpriteEditor({
         </div>
       </div>
 
+      {/* TODO: The modal shouldn't be placed here. */}
       <SpriteModal
         isAssetModalOpen={isAssetModalOpen}
         setIsAssetModalOpen={setIsAssetModalOpen}
-        onAssetClick={onAssetClick}
+        addSpriteToGame={addSpriteToGame}
       />
     </section>
   );
 });
 
-export default SpriteEditor;
+export default SpritePanel;

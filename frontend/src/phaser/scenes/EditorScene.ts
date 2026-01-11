@@ -6,41 +6,23 @@ export const MAIN_MENU_SCENE_KEY = 'MainMenu' as const;
 
 type PosCB = (pos: { x: number; y: number }) => void;
 
-export type GameAPI = {
-  moveBy: (dx: number, dy: number) => void;
-  createPlayer: (
-    xPos: number | null,
-    yPos: number | null,
-    starKey: string | null
-  ) => void;
-  addStar: (
-    xPos: number | null,
-    yPos: number | null,
-    starKey: string | null
-  ) => void;
-  addSpriteFromEditor: (
-    texture: string,
-    x: number,
-    y: number,
-    id: string
-  ) => void;
-  removeEditorSprite: (id: string) => void;
-  updateEditorSprite: (
-    id: string,
-    updates: {
-      x?: number;
-      y?: number;
-      visible?: boolean;
-      size?: number;
-      direction?: number;
-    }
-  ) => void;
-  wait: (ms: number) => Promise<void>;
-  stopAll: () => void;
-};
+// export type GameAPI = {
+//   createSprite: (texture: string, x: number, y: number, id: string) => void;
+//   removeSprite: (id: string) => void;
+//   updateSprite: (
+//     id: string,
+//     updates: {
+//       x?: number;
+//       y?: number;
+//       visible?: boolean;
+//       size?: number;
+//       direction?: number;
+//     }
+//   ) => void;
+// };
 
 type SandboxContext = {
-  api: GameAPI;
+  // api: GameAPI;
   scene: MainMenu;
   phaser: typeof Phaser;
   console: Console; // you can swap this with a logger collector if you want
@@ -134,57 +116,10 @@ export default class MainMenu extends Phaser.Scene {
     EventBus.on('editor-pause-changed', this.pauseHandler);
   }
 
-  public createPlayer(
-    xPos: number | null,
-    yPos: number | null,
-    starKey: string | null
-  ) {
-    const x = xPos ? xPos : 400;
-    const y = yPos ? yPos : 300;
-    const key = starKey ? starKey : 'player';
-
-    // Create a physics-enabled sprite
-    this.player = this.physics.add.sprite(x, y, key);
-    this.player.name = 'player';
-    this.player.setCollideWorldBounds(true);
-  }
-
   start() {}
 
-  /**
-   * Keep your existing React contract:
-   * Home.tsx calls scene.moveLogo(cb => setSpritePosition(cb))
-   * We store the callback and call it whenever the sprite position changes.
-   */
-  public moveLogo(cb: PosCB) {
-    this.posCB = cb;
-    // Send an initial position immediately
-    this.posCB?.({
-      x: Math.round(this.player.x),
-      y: Math.round(this.player.y),
-    });
-  }
-
-  /**
-   * Optional: If you already have addStar() wired from React, keep it.
-   */
-  public addStar(
-    xPos: number | null = null,
-    yPos: number | null = null,
-    starKey: string | null = null
-  ) {
-    const x = xPos ? xPos : Phaser.Math.Between(50, 750);
-    const y = yPos ? yPos : Phaser.Math.Between(50, 550);
-    const key = starKey ? starKey : 'star';
-    this.physics.add.sprite(x, y, key);
-  }
-
-  public addSpriteFromEditor(
-    texture: string,
-    x: number,
-    y: number,
-    id: string
-  ) {
+  public createSprite(texture: string, x: number, y: number, id: string) {
+    console.log('createSprite()', texture, x, y, id);
     const sprite = this.physics.add.sprite(x, y, texture);
     sprite.setName(id);
     sprite.setData('editorSpriteId', id);
@@ -193,17 +128,23 @@ export default class MainMenu extends Phaser.Scene {
     this.editorLayer.bringToTop(sprite);
     this.enableSpriteDragging(sprite);
     this.editorSprites.set(id, sprite);
+
+    console.log('actual name: ', sprite.name, id);
+
+    // TODO: Add collision detection
+    // this.player.setCollideWorldBounds(true);
+
     return sprite;
   }
 
-  public removeEditorSprite(id: string) {
+  public removeSprite(id: string) {
     const sprite = this.editorSprites.get(id);
     if (!sprite) return;
     sprite.destroy();
     this.editorSprites.delete(id);
   }
 
-  public updateEditorSprite(
+  public updateSprite(
     id: string,
     updates: {
       x?: number;
@@ -214,6 +155,7 @@ export default class MainMenu extends Phaser.Scene {
     }
   ) {
     const sprite = this.editorSprites.get(id);
+    console.log('updateSprite()', sprite);
     if (!sprite) return;
 
     if (updates.x !== undefined) {
@@ -298,7 +240,10 @@ export default class MainMenu extends Phaser.Scene {
     this.drawGrid();
     if (this.gridGraphics) {
       this.gridGraphics.setVisible(true);
-      console.log('[MainMenu] gridGraphics visible:', this.gridGraphics.visible);
+      console.log(
+        '[MainMenu] gridGraphics visible:',
+        this.gridGraphics.visible
+      );
     }
   }
 
@@ -309,61 +254,16 @@ export default class MainMenu extends Phaser.Scene {
     }
   }
 
-  update() {
-    // if (!this.player) return;
-    // const speed = 200;
-    // // Reset velocity each frame, then set based on input
-    // this.player.setVelocity(0);
-    // const left = this.cursors.left?.isDown || this.wasd.A.isDown;
-    // const right = this.cursors.right?.isDown || this.wasd.D.isDown;
-    // const up = this.cursors.up?.isDown || this.wasd.W.isDown;
-    // const down = this.cursors.down?.isDown || this.wasd.S.isDown;
-    // if (left) this.player.setVelocityX(-speed);
-    // if (right) this.player.setVelocityX(speed);
-    // if (up) this.player.setVelocityY(-speed);
-    // if (down) this.player.setVelocityY(speed);
-    // // Normalize diagonal speed
-    // if ((left || right) && (up || down) && this.player.body) {
-    //   this.player.setVelocity(
-    //     this.player.body.velocity.x * 0.7071,
-    //     this.player.body.velocity.y * 0.7071
-    //   );
-    // }
-    // // Publish position only when it changes (avoids spamming React state)
-    // const px = Math.round(this.player.x);
-    // const py = Math.round(this.player.y);
-    // if ((px !== this.lastSent.x || py !== this.lastSent.y) && this.posCB) {
-    //   console.log('update position');
-    //   this.posCB({ x: px, y: py });
-    //   this.lastSent = { x: px, y: py };
-    // }
-  }
+  update() {}
 
-  private buildAPI(): GameAPI {
-    return {
-      moveBy: (dx: number, dy: number) => {
-        if (!this.player) return;
-        this.player.setX(this.player.x + dx);
-        this.player.setY(this.player.y + dy);
-      },
-      createPlayer: (xPos, yPos, starKey) =>
-        this.createPlayer(xPos, yPos, starKey),
-      addStar: (xPos, yPos, starKey) => this.addStar(xPos, yPos, starKey),
-      addSpriteFromEditor: (
-        texture: string,
-        x: number,
-        y: number,
-        id: string
-      ) => this.addSpriteFromEditor(texture, x, y, id),
-      removeEditorSprite: (id: string) => this.removeEditorSprite(id),
-      updateEditorSprite: (id, updates) => this.updateEditorSprite(id, updates),
-      wait: (ms: number) => new Promise((r) => setTimeout(r, ms)),
-      stopAll: () => {
-        if (!this.player) return;
-        this.player.setVelocity(0, 0);
-      },
-    };
-  }
+  // private buildAPI(): GameAPI {
+  //   return {
+  //     createSprite: (texture: string, x: number, y: number, id: string) =>
+  //       this.createSprite(texture, x, y, id),
+  //     removeSprite: (id: string) => this.removeSprite(id),
+  //     updateSprite: (id, updates) => this.updateSprite(id, updates),
+  //   };
+  // }
 
   private enableSpriteDragging(sprite: Phaser.Physics.Arcade.Sprite) {
     sprite.setInteractive({ cursor: 'grab' });
@@ -507,7 +407,7 @@ export default class MainMenu extends Phaser.Scene {
     // @ts-ignore
     console.log('this.test: ', this.test);
     const ctx: SandboxContext = {
-      api: this.buildAPI(),
+      // api: this.buildAPI(),
       scene: this,
       phaser: Phaser,
       console: console, // replace with your own logger if desired
