@@ -156,19 +156,19 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
 
   const workspaceDeleteHandler = useCallback(
     (event: Blockly.Events.Abstract) => {
-      if (event.type !== Blockly.Events.BLOCK_DELETE) return;
-      const deleteEvent = event as Blockly.Events.BlockDelete;
-      if (deleteEvent.oldJson?.type !== 'createSprite') return;
-      setSpriteInstances((prev) => {
-        const sprite = prev.find(
-          (instance) => instance.blockId === deleteEvent.blockId
-        );
-        if (!sprite) return prev;
-        phaserRef.current?.scene?.removeEditorSprite?.(sprite.id);
-        return prev.filter(
-          (instance) => instance.blockId !== deleteEvent.blockId
-        );
-      });
+      // if (event.type !== Blockly.Events.BLOCK_DELETE) return;
+      // const deleteEvent = event as Blockly.Events.BlockDelete;
+      // if (deleteEvent.oldJson?.type !== 'createSprite') return;
+      // setSpriteInstances((prev) => {
+      //   const sprite = prev.find(
+      //     (instance) => instance.blockId === deleteEvent.blockId
+      //   );
+      //   if (!sprite) return prev;
+      //   phaserRef.current?.scene?.removeEditorSprite?.(sprite.id);
+      //   return prev.filter(
+      //     (instance) => instance.blockId !== deleteEvent.blockId
+      //   );
+      // });
     },
     []
   );
@@ -235,11 +235,11 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
         }
 
         // Update Blockly block fields
-        if (workspace && sprite.blockId) {
-          const block = workspace.getBlockById(sprite.blockId);
-          block?.setFieldValue(String(finalX), 'X');
-          block?.setFieldValue(String(finalY), 'Y');
-        }
+        // if (workspace && sprite.blockId) {
+        //   const block = workspace.getBlockById(sprite.blockId);
+        //   block?.setFieldValue(String(finalX), 'X');
+        //   block?.setFieldValue(String(finalY), 'Y');
+        // }
 
         return prev.map((s) =>
           s.id === id ? { ...s, x: finalX, y: finalY } : s
@@ -259,29 +259,29 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
 
   const attachBlockToOnStart = useCallback(
     (workspace: Blockly.WorkspaceSvg, block: Blockly.BlockSvg) => {
-      let [onStartBlock] = workspace.getBlocksByType('onStart', false);
+      // let [onStartBlock] = workspace.getBlocksByType('onStart', false);
 
-      if (!onStartBlock) {
-        const newBlock = workspace.newBlock('onStart');
-        newBlock.initSvg();
-        newBlock.render();
-        [onStartBlock] = workspace.getBlocksByType('onStart', false);
-      }
+      // if (!onStartBlock) {
+      //   const newBlock = workspace.newBlock('onStart');
+      //   newBlock.initSvg();
+      //   newBlock.render();
+      //   [onStartBlock] = workspace.getBlocksByType('onStart', false);
+      // }
 
-      const input = onStartBlock.getInput('INNER');
-      const connection = input?.connection;
-      if (!connection || !block.previousConnection) return;
+      // const input = onStartBlock.getInput('INNER');
+      // const connection = input?.connection;
+      // if (!connection || !block.previousConnection) return;
 
-      if (!connection.targetConnection) {
-        connection.connect(block.previousConnection);
-        return;
-      }
+      // if (!connection.targetConnection) {
+      //   connection.connect(block.previousConnection);
+      //   return;
+      // }
 
-      let current = connection.targetBlock();
-      while (current && current.getNextBlock()) {
-        current = current.getNextBlock();
-      }
-      current?.nextConnection?.connect(block.previousConnection);
+      // let current = connection.targetBlock();
+      // while (current && current.getNextBlock()) {
+      //   current = current.getNextBlock();
+      // }
+      // current?.nextConnection?.connect(block.previousConnection);
     },
     []
   );
@@ -381,14 +381,14 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
 
       scene.createSprite(payload.texture, worldX, worldY, spriteId);
 
-      const newBlock = workspace.newBlock('createSprite');
-      newBlock.setFieldValue(variableName, 'NAME');
-      newBlock.setFieldValue(payload.texture, 'TEXTURE');
-      newBlock.setFieldValue(String(worldX), 'X');
-      newBlock.setFieldValue(String(worldY), 'Y');
-      newBlock.initSvg();
-      newBlock.render();
-      attachBlockToOnStart(workspace, newBlock);
+      // const newBlock = workspace.newBlock('createSprite');
+      // newBlock.setFieldValue(variableName, 'NAME');
+      // newBlock.setFieldValue(payload.texture, 'TEXTURE');
+      // newBlock.setFieldValue(String(worldX), 'X');
+      // newBlock.setFieldValue(String(worldY), 'Y');
+      // newBlock.initSvg();
+      // newBlock.render();
+      // attachBlockToOnStart(workspace, newBlock);
 
       setSpriteInstances((prev) => [
         ...prev,
@@ -399,7 +399,6 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
           variableName,
           x: worldX,
           y: worldY,
-          blockId: newBlock.id,
         },
       ]);
 
@@ -456,12 +455,19 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
   };
 
   const handleRemoveSprite = (spriteId: string) => {
-    const workspace =
-      blocklyRef.current?.getWorkspace() as Blockly.WorkspaceSvg | null;
-    const sprite = spriteInstances.find((instance) => instance.id === spriteId);
-    if (!workspace || !sprite?.blockId) return;
-    const block = workspace.getBlockById(sprite.blockId);
-    block?.dispose(true);
+    // console.log("begin removing");
+    // const workspace =
+    //   blocklyRef.current?.getWorkspace() as Blockly.WorkspaceSvg | null;
+    // const sprite = spriteInstances.find((instance) => instance.id === spriteId);
+    // if (!workspace) return;
+
+    // console.log("continue removing");
+    // const block = workspace.getBlockById(sprite.blockId);
+    // if (!block) {
+    //   console.log("block does not exist");
+    //   return;
+    // }
+    // block.dispose(true);
   };
 
   const handleUpdateSprite = useCallback(
@@ -475,23 +481,23 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
         if (!sprite) return prev;
 
         // Update Blockly block fields if they exist
-        if (workspace && sprite.blockId) {
-          const block = workspace.getBlockById(sprite.blockId);
-          if (block) {
-            if ('x' in updates && updates.x !== undefined) {
-              block.setFieldValue(String(updates.x), 'X');
-            }
-            if ('y' in updates && updates.y !== undefined) {
-              block.setFieldValue(String(updates.y), 'Y');
-            }
-            if (
-              'variableName' in updates &&
-              updates.variableName !== undefined
-            ) {
-              block.setFieldValue(updates.variableName, 'NAME');
-            }
-          }
-        }
+        // if (workspace && sprite.blockId) {
+        //   const block = workspace.getBlockById(sprite.blockId);
+        //   if (block) {
+        //     if ('x' in updates && updates.x !== undefined) {
+        //       block.setFieldValue(String(updates.x), 'X');
+        //     }
+        //     if ('y' in updates && updates.y !== undefined) {
+        //       block.setFieldValue(String(updates.y), 'Y');
+        //     }
+        //     if (
+        //       'variableName' in updates &&
+        //       updates.variableName !== undefined
+        //     ) {
+        //       block.setFieldValue(updates.variableName, 'NAME');
+        //     }
+        //   }
+        // }
 
         // Update Phaser sprite in the scene
         if (scene?.updateEditorSprite) {
