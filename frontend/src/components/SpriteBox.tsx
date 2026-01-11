@@ -3,6 +3,7 @@
 import { memo, useState, useCallback, useEffect } from 'react';
 import { Cross2Icon, EyeOpenIcon, EyeNoneIcon } from '@radix-ui/react-icons';
 import { Button } from './ui/Button';
+import { useEditorStore } from '@/stores/editorStore';
 import SpriteModal, { type SpriteDragPayload } from './SpriteModal';
 
 export type SpriteInstance = {
@@ -53,6 +54,8 @@ const SpriteEditor = memo(function SpriteEditor({
   const selectedSprite = sprites.find((s) => s.id === selectedSpriteId) || null;
 
   const handleSpriteSelect = useCallback((spriteId: string) => {
+    useEditorStore.getState().loadWorkspace(spriteId);
+
     setSelectedSpriteId(spriteId);
   }, []);
 

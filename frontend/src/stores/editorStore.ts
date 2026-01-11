@@ -32,6 +32,9 @@ interface EditorState {
   canRedo: boolean;
   isConverting: boolean;
   isPaused: boolean;
+  spriteWorkspaces: Map<string, Blockly.serialization.workspaceComments.State>;
+  spriteId: string;
+
 
   // Registration Actions
   setPhaserRef: (ref: PhaserRefValue) => void;
@@ -55,6 +58,7 @@ interface EditorState {
   exportWorkspaceState: () => void;
   undoWorkspace: () => void;
   redoWorkspace: () => void;
+  loadWorkspace: (id: string) => void;
   togglePause: () => void;
 }
 
@@ -69,6 +73,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   canRedo: false,
   isConverting: false,
   isPaused: true,
+  spriteWorkspaces: new Map(),
+  spriteId: "1",
 
   setPhaserRef: (phaserRef) => set({ phaserRef }),
   setBlocklyRef: (blocklyRef) => set({ blocklyRef }),
@@ -113,6 +119,17 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     );
     console.log('generate code()');
     phaserRef.scene?.runScript(code);
+
+    const { spriteInstances } = get();
+    console.log(spriteInstances)
+
+    
+
+    // save workspace (should be moved later)
+    const { spriteWorkspaces, spriteId } = get();
+    const state = Blockly.serialization.workspaces.save(workspace);
+
+    spriteWorkspaces.set(spriteId, state)
   },
 
   scheduleConvert: () => {
@@ -178,6 +195,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     if (!workspace) return;
 
     const workspaceState = Blockly.serialization.workspaces.save(workspace);
+
+
+
     console.log('Current workspace state', workspaceState);
     console.log('Workspace JSON', JSON.stringify(workspaceState, null, 2));
   },
@@ -194,6 +214,22 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     blocklyRef?.getWorkspace()?.undo(true);
     // Update state after a small delay to let Blockly process the redo
     setTimeout(updateUndoRedoState, 10);
+  },
+
+  loadWorkspace: (spriteId) => {
+    const { spriteWorkspaces, blocklyRef } = get();
+    set({ spriteId: spriteId })
+
+    const workspace = blocklyRef?.getWorkspace();
+    if (!workspace) return;
+    workspace.clear()
+
+    const state = spriteWorkspaces.get(spriteId);
+    if (!state) return;
+
+    Blockly.serialization.workspaces.load(state, workspace);
+
+    console.log(`sprite ${spriteId} workspace loaded`);
   },
 
   togglePause: () => {

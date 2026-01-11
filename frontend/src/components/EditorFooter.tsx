@@ -15,6 +15,7 @@ const EditorFooter = () => {
     saveProject,
     undoWorkspace,
     redoWorkspace,
+    loadWorkspace,
     canUndo,
     canRedo,
     isPaused,
@@ -71,6 +72,22 @@ const EditorFooter = () => {
         */}
 
         {/* Undo/Redo buttons on far right */}
+        <button
+          onClick={() => {
+            loadWorkspace("1");
+          }}
+          className="w-10 h-10 flex items-center justify-center rounded text-white transition-all bg-primary-green hover:bg-primary-green/90 hover:translate-y-px hover:shadow-[0_2px_0_0_#1a5c3a] active:translate-y-[3px] active:shadow-none shadow-[0_4px_0_0_#1a5c3a] cursor-pointer"
+        >
+          1
+        </button>
+        <button
+          onClick={() => {
+            loadWorkspace("2");
+          }}
+          className="w-10 h-10 flex items-center justify-center rounded text-white transition-all bg-primary-green hover:bg-primary-green/90 hover:translate-y-px hover:shadow-[0_2px_0_0_#1a5c3a] active:translate-y-[3px] active:shadow-none shadow-[0_4px_0_0_#1a5c3a] cursor-pointer"
+        >
+          2
+        </button>
         <button
           onClick={undoWorkspace}
           disabled={!canUndo}
