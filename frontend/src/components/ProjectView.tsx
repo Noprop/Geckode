@@ -223,12 +223,6 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
           stopDragPolling(); // This stops the polling when dragging the block to the toolbox to delete
         }
 
-        if (event.type === Blockly.Events.BLOCK_MOVE) {
-          if ((event as any)?.reason?.includes('bump')) {
-            return; // This prevents a weird desync issue when blockly automatically moves blocks out of the way
-          }
-        }
-
         yDoc.transact(() => {
           blocklyEvents.push([event.toJson()]);
         }, yDoc.clientID);
