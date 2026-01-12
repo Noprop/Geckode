@@ -1,4 +1,6 @@
 import { javascriptGenerator } from "blockly/javascript";
+import { useEditorStore } from '@/stores/editorStore';
+import { getUpdateRegistry, getStartRegistry } from 'blockly/index';
 
 const onUpdate = {
   type: "onUpdate",
@@ -20,7 +22,27 @@ const onUpdate = {
 
 javascriptGenerator.forBlock['onUpdate'] = function (block, generator) {
   const inner = generator.statementToCode(block, 'INNER');
-  return `scene.update = () => {\n${inner}}\n`;
+  const spriteId = useEditorStore.getState().spriteId;
+  const updateId = useEditorStore.getState().updateId;
+
+  console.log("updateId: " + updateId);
+
+  const spriteFunction = generator.provideFunction_(`${spriteId}_update_${updateId}`,
+    [
+      `function ${generator.FUNCTION_NAME_PLACEHOLDER_}(thisSprite) {`,
+      `${inner}`,
+      `}`
+    ]
+  )
+
+  useEditorStore.setState( {updateId: updateId + 1} )
+
+  getUpdateRegistry(generator).push({
+    spriteId: `${spriteId}`,
+    functionName: spriteFunction
+  });
+
+  return '';
 };
 
 const onStart = {
@@ -43,7 +65,30 @@ const onStart = {
 
 javascriptGenerator.forBlock['onStart'] = function (block, generator) {
   const inner = generator.statementToCode(block, 'INNER');
-  return `scene.start = () => {\n${inner}}\n`;
+  const spriteId = useEditorStore.getState().spriteId;
+  const startId = useEditorStore.getState().startId;
+
+  console.log("startId: " + startId);
+
+  const spriteFunction = generator.provideFunction_(`${spriteId}_start_${startId}`,
+    [
+      `function ${generator.FUNCTION_NAME_PLACEHOLDER_}(thisSprite) {`,
+      `${inner}`,
+      `}`
+    ]
+  )
+
+  useEditorStore.setState( { startId: startId + 1} )
+
+  getStartRegistry(generator).push({
+    spriteId: `${spriteId}`,
+    functionName: spriteFunction
+  });
+
+  return '';
+
+  // const inner = generator.statementToCode(block, 'INNER');
+  // return `scene.start = () => {\n${inner}}\n`;
 };
 
 export const eventBlocks = [

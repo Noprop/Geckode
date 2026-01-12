@@ -122,6 +122,8 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
     if (!projectId) {
       if (workspace.getAllBlocks(false).length <= 0) {
         Blockly.serialization.workspaces.load(starterWorkspace, workspace);
+
+        useEditorStore.getState().scheduleConvert();
       }
       return;
     }
@@ -377,7 +379,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
         (instance) => instance.name === payload.texture
       ).length;
       const name = `${safeBase}${duplicateCount + 1}`;
-      const spriteId = `sprite-${Date.now()}-${Math.round(
+      const spriteId = `id_${Date.now()}_${Math.round(
         Math.random() * 1e4
       )}`;
 

@@ -1,5 +1,6 @@
 import { javascriptGenerator, Order } from "blockly/javascript";
 import { getSpriteDropdownOptions } from "@/blockly/spriteRegistry";
+import { useEditorStore } from '@/stores/editorStore';
 
 const setProperty = {
   type: 'setProperty',
@@ -36,7 +37,7 @@ javascriptGenerator.forBlock['setProperty'] = function (block, generator) {
   const value = generator.valueToCode(block, 'VALUE', Order.NONE) || 0;
   const spriteKey = block.getFieldValue('SPRITE');
 
-  return `scene.getSprite("${spriteKey}").set${block.getFieldValue(
+  return `scene.getSprite(${spriteKey === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey + '"'}).set${block.getFieldValue(
     'PROPERTY'
   )}(${value})\n`;
 };
@@ -76,7 +77,7 @@ javascriptGenerator.forBlock['changeProperty'] = function (block, generator) {
   const value = generator.valueToCode(block, 'VALUE', Order.NONE) || 0;
   const spriteKey = block.getFieldValue('SPRITE');
 
-  return `scene.getSprite("${spriteKey}").body.${block.getFieldValue(
+  return `scene.getSprite(${spriteKey === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey + '"'}).body.${block.getFieldValue(
     'PROPERTY'
   )} += ${value}\n`;
 };
@@ -109,7 +110,8 @@ const getProperty = {
 
 javascriptGenerator.forBlock['getProperty'] = function (block, generator) {
   const spriteKey = block.getFieldValue('SPRITE');
-  const code = `scene.getSprite("${spriteKey}").${block.getFieldValue(
+  
+  const code = `scene.getSprite(${spriteKey === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey + '"'}).${block.getFieldValue(
     'PROPERTY'
   )}`;
   return [code, Order.NONE];
