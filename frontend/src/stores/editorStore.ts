@@ -8,31 +8,17 @@ import { javascriptGenerator } from 'blockly/javascript';
 import projectsApi from '@/lib/api/handlers/projects';
 import { EventBus } from '@/phaser/EventBus';
 import EditorScene from '@/phaser/scenes/EditorScene';
+import type { SpriteDragPayload } from '@/components/SpriteModal/SpriteModal';
+import { PhaserRef } from '@/components/ProjectView';
+// import type { WorkspaceOutputType } from '@/blockly/javascriptGenerator';
 
 // Auto-convert debounce configuration
 let convertTimeoutId: ReturnType<typeof setTimeout> | null = null;
 const DEBOUNCE_MS = 400;
 
-export type PhaserRefValue = {
-  readonly game: Game;
-  readonly scene: Phaser.Scene;
-} | null;
-
-export type WorkspaceOutput = {
-  code: string;
-  updateHandlers: {
-    spriteId: string;
-    functionName: string;
-  }[];
-  startHandlers: {
-    spriteId: string;
-    functionName: string;
-  }[];
-};
-
-interface EditorState {
+interface State {
   // Refs
-  phaserRef: PhaserRefValue;
+  phaserRef: PhaserRef | null;
   blocklyRef: BlocklyEditorHandle | null;
 
   // State
@@ -46,20 +32,21 @@ interface EditorState {
   isConverting: boolean;
   isPaused: boolean;
   spriteWorkspaces: Map<string, Blockly.serialization.workspaceComments.State>;
-  spriteOutputs: Map<string, WorkspaceOutput>;
+  // @ts-expect-error TODO: fix this
+  spriteOutputs: Map<string, WorkspaceOutputType>;
   spriteId: string;
   updateId: number;
   startId: number;
+}
 
+interface Actions {
   // Registration Actions
-  setPhaserRef: (ref: PhaserRefValue) => void;
+  setPhaserRef: (ref: PhaserRef | null) => void;
   setBlocklyRef: (ref: BlocklyEditorHandle | null) => void;
   setProjectId: (id: number | null) => void;
   setProjectName: (name: string) => void;
-  setSpriteInstances: (
-    instances: SpriteInstance[] | ((prev: SpriteInstance[]) => SpriteInstance[])
-  ) => void;
-  setPhaserState: (state: PhaserExport | null) => void;
+  setSpriteInstances: (update: SpriteInstance[] | ((state: SpriteInstance[]) => SpriteInstance[])) => void;
+  setPhaserState: (phaserState: PhaserExport | null) => void;
   updateUndoRedoState: () => void;
 
   // Editor Actions
@@ -67,25 +54,28 @@ interface EditorState {
   generateCode: () => void;
   scheduleConvert: () => void;
   cancelScheduledConvert: () => void;
-  saveProject: (
-    showSnackbar: (msg: string, type: 'success' | 'error') => void
-  ) => Promise<void>;
+  saveProject: (showSnackbar: (msg: string, type: 'success' | 'error') => void) => Promise<void>;
   exportWorkspaceState: () => void;
   undoWorkspace: () => void;
   redoWorkspace: () => void;
   loadWorkspace: (id: string) => void;
   togglePause: () => void;
+
+  // Sprite Actions
+  addSpriteToGame: (payload: SpriteDragPayload, position?: { x: number; y: number }) => Promise<boolean>;
+  removeSpriteFromGame: (spriteId: string) => Promise<boolean>;
+  updateSprite: (spriteId: string, updates: Partial<SpriteInstance>) => Promise<boolean>;
 }
 
-export const useEditorStore = create<EditorState>((set, get) => ({
+export const useEditorStore = create<State & Actions>((set, get) => ({
   phaserRef: null,
   blocklyRef: null,
   projectId: null,
   projectName: '',
   spriteInstances: [
+    // TODO handle default sprite instances for a default project
     {
-      id:
-        'id_' + Date.now().toString() + '_' + Math.round(Math.random() * 10000),
+      id: 'id_' + Date.now().toString() + '_' + Math.round(Math.random() * 10000),
       tid: '1',
       name: 'herowalkfront1',
       x: 200,
@@ -93,13 +83,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     },
   ],
   textures: new Map<string, { name: string; file: string }>([
-    [
-      '1',
-      {
-        name: 'hero-walk-front',
-        file: '/heroWalkFront1.bmp',
-      },
-    ],
+    ['1', { name: 'hero-walk-front', file: '/heroWalkFront1.bmp' }],
   ]),
   phaserState: null,
   canUndo: false,
@@ -118,8 +102,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setProjectName: (projectName) => set({ projectName }),
   setSpriteInstances: (update) =>
     set((state) => ({
-      spriteInstances:
-        typeof update === 'function' ? update(state.spriteInstances) : update,
+      spriteInstances: typeof update === 'function' ? update(state.spriteInstances) : update,
     })),
   setPhaserState: (phaserState) => set({ phaserState }),
   updateUndoRedoState: () => {
@@ -130,16 +113,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       return;
     }
     // Access Blockly's internal undo stacks
-    const undoStack =
-      (workspace as unknown as { undoStack_: unknown[] }).undoStack_ || [];
-    const redoStack =
-      (workspace as unknown as { redoStack_: unknown[] }).redoStack_ || [];
+    const undoStack = (workspace as unknown as { undoStack_: unknown[] }).undoStack_ || [];
+    const redoStack = (workspace as unknown as { redoStack_: unknown[] }).redoStack_ || [];
     set({
       canUndo: undoStack.length > 0,
       canRedo: redoStack.length > 0,
     });
   },
-  
 
   changeScene: () => {
     const { phaserRef } = get();
@@ -151,27 +131,17 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const workspace = blocklyRef?.getWorkspace();
     if (!phaserRef || !workspace) return;
 
-    const code = javascriptGenerator.workspaceToCode(
-      workspace as Blockly.Workspace
-    );
-
-    const output = {
+    const code = javascriptGenerator.workspaceToCode(workspace as Blockly.Workspace);
+    // @ts-expect-error TODO: fix this
+    const output: WorkspaceOutputType = {
       code: code,
       updateHandlers: (javascriptGenerator as any).updateHandlers ?? [],
       startHandlers: (javascriptGenerator as any).startHandlers ?? [],
     };
 
-    spriteOutputs.set(spriteId, output)
-
-    console.log(spriteOutputs);
-
-    console.log('generate code()\n', code);
-    // phaserRef.scene?.runScript(code);
-
-    const { spriteInstances } = get();
-    console.log(spriteInstances);
-
-    // save workspace (should be moved later)
+    spriteOutputs.set(spriteId, output);
+    console.log('[editorStore] generateCode()\n', code);
+    // save workspace state (should be moved later)
     const { spriteWorkspaces } = get();
     const state = Blockly.serialization.workspaces.save(workspace);
 
@@ -179,7 +149,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   scheduleConvert: () => {
-    console.log('scheduleConvert()');
     // Show loader immediately when changes are detected
     set({ isConverting: true });
 
@@ -188,7 +157,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     const attemptConvert = () => {
       const { phaserRef, blocklyRef, generateCode } = get();
-      console.log(!phaserRef?.scene, !blocklyRef?.getWorkspace());
 
       if (!phaserRef?.scene || !blocklyRef?.getWorkspace()) {
         // Retry after a short delay if not ready yet
@@ -214,10 +182,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   saveProject: async (showSnackbar) => {
-    const { projectId, projectName, blocklyRef, phaserRef, spriteInstances } =
-      get();
+    const { projectId, projectName, blocklyRef, phaserRef, spriteInstances } = get();
     if (!projectId) {
-      console.log('No project id associated, returning.');
+      console.error('[editorStore] saveProject() - No project id associated, returning.');
       return;
     }
 
@@ -293,20 +260,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
       const { spriteInstances, spriteOutputs } = get();
 
-      const outputs = spriteInstances.map(s => spriteOutputs.get(s.id));
+      const outputs = spriteInstances.map((s) => spriteOutputs.get(s.id));
 
-      console.log("outputs", outputs)
-      
-      const allUpdateHandlers = outputs.flatMap(o => o?.updateHandlers);
-      const allStartHandlers = outputs.flatMap(o => o?.startHandlers);
+      console.log('outputs', outputs);
 
-      const updateBody = allUpdateHandlers
-        .map(h => `  ${h?.functionName}('${h?.spriteId}');`)
-        .join('\n');
+      const allUpdateHandlers = outputs.flatMap((o) => o?.updateHandlers);
+      const allStartHandlers = outputs.flatMap((o) => o?.startHandlers);
 
-      const startBody = allStartHandlers
-        .map(h => `  ${h?.functionName}('${h?.spriteId}');`)
-        .join('\n');
+      const updateBody = allUpdateHandlers.map((h) => `  ${h?.functionName}('${h?.spriteId}');`).join('\n');
+
+      const startBody = allStartHandlers.map((h) => `  ${h?.functionName}('${h?.spriteId}');`).join('\n');
 
       const updateCode = `
         scene.update = () => {
@@ -320,14 +283,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         };
         `;
 
-      const code = [
-        ...outputs.map(o => o?.code),
-        startCode,
-        updateCode
-      ].join('\n\n');
+      const code = [...outputs.map((o) => o?.code), startCode, updateCode].join('\n\n');
 
-      console.log("final code:\n" + code);
-      
+      console.log('final code:\n' + code);
 
       const { textures } = get();
 
@@ -358,5 +316,162 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     // }, 1000);
     // get().scheduleConvert();
   },
-}));
 
+  addSpriteToGame: async (payload: SpriteDragPayload, position?: { x: number; y: number }) => {
+    console.log('[editorStore] addSpriteToGame() called', payload, position);
+    const { phaserRef, blocklyRef, spriteInstances } = get();
+    const game = phaserRef?.game;
+    const scene = phaserRef?.scene;
+    const workspace = blocklyRef?.getWorkspace() as Blockly.WorkspaceSvg | null;
+
+    if (!game || !scene || !workspace) {
+      // showSnackbar('Game is not ready yet. Try again in a moment.', 'error');
+      console.error('[editorStore] addSpriteToGame() - Game is not ready yet. Try again in a moment.');
+      return false;
+    }
+
+    const ensureTexture = async () => {
+      if (scene.textures.exists(payload.texture)) return;
+      if (!payload.dataUrl) {
+        throw new Error('Missing texture data for sprite payload.');
+      }
+
+      const dataUrl = payload.dataUrl;
+      const isDataUrl = dataUrl.startsWith('data:');
+      if (isDataUrl) {
+        const textureReady = new Promise<void>((resolve, reject) => {
+          const img = new window.Image();
+          img.onload = () => {
+            try {
+              scene.textures.addImage(payload.texture, img);
+              resolve();
+            } catch (err) {
+              reject(err);
+            }
+          };
+          img.onerror = () => reject(new Error('Failed to load base64 texture data.'));
+          img.src = dataUrl;
+        });
+        await textureReady;
+        return;
+      }
+
+      await new Promise<void>((resolve, reject) => {
+        const handleComplete = () => {
+          scene.load.off('loaderror', handleError);
+          resolve();
+        };
+        const handleError = () => {
+          scene.load.off('complete', handleComplete);
+          reject(new Error('Failed to load texture from URL.'));
+        };
+        scene.load.once('complete', handleComplete);
+        scene.load.once('loaderror', handleError);
+        console.log('loading image', payload.texture, dataUrl);
+        scene.load.image(payload.texture, dataUrl);
+        scene.load.start();
+      });
+    };
+
+    try {
+      await ensureTexture();
+    } catch (error) {
+      console.warn('Could not load sprite texture.', error);
+      // showSnackbar('Could not load that sprite image. Please try again.', 'error');
+      console.error('[editorStore] addSpriteToGame() - Could not load that sprite image. Please try again.');
+      return false;
+    }
+
+    if (!scene.textures.exists(payload.texture)) {
+      // showSnackbar('Upload a sprite image before adding it to the game.', 'error');
+      console.error('[editorStore] addSpriteToGame() - Upload a sprite image before adding it to the game.');
+      return false;
+    }
+
+    const width = game.scale?.width || game.canvas?.width;
+    const height = game.scale?.height || game.canvas?.height;
+    if (!width || !height) {
+      // showSnackbar('Could not determine game size. Try again.', 'error');
+      console.error('[editorStore] addSpriteToGame() - Could not determine game size. Try again.');
+      return false;
+    }
+
+    const worldX = position?.x ?? Math.round(width / 2);
+    const worldY = position?.y ?? Math.round(height / 2);
+
+    const safeBase = payload.texture.replace(/[^\w]/g, '') || 'sprite';
+    const duplicateCount = spriteInstances.filter((instance) => instance.name === payload.texture).length;
+    const name = `${safeBase}${duplicateCount + 1}`;
+    const spriteId = `id_${Date.now()}_${Math.round(Math.random() * 1e4)}`;
+
+    (scene as EditorScene).createSprite(payload.texture, worldX, worldY, spriteId);
+
+    // const newBlock = workspace.newBlock('createSprite');
+    // newBlock.setFieldValue(variableName, 'NAME');
+    // newBlock.setFieldValue(payload.texture, 'TEXTURE');
+    // newBlock.setFieldValue(String(worldX), 'X');
+    // newBlock.setFieldValue(String(worldY), 'Y');
+    // newBlock.initSvg();
+    // newBlock.render();
+    // attachBlockToOnStart(workspace, newBlock);
+
+    set(() => ({
+      spriteInstances: [
+        ...spriteInstances,
+        {
+          id: spriteId,
+          tid: payload.texture,
+          name: name,
+          x: worldX,
+          y: worldY,
+        },
+      ],
+    }));
+
+    return true;
+  },
+
+  removeSpriteFromGame: async (spriteId: string) => {
+    const { phaserRef, blocklyRef, spriteInstances } = get();
+    const game = phaserRef?.game;
+    const scene = phaserRef?.scene;
+    const workspace = blocklyRef?.getWorkspace() as Blockly.WorkspaceSvg | null;
+
+    if (!game || !scene || !workspace) {
+      // showSnackbar('Game is not ready yet. Try again in a moment.', 'error');
+      console.error('[editorStore] removeSpriteFromGame() - Game is not ready yet. Try again in a moment.');
+      return false;
+    }
+
+    (scene as EditorScene).removeSprite(spriteId);
+
+    set(() => ({
+      spriteInstances: spriteInstances.filter((instance) => instance.id !== spriteId),
+    }));
+
+    return true;
+  },
+
+  updateSprite: async (spriteId: string, updates: Partial<SpriteInstance>) => {
+    const { phaserRef, blocklyRef, spriteInstances } = get();
+    const game = phaserRef?.game;
+    const scene = phaserRef?.scene;
+    const workspace = blocklyRef?.getWorkspace() as Blockly.WorkspaceSvg | null;
+
+    if (!game || !scene || !workspace) {
+      // showSnackbar('Game is not ready yet. Try again in a moment.', 'error');
+      console.error('[editorStore] updateSprite() - Game is not ready yet. Try again in a moment.');
+      return false;
+    }
+
+    (scene as EditorScene).updateSprite(spriteId, updates);
+
+    set(() => ({
+      spriteInstances: spriteInstances.map((instance) =>
+        instance.id === spriteId ? { ...instance, ...updates } : instance
+      ),
+    }));
+
+    return true;
+  },
+}));
