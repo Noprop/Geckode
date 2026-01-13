@@ -260,8 +260,16 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
     };
   }, []);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     setSpriteDropdownOptions(spriteInstances);
+
+    const workspace = blocklyRef.current?.getWorkspace();
+
+    if (!workspace) return;
+
+    const state = Blockly.serialization.workspaces.save(workspace)
+
+    Blockly.serialization.workspaces.load(state, workspace);
   }, [spriteInstances]);
 
   const attachBlockToOnStart = useCallback(
