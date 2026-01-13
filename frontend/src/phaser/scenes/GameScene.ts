@@ -66,8 +66,6 @@ export default class GameScene extends Phaser.Scene {
     this.gameLayer = this.add.layer();
     this.gameLayer.setDepth(GameScene.GAME_SPRITE_BASE_DEPTH);
 
-    this.start();
-
     for (const instance of data.spriteInstances) {
       const textureName = data.textures.get(instance.tid)?.name || '';
       this.addGameSprite(textureName, instance.x, instance.y, instance.id);
@@ -80,6 +78,8 @@ export default class GameScene extends Phaser.Scene {
 
     // Tell React which scene is active (will trigger pause state sync)
     EventBus.emit('current-scene-ready', this);
+
+    this.start();
   }
 
   /**
@@ -125,8 +125,8 @@ export default class GameScene extends Phaser.Scene {
   update() {}
 
   public getSprite(id: string) {
-    console.log('[GameScene] getSprite called', id);
-    console.log('[GameScene] getSprite called', this.gameSprites.get(id));
+    // console.log('[GameScene] getSprite called', id);
+    // console.log('[GameScene] getSprite called', this.gameSprites.get(id));
     return this.gameSprites.get(id);
   }
 

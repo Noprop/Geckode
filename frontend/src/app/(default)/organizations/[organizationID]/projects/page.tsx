@@ -19,6 +19,7 @@ import projectsApi from "@/lib/api/handlers/projects";
 import { Project } from "@/lib/types/api/projects";
 import { ProjectPermissions } from "@/lib/types/api/projects/collaborators";
 import DragAndDrop, { DragAndDropRef } from "@/components/DragAndDrop";
+import { ExclamationTriangleIcon, FilePlusIcon, TrashIcon } from "@radix-ui/react-icons";
 
 export default function ProjectsPage() {
   const showSnackbar = useSnackbar();
@@ -136,7 +137,7 @@ export default function ProjectsPage() {
         }
         actions={[
           {
-            rowIcon: "trash",
+            rowIcon: TrashIcon,
             rowIconSize: 24,
             rowIconClicked: () => setShowModal("delete"),
             rowIconClassName: "hover:text-red-500 mt-1",
@@ -159,7 +160,7 @@ export default function ProjectsPage() {
         <Modal
           onClose={() => setShowModal(null)}
           title="Create project"
-          icon="file-plus"
+          icon={FilePlusIcon}
           actions={
             <>
               <Button onClick={createProject} className="btn-confirm ml-3">
@@ -214,7 +215,7 @@ export default function ProjectsPage() {
           title={`Delete project (${
             tableRef.current?.data?.[tableRef.current.dataIndex].project["name"]
           })`}
-          icon="warning"
+          icon={ExclamationTriangleIcon}
           actions={
             <>
               <Button onClick={deleteProject} className="btn-deny ml-3">

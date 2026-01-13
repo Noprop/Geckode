@@ -18,6 +18,18 @@ export type PhaserRefValue = {
   readonly scene: Phaser.Scene;
 } | null;
 
+export type WorkspaceOutput = {
+  code: string;
+  updateHandlers: {
+    spriteId: string;
+    functionName: string;
+  }[];
+  startHandlers: {
+    spriteId: string;
+    functionName: string;
+  }[];
+};
+
 interface EditorState {
   // Refs
   phaserRef: PhaserRefValue;
@@ -34,7 +46,10 @@ interface EditorState {
   isConverting: boolean;
   isPaused: boolean;
   spriteWorkspaces: Map<string, Blockly.serialization.workspaceComments.State>;
+  spriteOutputs: Map<string, WorkspaceOutput>;
   spriteId: string;
+  updateId: number;
+  startId: number;
 
   // Registration Actions
   setPhaserRef: (ref: PhaserRefValue) => void;
@@ -92,8 +107,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   isConverting: false,
   isPaused: true,
   spriteWorkspaces: new Map(),
-  spriteId:
-    'id_' + Date.now().toString() + '_' + Math.round(Math.random() * 10000),
+  spriteOutputs: new Map(),
+  spriteId: '',
+  updateId: 0,
+  startId: 0,
 
   setPhaserRef: (phaserRef) => set({ phaserRef }),
   setBlocklyRef: (blocklyRef) => set({ blocklyRef }),
@@ -122,6 +139,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       canRedo: redoStack.length > 0,
     });
   },
+  
 
   changeScene: () => {
     const { phaserRef } = get();
@@ -129,21 +147,32 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   generateCode: () => {
-    const { blocklyRef, phaserRef } = get();
+    const { blocklyRef, phaserRef, spriteOutputs, spriteId } = get();
     const workspace = blocklyRef?.getWorkspace();
     if (!phaserRef || !workspace) return;
 
     const code = javascriptGenerator.workspaceToCode(
       workspace as Blockly.Workspace
     );
-    console.log('generate code()', code);
+
+    const output = {
+      code: code,
+      updateHandlers: (javascriptGenerator as any).updateHandlers ?? [],
+      startHandlers: (javascriptGenerator as any).startHandlers ?? [],
+    };
+
+    spriteOutputs.set(spriteId, output)
+
+    console.log(spriteOutputs);
+
+    console.log('generate code()\n', code);
     // phaserRef.scene?.runScript(code);
 
     const { spriteInstances } = get();
     console.log(spriteInstances);
 
     // save workspace (should be moved later)
-    const { spriteWorkspaces, spriteId } = get();
+    const { spriteWorkspaces } = get();
     const state = Blockly.serialization.workspaces.save(workspace);
 
     spriteWorkspaces.set(spriteId, state);
@@ -157,12 +186,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     // Clear any existing debounce timer
     if (convertTimeoutId) clearTimeout(convertTimeoutId);
 
-    // Debounce: wait for user to stop making changes
-    convertTimeoutId = setTimeout(() => {
+    const attemptConvert = () => {
       const { phaserRef, blocklyRef, generateCode } = get();
+      console.log(!phaserRef?.scene, !blocklyRef?.getWorkspace());
+
       if (!phaserRef?.scene || !blocklyRef?.getWorkspace()) {
-        set({ isConverting: false });
-        convertTimeoutId = null;
+        // Retry after a short delay if not ready yet
+        convertTimeoutId = setTimeout(attemptConvert, 100);
         return;
       }
 
@@ -170,7 +200,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       generateCode();
       set({ isConverting: false });
       convertTimeoutId = null;
-    }, DEBOUNCE_MS);
+    };
+
+    // Initial debounce: wait for user to stop making changes
+    convertTimeoutId = setTimeout(attemptConvert, DEBOUNCE_MS);
   },
 
   cancelScheduledConvert: () => {
@@ -257,11 +290,46 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     if (!newPaused) {
       // PLAY: Switch to GameScene
-      const workspace = blocklyRef?.getWorkspace();
-      const code = workspace
-        ? javascriptGenerator.workspaceToCode(workspace)
-        : '';
-      const { spriteInstances, textures } = get();
+
+      const { spriteInstances, spriteOutputs } = get();
+
+      const outputs = spriteInstances.map(s => spriteOutputs.get(s.id));
+
+      console.log("outputs", outputs)
+      
+      const allUpdateHandlers = outputs.flatMap(o => o?.updateHandlers);
+      const allStartHandlers = outputs.flatMap(o => o?.startHandlers);
+
+      const updateBody = allUpdateHandlers
+        .map(h => `  ${h?.functionName}('${h?.spriteId}');`)
+        .join('\n');
+
+      const startBody = allStartHandlers
+        .map(h => `  ${h?.functionName}('${h?.spriteId}');`)
+        .join('\n');
+
+      const updateCode = `
+        scene.update = () => {
+        ${updateBody}
+        };
+        `;
+
+      const startCode = `
+        scene.start = () => {
+        ${startBody}
+        };
+        `;
+
+      const code = [
+        ...outputs.map(o => o?.code),
+        startCode,
+        updateCode
+      ].join('\n\n');
+
+      console.log("final code:\n" + code);
+      
+
+      const { textures } = get();
 
       // Pass data to GameScene
       phaserRef?.scene?.scene.start('GameScene', {

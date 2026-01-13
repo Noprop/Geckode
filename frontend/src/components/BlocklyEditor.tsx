@@ -13,6 +13,7 @@ import { Button } from "./ui/Button";
 import { InputBox, InputBoxRef } from "./ui/InputBox";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import { useEditorStore } from '@/stores/editorStore';
+import { InfoCircledIcon } from "@radix-ui/react-icons";
 
 registerBlockly();
 
@@ -248,7 +249,7 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(
           <Modal
             onClose={() => setShowVariableModal(false)}
             title="Create variable"
-            icon="circle-info"
+            icon={InfoCircledIcon}
             actions={
               <>
                 <Button

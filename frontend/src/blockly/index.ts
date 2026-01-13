@@ -9,6 +9,20 @@ import { eventBlocks } from '@/blockly/blocks/events';
 import { inputBlocks } from '@/blockly/blocks/input';
 import { developmentBlocks } from '@/blockly/blocks/development';
 
+import { javascriptGenerator } from 'blockly/javascript';
+import { useEditorStore } from '@/stores/editorStore';
+
+type UpdateHandler = {
+  spriteId: string;
+  functionName: string;
+};
+
+type StartHandler = {
+  spriteId: string;
+  functionName: string;
+};
+
+
 const customBlocks = [
   ...spriteBlocks,
   ...eventBlocks,
@@ -26,3 +40,52 @@ export const registerBlockly = () => {
 
   isRegistered = true;
 };
+
+export function getUpdateRegistry(generator: any): UpdateHandler[] {
+  if (!generator.updateHandlers) {
+    generator.updateHandlers = [];
+  }
+  return generator.updateHandlers;
+}
+
+export function getStartRegistry(generator: any): StartHandler[] {
+  if (!generator.startHandlers) {
+    generator.startHandlers = [];
+  }
+  return generator.startHandlers;
+}
+
+const originalInit = javascriptGenerator.init;
+
+javascriptGenerator.init = function (workspace) {
+  originalInit.call(this, workspace);
+  (this as any).updateHandlers = [];
+  (this as any).startHandlers = [];
+  useEditorStore.setState( {updateId: 0} )
+  useEditorStore.setState( {startId: 0} )
+};
+
+
+// MIGHT USE THIS LATER
+
+// const originalFinish = javascriptGenerator.finish;
+
+// javascriptGenerator.finish = function (code: string) {
+//   const handlers: UpdateHandler[] = (this as any).updateHandlers ?? [];
+
+//   if (!handlers.length) {
+//     return originalFinish.call(this, code);
+//   }
+
+//   const body = handlers
+//     .map(h => `  ${h.functionName}('${h.spriteId}');`)
+//     .join('\n');
+
+//   const combinedUpdate = `
+//     scene.update = () => {
+//     ${body}
+//     };
+//   `;
+
+//   return originalFinish.call(this, code + combinedUpdate);
+// };

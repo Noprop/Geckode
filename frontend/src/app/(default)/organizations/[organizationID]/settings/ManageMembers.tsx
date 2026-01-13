@@ -17,6 +17,7 @@ import {
 } from "@/lib/types/api/organizations/members";
 import { ProjectPermissions } from "@/lib/types/api/projects/collaborators";
 import { User } from "@/lib/types/api/users";
+import { FilePlusIcon, TrashIcon } from "@radix-ui/react-icons";
 import { ReactElement, useEffect, useRef, useState } from "react";
 
 interface Props {
@@ -204,7 +205,7 @@ export const ManageMembers = ({ org, setOrg, user }: Props) => {
         defaultSortDirection="desc"
         actions={[
           {
-            rowIcon: "trash",
+            rowIcon: TrashIcon,
             rowIconSize: 24,
             rowIconClicked: () => setShowModal("remove"),
             rowIconClassName: "hover:text-red-500 mt-1",
@@ -228,7 +229,7 @@ export const ManageMembers = ({ org, setOrg, user }: Props) => {
       {showModal === "invite" && (
         <Modal
           title="Invite Users"
-          icon="file-plus"
+          icon={FilePlusIcon}
           actions={
             <>
               <Button onClick={inviteUsers} className="btn-confirm ml-3">

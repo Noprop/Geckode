@@ -122,6 +122,12 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
     if (!projectId) {
       if (workspace.getAllBlocks(false).length <= 0) {
         Blockly.serialization.workspaces.load(starterWorkspace, workspace);
+
+        useEditorStore.setState({
+          spriteId: useEditorStore.getState().spriteInstances[0].id,
+        });
+
+        useEditorStore.getState().scheduleConvert();
       }
       return;
     }
@@ -256,9 +262,6 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
 
   useLayoutEffect(() => {
     setSpriteDropdownOptions(spriteInstances);
-    useEditorStore.setState({
-      spriteId: useEditorStore.getState().spriteInstances[0].id,
-    });
   }, [spriteInstances]);
 
   const attachBlockToOnStart = useCallback(
@@ -377,7 +380,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
         (instance) => instance.name === payload.texture
       ).length;
       const name = `${safeBase}${duplicateCount + 1}`;
-      const spriteId = `sprite-${Date.now()}-${Math.round(
+      const spriteId = `id_${Date.now()}_${Math.round(
         Math.random() * 1e4
       )}`;
 
@@ -511,6 +514,8 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
             y: updates.y as number,
           });
         }
+
+        console.log("workspace spriteId: " + useEditorStore.getState().spriteId);
 
         // Update sprite instances state
         return prev.map((instance) =>
