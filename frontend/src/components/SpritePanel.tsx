@@ -20,7 +20,7 @@ const SpritePanel = memo(function SpriteEditor({
   addSpriteToGame,
   onUpdateSprite,
 }: Props) {
-  const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
+  const [isSpriteModalOpen, setIsSpriteModalOpen] = useState(false);
   const [selectedSpriteId, setSelectedSpriteId] = useState<string | null>(null);
 
   // Track editing state for inputs (allows empty while editing)
@@ -268,7 +268,7 @@ const SpritePanel = memo(function SpriteEditor({
             </span>
             <Button
               className="btn-confirm px-3 py-1 text-[11px]"
-              onClick={() => setIsAssetModalOpen(true)}
+              onClick={() => setIsSpriteModalOpen(true)}
               title="Add new sprite"
             >
               + Add
@@ -373,8 +373,8 @@ const SpritePanel = memo(function SpriteEditor({
 
       {/* TODO: The modal shouldn't be placed here. */}
       <SpriteModal
-        isAssetModalOpen={isAssetModalOpen}
-        setIsAssetModalOpen={setIsAssetModalOpen}
+        isSpriteModalOpen={isSpriteModalOpen}
+        setIsSpriteModalOpen={setIsSpriteModalOpen}
         addSpriteToGame={addSpriteToGame}
       />
     </section>

@@ -40,7 +40,7 @@ const HERO_WALK_LEFT = '/heroWalkSideLeft2.bmp';
 const HERO_WALK_RIGHT =
   'data:image/png;base64,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';
 
-const SPRITE_LIBRARY: SpriteAsset[] = [
+const spriteLibrary: SpriteAsset[] = [
   {
     id: 'hero-walk-front',
     name: 'Hero Walk Front',
@@ -72,14 +72,14 @@ const SPRITE_LIBRARY: SpriteAsset[] = [
 ];
 
 type Props = {
-  isAssetModalOpen: boolean;
-  setIsAssetModalOpen: Dispatch<SetStateAction<boolean>>;
+  isSpriteModalOpen: boolean;
+  setIsSpriteModalOpen: Dispatch<SetStateAction<boolean>>;
   addSpriteToGame: (payload: SpriteDragPayload) => Promise<boolean>;
 };
 
 const SpriteModal = ({
-  isAssetModalOpen,
-  setIsAssetModalOpen,
+  isSpriteModalOpen,
+  setIsSpriteModalOpen,
   addSpriteToGame,
 }: Props) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -104,41 +104,34 @@ const SpriteModal = ({
   );
   const [pixels, setPixels] = useState<string[]>(createEmptyPixels);
 
-  const categories = useMemo(
-    () => ['all', ...new Set(SPRITE_LIBRARY.map((asset) => asset.category))],
+  const spriteCategories = useMemo(
+    () => ['all', ...new Set(spriteLibrary.map((asset) => asset.category))],
     []
   );
 
-  const filteredAssets = useMemo(() => {
+  const filteredSprites = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    return SPRITE_LIBRARY.filter((asset) => {
+    return spriteLibrary.filter((sprite) => {
       const matchesCategory =
-        activeCategory === 'all' || asset.category === activeCategory;
+        activeCategory === 'all' || sprite.category === activeCategory;
       const matchesSearch =
         !query ||
-        asset.name.toLowerCase().includes(query) ||
-        asset.tags.some((tag) => tag.toLowerCase().includes(query));
+        sprite.name.toLowerCase().includes(query) ||
+        sprite.tags.some((tag) => tag.toLowerCase().includes(query));
       return matchesCategory && matchesSearch;
     });
   }, [searchQuery, activeCategory]);
 
-  const buildPayload = (asset: SpriteAsset): SpriteDragPayload => ({
+  const buildPayload = (sprite: SpriteAsset): SpriteDragPayload => ({
     kind: 'sprite-blueprint',
-    label: asset.name,
-    texture: asset.id,
-    dataUrl: asset.preview,
+    label: sprite.name,
+    texture: sprite.id,
+    dataUrl: sprite.preview,
   });
 
-  const handleDragStart =
-    (asset: SpriteAsset) => (event: DragEvent<HTMLDivElement>) => {
-      const payload = buildPayload(asset);
-      event.dataTransfer.setData('application/json', JSON.stringify(payload));
-      event.dataTransfer.effectAllowed = 'move';
-    };
-
-  const handleAssetClick = (asset: SpriteAsset) => async () => {
-    const success = await addSpriteToGame(buildPayload(asset));
-    if (success) setIsAssetModalOpen(false);
+  const handleSpriteClick = (sprite: SpriteAsset) => async () => {
+    const success = await addSpriteToGame(buildPayload(sprite));
+    if (success) setIsSpriteModalOpen(false);
   };
 
   const palette = [
@@ -328,52 +321,36 @@ const SpriteModal = ({
       dataUrl,
     });
     if (success) {
-      setIsAssetModalOpen(false);
+      setIsSpriteModalOpen(false);
       setActiveTab('library');
     }
   };
 
-  if (!isAssetModalOpen) return <></>;
+  if (!isSpriteModalOpen) return <></>;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8">
+    <div className="fixed inset-0 z-100 flex items-center justify-center px-4 py-8">
       <div
-        className="absolute inset-0 bg-slate-900/70 backdrop-blur-sm"
-        onClick={() => setIsAssetModalOpen(false)}
+        className="absolute inset-0 bg-slate-900/70"
+        onClick={() => setIsSpriteModalOpen(false)}
         aria-hidden
       />
-      <div className="relative z-10 w-[min(1100px,66vw)] max-h-[82vh] overflow-hidden rounded-2xl border border-slate-300 bg-white text-slate-900 shadow-2xl ring-4 ring-primary-green/10 dark:border-slate-700 dark:bg-dark-secondary dark:text-slate-100">
+      <div className="relative z-10 w-[min(900px,66vw)] max-h-[82vh] overflow-hidden rounded-lg border border-slate-300 bg-white text-slate-900 shadow-2xl ring-4 ring-primary-green/10 dark:border-slate-700 dark:bg-dark-secondary dark:text-slate-100">
         <button
           type="button"
-          onClick={() => setIsAssetModalOpen(false)}
+          onClick={() => setIsSpriteModalOpen(false)}
           className="absolute right-3 top-3 rounded-full bg-black/5 p-2 text-slate-700 transition hover:bg-black/10 dark:bg-white/10 dark:text-slate-100 dark:hover:bg-white/20"
           title="Close asset picker"
         >
           <Cross2Icon className="h-4 w-4" />
         </button>
 
-        <div className="flex items-start justify-between gap-3 px-6 pt-5">
-          <div>
-            <h3 className="text-lg font-semibold leading-tight">
-              Choose or design a bitmap sprite
-            </h3>
-            <p className="text-xs text-slate-600 dark:text-slate-300">
-              Search, filter, and drag a bitmap frame into the game canvas to
-              place it, or click a card to drop it in the center. Flip over to
-              the pixel editor tab to paint your own.
-            </p>
-          </div>
-          <div className="hidden items-center gap-2 rounded-full bg-primary-green/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-primary-green sm:flex">
-            Bitmap ready
-          </div>
-        </div>
-
         <div className="px-6 pb-3 pt-4">
-          <div className="inline-flex rounded-full border border-slate-200 bg-light-tertiary p-1 text-xs font-semibold dark:border-slate-700 dark:bg-dark-tertiary">
+          <div className="inline-flex rounded-md border border-slate-200 bg-light-tertiary p-1 text-xs font-semibold dark:border-slate-700 dark:bg-dark-tertiary">
             <button
               type="button"
               onClick={() => setActiveTab('library')}
-              className={`flex items-center gap-2 rounded-full px-4 py-2 transition ${
+              className={`flex items-center gap-2 rounded-md px-4 py-2 transition ${
                 activeTab === 'library'
                   ? 'bg-white text-primary-green shadow-sm ring-1 ring-primary-green/30 dark:bg-slate-900'
                   : 'text-slate-600 hover:text-primary-green dark:text-slate-300'
@@ -385,21 +362,22 @@ const SpriteModal = ({
             <button
               type="button"
               onClick={() => setActiveTab('editor')}
-              className={`flex items-center gap-2 rounded-full px-4 py-2 transition ${
+              className={`flex items-center gap-2 rounded-md px-4 py-2 transition ${
                 activeTab === 'editor'
                   ? 'bg-white text-primary-green shadow-sm ring-1 ring-primary-green/30 dark:bg-slate-900'
                   : 'text-slate-600 hover:text-primary-green dark:text-slate-300'
               }`}
             >
               <Pencil2Icon className="h-4 w-4" />
-              Pixel editor
+              Create Sprite
             </button>
           </div>
         </div>
 
         {activeTab === 'library' ? (
           <>
-            <div className="px-6 pb-4 pt-1">
+            {/* TODO: Add search and filter functionality */}
+            {/* <div className="px-6 pb-4 pt-1">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
                 <div className="relative flex-1">
                   <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -416,72 +394,56 @@ const SpriteModal = ({
                   Filters
                 </div>
               </div>
-
               <div className="mt-3 flex flex-wrap gap-2">
-                {categories.map((category) => {
-                  const isActive = activeCategory === category;
+                {spriteCategories.map((category) => {
+                  const isActive = activeSpriteCategory === category;
                   return (
                     <button
                       key={category}
                       type="button"
-                      onClick={() => setActiveCategory(category)}
+                      onClick={() => setActiveSpriteCategory(category)}
                       className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
                         isActive
                           ? 'border-primary-green bg-primary-green/10 text-primary-green'
                           : 'border-slate-200 text-slate-700 hover:border-primary-green/50 hover:text-primary-green dark:border-slate-700 dark:text-slate-200 dark:hover:border-primary-green/60'
                       }`}
                     >
-                      {category === 'all' ? 'All assets' : category}
+                      {category === 'all' ? 'All sprites' : category}
                     </button>
                   );
                 })}
               </div>
-            </div>
+            </div> */}
 
-            <div className="max-h-[55vh] overflow-y-auto border-t border-slate-200 bg-light-tertiary px-6 py-4 dark:border-slate-700 dark:bg-dark-tertiary">
-              {filteredAssets.length === 0 ? (
+            <div className="h-[55vh] overflow-y-auto border-t border-slate-200 bg-light-tertiary px-6 py-4 dark:border-slate-700 dark:bg-dark-tertiary">
+              {spriteLibrary.length === 0 ? (
                 <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center text-sm text-slate-600 shadow-sm dark:border-slate-700 dark:bg-dark-secondary dark:text-slate-300">
-                  <p>No assets match your search yet.</p>
+                  <p>No sprites match your search yet.</p>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Once assets are uploaded, they will appear here for you.
+                    Once sprites are uploaded, they will appear here for you.
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {filteredAssets.map((asset) => (
+                <div className="flex flex-wrap gap-4">
+                  {spriteLibrary.map((sprite) => (
                     <div
-                      key={asset.id}
-                      className="flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:border-slate-700 dark:bg-dark-secondary"
+                      key={sprite.id}
+                      className="flex w-36 flex-col overflow-hidden rounded-xs border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:border-slate-700 dark:bg-dark-secondary cursor-pointer"
+                      onClick={handleSpriteClick(sprite)}
+                      title="Click to add to center of the game window"
                     >
-                      <div
-                        className="relative flex aspect-4/3 cursor-grab items-center justify-center bg-white dark:bg-slate-900"
-                        draggable
-                        onDragStart={handleDragStart(asset)}
-                        onClick={handleAssetClick(asset)}
-                        title="Click to add to center of the game window"
-                      >
+                      <div className="relative flex aspect-4/3 items-center justify-center bg-white dark:bg-slate-900">
                         <img
-                          src={asset.preview}
-                          alt={asset.name}
-                          className="h-28 w-auto max-w-[85%] object-contain drop-shadow-sm"
+                          src={sprite.preview}
+                          alt={sprite.name}
+                          className="h-17 object-contain drop-shadow-sm"
                           style={{ imageRendering: 'pixelated' }}
                         />
-                        <div className="absolute right-3 top-3 rounded-full bg-black/5 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-700 dark:bg-white/10 dark:text-slate-100">
-                          {asset.category}
-                        </div>
                       </div>
                       <div className="flex items-center justify-between px-3 py-2">
-                        <div>
-                          <div className="text-sm font-semibold">
-                            {asset.name}
-                          </div>
-                          <p className="text-[11px] text-slate-600 dark:text-slate-300">
-                            {asset.tags.join(' • ')}
-                          </p>
+                        <div className="text-sm font-semibold">
+                          {sprite.name}
                         </div>
-                        <span className="rounded-full bg-primary-green/10 px-2 py-1 text-[11px] font-semibold text-primary-green">
-                          BMP
-                        </span>
                       </div>
                     </div>
                   ))}
@@ -694,7 +656,7 @@ const SpriteModal = ({
           </div>
         )}
 
-        <div className="flex items-center justify-end gap-2 border-t border-slate-200 bg-white px-6 py-4 dark:border-slate-700 dark:bg-dark-secondary">
+        {/* <div className="flex items-center justify-end gap-2 border-t border-slate-200 bg-white px-6 py-4 dark:border-slate-700 dark:bg-dark-secondary">
           <Button
             className="btn-neutral px-4"
             onClick={() => {
@@ -706,7 +668,7 @@ const SpriteModal = ({
           >
             Close
           </Button>
-        </div>
+        </div> */}
       </div>
     </div>
   );
