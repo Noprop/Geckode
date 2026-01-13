@@ -108,8 +108,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   isPaused: true,
   spriteWorkspaces: new Map(),
   spriteOutputs: new Map(),
-  spriteId:
-    'id_' + Date.now().toString() + '_' + Math.round(Math.random() * 10000),
+  spriteId: '',
   updateId: 0,
   startId: 0,
 
