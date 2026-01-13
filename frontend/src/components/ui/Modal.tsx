@@ -1,13 +1,14 @@
 "use client";
 
-import { icons } from "../icons"; 
-import { Icon } from "../icons/Icon";
+import { Icon, IconType } from "./Icon";
+import { TrashIcon } from "@radix-ui/react-icons";
+import { Share1Icon } from "@radix-ui/react-icons";
 
 interface ModalProps {
   children?: React.ReactNode;
   title?: string;
   onClose?: () => void;
-  icon?: keyof typeof icons;
+  icon?: IconType;
   actions?: React.ReactNode;
   className?: string;
 }
@@ -35,7 +36,7 @@ export const Modal: React.FC<ModalProps> = ({
           <div className={`${className} bg-primary-green px-4 pt-5 pb-4 sm:p-6 sm:pb-4 flex sm:items-start`}>
             {icon && (
               <div className="mx-auto flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-black/20 sm:mx-0 sm:h-10 sm:w-10">
-                {<Icon name={icon} className="text-white"/>}
+                {<Icon icon={icon} size={25} className="color-white" />}
               </div>
             )}
             <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">

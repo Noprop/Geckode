@@ -16,6 +16,7 @@ import { Modal } from "@/components/ui/Modal";
 import { InputBox, InputBoxRef } from "@/components/ui/InputBox";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import DragAndDrop, { DragAndDropRef } from "@/components/DragAndDrop";
+import { ExclamationTriangleIcon, ExitIcon, FilePlusIcon, TrashIcon } from "@radix-ui/react-icons";
 
 //spaces -> dashes, non-alphanumeric characters removed
 export const createSlug = (val: string) => {
@@ -142,14 +143,14 @@ export default function OrganizationsPage() {
         }
         actions={[
           {
-            rowIcon: "trash",
+            rowIcon: TrashIcon,
             rowIconSize: 24,
             rowIconClicked: () => setShowModal("delete"),
             rowIconClassName: "hover:text-red-500 mt-1",
             canUse: (organization) => organization.owner.id === userId,
           },
           {
-            rowIcon: "leave",
+            rowIcon: ExitIcon,
             rowIconSize: 24,
             rowIconClicked: () => setShowModal("leave"),
             rowIconClassName: "hover:text-yellow-600 mt-1",
@@ -171,7 +172,7 @@ export default function OrganizationsPage() {
         <Modal
           onClose={() => setShowModal(null)}
           title="Create organization"
-          icon="file-plus"
+          icon={FilePlusIcon}
           actions={
             <>
               <Button onClick={createOrganization} className="btn-confirm ml-3">
@@ -218,7 +219,7 @@ export default function OrganizationsPage() {
           title={`Delete organization (${
             tableRef.current?.data?.[tableRef.current.dataIndex]["name"]
           })`}
-          icon="warning"
+          icon={TrashIcon}
           actions={
             <>
               <Button onClick={deleteOrganization} className="btn-deny ml-3">
@@ -246,7 +247,7 @@ export default function OrganizationsPage() {
           title={`Leave organization (${
             tableRef.current?.data?.[tableRef.current.dataIndex]["name"]
           })`}
-          icon="warning"
+          icon={ExclamationTriangleIcon}
           actions={
             <>
               <Button onClick={deleteOrganization} className="btn-warn ml-3">
