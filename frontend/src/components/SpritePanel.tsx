@@ -36,6 +36,9 @@ const SpritePanel = memo(function SpriteEditor({
     } else if (!selectedSpriteId && sprites.length > 0) {
       setSelectedSpriteId(sprites[0].id);
     }
+    if(selectedSpriteId){
+      useEditorStore.getState().loadWorkspace(selectedSpriteId);
+    }
   }, [sprites, selectedSpriteId]);
 
   const selectedSprite = sprites.find((s) => s.id === selectedSpriteId) || null;

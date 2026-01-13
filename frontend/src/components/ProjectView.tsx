@@ -472,18 +472,16 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
   };
 
   const handleRemoveSprite = (spriteId: string) => {
-    // console.log("begin removing");
-    // const workspace =
-    //   blocklyRef.current?.getWorkspace() as Blockly.WorkspaceSvg | null;
-    // const sprite = spriteInstances.find((instance) => instance.id === spriteId);
-    // if (!workspace) return;
-    // console.log("continue removing");
-    // const block = workspace.getBlockById(sprite.blockId);
-    // if (!block) {
-    //   console.log("block does not exist");
-    //   return;
-    // }
-    // block.dispose(true);
+
+    setSpriteInstances((prev) => {
+      return prev.filter(
+        (instance) => instance.id !== spriteId
+      );
+    });
+
+    useEditorStore.getState().spriteWorkspaces.delete(spriteId);
+    useEditorStore.getState().spriteOutputs.delete(spriteId);
+    (phaserRef.current?.scene as EditorScene).removeSprite?.(spriteId);
   };
 
   const handleUpdateSprite = useCallback(
