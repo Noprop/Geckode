@@ -86,17 +86,25 @@ const SpriteModal = ({
   const [activeCategory, setActiveCategory] = useState('all');
   const [activeTab, setActiveTab] = useState<'library' | 'editor'>('library');
   const [spriteName, setSpriteName] = useState('Custom Sprite');
-  const [brushSize, setBrushSize] = useState(2);
+  const [brushSize, setBrushSize] = useState(1);
   const [selectedColor, setSelectedColor] = useState('#10b981');
-  const [isErasing, setIsErasing] = useState(false);
+  const [activeTool, setActiveTool] = useState<
+    'pen' | 'bucket' | 'eraser' | 'rectangle'
+  >('pen');
   const [showGrid, setShowGrid] = useState(true);
   const [isDrawing, setIsDrawing] = useState(false);
+  const [rectangleStart, setRectangleStart] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+  const [zoom, setZoom] = useState(10);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const previewRef = useRef<HTMLCanvasElement | null>(null);
 
   const GRID_SIZE = 32;
-  const DISPLAY_SCALE = 10;
+  const MIN_ZOOM = 4;
+  const MAX_ZOOM = 20;
 
   const createEmptyPixels = useCallback(
     () => Array.from({ length: GRID_SIZE * GRID_SIZE }, () => ''),
@@ -168,7 +176,7 @@ const SpriteModal = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const cellSize = DISPLAY_SCALE;
+    const cellSize = zoom;
     canvas.width = GRID_SIZE * cellSize;
     canvas.height = GRID_SIZE * cellSize;
     ctx.imageSmoothingEnabled = false;
@@ -198,7 +206,7 @@ const SpriteModal = ({
         ctx.stroke();
       }
     }
-  }, [DISPLAY_SCALE, GRID_SIZE, drawChecker, pixels, showGrid]);
+  }, [zoom, GRID_SIZE, drawChecker, pixels, showGrid]);
 
   const renderPreview = useCallback(() => {
     const preview = previewRef.current;
@@ -227,6 +235,18 @@ const SpriteModal = ({
     renderPreview();
   }, [renderCanvas, renderPreview]);
 
+  // Re-render canvas when switching to editor tab
+  useEffect(() => {
+    if (activeTab === 'editor') {
+      // Small delay to ensure canvas ref is mounted
+      const timer = setTimeout(() => {
+        renderCanvas();
+        renderPreview();
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [activeTab, renderCanvas, renderPreview]);
+
   const clampCoord = (value: number) =>
     Math.max(0, Math.min(GRID_SIZE - 1, value));
 
@@ -248,6 +268,53 @@ const SpriteModal = ({
     [GRID_SIZE, brushSize]
   );
 
+  const floodFill = useCallback(
+    (startX: number, startY: number, fillColor: string) => {
+      setPixels((prev) => {
+        const next = [...prev];
+        const targetColor = prev[startY * GRID_SIZE + startX];
+        if (targetColor === fillColor) return prev;
+
+        const queue: [number, number][] = [[startX, startY]];
+        const visited = new Set<string>();
+
+        while (queue.length > 0) {
+          const [x, y] = queue.shift()!;
+          const key = `${x},${y}`;
+          if (visited.has(key)) continue;
+          if (x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE) continue;
+          if (next[y * GRID_SIZE + x] !== targetColor) continue;
+
+          visited.add(key);
+          next[y * GRID_SIZE + x] = fillColor;
+
+          queue.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+        }
+        return next;
+      });
+    },
+    [GRID_SIZE]
+  );
+
+  const drawRectangle = useCallback(
+    (x1: number, y1: number, x2: number, y2: number, color: string) => {
+      setPixels((prev) => {
+        const next = [...prev];
+        const minX = Math.min(x1, x2);
+        const maxX = Math.max(x1, x2);
+        const minY = Math.min(y1, y2);
+        const maxY = Math.max(y1, y2);
+        for (let y = minY; y <= maxY; y++) {
+          for (let x = minX; x <= maxX; x++) {
+            next[y * GRID_SIZE + x] = color;
+          }
+        }
+        return next;
+      });
+    },
+    [GRID_SIZE]
+  );
+
   const getPointerPosition = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return null;
@@ -263,15 +330,48 @@ const SpriteModal = ({
     event.preventDefault();
     const position = getPointerPosition(event);
     if (!position) return;
-    setIsDrawing(true);
-    paintAt(position.x, position.y, isErasing ? '' : selectedColor);
+
+    if (activeTool === 'pen') {
+      setIsDrawing(true);
+      paintAt(position.x, position.y, selectedColor);
+    } else if (activeTool === 'eraser') {
+      setIsDrawing(true);
+      paintAt(position.x, position.y, '');
+    } else if (activeTool === 'bucket') {
+      floodFill(position.x, position.y, selectedColor);
+    } else if (activeTool === 'rectangle') {
+      setRectangleStart(position);
+      setIsDrawing(true);
+    }
   };
 
   const handlePointerMove = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     if (!isDrawing) return;
     const position = getPointerPosition(event);
     if (!position) return;
-    paintAt(position.x, position.y, isErasing ? '' : selectedColor);
+
+    if (activeTool === 'pen') {
+      paintAt(position.x, position.y, selectedColor);
+    } else if (activeTool === 'eraser') {
+      paintAt(position.x, position.y, '');
+    }
+  };
+
+  const handlePointerUp = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    if (activeTool === 'rectangle' && rectangleStart && isDrawing) {
+      const position = getPointerPosition(event);
+      if (position) {
+        drawRectangle(
+          rectangleStart.x,
+          rectangleStart.y,
+          position.x,
+          position.y,
+          selectedColor
+        );
+      }
+      setRectangleStart(null);
+    }
+    setIsDrawing(false);
   };
 
   useEffect(() => {
@@ -283,6 +383,24 @@ const SpriteModal = ({
       window.removeEventListener('pointerleave', stopDrawing);
     };
   }, []);
+
+  // Handle mouse wheel zoom (Ctrl/Cmd + scroll or pinch on trackpad)
+  const handleWheel = useCallback((event: WheelEvent) => {
+    if (event.ctrlKey || event.metaKey) {
+      event.preventDefault();
+      const delta = event.deltaY > 0 ? -2 : 2;
+      setZoom((z) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z + delta)));
+    }
+  }, []);
+
+  // Attach wheel listener to canvas container
+  const canvasContainerRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const container = canvasContainerRef.current;
+    if (!container) return;
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => container.removeEventListener('wheel', handleWheel);
+  }, [handleWheel]);
 
   const hasPixels = useMemo(() => pixels.some(Boolean), [pixels]);
 
@@ -335,7 +453,7 @@ const SpriteModal = ({
         onClick={() => setIsSpriteModalOpen(false)}
         aria-hidden
       />
-      <div className="relative z-10 w-[min(900px,66vw)] max-h-[82vh] overflow-hidden rounded-lg border border-slate-300 bg-white text-slate-900 shadow-2xl ring-4 ring-primary-green/10 dark:border-slate-700 dark:bg-dark-secondary dark:text-slate-100">
+      <div className="relative z-10 w-[min(1100px,80vw)] h-[82vh] overflow-hidden rounded-lg border border-slate-300 bg-white text-slate-900 shadow-2xl ring-4 ring-primary-green/10 dark:border-slate-700 dark:bg-dark-secondary dark:text-slate-100">
         <button
           type="button"
           onClick={() => setIsSpriteModalOpen(false)}
@@ -350,7 +468,7 @@ const SpriteModal = ({
             <button
               type="button"
               onClick={() => setActiveTab('library')}
-              className={`flex items-center gap-2 rounded-md px-4 py-2 transition ${
+              className={`cursor-pointer flex items-center gap-2 rounded-md px-4 py-2 transition ${
                 activeTab === 'library'
                   ? 'bg-white text-primary-green shadow-sm ring-1 ring-primary-green/30 dark:bg-slate-900'
                   : 'text-slate-600 hover:text-primary-green dark:text-slate-300'
@@ -362,14 +480,14 @@ const SpriteModal = ({
             <button
               type="button"
               onClick={() => setActiveTab('editor')}
-              className={`flex items-center gap-2 rounded-md px-4 py-2 transition ${
+              className={`cursor-pointer flex items-center gap-2 rounded-md px-4 py-2 transition ${
                 activeTab === 'editor'
                   ? 'bg-white text-primary-green shadow-sm ring-1 ring-primary-green/30 dark:bg-slate-900'
                   : 'text-slate-600 hover:text-primary-green dark:text-slate-300'
               }`}
             >
               <Pencil2Icon className="h-4 w-4" />
-              Create Sprite
+              Editor
             </button>
           </div>
         </div>
@@ -415,7 +533,7 @@ const SpriteModal = ({
               </div>
             </div> */}
 
-            <div className="h-[55vh] overflow-y-auto border-t border-slate-200 bg-light-tertiary px-6 py-4 dark:border-slate-700 dark:bg-dark-tertiary">
+            <div className="h-[82vh] overflow-y-auto border-t border-slate-200 bg-light-tertiary px-6 py-4 dark:border-slate-700 dark:bg-dark-tertiary">
               {spriteLibrary.length === 0 ? (
                 <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center text-sm text-slate-600 shadow-sm dark:border-slate-700 dark:bg-dark-secondary dark:text-slate-300">
                   <p>No sprites match your search yet.</p>
@@ -452,205 +570,253 @@ const SpriteModal = ({
             </div>
           </>
         ) : (
-          <div className="max-h-[55vh] overflow-y-auto border-t border-slate-200 bg-light-tertiary px-6 py-5 dark:border-slate-700 dark:bg-dark-tertiary">
-            <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
-              <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900/60">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-300">
-                      Canvas
-                    </p>
-                    <h4 className="text-sm font-semibold">32 x 32 pixels</h4>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <label className="flex cursor-pointer items-center gap-2 rounded-full border border-slate-200 bg-light-tertiary px-3 py-1 text-[11px] font-semibold text-slate-600 transition hover:border-primary-green/50 hover:text-primary-green dark:border-slate-700 dark:bg-dark-tertiary dark:text-slate-200">
-                      <input
-                        type="checkbox"
-                        checked={showGrid}
-                        onChange={() => setShowGrid((prev) => !prev)}
-                        className="h-3 w-3 accent-primary-green"
-                      />
-                      Grid
-                    </label>
-                    <button
-                      type="button"
-                      className="rounded-full border border-red-300 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-red-600 transition hover:bg-red-50 dark:border-red-500/60 dark:text-red-200 dark:hover:bg-red-500/10"
-                      onClick={resetCanvas}
-                    >
-                      Clear
-                    </button>
-                  </div>
-                </div>
-                <div className="relative mx-auto flex max-w-full justify-center rounded-lg border border-slate-200 bg-light-tertiary p-3 shadow-inner dark:border-slate-700 dark:bg-slate-950/60">
-                  <canvas
-                    ref={canvasRef}
-                    className="h-[320px] w-[320px] cursor-crosshair select-none touch-none"
-                    onPointerDown={handlePointerDown}
-                    onPointerMove={handlePointerMove}
-                  />
-                  <div className="pointer-events-none absolute inset-0 rounded-lg ring-1 ring-black/5 dark:ring-white/10" />
-                </div>
-                <p className="text-xs text-slate-600 dark:text-slate-300">
-                  Click and drag to paint. Shift to eraser by toggling the
-                  eraser button; brush starts at 2x2 for quick fills.
-                </p>
+          <div className="h-[82vh] flex border-t border-slate-200 bg-slate-800 dark:border-slate-700">
+            {/* Left Tool Panel */}
+            <div className="w-16 flex flex-col gap-3 p-2 bg-slate-700 dark:bg-slate-800 border-r border-slate-600">
+              {/* Brush Size Selector - 2x2 grid */}
+              <div className="grid grid-cols-2 gap-1">
+                {[1, 2, 3, 4].map((size) => (
+                  <button
+                    key={size}
+                    type="button"
+                    onClick={() => setBrushSize(size)}
+                    className={`w-6 h-6 flex items-center justify-center rounded cursor-pointer transition ${
+                      brushSize === size
+                        ? 'bg-primary-green ring-2 ring-primary-green ring-offset-1 ring-offset-slate-700'
+                        : 'bg-slate-600 hover:bg-slate-500'
+                    }`}
+                    title={`${size}x${size} brush`}
+                  >
+                    <div
+                      className="bg-white"
+                      style={{ width: size * 3 + 2, height: size * 3 + 2 }}
+                    />
+                  </button>
+                ))}
               </div>
 
-              <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900/60">
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <p className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-300">
-                      Brush
-                    </p>
-                    <h4 className="text-sm font-semibold">Size & Mode</h4>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setIsErasing(false)}
-                      className={`flex items-center gap-1 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-wide transition ${
-                        !isErasing
-                          ? 'border-primary-green bg-primary-green/10 text-primary-green'
-                          : 'border-slate-200 text-slate-700 hover:border-primary-green/50 hover:text-primary-green dark:border-slate-700 dark:text-slate-200'
-                      }`}
-                    >
-                      <Pencil2Icon className="h-3.5 w-3.5" />
-                      Paint
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setIsErasing(true)}
-                      className={`flex items-center gap-1 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-wide transition ${
-                        isErasing
-                          ? 'border-primary-green bg-primary-green/10 text-primary-green'
-                          : 'border-slate-200 text-slate-700 hover:border-primary-green/50 hover:text-primary-green dark:border-slate-700 dark:text-slate-200'
-                      }`}
-                    >
-                      <EraserIcon className="h-3.5 w-3.5" />
-                      Erase
-                    </button>
-                  </div>
-                </div>
+              <div className="w-full h-px bg-slate-600" />
 
-                <div className="flex flex-wrap items-center gap-2">
-                  {[1, 2, 3, 4].map((size) => {
-                    const isActive = brushSize === size;
-                    return (
-                      <button
-                        key={size}
-                        type="button"
-                        onClick={() => setBrushSize(size)}
-                        className={`rounded-md border px-3 py-2 text-xs font-semibold transition ${
-                          isActive
-                            ? 'border-primary-green bg-primary-green/10 text-primary-green shadow-sm'
-                            : 'border-slate-200 text-slate-700 hover:border-primary-green/50 hover:text-primary-green dark:border-slate-700 dark:text-slate-200'
-                        }`}
-                        title={`${size}x${size} brush`}
-                      >
-                        {size}x{size}
-                      </button>
-                    );
-                  })}
-                </div>
+              {/* Tools */}
+              <div className="flex flex-col gap-1">
+                {/* Pen */}
+                <button
+                  type="button"
+                  onClick={() => setActiveTool('pen')}
+                  className={`w-full h-10 flex items-center justify-center rounded cursor-pointer transition ${
+                    activeTool === 'pen'
+                      ? 'bg-primary-green text-white'
+                      : 'bg-slate-600 text-slate-300 hover:bg-slate-500'
+                  }`}
+                  title="Pen tool"
+                >
+                  <Pencil2Icon className="w-5 h-5" />
+                </button>
 
-                <div>
-                  <p className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-300">
-                    Palette
-                  </p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {palette.map((color) => (
-                      <button
-                        key={color}
-                        type="button"
-                        onClick={() => {
-                          setSelectedColor(color);
-                          setIsErasing(false);
-                        }}
-                        className={`h-8 w-8 rounded-md border ring-offset-2 transition ${
-                          selectedColor === color && !isErasing
-                            ? 'ring-2 ring-primary-green'
-                            : 'ring-0'
-                        }`}
-                        style={{ backgroundColor: color }}
-                        title={`Use ${color}`}
-                      />
-                    ))}
-                    <label
-                      className="flex h-8 w-20 cursor-pointer items-center justify-center rounded-md border border-slate-300 bg-light-tertiary text-[11px] font-semibold uppercase tracking-wide text-slate-700 transition hover:border-primary-green/60 hover:text-primary-green dark:border-slate-700 dark:bg-dark-tertiary dark:text-slate-200"
-                      title="Pick a custom color"
-                    >
-                      Pick
-                      <input
-                        type="color"
-                        value={selectedColor}
-                        onChange={(event) => {
-                          setSelectedColor(event.target.value);
-                          setIsErasing(false);
-                        }}
-                        className="hidden"
-                      />
-                    </label>
-                  </div>
-                </div>
-
-                <div className="rounded-lg border border-slate-200 bg-light-tertiary px-3 py-2 text-xs dark:border-slate-700 dark:bg-dark-tertiary">
-                  <p className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-300">
-                    Preview
-                  </p>
-                  <div className="mt-2 flex items-center gap-3">
-                    <canvas
-                      ref={previewRef}
-                      className="h-28 w-28 rounded-md border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950"
-                    />
-                    <div className="flex-1">
-                      <label className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-300">
-                        Sprite name
-                      </label>
-                      <input
-                        type="text"
-                        value={spriteName}
-                        onChange={(event) => setSpriteName(event.target.value)}
-                        className="mt-1 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm outline-none ring-2 ring-transparent transition focus:border-primary-green focus:ring-primary-green/30 dark:border-slate-700 dark:bg-dark-tertiary dark:text-slate-100"
-                        placeholder="Custom Sprite"
-                      />
-                    </div>
-                  </div>
-                  <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-300">
-                    Starts blank at 32x32 with a 2x2 brush. Export to drop it
-                    into the scene instantly.
-                  </p>
-                </div>
-
-                <div className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-light-tertiary px-3 py-3 text-xs dark:border-slate-700 dark:bg-dark-tertiary">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-300">
-                      Ready to place
-                    </span>
-                    <span
-                      className={`rounded-full px-2 py-1 text-[11px] font-semibold uppercase tracking-wide ${
-                        hasPixels
-                          ? 'bg-primary-green/10 text-primary-green'
-                          : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
-                      }`}
-                    >
-                      {hasPixels ? 'Painted' : 'Empty'}
-                    </span>
-                  </div>
-                  <Button
-                    className="btn-confirm w-full justify-center"
-                    disabled={!hasPixels}
-                    onClick={handleSaveCustomSprite}
-                    title="Export this sprite and add it to the scene"
+                {/* Bucket */}
+                <button
+                  type="button"
+                  onClick={() => setActiveTool('bucket')}
+                  className={`w-full h-10 flex items-center justify-center rounded cursor-pointer transition ${
+                    activeTool === 'bucket'
+                      ? 'bg-primary-green text-white'
+                      : 'bg-slate-600 text-slate-300 hover:bg-slate-500'
+                  }`}
+                  title="Bucket fill tool"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
                   >
-                    Add to game from editor
-                  </Button>
-                  {!hasPixels && (
-                    <p className="text-[11px] text-slate-500 dark:text-slate-300">
-                      Paint a few pixels to enable export. Transparent pixels
-                      stay transparent in the scene.
-                    </p>
-                  )}
+                    <path d="M19 11.5s-2 2.17-2 3.5a2 2 0 0 0 4 0c0-1.33-2-3.5-2-3.5zM5.21 10L10 5.21L14.79 10M16.56 10.35L10 3.79L3.44 10.35a1.5 1.5 0 0 0 0 2.12l6.56 6.56a1.5 1.5 0 0 0 2.12 0l6.56-6.56a1.5 1.5 0 0 0-.12-2.12z" />
+                  </svg>
+                </button>
+
+                {/* Eraser */}
+                <button
+                  type="button"
+                  onClick={() => setActiveTool('eraser')}
+                  className={`w-full h-10 flex items-center justify-center rounded cursor-pointer transition ${
+                    activeTool === 'eraser'
+                      ? 'bg-primary-green text-white'
+                      : 'bg-slate-600 text-slate-300 hover:bg-slate-500'
+                  }`}
+                  title="Eraser tool"
+                >
+                  <EraserIcon className="w-5 h-5" />
+                </button>
+
+                {/* Rectangle */}
+                <button
+                  type="button"
+                  onClick={() => setActiveTool('rectangle')}
+                  className={`w-full h-10 flex items-center justify-center rounded cursor-pointer transition ${
+                    activeTool === 'rectangle'
+                      ? 'bg-primary-green text-white'
+                      : 'bg-slate-600 text-slate-300 hover:bg-slate-500'
+                  }`}
+                  title="Rectangle tool"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <rect x="3" y="3" width="18" height="18" rx="1" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="w-full h-px bg-slate-600" />
+
+              {/* Color Palette */}
+              <div className="grid grid-cols-2 gap-1">
+                {palette.slice(0, 8).map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => setSelectedColor(color)}
+                    className={`w-6 h-6 rounded cursor-pointer transition ${
+                      selectedColor === color
+                        ? 'ring-2 ring-white ring-offset-1 ring-offset-slate-700'
+                        : ''
+                    }`}
+                    style={{ backgroundColor: color }}
+                    title={color}
+                  />
+                ))}
+              </div>
+
+              {/* Color Picker */}
+              <label
+                className="w-full h-8 flex items-center justify-center rounded cursor-pointer bg-slate-600 hover:bg-slate-500 transition"
+                title="Pick custom color"
+              >
+                <div
+                  className="w-4 h-4 rounded border border-white/30"
+                  style={{ backgroundColor: selectedColor }}
+                />
+                <input
+                  type="color"
+                  value={selectedColor}
+                  onChange={(e) => setSelectedColor(e.target.value)}
+                  className="hidden"
+                />
+              </label>
+
+              <div className="flex-1" />
+
+              {/* Clear button at bottom */}
+              <button
+                type="button"
+                onClick={resetCanvas}
+                className="w-full h-8 flex items-center justify-center rounded bg-red-600/80 hover:bg-red-600 text-white text-xs font-medium cursor-pointer transition"
+                title="Clear canvas"
+              >
+                Clear
+              </button>
+            </div>
+
+            {/* Right Canvas Area */}
+            <div className="flex-1 flex flex-col">
+              {/* Canvas container */}
+              <div
+                ref={canvasContainerRef}
+                className="flex-1 flex items-center justify-center bg-slate-600 p-4 overflow-auto"
+              >
+                <div className="relative">
+                  <canvas
+                    ref={canvasRef}
+                    className="cursor-crosshair select-none touch-none"
+                    style={{
+                      width: GRID_SIZE * zoom,
+                      height: GRID_SIZE * zoom,
+                      imageRendering: 'pixelated',
+                    }}
+                    onPointerDown={handlePointerDown}
+                    onPointerMove={handlePointerMove}
+                    onPointerUp={handlePointerUp}
+                  />
                 </div>
+              </div>
+
+              {/* Zoom controls */}
+              <div className="h-10 flex items-center justify-center gap-2 bg-slate-700 border-t border-slate-600">
+                <button
+                  type="button"
+                  onClick={() => setZoom((z) => Math.max(MIN_ZOOM, z - 2))}
+                  disabled={zoom <= MIN_ZOOM}
+                  className="w-8 h-8 flex items-center justify-center rounded bg-slate-600 hover:bg-slate-500 disabled:opacity-40 disabled:cursor-not-allowed text-white cursor-pointer transition"
+                  title="Zoom out"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="M21 21l-4.35-4.35M8 11h6" />
+                  </svg>
+                </button>
+                <span className="text-xs text-slate-300 w-16 text-center">
+                  {Math.round((zoom / 10) * 100)}%
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setZoom((z) => Math.min(MAX_ZOOM, z + 2))}
+                  disabled={zoom >= MAX_ZOOM}
+                  className="w-8 h-8 flex items-center justify-center rounded bg-slate-600 hover:bg-slate-500 disabled:opacity-40 disabled:cursor-not-allowed text-white cursor-pointer transition"
+                  title="Zoom in"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="M21 21l-4.35-4.35M11 8v6M8 11h6" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Bottom bar with preview, name, and save */}
+              <div className="h-16 flex items-center gap-3 px-4 bg-slate-700 dark:bg-slate-800 border-t border-slate-600">
+                <canvas
+                  ref={previewRef}
+                  className="w-10 h-10 rounded border border-slate-500"
+                  style={{ imageRendering: 'pixelated' }}
+                />
+                <input
+                  type="text"
+                  value={spriteName}
+                  onChange={(e) => setSpriteName(e.target.value)}
+                  placeholder="Sprite name"
+                  className="flex-1 h-9 px-3 rounded bg-slate-600 border border-slate-500 text-sm text-white placeholder:text-slate-400 outline-none focus:border-primary-green"
+                />
+                <label className="flex items-center gap-2 text-slate-300 text-xs cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={showGrid}
+                    onChange={() => setShowGrid((prev) => !prev)}
+                    className="accent-primary-green"
+                  />
+                  Grid
+                </label>
+                <Button
+                  className="btn-confirm h-9 px-4"
+                  disabled={!hasPixels}
+                  onClick={handleSaveCustomSprite}
+                  title="Add sprite to game"
+                >
+                  Add to Game
+                </Button>
               </div>
             </div>
           </div>
