@@ -16,6 +16,7 @@ import { InputBox, InputBoxRef } from "@/components/ui/InputBox";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import DragAndDrop, { DragAndDropRef } from "@/components/DragAndDrop";
 import { convertFormData } from "@/lib/api/base";
+import { FilePlusIcon, TrashIcon } from "@radix-ui/react-icons";
 
 export default function ProjectsPage() {
   const showSnackbar = useSnackbar();
@@ -106,7 +107,7 @@ export default function ProjectsPage() {
         }
         actions={[
           {
-            rowIcon: "trash",
+            rowIcon: TrashIcon,
             rowIconSize: 24,
             rowIconClicked: () => setShowModal("delete"),
             rowIconClassName: "hover:text-red-500 mt-1",
@@ -129,7 +130,7 @@ export default function ProjectsPage() {
         <Modal
           onClose={() => setShowModal(null)}
           title="Create project"
-          icon="file-plus"
+          icon={FilePlusIcon}
           actions={
             <>
               <Button onClick={createProject} className="btn-confirm ml-3">
@@ -171,7 +172,7 @@ export default function ProjectsPage() {
           title={`Delete project (${
             tableRef.current?.data?.[tableRef.current.dataIndex]["name"]
           })`}
-          icon="warning"
+          icon={TrashIcon}
           actions={
             <>
               <Button onClick={deleteProject} className="btn-deny ml-3">

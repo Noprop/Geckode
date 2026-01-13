@@ -17,14 +17,13 @@ import {
   SortingState,
   useReactTable,
 } from "@tanstack/react-table";
-import { BaseApiInnerReturn, createBaseApi } from "@/lib/api/base";
 import { BaseFilters, PaginatedResponse } from "@/lib/types/api";
-import { Icon } from "@/components/icons/Icon";
+import { Icon, IconType } from "./Icon";
 import { InputBox, InputBoxRef } from "./InputBox";
 import useDebounce from "@/hooks/useDebounce";
 import { SelectionBox } from "./SelectionBox";
 import { useSnackbar } from "@/hooks/useSnackbar";
-import { icons } from "../icons";
+import { ChevronLeftIcon, ChevronRightIcon, DoubleArrowLeftIcon, DoubleArrowRightIcon, MagnifyingGlassIcon, TextAlignBottomIcon, TextAlignTopIcon } from "@radix-ui/react-icons";
 
 export interface TableRef<TData> {
   refresh: () => void;
@@ -48,12 +47,12 @@ interface TableProps<TData, TSortKeys, TApi> {
 type ColumnTypes = "user" | "datetime" | "thumbnail" | "other";
 
 interface TableAction<TData> {
-  rowIcon: keyof typeof icons;
+  rowIcon: IconType;
   rowIconClicked: () => void;
   rowIconClassName?: HTMLAttributes<HTMLElement>["className"];
   rowIconSize?: number;
   canUse?: (row: TData) => boolean;
-  modalIcon?: keyof typeof icons;
+  modalIcon?: IconType;
   modalIconClassName?: HTMLAttributes<HTMLElement>["className"];
   modalTitle?: string;
   modalContent?: React.ReactNode;
@@ -190,7 +189,7 @@ export const Table = <
                 return (
                   <Icon
                     key={index}
-                    name={action.rowIcon}
+                    icon={action.rowIcon}
                     size={action.rowIconSize}
                     className={
                       action.rowIconClassName +
@@ -263,7 +262,7 @@ export const Table = <
         </div>
         <div className="relative w-64 mx-2 my-4">
           <Icon
-            name="magnifying-glass"
+            icon={MagnifyingGlassIcon}
             size={20}
             className="absolute left-2 top-1/2 transform -translate-y-1/2"
           />
@@ -293,38 +292,39 @@ export const Table = <
                     }
                     style={{ cursor: canSort ? "pointer" : "default" }}
                   >
-                    {header.isPlaceholder ? null : (
-                      <>
-                        {header.column.columnDef.header}
-                        {header.column.getCanFilter() ? (
-                          <>{/* Need to figure out what to put here */}</>
-                        ) : // <InputBox
-                        //   onChange={e =>
-                        //     setColumnFilters(old => [
-                        //       ...old.filter(f => f.id !== header.column.id),
-                        //       { id: header.column.id, value: e.target.value },
-                        //     ])
-                        //   }
-                        //   placeholder="Filter..."
-                        // />
-                        null}
-                      </>
-                    )}
-                    {header.column.columnDef.header ? (
-                      <Icon
-                        name={
-                          ("sort-" +
-                            (sortDirection === "asc" ? "up" : "down")) as
-                            | "sort-up"
-                            | "sort-down"
-                        }
-                        size={15}
-                        className={
-                          "ml-3 " +
-                          (sortDirection ? "opacity-100" : "opacity-0")
-                        }
-                      />
-                    ) : null}
+                    <span className="inline-flex items-center">
+                      {header.isPlaceholder ? null : (
+                        <>
+                          {header.column.columnDef.header}
+                          {header.column.getCanFilter() ? (
+                            <>{/* Need to figure out what to put here */}</>
+                          ) : // <InputBox
+                          //   onChange={e =>
+                          //     setColumnFilters(old => [
+                          //       ...old.filter(f => f.id !== header.column.id),
+                          //       { id: header.column.id, value: e.target.value },
+                          //     ])
+                          //   }
+                          //   placeholder="Filter..."
+                          // />
+                          null}
+                        </>
+                      )}
+                      {header.column.columnDef.header ? (
+                        <Icon
+                          icon={(
+                            sortDirection === "asc" ?
+                              TextAlignTopIcon :
+                              TextAlignBottomIcon
+                          )}
+                          size={20}
+                          className={
+                            "ml-3 " +
+                            (sortDirection ? "opacity-100" : "opacity-0")
+                          }
+                        />
+                      ) : null}
+                    </span>
                   </th>
                 );
               })}
@@ -362,7 +362,7 @@ export const Table = <
             {totalCount}
           </span>
           <Icon
-            name="angles-left"
+            icon={DoubleArrowLeftIcon}
             size={15}
             className="mx-2"
             onClick={() => {
@@ -374,7 +374,7 @@ export const Table = <
             disabled={pagination.pageIndex === 0}
           />
           <Icon
-            name="angle-left"
+            icon={ChevronLeftIcon}
             size={15}
             onClick={() => {
               setPagination((prev) => ({
@@ -403,7 +403,7 @@ export const Table = <
             of {Math.max(1, Math.ceil(totalCount / pagination.pageSize))}
           </span>
           <Icon
-            name="angle-right"
+            icon={ChevronRightIcon}
             size={15}
             onClick={() => {
               setPagination((prev) => ({
@@ -419,7 +419,7 @@ export const Table = <
             }
           />
           <Icon
-            name="angles-right"
+            icon={DoubleArrowRightIcon}
             size={15}
             className="mx-2"
             onClick={() => {
