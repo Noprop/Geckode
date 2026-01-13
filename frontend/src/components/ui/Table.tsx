@@ -115,7 +115,7 @@ export const Table = <
         page: pagination.pageIndex + 1,
         limit: pagination.pageSize,
         ordering: sorting.length
-          ? `${sorting[0].desc ? "-" : ""}${sorting[0].id}`
+          ? `${sorting[0].desc ? "-" : ""}${columns[sorting[0].id].key}`
           : defaultSortField
           ? `${defaultSortDirection === "desc" ? "-" : ""}${
               defaultSortField as string
@@ -129,7 +129,7 @@ export const Table = <
       })
       .catch((err) => {
         // Try again with previous page (ex: if a deletion occurs on the last page
-        //                  it will through an error due to the page not existing)
+        //                    it will throw an error due to the page not existing)
         if (err?.response?.data?.detail === "Invalid page.") {
           setPagination((prev) => ({ ...prev, pageIndex: prev.pageIndex - 1 }));
         } else {
