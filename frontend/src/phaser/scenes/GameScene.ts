@@ -26,8 +26,7 @@ export default class GameScene extends Phaser.Scene {
     D: Phaser.Input.Keyboard.Key;
   };
   private gameSprites = new Map<string, Phaser.Physics.Arcade.Sprite>();
-  private static readonly GAME_SPRITE_BASE_DEPTH =
-    Number.MAX_SAFE_INTEGER - 100;
+  private static readonly GAME_SPRITE_BASE_DEPTH = Number.MAX_SAFE_INTEGER - 100;
   private gameLayer!: Phaser.GameObjects.Layer;
   private activeDrag: {
     sprite: Phaser.Physics.Arcade.Sprite;
@@ -67,7 +66,7 @@ export default class GameScene extends Phaser.Scene {
     this.gameLayer.setDepth(GameScene.GAME_SPRITE_BASE_DEPTH);
 
     for (const instance of data.spriteInstances) {
-      const textureName = data.textures.get(instance.tid)?.name || '';
+      const textureName = instance.textureName;
       this.addGameSprite(textureName, instance.x, instance.y, instance.id);
     }
 
@@ -79,8 +78,11 @@ export default class GameScene extends Phaser.Scene {
     // Tell React which scene is active (will trigger pause state sync)
     EventBus.emit('current-scene-ready', this);
 
-    this.start();
+    this.startHook();
   }
+
+  startHook() {}
+  update() {}
 
   /**
    * TODO: Implement pause handler
@@ -93,15 +95,6 @@ export default class GameScene extends Phaser.Scene {
   //     this.hideGrid();
   //   }
   // };
-
-  start() {}
-
-  public updateGameSprite(id: string, updates: { x?: number; y?: number }) {
-    const sprite = this.gameSprites.get(id);
-    if (!sprite) return;
-    sprite.setX(updates.x);
-    sprite.setY(updates.y);
-  }
 
   public addGameSprite(texture: string, x: number, y: number, id: string) {
     console.log('[GameScene] addGameSprite called', texture, x, y, id);
@@ -122,11 +115,7 @@ export default class GameScene extends Phaser.Scene {
     this.gameSprites.delete(id);
   }
 
-  update() {}
-
   public getSprite(id: string) {
-    // console.log('[GameScene] getSprite called', id);
-    // console.log('[GameScene] getSprite called', this.gameSprites.get(id));
     return this.gameSprites.get(id);
   }
 
@@ -147,8 +136,8 @@ export default class GameScene extends Phaser.Scene {
     const argNames = Object.keys(ctx); // ['api','scene','phaser','console']
     const argValues = Object.values(ctx);
 
-    console.log('[GameScene] runScript called', code);
-    console.log('[GameScene] runScript called', argNames, argValues);
+    // console.log('[GameScene] runScript called', code);
+    // console.log('[GameScene] runScript called', argNames, argValues);
 
     // Wrap user code in an async IIFE so `await` works at top level.
     // Skip scene restart when paused (editor mode) to preserve grid

@@ -7,21 +7,6 @@ import { Button } from '../ui/Button';
 import SpriteLibrary from './SpriteLibrary';
 import { useEditorStore } from '@/stores/editorStore';
 
-export type SpriteDragPayload = {
-  kind: 'sprite-blueprint';
-  texture: string;
-  label: string;
-  dataUrl?: string;
-};
-
-export type SpriteAsset = {
-  id: string;
-  name: string;
-  category: string;
-  tags: string[];
-  preview: string;
-};
-
 type Props = {
   isSpriteModalOpen: boolean;
   setIsSpriteModalOpen: Dispatch<SetStateAction<boolean>>;
@@ -334,10 +319,9 @@ const SpriteModal = ({ isSpriteModalOpen, setIsSpriteModalOpen }: Props) => {
     const texture = `${safeBase}-${Date.now()}`;
     const dataUrl = generateDataUrl();
     const success = await addSpriteToGame({
-      kind: 'sprite-blueprint',
-      texture,
-      label,
-      dataUrl,
+      name: label,
+      textureName: texture,
+      textureUrl: dataUrl,
     });
     if (success) {
       setIsSpriteModalOpen(false);

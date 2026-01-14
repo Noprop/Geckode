@@ -1,13 +1,7 @@
 "use client";
 
 import dynamic from 'next/dynamic';
-import {
-  useRef,
-  useEffect,
-  useCallback,
-  DragEvent,
-  useLayoutEffect,
-} from 'react';
+import { useRef, useEffect, useCallback } from 'react';
 import BlocklyEditor, { BlocklyEditorHandle } from '@/components/BlocklyEditor';
 import * as Blockly from 'blockly/core';
 import projectsApi from '@/lib/api/handlers/projects';
@@ -15,7 +9,6 @@ import { Game } from 'phaser';
 import EditorScene from '@/phaser/scenes/EditorScene';
 import GameScene from '@/phaser/scenes/GameScene';
 import SpritePanel from '@/components/SpritePanel';
-import type { SpriteDragPayload } from '@/components/SpriteModal/SpriteModal';
 import starterWorkspace from '@/blockly/workspaces/starter';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import starterWorkspaceNewProject from '@/blockly/workspaces/starterNewProject';
@@ -81,9 +74,8 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
         });
       }
       // Send current pause state to newly ready scene (listener is already set up)
-      const isPaused = useEditorStore.getState().isPaused;
-      console.log('[ProjectView] scene ready, sending pause state:', isPaused);
-      EventBus.emit('editor-pause-changed', isPaused);
+      const isEditorScene = useEditorStore.getState().isEditorScene;
+      EventBus.emit('editor-scene-changed', isEditorScene);
     };
 
     EventBus.on('current-scene-ready', handler);
@@ -95,9 +87,9 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
   // Respond to pause state sync requests from Phaser scene
   useEffect(() => {
     const handler = () => {
-      const isPaused = useEditorStore.getState().isPaused;
-      console.log('[ProjectView] received pause state request, responding with:', isPaused);
-      EventBus.emit('editor-pause-changed', isPaused);
+      const isEditorScene = useEditorStore.getState().isEditorScene;
+      console.log('[ProjectView] received editor scene request, responding with:', isEditorScene);
+      EventBus.emit('editor-scene-changed', isEditorScene);
     };
     EventBus.on('editor-request-pause-state', handler);
     return () => {
@@ -191,7 +183,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
   useEffect(() => {
     const handleSpriteMove = ({ id, x, y }: { id: string; x: number; y: number }) => {
       const workspace = blocklyRef.current?.getWorkspace() as Blockly.WorkspaceSvg | null;
-      const isPaused = useEditorStore.getState().isPaused;
+      const isEditorScene = useEditorStore.getState().isEditorScene;
 
       setSpriteInstances((prev) => {
         const sprite = prev.find((s) => s.id === id);
@@ -200,8 +192,8 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
         let finalX = x;
         let finalY = y;
 
-        // Apply snap-to-grid if enabled and paused
-        if (sprite.snapToGrid && isPaused) {
+        // Apply snap-to-grid if enabled and editor scene
+        if (sprite.snapToGrid && isEditorScene) {
           const snapped = snapToGrid(x, y);
           finalX = snapped.x;
           finalY = snapped.y;
@@ -241,83 +233,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
     Blockly.serialization.workspaces.load(state, workspace);
   }, [spriteInstances]);
 
-  const attachBlockToOnStart = useCallback((workspace: Blockly.WorkspaceSvg, block: Blockly.BlockSvg) => {
-    // let [onStartBlock] = workspace.getBlocksByType('onStart', false);
-    // if (!onStartBlock) {
-    //   const newBlock = workspace.newBlock('onStart');
-    //   newBlock.initSvg();
-    //   newBlock.render();
-    //   [onStartBlock] = workspace.getBlocksByType('onStart', false);
-    // }
-    // const input = onStartBlock.getInput('INNER');
-    // const connection = input?.connection;
-    // if (!connection || !block.previousConnection) return;
-    // if (!connection.targetConnection) {
-    //   connection.connect(block.previousConnection);
-    //   return;
-    // }
-    // let current = connection.targetBlock();
-    // while (current && current.getNextBlock()) {
-    //   current = current.getNextBlock();
-    // }
-    // current?.nextConnection?.connect(block.previousConnection);
-  }, []);
-
-  const handleSpriteDrop = async (event: DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    const payloadString = event.dataTransfer.getData('application/json');
-    if (!payloadString || !blocklyRef.current || !phaserRef.current) return;
-
-    let payload: SpriteDragPayload;
-    try {
-      payload = JSON.parse(payloadString) as SpriteDragPayload;
-    } catch {
-      console.warn('Invalid payload for sprite creation.');
-      return;
-    }
-    if (payload.kind !== 'sprite-blueprint') return;
-
-    const game = phaserRef.current.game;
-    if (!game || !game.canvas) return;
-
-    const { clientX, clientY } = event;
-
-    const canvasRect = game.canvas.getBoundingClientRect();
-    const relativeX = clientX - canvasRect.left;
-    const relativeY = clientY - canvasRect.top;
-
-    if (relativeX < 0 || relativeY < 0 || relativeX > canvasRect.width || relativeY > canvasRect.height) {
-      return;
-    }
-
-    const worldX = Math.round((relativeX / canvasRect.width) * game.scale.width);
-    const worldY = Math.round((relativeY / canvasRect.height) * game.scale.height);
-
-    await useEditorStore.getState().addSpriteToGame(payload, { x: worldX, y: worldY });
-  };
-
-  const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.dataTransfer.dropEffect = 'move';
-  };
-
-  const handleRemoveSprite = (spriteId: string) => {
-    // console.log("begin removing");
-    // const workspace =
-    //   blocklyRef.current?.getWorkspace() as Blockly.WorkspaceSvg | null;
-    // const sprite = spriteInstances.find((instance) => instance.id === spriteId);
-    // if (!workspace) return;
-    // console.log("continue removing");
-    // const block = workspace.getBlockById(sprite.blockId);
-    // if (!block) {
-    //   console.log("block does not exist");
-    //   return;
-    // }
-    // block.dispose(true);
-  };
-
   const handleUpdateSprite = useCallback((spriteId: string, updates: Partial<SpriteInstance>) => {
-    const workspace = blocklyRef.current?.getWorkspace() as Blockly.WorkspaceSvg | null;
     const scene = phaserRef.current?.scene;
 
     setSpriteInstances((prev) => {
@@ -358,22 +274,6 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
     });
   }, []);
 
-  const handlePhaserPointerDown = useCallback(() => {
-    // check to see if this function has been exposed;
-    // this means that Blockly has been injected
-    if (typeof Blockly.hideChaff === 'function') {
-      Blockly.hideChaff();
-    }
-
-    const activeElement = document.activeElement as HTMLElement | null;
-    if (activeElement && activeElement !== document.body) {
-      activeElement.blur();
-    }
-
-    const container = document.getElementById('game-container') as HTMLElement | null;
-    container?.focus();
-  }, []);
-
   useEffect(() => {
     if (view !== 'blocks') return;
     const workspace = blocklyRef.current?.getWorkspace() as Blockly.WorkspaceSvg | null;
@@ -410,15 +310,16 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
 
       {/* Right side: Phaser game, sprite list, and scene list */}
       <div className="flex flex-col h-[calc(100vh-4rem-3.5rem)] py-3 pr-2" style={{ width: '492px' }}>
-        <div onDragOver={handleDragOver} onDrop={handleSpriteDrop} onPointerDown={handlePhaserPointerDown}>
+        <div
+          onPointerDown={() => {
+            if (typeof Blockly.hideChaff === 'function') Blockly.hideChaff();
+            (document.getElementById('game-container') as HTMLElement).focus();
+          }}
+        >
           <PhaserContainer ref={phaserRef} />
         </div>
 
-        <SpritePanel
-          sprites={spriteInstances}
-          onRemoveSprite={handleRemoveSprite}
-          onUpdateSprite={handleUpdateSprite}
-        />
+        <SpritePanel />
       </div>
     </div>
   );

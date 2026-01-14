@@ -5,23 +5,10 @@ import { useEditorStore } from '@/stores/editorStore';
 export const EDITOR_SCENE_KEY = 'EditorScene' as const;
 import GAME_SCENE_KEY from '@/phaser/scenes/GameScene';
 
-type PosCB = (pos: { x: number; y: number }) => void;
-
 export default class EditorScene extends Phaser.Scene {
   public key: string;
-  public player!: Phaser.Physics.Arcade.Sprite;
-  private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
-  private wasd!: {
-    W: Phaser.Input.Keyboard.Key;
-    A: Phaser.Input.Keyboard.Key;
-    S: Phaser.Input.Keyboard.Key;
-    D: Phaser.Input.Keyboard.Key;
-  };
-  private posCB?: PosCB;
-  private lastSent = { x: -1, y: -1 };
   private editorSprites = new Map<string, Phaser.Physics.Arcade.Sprite>();
-  private static readonly EDITOR_SPRITE_BASE_DEPTH =
-    Number.MAX_SAFE_INTEGER - 100;
+  private static readonly EDITOR_SPRITE_BASE_DEPTH = Number.MAX_SAFE_INTEGER - 100;
   private editorLayer!: Phaser.GameObjects.Layer;
   private activeDrag: {
     sprite: Phaser.Physics.Arcade.Sprite;
@@ -36,9 +23,9 @@ export default class EditorScene extends Phaser.Scene {
   }
 
   preload() {
-    const textures = useEditorStore.getState().textures;
-    for (const texture of textures.values()) {
-      this.load.image(texture.name, texture.file);
+    const textures = useEditorStore.getState().spriteTextures;
+    for (const [textureName, textureUrl] of textures.entries()) {
+      this.load.image(textureName, textureUrl);
     }
   }
 
@@ -47,7 +34,6 @@ export default class EditorScene extends Phaser.Scene {
   }
 
   async create() {
-    console.log('[EditorScene] create called');
     this.showGrid();
 
     this.editorSprites.clear();
@@ -57,33 +43,25 @@ export default class EditorScene extends Phaser.Scene {
     this.editorLayer = this.add.layer();
     this.editorLayer.setDepth(EditorScene.EDITOR_SPRITE_BASE_DEPTH);
 
-    this.start();
     this.registerDragEvents();
 
     // Set up pause state listener for grid visibility BEFORE telling React scene is ready
     this.setupGridListener();
     try {
-      await this.load.image('hero-walk-front2', '/heroWalkFront1.bmp');
+      await this.load.image('hero-walk-front', '/heroWalkFront1.bmp');
     } catch (error) {
       console.error('Error loading image', error);
     }
 
     const spriteInstances = useEditorStore.getState().spriteInstances;
-    const textures = useEditorStore.getState().textures;
     for (const instance of spriteInstances) {
-      this.createSprite(
-        textures.get(instance.tid)?.name || '',
-        instance.x,
-        instance.y,
-        instance.id
-      );
+      this.createSprite(instance.textureName, instance.x, instance.y, instance.id);
     }
     // Tell React which scene is active (will trigger pause state sync)
     EventBus.emit('current-scene-ready', this);
   }
 
   private pauseHandler = (isPaused: boolean) => {
-    console.log('[EditorScene] editor-pause-changed received:', isPaused);
     if (isPaused) {
       this.showGrid();
     } else {
@@ -94,15 +72,11 @@ export default class EditorScene extends Phaser.Scene {
   private setupGridListener(): void {
     // Remove existing listener to prevent duplicates on scene restart
     EventBus.off('editor-pause-changed', this.pauseHandler);
-
-    console.log('[EditorScene] setting up editor-pause-changed listener');
     EventBus.on('editor-pause-changed', this.pauseHandler);
   }
 
-  start() {}
-
-  public createSprite(texture: string, x: number, y: number, id: string) {
-    const sprite = this.physics.add.sprite(x, y, texture);
+  public createSprite(textureName: string, x: number, y: number, id: string) {
+    const sprite = this.physics.add.sprite(x, y, textureName);
     sprite.setName(id);
     sprite.setData('editorSpriteId', id);
     sprite.setDepth(EditorScene.EDITOR_SPRITE_BASE_DEPTH);
@@ -110,8 +84,6 @@ export default class EditorScene extends Phaser.Scene {
     this.editorLayer.bringToTop(sprite);
     this.enableSpriteDragging(sprite);
     this.editorSprites.set(id, sprite);
-
-    console.log('actual name: ', sprite.name, id);
 
     // TODO: Add collision detection
     // this.player.setCollideWorldBounds(true);
@@ -138,7 +110,6 @@ export default class EditorScene extends Phaser.Scene {
     }
   ) {
     const sprite = this.editorSprites.get(id);
-    console.log('updateSprite()', sprite);
     if (!sprite) return;
 
     if (updates.x !== undefined) {
@@ -162,7 +133,6 @@ export default class EditorScene extends Phaser.Scene {
   }
 
   private drawGrid(): void {
-    console.log('[EditorScene] drawGrid called');
     const width = 480;
     const height = 360;
     const gridSpacing = 50;
@@ -220,19 +190,13 @@ export default class EditorScene extends Phaser.Scene {
   }
 
   public showGrid(): void {
-    console.log('[EditorScene] showGrid called');
     this.drawGrid();
     if (this.gridGraphics) {
       this.gridGraphics.setVisible(true);
-      console.log(
-        '[EditorScene] gridGraphics visible:',
-        this.gridGraphics.visible
-      );
     }
   }
 
   public hideGrid(): void {
-    console.log('[EditorScene] hideGrid called');
     if (this.gridGraphics) {
       this.gridGraphics.setVisible(false);
     }
@@ -248,41 +212,27 @@ export default class EditorScene extends Phaser.Scene {
   private registerDragEvents() {
     this.input.dragDistanceThreshold = 0;
 
-    this.input.on(
-      'dragstart',
-      (
-        _pointer: Phaser.Input.Pointer,
-        gameObject: Phaser.GameObjects.GameObject
-      ) => {
-        const sprite = gameObject as Phaser.Physics.Arcade.Sprite;
-        const editorId = sprite.getData('editorSpriteId');
-        if (!editorId) return;
-        this.activeDrag = {
-          sprite,
-          start: { x: sprite.x, y: sprite.y },
-          lastWorld: { x: sprite.x, y: sprite.y },
-        };
-        sprite.setDepth(EditorScene.EDITOR_SPRITE_BASE_DEPTH);
-        this.editorLayer.bringToTop(sprite);
-        this.attachGlobalDragListeners();
-      }
-    );
+    this.input.on('dragstart', (_pointer: Phaser.Input.Pointer, gameObject: Phaser.GameObjects.GameObject) => {
+      const sprite = gameObject as Phaser.Physics.Arcade.Sprite;
+      const editorId = sprite.getData('editorSpriteId');
+      if (!editorId) return;
+      this.activeDrag = {
+        sprite,
+        start: { x: sprite.x, y: sprite.y },
+        lastWorld: { x: sprite.x, y: sprite.y },
+      };
+      sprite.setDepth(EditorScene.EDITOR_SPRITE_BASE_DEPTH);
+      this.editorLayer.bringToTop(sprite);
+      this.attachGlobalDragListeners();
+    });
 
     this.input.on('drag', (pointer: Phaser.Input.Pointer) => {
-      this.updateDragPositionFromEvent(
-        pointer.event as PointerEvent | undefined,
-        pointer
-      );
+      this.updateDragPositionFromEvent(pointer.event as PointerEvent | undefined, pointer);
     });
 
     this.input.on(
       'dragend',
-      (
-        pointer: Phaser.Input.Pointer,
-        gameObject: Phaser.GameObjects.GameObject,
-        _dragX: number,
-        _dragY: number
-      ) => {
+      (pointer: Phaser.Input.Pointer, gameObject: Phaser.GameObjects.GameObject, _dragX: number, _dragY: number) => {
         this.finishActiveDrag(pointer.event as PointerEvent | undefined);
       }
     );
@@ -316,10 +266,7 @@ export default class EditorScene extends Phaser.Scene {
     this.finishActiveDrag(event);
   };
 
-  private updateDragPositionFromEvent(
-    event?: PointerEvent,
-    pointer?: Phaser.Input.Pointer
-  ) {
+  private updateDragPositionFromEvent(event?: PointerEvent, pointer?: Phaser.Input.Pointer) {
     if (!this.activeDrag || !event) {
       // Fallback to pointer coords if available (still keeps integers to avoid blur).
       if (!this.activeDrag || !pointer) return;

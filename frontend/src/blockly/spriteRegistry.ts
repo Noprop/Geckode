@@ -6,7 +6,7 @@ type SpriteDropdownSource = {
 
 export type SpriteInstance = {
   id: string;
-  tid: string;
+  textureName: string;
   name: string;
   x: number;
   y: number;
