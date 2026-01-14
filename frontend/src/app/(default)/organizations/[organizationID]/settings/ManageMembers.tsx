@@ -171,11 +171,12 @@ export const ManageMembers = ({ org, setOrg, user }: Props) => {
 
   return (
     <>
-      <h1 className="header-1 ml-2">Owner</h1>
-      <div className="flex">
-        <img className="h-10 mr-5">{org.owner.avatar}</img>
-        <p>{org.owner.username}</p>
+      <h1 className="header-1">Owner</h1>
+      <div className="flex my-3">
+        <img className="size-10 mr-5 rounded-full" src={org.owner.avatar ?? 'user-icon.png'}/>
+        <span className="my-auto">{org.owner.username}</span>
       </div>
+      <h1 className="header-1 mt-10">Members</h1>
       <Table<
         OrganizationMember,
         OrganizationMemberPayload,
@@ -184,13 +185,11 @@ export const ManageMembers = ({ org, setOrg, user }: Props) => {
         typeof orgMemberApi
       >
         ref={tableRef}
-        label="Users"
         api={orgMemberApi}
         columns={{
           Avatar: {
-            key: "member",
+            key: ["member", "avatar"],
             type: "thumbnail",
-            value: (u: User) => u.avatar,
           },
           Username: {
             key: "member",
@@ -221,10 +220,11 @@ export const ManageMembers = ({ org, setOrg, user }: Props) => {
               }}
               className="btn-confirm"
             >
-              Invite User
+              Invite Users
             </Button>
           </>
         }
+        rowStyle="py-2"
       />
       {showModal === "invite" && (
         <Modal

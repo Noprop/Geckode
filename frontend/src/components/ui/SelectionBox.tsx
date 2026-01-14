@@ -1,11 +1,11 @@
-import { ChangeEvent, Dispatch, SetStateAction, useImperativeHandle, useState } from "react";
+import { ChangeEvent, Dispatch, SetStateAction, useEffect, useImperativeHandle, useState } from "react";
 
 export interface SelectionBoxRef {
   inputValue: string;
   setInputValue: Dispatch<SetStateAction<string>>;
 }
 
-interface Option {
+export interface Option {
   label: string | number;
   value: string | number;
 }

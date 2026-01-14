@@ -270,7 +270,7 @@ body {
 }
 
 .table-header {
-  @apply h-12 bg-light-tertiary dark:bg-dark-tertiary;
+  @apply h-12 bg-light-bg dark:bg-dark-bg;
 }
 
 /* Hide scrollbars while keeping scrolling functionality */

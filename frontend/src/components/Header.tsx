@@ -9,12 +9,16 @@ import {
   PersonIcon,
   SunIcon,
   MoonIcon,
+  DrawingPinFilledIcon,
+  ImageIcon,
 } from '@radix-ui/react-icons';
-import WorkspaceToggle from './WorkspaceToggle';
 import { useTheme } from '@/contexts/ThemeContext';
+import TabSelector from "./ui/TabSelector";
+import { useWorkspaceView, WorkspaceView } from "@/contexts/WorkspaceViewContext";
 
 export default function Header() {
   const { resolvedTheme, toggleTheme } = useTheme();
+  const { view, setView } = useWorkspaceView();
   const [mounted, setMounted] = useState(false);
 
   // Avoid hydration mismatch by waiting until mounted
@@ -44,7 +48,14 @@ export default function Header() {
 
       {/* Center section - Workspace Toggle */}
       <div className="flex items-center justify-center flex-1">
-        <WorkspaceToggle />
+        <TabSelector<WorkspaceView>
+          tab={view}
+          setTab={setView}
+          options={[
+            { value: 'blocks', label: 'Blocks', icon: DrawingPinFilledIcon },
+            { value: 'sprite', label: 'Sprite Editor', icon: ImageIcon },
+          ]}
+        />
       </div>
 
       {/* Right section - Utility actions */}

@@ -6,6 +6,7 @@ export interface InputBoxRef {
   isChecked: boolean;
   setIsChecked: Dispatch<SetStateAction<boolean>>;
   isFocused: boolean;
+  width: number;
 }
 
 interface InputBoxProps {
@@ -20,7 +21,6 @@ interface InputBoxProps {
   className?: string;
   overrideClassName?: boolean;
   disabled?: boolean;
-  dropdownElements?: React.ReactNode[];
 }
 
 export const InputBox = ({
@@ -35,12 +35,11 @@ export const InputBox = ({
   className = '',
   overrideClassName = false,
   disabled = false,
-  dropdownElements = [],
 }: InputBoxProps) => {
   const [inputValue, setInputValue] = useState<string>(String(defaultValue));
   const [isChecked, setIsChecked] = useState<boolean>(defaultChecked);
   const [isFocused, setIsFocused] = useState<boolean>(false);
-  const [inputWidth, setInputWidth] = useState<number>(0);
+  const [width, setWidth] = useState<number>(0);
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -50,11 +49,12 @@ export const InputBox = ({
     isChecked: isChecked,
     setIsChecked: setIsChecked,
     isFocused: isFocused,
+    width: width,
   }));
 
   useEffect(() => {
     if (inputRef.current) {
-      setInputWidth(inputRef.current.offsetWidth);
+      setWidth(inputRef.current.offsetWidth);
     }
   }, [isFocused]);
 
@@ -76,17 +76,5 @@ export const InputBox = ({
       onFocus={() => setIsFocused(true)}
       onBlur={() => setTimeout(() => setIsFocused(false), 100)}
     />
-    {isFocused && inputValue ? (
-      <div
-        style={{ width: `${inputWidth}px` }}
-        className="absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 overflow-hidden"
-      >
-        <ul>
-          {dropdownElements.map((element, index) => (
-            <li key={index}>{element}</li>
-          ))}
-        </ul>
-      </div>
-    ) : ''}
   </>;
 };

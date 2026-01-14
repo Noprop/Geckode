@@ -15,14 +15,14 @@ export function Icon({
   icon,
   onClick,
   disabled = false,
-  size = 24,
+  size = 15,
   className = "",
 }: Props) {
   const Icon = icon;
   const isInteractive = !!onClick;
 
   const commonProps = {
-    className: `${className} text-black dark:text-white ${
+    className: `${className} ${
       disabled ? "opacity-50 cursor-not-allowed" : isInteractive ? "cursor-pointer" : ""
     }`,
     style: { width: size, height: size },

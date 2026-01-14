@@ -10,6 +10,7 @@ export const ProjectPermissions = [
 ]
 
 export interface ProjectCollaborator {
+  id: number;
   collaborator: User;
   permission: string;
 }
@@ -22,3 +23,12 @@ export interface ProjectCollaboratorPayload {
   collaborator_id: number;
   permission: string;
 }
+
+export const projectCollaboratorSortKeys: (keyof User)[] = [
+  "id",
+  "username",
+  "first_name",
+  "last_name",
+];
+
+export type ProjectCollaboratorSortKeys = (typeof projectCollaboratorSortKeys)[number];
