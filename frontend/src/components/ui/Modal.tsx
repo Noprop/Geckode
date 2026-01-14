@@ -65,7 +65,7 @@ export const Modal: React.FC<ModalProps> = ({
               </div>
 
               {text && (
-                <div className={`row-start-2 col-start-${icon ? '2' : '1'} flex items-center`}>
+                <div className="row-start-2 col-start-2 flex items-center">
                   <span className="text-sm text-white">
                     {text}
                   </span>
