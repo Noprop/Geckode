@@ -18,8 +18,8 @@ const EditorFooter = () => {
     loadWorkspace,
     canUndo,
     canRedo,
-    isPaused,
-    togglePause,
+    isEditorScene,
+    toggleGame,
   } = useEditorStore();
 
   const handlePhaserFocus = () => {
@@ -32,9 +32,7 @@ const EditorFooter = () => {
       activeElement.blur();
     }
 
-    const container = document.getElementById(
-      'game-container'
-    ) as HTMLElement | null;
+    const container = document.getElementById('game-container') as HTMLElement | null;
     container?.focus();
   };
 
@@ -153,30 +151,16 @@ const EditorFooter = () => {
           </span>
         </button>
         <button
-          onClick={togglePause}
+          onClick={toggleGame}
           className="w-10 h-10 flex items-center justify-center rounded text-white transition-all bg-primary-green hover:bg-primary-green/90 hover:translate-y-px hover:shadow-[0_2px_0_0_#1a5c3a] active:translate-y-[3px] active:shadow-none shadow-[0_4px_0_0_#1a5c3a] cursor-pointer"
-          title={isPaused ? 'Play' : 'Pause'}
+          title={isEditorScene ? 'Editor Scene' : 'Game Scene'}
         >
-          {isPaused ? (
-            <svg
-              aria-hidden="true"
-              focusable="false"
-              viewBox="0 0 16 16"
-              width="18"
-              height="18"
-              fill="currentColor"
-            >
+          {isEditorScene ? (
+            <svg aria-hidden="true" focusable="false" viewBox="0 0 16 16" width="18" height="18" fill="currentColor">
               <path d="M4 2.5a1 1 0 0 1 1.5-.85l9 5.5a1 1 0 0 1 0 1.7l-9 5.5A1 1 0 0 1 4 13.5v-11z" />
             </svg>
           ) : (
-            <svg
-              aria-hidden="true"
-              focusable="false"
-              viewBox="0 0 16 16"
-              width="18"
-              height="18"
-              fill="currentColor"
-            >
+            <svg aria-hidden="true" focusable="false" viewBox="0 0 16 16" width="18" height="18" fill="currentColor">
               <rect x="2" y="2" width="12" height="12" rx="1.5" />
             </svg>
           )}
@@ -184,10 +168,7 @@ const EditorFooter = () => {
       </div>
 
       {/* Phaser Section - fixed 492px width to match ProjectView */}
-      <div
-        className="flex items-center px-4 py-3 pr-2"
-        style={{ width: '492px' }}
-      >
+      <div className="flex items-center px-4 py-3 pr-2" style={{ width: '492px' }}>
         {/* GitHub/Download buttons on left */}
         <div className="flex items-center gap-2">
           <button

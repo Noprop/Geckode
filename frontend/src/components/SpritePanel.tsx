@@ -1,37 +1,29 @@
 "use client";
 
-import { memo, useState, useCallback, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Cross2Icon, EyeOpenIcon, EyeNoneIcon } from '@radix-ui/react-icons';
 import { Button } from './ui/Button';
 import { useEditorStore } from '@/stores/editorStore';
-import SpriteModal, { type SpriteDragPayload } from './SpriteModal';
-import type { SpriteInstance } from '@/blockly/spriteRegistry';
+import SpriteModal from './SpriteModal/SpriteModal';
+import type { Sprite } from '@/blockly/spriteRegistry';
+import { useSpriteStore } from '@/stores/spriteStore';
 
-type Props = {
-  sprites: SpriteInstance[];
-  onRemoveSprite: (spriteId: string) => void;
-  addSpriteToGame: (payload: SpriteDragPayload) => Promise<boolean>;
-  onUpdateSprite?: (spriteId: string, updates: Partial<SpriteInstance>) => void;
-};
-
-const SpritePanel = memo(function SpriteEditor({
-  sprites,
-  onRemoveSprite,
-  addSpriteToGame,
-  onUpdateSprite,
-}: Props) {
-  const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
+const SpritePanel = () => {
+  const [isSpriteModalOpen, setIsSpriteModalOpen] = useState(false);
   const [selectedSpriteId, setSelectedSpriteId] = useState<string | null>(null);
+  const [selectedSprite, setSelectedSprite] = useState<Sprite | null>(null);
 
-  // Track editing state for inputs (allows empty while editing)
-  const [editingValues, setEditingValues] = useState<Record<string, string>>(
-    {}
-  );
+  // track editing state for inputs; allows empty while editing
+  const [editingValues, setEditingValues] = useState<Record<string, string>>({});
   const [originalName, setOriginalName] = useState<string>('');
 
-  // Auto-select first sprite or clear selection when sprites change
+  const removeSpriteFromGame = useSpriteStore((state) => state.removeSpriteFromGame);
+  const updateSprite = useSpriteStore((state) => state.updateSprite);
+  const sprites = useSpriteStore((state) => state.spriteInstances);
+
+  // auto-select first sprite or clear selection when sprites change
   useEffect(() => {
-    if (selectedSpriteId && !sprites.find((s) => s.id === selectedSpriteId)) {
+    if (selectedSpriteId && !sprites.find((s: Sprite) => s.id === selectedSpriteId)) {
       setSelectedSpriteId(sprites.length > 0 ? sprites[0].id : null);
     } else if (!selectedSpriteId && sprites.length > 0) {
       setSelectedSpriteId(sprites[0].id);
@@ -41,64 +33,42 @@ const SpritePanel = memo(function SpriteEditor({
     }
   }, [sprites, selectedSpriteId]);
 
-  const selectedSprite = sprites.find((s) => s.id === selectedSpriteId) || null;
-
-  const handleSpriteSelect = useCallback((spriteId: string) => {
+  // handlers for our custom input fields for editing sprite properties
+  // essentially we want specific behaviours and defaults for each field
+  const handleSpriteSelect = (spriteId: string) => {
     useEditorStore.getState().loadWorkspace(spriteId);
     setSelectedSpriteId(spriteId);
-  }, []);
-
-  const handleFieldChange = useCallback(
-    (field: keyof SpriteInstance, value: string | number | boolean) => {
-      if (!selectedSpriteId || !onUpdateSprite) return;
-      onUpdateSprite(selectedSpriteId, { [field]: value });
-    },
-    [selectedSpriteId, onUpdateSprite]
-  );
-
-  const handleFocus = useCallback(
-    (field: string, currentValue: string | number) => {
-      setEditingValues((prev) => ({ ...prev, [field]: String(currentValue) }));
-      if (field === 'variableName') {
-        setOriginalName(String(currentValue));
-      }
-    },
-    []
-  );
-
-  const handleInputChange = useCallback((field: string, value: string) => {
+  };
+  const handleFieldChange = (field: keyof Sprite, value: string | number | boolean) => {
+    if (!selectedSpriteId) return;
+    updateSprite(selectedSpriteId, { [field]: value });
+  };
+  const handleFocus = (field: string, currentValue: string | number) => {
+    setEditingValues((prev) => ({ ...prev, [field]: String(currentValue) }));
+    if (field === 'variableName') setOriginalName(String(currentValue));
+  };
+  const handleInputChange = (field: string, value: string) => {
     setEditingValues((prev) => ({ ...prev, [field]: value }));
-  }, []);
+  };
 
-  const handleBlur = useCallback(
-    (field: keyof SpriteInstance, defaultValue: string | number) => {
-      const editedValue = editingValues[field];
+  // used for name, x, y, size, direction fields
+  const handleBlur = (field: keyof Sprite, defaultValue: string | number) => {
+    const editedValue = editingValues[field as string];
 
-      // Determine final value
-      let finalValue: string | number;
-      if (editedValue === '' || editedValue === undefined) {
-        // Empty - use default
-        finalValue = defaultValue;
-      } else if (field === 'name') {
-        finalValue = editedValue;
-      } else {
-        // Parse as number
-        const parsed = parseInt(editedValue);
-        finalValue = isNaN(parsed) ? defaultValue : parsed;
-      }
+    let finalValue: string | number;
+    if (editedValue === '' || editedValue === undefined) {
+      finalValue = defaultValue;
+    } else if (field === 'name') {
+      finalValue = editedValue;
+    } else {
+      const parsed = parseInt(editedValue);
+      finalValue = isNaN(parsed) ? defaultValue : parsed;
+    }
 
-      // Update sprite
-      handleFieldChange(field, finalValue);
-
-      // Clear editing state
-      setEditingValues((prev) => {
-        const next = { ...prev };
-        delete next[field];
-        return next;
-      });
-    },
-    [editingValues, handleFieldChange]
-  );
+    if (!selectedSpriteId) return;
+    updateSprite(selectedSpriteId, { [field]: finalValue });
+    setEditingValues({});
+  };
 
   return (
     <section className="flex-1 rounded-lg bg-light-secondary p-3 text-sm shadow dark:bg-dark-secondary flex flex-col min-h-0 overflow-hidden">
@@ -107,16 +77,10 @@ const SpritePanel = memo(function SpriteEditor({
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs">
           {/* Sprite Name */}
           <div className="flex items-center gap-2">
-            <label className="font-semibold text-slate-600 dark:text-slate-400">
-              Sprite
-            </label>
+            <label className="font-semibold text-slate-600 dark:text-slate-400">Sprite</label>
             <input
               type="text"
-              value={
-                'name' in editingValues
-                  ? editingValues.name
-                  : selectedSprite?.name || ''
-              }
+              value={'name' in editingValues ? editingValues.name : selectedSprite?.name || ''}
               onFocus={() => handleFocus('name', selectedSprite?.name || '')}
               onChange={(e) => handleInputChange('name', e.target.value)}
               onBlur={() => handleBlur('name', originalName)}
@@ -132,9 +96,7 @@ const SpritePanel = memo(function SpriteEditor({
             <label className="text-slate-600 dark:text-slate-400">x</label>
             <input
               type="number"
-              value={
-                'x' in editingValues ? editingValues.x : selectedSprite?.x ?? ''
-              }
+              value={'x' in editingValues ? editingValues.x : selectedSprite?.x ?? ''}
               onFocus={() => handleFocus('x', selectedSprite?.x ?? 0)}
               onChange={(e) => handleInputChange('x', e.target.value)}
               onBlur={() => handleBlur('x', 0)}
@@ -149,9 +111,7 @@ const SpritePanel = memo(function SpriteEditor({
             <label className="text-slate-600 dark:text-slate-400">y</label>
             <input
               type="number"
-              value={
-                'y' in editingValues ? editingValues.y : selectedSprite?.y ?? ''
-              }
+              value={'y' in editingValues ? editingValues.y : selectedSprite?.y ?? ''}
               onFocus={() => handleFocus('y', selectedSprite?.y ?? 0)}
               onChange={(e) => handleInputChange('y', e.target.value)}
               onBlur={() => handleBlur('y', 0)}
@@ -165,28 +125,25 @@ const SpritePanel = memo(function SpriteEditor({
             <input
               type="checkbox"
               checked={selectedSprite?.snapToGrid ?? false}
-              onChange={() =>
-                handleFieldChange(
-                  'snapToGrid',
-                  !(selectedSprite?.snapToGrid ?? false)
-                )
-              }
+              onChange={() => {
+                if (!selectedSpriteId) return;
+                updateSprite(selectedSpriteId, { snapToGrid: !(selectedSprite?.snapToGrid ?? false) });
+              }}
               disabled={!selectedSprite}
               className="h-3.5 w-3.5 accent-primary-green cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             />
-            <span className="font-semibold text-slate-600 dark:text-slate-400">
-              Snap
-            </span>
+            <span className="font-semibold text-slate-600 dark:text-slate-400">Snap</span>
           </label>
 
           {/* Show/Hide Toggle */}
           <div className="flex items-center gap-0">
-            <label className="font-semibold text-slate-600 dark:text-slate-400 mr-2">
-              Show
-            </label>
+            <label className="font-semibold text-slate-600 dark:text-slate-400 mr-2">Show</label>
             <button
               type="button"
-              onClick={() => handleFieldChange('visible', true)}
+              onClick={() => {
+                if (!selectedSpriteId) return;
+                updateSprite(selectedSpriteId, { visible: true });
+              }}
               disabled={!selectedSprite}
               className={`rounded-l-md p-1.5 border transition cursor-pointer ${
                 selectedSprite?.visible !== false
@@ -199,7 +156,10 @@ const SpritePanel = memo(function SpriteEditor({
             </button>
             <button
               type="button"
-              onClick={() => handleFieldChange('visible', false)}
+              onClick={() => {
+                if (!selectedSpriteId) return;
+                updateSprite(selectedSpriteId, { visible: false });
+              }}
               disabled={!selectedSprite}
               className={`rounded-r-md p-1.5 border transition cursor-pointer ${
                 selectedSprite?.visible === false
@@ -214,16 +174,10 @@ const SpritePanel = memo(function SpriteEditor({
 
           {/* Size */}
           <div className="flex items-center gap-2">
-            <label className="font-semibold text-slate-600 dark:text-slate-400">
-              Size
-            </label>
+            <label className="font-semibold text-slate-600 dark:text-slate-400">Size</label>
             <input
               type="number"
-              value={
-                'size' in editingValues
-                  ? editingValues.size
-                  : selectedSprite?.size ?? 100
-              }
+              value={'size' in editingValues ? editingValues.size : selectedSprite?.size ?? 100}
               onFocus={() => handleFocus('size', selectedSprite?.size ?? 100)}
               onChange={(e) => handleInputChange('size', e.target.value)}
               onBlur={() => handleBlur('size', 100)}
@@ -236,19 +190,11 @@ const SpritePanel = memo(function SpriteEditor({
 
           {/* Direction */}
           <div className="flex items-center gap-2">
-            <label className="font-semibold text-slate-600 dark:text-slate-400">
-              Direction
-            </label>
+            <label className="font-semibold text-slate-600 dark:text-slate-400">Direction</label>
             <input
               type="number"
-              value={
-                'direction' in editingValues
-                  ? editingValues.direction
-                  : selectedSprite?.direction ?? 90
-              }
-              onFocus={() =>
-                handleFocus('direction', selectedSprite?.direction ?? 90)
-              }
+              value={'direction' in editingValues ? editingValues.direction : selectedSprite?.direction ?? 90}
+              onFocus={() => handleFocus('direction', selectedSprite?.direction ?? 90)}
               onChange={(e) => handleInputChange('direction', e.target.value)}
               onBlur={() => handleBlur('direction', 0)}
               disabled={!selectedSprite}
@@ -271,7 +217,7 @@ const SpritePanel = memo(function SpriteEditor({
             </span>
             <Button
               className="btn-confirm px-3 py-1 text-[11px]"
-              onClick={() => setIsAssetModalOpen(true)}
+              onClick={() => setIsSpriteModalOpen(true)}
               title="Add new sprite"
             >
               + Add
@@ -307,19 +253,14 @@ const SpritePanel = memo(function SpriteEditor({
 
                       {/* Sprite Name Label */}
                       <div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/70 to-transparent px-1 py-1">
-                        <p className="text-[9px] text-white truncate text-center font-medium">
-                          {sprite.name}
-                        </p>
+                        <p className="text-[9px] text-white truncate text-center font-medium">{sprite.name}</p>
                       </div>
 
                       {/* Delete Button - Only on Selected */}
                       {isSelected && (
                         <button
                           type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onRemoveSprite(sprite.id);
-                          }}
+                          onClick={() => removeSpriteFromGame(sprite.id)}
                           className="absolute top-1 right-1 rounded-full bg-slate-700/80 hover:bg-red-500 text-white p-0.5 transition shadow"
                           title="Delete sprite"
                         >
@@ -363,25 +304,17 @@ const SpritePanel = memo(function SpriteEditor({
 
             {/* Backdrops Info */}
             <div className="text-center">
-              <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wide">
-                Backdrops
-              </p>
-              <p className="text-lg font-bold text-slate-700 dark:text-slate-300">
-                1
-              </p>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wide">Backdrops</p>
+              <p className="text-lg font-bold text-slate-700 dark:text-slate-300">1</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* TODO: The modal shouldn't be placed here. */}
-      <SpriteModal
-        isAssetModalOpen={isAssetModalOpen}
-        setIsAssetModalOpen={setIsAssetModalOpen}
-        addSpriteToGame={addSpriteToGame}
-      />
+      <SpriteModal isSpriteModalOpen={isSpriteModalOpen} setIsSpriteModalOpen={setIsSpriteModalOpen} />
     </section>
   );
-});
+};
 
 export default SpritePanel;

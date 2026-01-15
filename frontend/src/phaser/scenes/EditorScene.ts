@@ -4,24 +4,12 @@ import { useEditorStore } from '@/stores/editorStore';
 
 export const EDITOR_SCENE_KEY = 'EditorScene' as const;
 import GAME_SCENE_KEY from '@/phaser/scenes/GameScene';
-
-type PosCB = (pos: { x: number; y: number }) => void;
+import { useSpriteStore } from '@/stores/spriteStore';
 
 export default class EditorScene extends Phaser.Scene {
   public key: string;
-  public player!: Phaser.Physics.Arcade.Sprite;
-  private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
-  private wasd!: {
-    W: Phaser.Input.Keyboard.Key;
-    A: Phaser.Input.Keyboard.Key;
-    S: Phaser.Input.Keyboard.Key;
-    D: Phaser.Input.Keyboard.Key;
-  };
-  private posCB?: PosCB;
-  private lastSent = { x: -1, y: -1 };
   private editorSprites = new Map<string, Phaser.Physics.Arcade.Sprite>();
-  private static readonly EDITOR_SPRITE_BASE_DEPTH =
-    Number.MAX_SAFE_INTEGER - 100;
+  private static readonly EDITOR_SPRITE_BASE_DEPTH = Number.MAX_SAFE_INTEGER - 100;
   private editorLayer!: Phaser.GameObjects.Layer;
   private activeDrag: {
     sprite: Phaser.Physics.Arcade.Sprite;
@@ -30,16 +18,68 @@ export default class EditorScene extends Phaser.Scene {
   } | null = null;
   private gridGraphics: Phaser.GameObjects.Graphics | null = null;
 
+  // Tilemap properties
+  private static readonly TILE_SIZE = 32;
+  private tilemap: Phaser.Tilemaps.Tilemap | null = null;
+  private groundLayer: Phaser.Tilemaps.TilemapLayer | Phaser.Tilemaps.TilemapGPULayer | null = null;
+
   constructor() {
     super(EDITOR_SCENE_KEY);
     this.key = EDITOR_SCENE_KEY;
   }
 
   preload() {
-    const textures = useEditorStore.getState().textures;
-    for (const texture of textures.values()) {
-      this.load.image(texture.name, texture.file);
+    const { spriteTextures } = useSpriteStore.getState();
+    for (const [textureName, { url }] of spriteTextures.entries()) {
+      this.load.image(textureName, url);
     }
+
+    // Generate a simple tileset texture if it doesn't exist
+    this.generateTilesetTexture();
+  }
+
+  private generateTilesetTexture(): void {
+    const tileSize = EditorScene.TILE_SIZE;
+
+    // Create a graphics object to draw tiles
+    const graphics = this.make.graphics({ x: 0, y: 0 });
+
+    // Tile 0: Empty/sky (transparent)
+    // We don't draw anything for tile 0
+
+    // Tile 1: Grass tile
+    graphics.fillStyle(0x4ade80); // green-400
+    graphics.fillRect(tileSize, 0, tileSize, tileSize);
+    // Add some grass texture lines
+    graphics.lineStyle(1, 0x22c55e, 0.6);
+    for (let i = 0; i < 5; i++) {
+      const x = tileSize + 4 + i * 6;
+      graphics.beginPath();
+      graphics.moveTo(x, tileSize - 2);
+      graphics.lineTo(x + 2, tileSize - 8);
+      graphics.strokePath();
+    }
+
+    // Tile 2: Dirt tile
+    graphics.fillStyle(0x92400e); // amber-800
+    graphics.fillRect(tileSize * 2, 0, tileSize, tileSize);
+    // Add some dirt texture
+    graphics.fillStyle(0x78350f, 0.5);
+    for (let i = 0; i < 6; i++) {
+      const x = tileSize * 2 + 4 + Math.random() * 24;
+      const y = 4 + Math.random() * 24;
+      graphics.fillCircle(x, y, 2);
+    }
+
+    // Tile 3: Stone tile
+    graphics.fillStyle(0x6b7280); // gray-500
+    graphics.fillRect(tileSize * 3, 0, tileSize, tileSize);
+    graphics.lineStyle(1, 0x4b5563, 0.8);
+    graphics.strokeRect(tileSize * 3 + 2, 2, tileSize - 4, tileSize - 4);
+
+    // Generate the texture (4 tiles wide, 1 tile tall)
+    graphics.generateTexture('tileset', tileSize * 4, tileSize);
+    graphics.destroy();
   }
 
   public changeScene() {
@@ -47,43 +87,82 @@ export default class EditorScene extends Phaser.Scene {
   }
 
   async create() {
-    console.log('[EditorScene] create called');
     this.showGrid();
 
     this.editorSprites.clear();
     this.gridGraphics = null; // Reset on scene restart
+    this.tilemap = null;
+    this.groundLayer = null;
+
+    // Create the tilemap (sits below sprites)
+    this.createTilemap();
 
     // Dedicated layer to keep editor sprites above all game objects.
     this.editorLayer = this.add.layer();
     this.editorLayer.setDepth(EditorScene.EDITOR_SPRITE_BASE_DEPTH);
 
-    this.start();
     this.registerDragEvents();
 
     // Set up pause state listener for grid visibility BEFORE telling React scene is ready
     this.setupGridListener();
     try {
-      await this.load.image('hero-walk-front2', '/heroWalkFront1.bmp');
+      await this.load.image('hero-walk-front', '/heroWalkFront1.bmp');
     } catch (error) {
       console.error('Error loading image', error);
     }
 
-    const spriteInstances = useEditorStore.getState().spriteInstances;
-    const textures = useEditorStore.getState().textures;
+    const spriteInstances = useSpriteStore.getState().spriteInstances;
     for (const instance of spriteInstances) {
-      this.createSprite(
-        textures.get(instance.tid)?.name || '',
-        instance.x,
-        instance.y,
-        instance.id
-      );
+      this.createSprite(instance.textureName, instance.x, instance.y, instance.id);
     }
     // Tell React which scene is active (will trigger pause state sync)
     EventBus.emit('current-scene-ready', this);
   }
 
+  private createTilemap(): void {
+    const tileSize = EditorScene.TILE_SIZE;
+    const width = 480;
+    const height = 360;
+    const mapWidth = Math.ceil(width / tileSize); // 15 tiles
+    const mapHeight = Math.ceil(height / tileSize); // ~11 tiles
+
+    // Create tilemap data - simple ground at bottom 2 rows
+    const mapData: number[][] = [];
+    for (let y = 0; y < mapHeight; y++) {
+      const row: number[] = [];
+      for (let x = 0; x < mapWidth; x++) {
+        if (y >= mapHeight - 2) {
+          // Bottom 2 rows: grass on top, dirt below
+          row.push(y === mapHeight - 2 ? 1 : 2); // 1 = grass, 2 = dirt
+        } else {
+          row.push(0); // Empty
+        }
+      }
+      mapData.push(row);
+    }
+
+    // Create tilemap from data
+    this.tilemap = this.make.tilemap({
+      data: mapData,
+      tileWidth: tileSize,
+      tileHeight: tileSize,
+    });
+
+    // Add tileset image
+    const tileset = this.tilemap.addTilesetImage('tileset', 'tileset', tileSize, tileSize, 0, 0);
+    if (!tileset) {
+      console.error('Failed to create tileset');
+      return;
+    }
+
+    // Create layer
+    this.groundLayer = this.tilemap.createLayer(0, tileset, 0, 0);
+    if (this.groundLayer) {
+      this.groundLayer.setDepth(0); // Below sprites, above background
+    }
+  }
+
   private pauseHandler = (isPaused: boolean) => {
-    console.log('[EditorScene] editor-pause-changed received:', isPaused);
     if (isPaused) {
       this.showGrid();
     } else {
@@ -94,15 +173,11 @@ export default class EditorScene extends Phaser.Scene {
   private setupGridListener(): void {
     // Remove existing listener to prevent duplicates on scene restart
     EventBus.off('editor-pause-changed', this.pauseHandler);
-
-    console.log('[EditorScene] setting up editor-pause-changed listener');
     EventBus.on('editor-pause-changed', this.pauseHandler);
   }
 
-  start() {}
-
-  public createSprite(texture: string, x: number, y: number, id: string) {
-    const sprite = this.physics.add.sprite(x, y, texture);
+  public createSprite(textureName: string, x: number, y: number, id: string) {
+    const sprite = this.physics.add.sprite(x, y, textureName);
     sprite.setName(id);
     sprite.setData('editorSpriteId', id);
     sprite.setDepth(EditorScene.EDITOR_SPRITE_BASE_DEPTH);
@@ -110,8 +185,6 @@ export default class EditorScene extends Phaser.Scene {
     this.editorLayer.bringToTop(sprite);
     this.enableSpriteDragging(sprite);
     this.editorSprites.set(id, sprite);
-
-    console.log('actual name: ', sprite.name, id);
 
     // TODO: Add collision detection
     // this.player.setCollideWorldBounds(true);
@@ -138,7 +211,6 @@ export default class EditorScene extends Phaser.Scene {
     }
   ) {
     const sprite = this.editorSprites.get(id);
-    console.log('updateSprite()', sprite);
     if (!sprite) return;
 
     if (updates.x !== undefined) {
@@ -162,7 +234,6 @@ export default class EditorScene extends Phaser.Scene {
   }
 
   private drawGrid(): void {
-    console.log('[EditorScene] drawGrid called');
     const width = 480;
     const height = 360;
     const gridSpacing = 50;
@@ -220,19 +291,13 @@ export default class EditorScene extends Phaser.Scene {
   }
 
   public showGrid(): void {
-    console.log('[EditorScene] showGrid called');
     this.drawGrid();
     if (this.gridGraphics) {
       this.gridGraphics.setVisible(true);
-      console.log(
-        '[EditorScene] gridGraphics visible:',
-        this.gridGraphics.visible
-      );
     }
   }
 
   public hideGrid(): void {
-    console.log('[EditorScene] hideGrid called');
     if (this.gridGraphics) {
       this.gridGraphics.setVisible(false);
     }
@@ -248,41 +313,27 @@ export default class EditorScene extends Phaser.Scene {
   private registerDragEvents() {
     this.input.dragDistanceThreshold = 0;
 
-    this.input.on(
-      'dragstart',
-      (
-        _pointer: Phaser.Input.Pointer,
-        gameObject: Phaser.GameObjects.GameObject
-      ) => {
-        const sprite = gameObject as Phaser.Physics.Arcade.Sprite;
-        const editorId = sprite.getData('editorSpriteId');
-        if (!editorId) return;
-        this.activeDrag = {
-          sprite,
-          start: { x: sprite.x, y: sprite.y },
-          lastWorld: { x: sprite.x, y: sprite.y },
-        };
-        sprite.setDepth(EditorScene.EDITOR_SPRITE_BASE_DEPTH);
-        this.editorLayer.bringToTop(sprite);
-        this.attachGlobalDragListeners();
-      }
-    );
+    this.input.on('dragstart', (_pointer: Phaser.Input.Pointer, gameObject: Phaser.GameObjects.GameObject) => {
+      const sprite = gameObject as Phaser.Physics.Arcade.Sprite;
+      const editorId = sprite.getData('editorSpriteId');
+      if (!editorId) return;
+      this.activeDrag = {
+        sprite,
+        start: { x: sprite.x, y: sprite.y },
+        lastWorld: { x: sprite.x, y: sprite.y },
+      };
+      sprite.setDepth(EditorScene.EDITOR_SPRITE_BASE_DEPTH);
+      this.editorLayer.bringToTop(sprite);
+      this.attachGlobalDragListeners();
+    });
 
     this.input.on('drag', (pointer: Phaser.Input.Pointer) => {
-      this.updateDragPositionFromEvent(
-        pointer.event as PointerEvent | undefined,
-        pointer
-      );
+      this.updateDragPositionFromEvent(pointer.event as PointerEvent | undefined, pointer);
     });
 
     this.input.on(
       'dragend',
-      (
-        pointer: Phaser.Input.Pointer,
-        gameObject: Phaser.GameObjects.GameObject,
-        _dragX: number,
-        _dragY: number
-      ) => {
+      (pointer: Phaser.Input.Pointer, gameObject: Phaser.GameObjects.GameObject, _dragX: number, _dragY: number) => {
         this.finishActiveDrag(pointer.event as PointerEvent | undefined);
       }
     );
@@ -316,10 +367,7 @@ export default class EditorScene extends Phaser.Scene {
     this.finishActiveDrag(event);
   };
 
-  private updateDragPositionFromEvent(
-    event?: PointerEvent,
-    pointer?: Phaser.Input.Pointer
-  ) {
+  private updateDragPositionFromEvent(event?: PointerEvent, pointer?: Phaser.Input.Pointer) {
     if (!this.activeDrag || !event) {
       // Fallback to pointer coords if available (still keeps integers to avoid blur).
       if (!this.activeDrag || !pointer) return;

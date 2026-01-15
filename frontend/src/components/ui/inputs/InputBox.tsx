@@ -1,4 +1,4 @@
-import { ChangeEvent, Dispatch, FocusEvent, SetStateAction, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { ChangeEvent, Dispatch, FocusEvent, SetStateAction, useImperativeHandle, useRef, useState } from 'react';
 
 export interface InputBoxRef {
   inputValue: string;
@@ -29,7 +29,7 @@ export const InputBox = ({
   defaultValue = '',
   defaultChecked = false,
   placeholder = '',
-  type = "input",
+  type = 'input',
   onChange = () => {},
   onFocus = () => {},
   onBlur = () => {},
@@ -43,30 +43,35 @@ export const InputBox = ({
 
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useImperativeHandle(ref, (): InputBoxRef => ({
-    inputValue: inputValue,
-    setInputValue: setInputValue,
-    isChecked: isChecked,
-    setIsChecked: setIsChecked,
-  }));
+  useImperativeHandle(
+    ref,
+    (): InputBoxRef => ({
+      inputValue: inputValue,
+      setInputValue: setInputValue,
+      isChecked: isChecked,
+      setIsChecked: setIsChecked,
+    })
+  );
 
-  return <>
-    <input
-      ref={inputRef}
-      placeholder={placeholder}
-      type={type}
-      value={value ?? inputValue}
-      checked={isChecked}
-      onChange={(e) => {
-        if (value === undefined) setInputValue(e.target.value);
-        if (type === 'checkbox') setIsChecked(e.target.checked);
-        onChange(e);
-      }}
-      required={required}
-      className={(overrideClassName ? "" : "border p-2 rounded-md") + " " + className}
-      disabled={disabled}
-      onFocus={onFocus}
-      onBlur={onBlur}
-    />
-  </>;
+  return (
+    <>
+      <input
+        ref={inputRef}
+        placeholder={placeholder}
+        type={type}
+        value={value ?? inputValue}
+        checked={isChecked}
+        onChange={(e) => {
+          if (value === undefined) setInputValue(e.target.value);
+          if (type === 'checkbox') setIsChecked(e.target.checked);
+          onChange(e);
+        }}
+        required={required}
+        className={(overrideClassName ? '' : 'border p-2 rounded-md') + ' ' + className}
+        disabled={disabled}
+        onFocus={onFocus}
+        onBlur={onBlur}
+      />
+    </>
+  );
 };

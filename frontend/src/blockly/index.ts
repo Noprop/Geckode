@@ -35,6 +35,7 @@ const customBlocks = [
 let isRegistered = false;
 
 export const registerBlockly = () => {
+  if (typeof window === 'undefined') return;
   if (isRegistered) return;
 
   Blockly.setLocale(locale as any);
@@ -57,16 +58,17 @@ export function getStartRegistry(generator: any): StartHandler[] {
   return generator.startHandlers;
 }
 
-const originalInit = javascriptGenerator.init;
+if (typeof window !== 'undefined') {
+  const originalInit = javascriptGenerator.init;
 
-javascriptGenerator.init = function (workspace) {
-  originalInit.call(this, workspace);
-  (this as any).updateHandlers = [];
-  (this as any).startHandlers = [];
-  useEditorStore.setState( {updateId: 0} )
-  useEditorStore.setState( {startId: 0} )
-};
-
+  javascriptGenerator.init = function (workspace) {
+    originalInit.call(this, workspace);
+    (this as any).updateHandlers = [];
+    (this as any).startHandlers = [];
+    useEditorStore.setState({ updateId: 0 });
+    useEditorStore.setState({ startId: 0 });
+  };
+}
 
 // MIGHT USE THIS LATER
 

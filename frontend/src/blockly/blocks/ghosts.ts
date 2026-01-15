@@ -1,9 +1,7 @@
 // ghost blocks
 
-import { javascriptGenerator, Order } from "blockly/javascript";
-import { getSpriteDropdownOptions } from "@/blockly/spriteRegistry";
+import { javascriptGenerator, Order } from 'blockly/javascript';
 import { registerFieldAngle } from '@blockly/field-angle';
-import { useEditorStore } from '@/stores/editorStore';
 
 registerFieldAngle();
 const angleGhost = {

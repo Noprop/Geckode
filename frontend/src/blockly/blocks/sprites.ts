@@ -1,6 +1,5 @@
 import { javascriptGenerator, Order } from "blockly/javascript";
-import { getSpriteDropdownOptions } from "@/blockly/spriteRegistry";
-import { registerFieldAngle } from '@blockly/field-angle';
+import { getSpriteDropdownOptions } from '@/blockly/spriteRegistry';
 import { useEditorStore } from '@/stores/editorStore';
 
 const setProperty = {
