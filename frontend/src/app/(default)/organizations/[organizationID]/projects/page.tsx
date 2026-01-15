@@ -3,7 +3,7 @@
 import organizationsApi from "@/lib/api/handlers/organizations";
 import {
   OrganizationProject,
-  OrganizationProjectFilter,
+  OrganizationProjectFilters,
   OrganizationProjectPayload,
   organizationProjectSortKeys,
   OrganizationProjectSortKeys,
@@ -12,8 +12,8 @@ import { useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { Table, TableRef } from "@/components/ui/Table";
 import { Button } from "@/components/ui/Button";
-import { Modal } from "@/components/ui/Modal";
-import { InputBox, InputBoxRef } from "@/components/ui/InputBox";
+import { Modal } from "@/components/ui/modals/Modal";
+import { InputBox, InputBoxRef } from "@/components/ui/inputs/InputBox";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import projectsApi from "@/lib/api/handlers/projects";
 import { Project } from "@/lib/types/api/projects";
@@ -28,12 +28,13 @@ export default function ProjectsPage() {
   const orgProjectsApi = organizationsApi(Number(organizationID)).projects;
 
   const dropboxRef = useRef<DragAndDropRef>(null);
-  const tableRef = useRef<TableRef<OrganizationProject> | null>(null);
+  const tableRef = useRef<TableRef<OrganizationProject, OrganizationProjectFilters> | null>(null);
   const projectNameRef = useRef<InputBoxRef | null>(null);
   const autoProjectOpenRef = useRef<InputBoxRef | null>(null);
   const permissionDropdownView = useRef<HTMLSelectElement | null>(null);
 
   const [showModal, setShowModal] = useState<null | "create" | "delete">(null);
+  const [rowIndex, setRowIndex] = useState<number>(0);
 
   const createProject = () => {
     // first create project with projects API, then register it as an org project with orgProjectsApi
@@ -74,7 +75,7 @@ export default function ProjectsPage() {
 
   const deleteProject = () => {
     const projectId =
-      tableRef.current?.data[tableRef.current?.dataIndex]["project"]["id"];
+      tableRef.current?.data[rowIndex]["project"]["id"];
 
     if (!projectId) return;
 
@@ -92,15 +93,15 @@ export default function ProjectsPage() {
 
   return (
     <div className="mx-20 my-5">
+      <h1 className="header-1">Projects</h1>
       <Table<
         OrganizationProject,
         OrganizationProjectPayload,
-        OrganizationProjectFilter,
+        OrganizationProjectFilters,
         OrganizationProjectSortKeys,
         typeof orgProjectsApi
       >
         ref={tableRef}
-        label="Projects"
         api={orgProjectsApi}
         columns={{
           id: {
@@ -139,7 +140,10 @@ export default function ProjectsPage() {
           {
             rowIcon: TrashIcon,
             rowIconSize: 24,
-            rowIconClicked: () => setShowModal("delete"),
+            rowIconClicked: (index) => {
+              setRowIndex(index);
+              setShowModal("delete");
+            },
             rowIconClassName: "hover:text-red-500 mt-1",
             canUse: (project) => project.permission === "owner",
           },
@@ -154,12 +158,12 @@ export default function ProjectsPage() {
             </Button>
           </>
         }
+        rowStyle="py-2"
       />
 
       {showModal === "create" ? (
         <Modal
-          onClose={() => setShowModal(null)}
-          title="Create project"
+          title="Create Project"
           icon={FilePlusIcon}
           actions={
             <>
@@ -211,10 +215,8 @@ export default function ProjectsPage() {
       ) : showModal === "delete" ? (
         <Modal
           className="bg-red-500"
-          onClose={() => setShowModal(null)}
-          title={`Delete project (${
-            tableRef.current?.data?.[tableRef.current.dataIndex].project["name"]
-          })`}
+          title="Delete Project"
+          subtitle={tableRef.current?.data?.[rowIndex].project["name"]}
           icon={ExclamationTriangleIcon}
           actions={
             <>

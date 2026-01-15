@@ -1,5 +1,5 @@
 import { javascriptGenerator, Order } from "blockly/javascript";
-import { getSpriteDropdownOptions } from "@/blockly/spriteRegistry";
+import { getSpriteDropdownOptions } from '@/blockly/spriteRegistry';
 import { useEditorStore } from '@/stores/editorStore';
 
 const setProperty = {
@@ -117,4 +117,76 @@ javascriptGenerator.forBlock['getProperty'] = function (block, generator) {
   return [code, Order.NONE];
 };
 
-export const spriteBlocks = [setProperty, changeProperty, getProperty];
+const setRotation = {
+  type: "setRotation",
+  tooltip: "Set the rotation of a sprite",
+  helpUrl: "",
+  message0: "rotate %1 to %2",
+  args0: [
+    {
+      type: 'field_dropdown',
+      name: 'SPRITE',
+      options: getSpriteDropdownOptions,
+    },
+    {
+      type: 'input_value',
+      name: 'VALUE',
+    },
+  ],
+  previousStatement: null,
+  nextStatement: null,
+  colour: "%{BKY_SPRITES_HUE}"
+}
+
+javascriptGenerator.forBlock['setRotation'] = function (block, generator) {
+  const value = generator.valueToCode(block, 'VALUE', Order.NONE) || 0;
+  const spriteKey = block.getFieldValue('SPRITE');
+
+  return `scene.getSprite(${spriteKey === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey + '"'}).angle = (${value}-90) % 360\n`;
+};
+
+const pointAtXY = {
+  type: "pointAtXY",
+  tooltip: "Point at a positin",
+  helpUrl: "",
+  message0: "point %1 at x:%2 y:%3",
+  args0: [
+    {
+      type: 'field_dropdown',
+      name: 'SPRITE',
+      options: getSpriteDropdownOptions,
+    },
+    {
+      type: "input_value",
+      name: "x",
+      value: 0,
+    },
+    {
+      type: "input_value",
+      name: "y",
+      value: 0,
+    },
+  ],
+  previousStatement: null,
+  nextStatement: null,
+  colour: "%{BKY_SPRITES_HUE}",
+  inlineInputs: true
+}
+
+javascriptGenerator.forBlock['pointAtXY'] = function (block, generator) {
+  const x = generator.valueToCode(block, 'x', Order.NONE) || 0;
+  const y = generator.valueToCode(block, 'y', Order.NONE) || 0;
+  const spriteKey = block.getFieldValue('SPRITE');
+  const spriteName = `scene.getSprite(${spriteKey === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey + '"'})`
+
+
+  return `${spriteName}.rotation = Phaser.Math.Angle.Between(${spriteName}.x, ${spriteName}.y, ${x}, ${y})\n`;
+};
+
+export const spriteBlocks = [
+  setProperty,
+  changeProperty,
+  getProperty,
+  setRotation,
+  pointAtXY,
+];

@@ -41,7 +41,7 @@ export function SnackbarProvider({ children }: { children: React.ReactNode }) {
 
       <div
         className={`
-          z-20 fixed bottom-4 left-1/2 transform -translate-x-1/2
+          z-50 fixed bottom-4 left-1/2 transform -translate-x-1/2
           px-4 py-2 rounded shadow-lg text-white
           transition-all duration-300
           ${bgColor}

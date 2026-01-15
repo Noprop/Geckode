@@ -1,6 +1,6 @@
 import { User } from "../users";
 import { BaseFilters } from "..";
-import { SpriteInstance } from '@/components/SpritePanel';
+import type { SpriteInstance } from '@/blockly/spriteRegistry';
 import { PhaserExport } from "@/phaser/PhaserStateManager";
 
 export interface Project {

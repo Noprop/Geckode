@@ -5,9 +5,10 @@ import {
   useRef,
   useState,
   HTMLAttributes,
+  Dispatch,
+  SetStateAction,
 } from "react";
 import {
-  ColumnFilter,
   createColumnHelper,
   flexRender,
   getCoreRowModel,
@@ -17,38 +18,61 @@ import {
   SortingState,
   useReactTable,
 } from "@tanstack/react-table";
-import { BaseFilters, PaginatedResponse } from "@/lib/types/api";
+import { BaseFilters } from "@/lib/types/api";
 import { Icon, IconType } from "./Icon";
-import { InputBox, InputBoxRef } from "./InputBox";
-import useDebounce from "@/hooks/useDebounce";
-import { SelectionBox } from "./SelectionBox";
+import { InputBox, InputBoxRef } from "./inputs/InputBox";
+import { Option, SelectionBox } from "./selectors/SelectionBox";
 import { useSnackbar } from "@/hooks/useSnackbar";
-import { ChevronLeftIcon, ChevronRightIcon, DoubleArrowLeftIcon, DoubleArrowRightIcon, MagnifyingGlassIcon, TextAlignBottomIcon, TextAlignTopIcon } from "@radix-ui/react-icons";
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  DoubleArrowLeftIcon,
+  DoubleArrowRightIcon,
+  MagnifyingGlassIcon,
+  TextAlignBottomIcon,
+  TextAlignTopIcon,
+} from "@radix-ui/react-icons";
+import { BaseApiInnerReturn, createBaseApi } from "@/lib/api/base";
+import useMultiDebounce from "@/hooks/useMultiDebounce";
 
-export interface TableRef<TData> {
+export interface TableRef<TData, TFilters> {
   refresh: () => void;
   data: TData[];
-  dataIndex: number;
+  filters: Filters<TFilters>;
+  setFilters: Dispatch<SetStateAction<Filters<TFilters>>>;
+  searchInput: string;
+  setSearchInput: Dispatch<SetStateAction<string>>;
 }
 
-interface TableProps<TData, TSortKeys, TApi> {
-  ref?: React.Ref<TableRef<TData>>;
-  label?: string;
+type Filters<TFilters> = Partial<Omit<TFilters, keyof BaseFilters>>;
+
+interface TableProps<TData, TSortKeys, TApi, TFilters> {
+  ref?: React.Ref<TableRef<TData, TFilters>>;
   api: TApi;
   columns: TableColumns<TData>;
   defaultSortField?: TSortKeys;
   defaultSortDirection?: "asc" | "desc";
+  defaultPageSize?: number;
+  pageSizeOptions?: number[];
+  enableSearch?: boolean;
   sortKeys?: TSortKeys[];
   handleRowClick?: (row: Row<TData>) => void;
   actions?: TableAction<TData>[];
   extras?: React.ReactNode;
+  style?: string;
+  rowStyle?: string;
+  showHeader?: boolean;
+  noResultsMessage?: React.ReactNode;
+  initialFilters?: Filters<TFilters>;
+  showControls?: boolean;
+  initialSearch?: string;
 }
 
-type ColumnTypes = "user" | "datetime" | "thumbnail" | "other";
+type ColumnTypes = "user" | "datetime" | "thumbnail" | "select" | "other";
 
 interface TableAction<TData> {
   rowIcon: IconType;
-  rowIconClicked: () => void;
+  rowIconClicked: (index: number) => void;
   rowIconClassName?: HTMLAttributes<HTMLElement>["className"];
   rowIconSize?: number;
   canUse?: (row: TData) => boolean;
@@ -59,68 +83,90 @@ interface TableAction<TData> {
   modalActions?: React.ReactNode;
 }
 
-interface ListApi<TData, TFilters> {
-  list: (filters?: TFilters) => Promise<PaginatedResponse<TData>>;
-}
-
 // Column Map specifies fields/methods for each column
 type ColumnMap<TData> = {
-  key: string;
+  key: keyof TData | [keyof TData, ...string[]] | ".";
   value?: (field: any) => any;
   type?: ColumnTypes;
   hidden?: boolean;
+  hideLabel?: boolean;
+  options?: Option[];
+  style?: string;
 };
 
 // A map for each column with the key being the column label
-type TableColumns<TData> = Record<string, ColumnMap<TData>>;
+export type TableColumns<TData> = Record<string, ColumnMap<TData>>;
 
 export const Table = <
   TData extends Record<string, any>,
   TPayload extends Record<string, any>,
   TFilters extends BaseFilters,
-  TSortKeys extends keyof TData,
-  TApi extends ListApi<TData, TFilters>
+  TSortKeys extends string,
+  TApi extends BaseApiInnerReturn<typeof createBaseApi<TData, TPayload, TFilters>>,
 >({
   ref,
-  label,
   api,
   columns,
   defaultSortField,
   defaultSortDirection = "asc",
+  defaultPageSize = 10,
+  pageSizeOptions = [5, 10, 25, 50],
+  enableSearch = true,
   sortKeys = [],
   handleRowClick = () => {},
   actions,
   extras,
-}: TableProps<TData, TSortKeys, TApi>) => {
+  style = '',
+  rowStyle = '',
+  showHeader = true,
+  noResultsMessage = 'No results to display.',
+  initialFilters = {},
+  showControls = true,
+  initialSearch = '',
+}: TableProps<TData, TSortKeys, TApi, TFilters>) => {
   const showSnackbar = useSnackbar();
   const pageNumberInputRef = useRef<InputBoxRef | null>(null);
 
-  const [hoveredRowId, setHoveredRowId] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [data, setData] = useState<TData[]>([]);
+  const [filters, setFilters] = useState<Filters<TFilters>>(initialFilters);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
-    pageSize: 10,
+    pageSize: defaultPageSize,
   });
-  const [columnFilters, setColumnFilters] = useState<ColumnFilter[]>([]);
-  const [searchInput, setSearchInput] = useState<string>("");
+  const [searchInput, setSearchInput] = useState<string>(initialSearch);
+  const [loading, setLoading] = useState<boolean>(true);
 
-  const debouncedSearch = useDebounce(searchInput, 1000);
+  const debouncedFilters = useMultiDebounce({
+    values: { searchInput, sorting, pagination, filters },
+    delays: {
+      searchInput: 1000,
+      sorting: 100,
+      pagination: 50,
+      filters: 300,
+    },
+  });
 
   const fetchData = () => {
+    setLoading(true);
     api
       .list({
         page: pagination.pageIndex + 1,
         limit: pagination.pageSize,
         ordering: sorting.length
-          ? `${sorting[0].desc ? "-" : ""}${columns[sorting[0].id].key}`
+          ? (sorting[0].desc ? "-" : "") + ((
+              Array.isArray(columns[sorting[0].id].key)
+                ? (columns[sorting[0].id].key as string[]).at(-1)
+                : columns[sorting[0].id].key
+            ) as string)
           : defaultSortField
-          ? `${defaultSortDirection === "desc" ? "-" : ""}${
-              defaultSortField as string
-            }`
-          : undefined,
+            ? `${defaultSortDirection === "desc" ? "-" : ""}${
+                defaultSortField as string
+              }`
+            : undefined,
         search: searchInput.trim(),
+        ...filters,
       } as TFilters)
       .then((res) => {
         setTotalCount(res.count);
@@ -129,26 +175,67 @@ export const Table = <
       .catch((err) => {
         // Try again with previous page (ex: if a deletion occurs on the last page
         //                    it will throw an error due to the page not existing)
-        if (err?.response?.data?.detail === "Invalid page.") {
+        if (err?.response?.data?.detail === "Invalid page." && pagination.pageIndex > 0) {
           setPagination((prev) => ({ ...prev, pageIndex: prev.pageIndex - 1 }));
         } else {
           showSnackbar("Failed to fetch the table!", "error");
         }
+      })
+      .finally(() => {
+        setLoading(false);
       });
   };
 
   useEffect(() => {
     fetchData();
-  }, [sorting, pagination]);
+  }, [debouncedFilters]);
 
   useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-  }, [debouncedSearch]);
+  }, [searchInput]);
 
-  const cellRenderers: Partial<Record<ColumnTypes, (value: any) => any>> = {
-    user: (value) => value.username,
-    datetime: (value) => value.replace("T", " ").split(".")[0],
-    thumbnail: (value) => <img src={value} alt="" className="h-3" />,
+  const cellRenderers: Partial<Record<ColumnTypes, (value: any, column: ColumnMap<TData>, rowId: number) => React.ReactNode>> = {
+    user: (value) => (
+      <div className="flex flex-col">
+        <span className="text-base font-semibold">{value.first_name} {value.last_name}</span>
+        <span className="sm:italic text-xs">{value.username}</span>
+      </div>
+    ),
+    datetime: (value) => (new Date(value)).toLocaleString(),
+    thumbnail: (value) => (
+      <div className="h-13 w-13 overflow-hidden rounded-full">
+        <img
+          src={value || "/user-icon.png"}
+          alt="Thumbnail/Icon"
+          className={`size-full object-cover`}
+        />
+      </div>
+    ),
+    select: (value, column, rowId) => (
+      <SelectionBox
+        defaultValue={value}
+        options={column.options}
+        onChange={(e) => {
+          api(
+            (Array.isArray(columns.id.key)
+              ? columns.id.key
+              : [columns.id.key]
+            ).reduce((acc: any, key) => acc?.[key], data[rowId])
+          )
+            .update({
+              [(
+                Array.isArray(column.key)
+                  ? (column.key as string[]).at(-1)
+                  : column.key
+              ) as keyof TData]: e.target.value,
+            } as unknown as Partial<TPayload>)
+            .catch(() => {
+              showSnackbar("Something went wrong. Please try again later.", "error");
+            });
+        }}
+        className="w-full"
+      />
+    ),
   };
   const defaultRenderer = (value: any) => value?.toString() ?? "";
 
@@ -159,22 +246,40 @@ export const Table = <
       const renderer =
         cellRenderers[columnMapper.type ?? "other"] ?? defaultRenderer;
 
-      return columnHelper.accessor((row: TData) => row[columnMapper["key"]], {
-        id: label,
-        cell: (context) =>
-          columnMapper.hidden
-            ? ""
-            : renderer(
-                columnMapper.value
-                  ? columnMapper.value(context.getValue())
-                  : context.getValue()
-              ),
-        header: columnMapper.hidden ? "" : label,
-        enableSorting: (sortKeys as Array<keyof TData>).includes(
-          columnMapper["key"]
+      return columnHelper.accessor((row: TData) =>
+        (Array.isArray(columnMapper.key)
+          ? columnMapper.key
+          : [columnMapper.key]
+        ).reduce(
+          (acc: any, key) =>
+            key === '.' ? acc : acc?.[key],
+          row
         ),
-        enableColumnFilter: false, // Temporary
-      });
+        {
+          id: label,
+          cell: (context) =>
+            columnMapper.hidden
+              ? ""
+              : renderer(
+                  columnMapper.value
+                    ? columnMapper.value(context.getValue())
+                    : context.getValue(),
+                  columnMapper,
+                  Number(context.row.id),
+                ),
+          header: columnMapper.hidden || columnMapper.hideLabel ? "" : label,
+          enableSorting: (sortKeys as Array<keyof TData>).includes(
+            (Array.isArray(columnMapper.key)
+              ? (columnMapper.key as string[]).at(-1)
+              : columnMapper.key
+            ) as string
+          ),
+          enableColumnFilter: false, // Temporary
+          meta: {
+            style: columnMapper.style
+          },
+          enableHiding: columnMapper.hidden,
+        });
     }),
     ...(actions?.length
       ? [
@@ -186,6 +291,8 @@ export const Table = <
                   action.canUse === undefined ||
                   action.canUse(data[Number(context.row.id)]);
 
+                if (!canUseAction) return;
+
                 return (
                   <Icon
                     key={index}
@@ -193,15 +300,12 @@ export const Table = <
                     size={action.rowIconSize}
                     className={
                       action.rowIconClassName +
-                      " mx-1 " +
-                      (hoveredRowId === context.row.id && canUseAction
-                        ? "opacity-100"
-                        : "opacity-0")
+                      " mx-1 invisible group-hover/row:visible"
                     }
                     onClick={(e) => {
                       if (!canUseAction) return;
                       e.stopPropagation();
-                      action.rowIconClicked();
+                      action.rowIconClicked(Number(context.row.id));
                     }}
                   />
                 );
@@ -209,6 +313,9 @@ export const Table = <
             header: "",
             enableSorting: false,
             enableColumnFilter: false,
+            meta: {
+              style: "text-right pr-2 w-px whitespace-nowrap"
+            },
           }),
         ]
       : []),
@@ -217,9 +324,16 @@ export const Table = <
   const table = useReactTable({
     data,
     columns: columnDefinitions,
+    initialState: {
+      columnVisibility: Object.entries(columns).reduce((acc, [key, value]) => {
+        return {
+          ...acc,
+          [key]: !value?.hidden
+        };
+      }, {}),
+    },
     state: {
       sorting,
-      columnFilters,
     },
     getRowId: (_row, index) => index.toString(),
     manualPagination: true,
@@ -227,213 +341,250 @@ export const Table = <
     manualFiltering: true,
     onPaginationChange: setPagination,
     onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
     getSortedRowModel: getSortedRowModel(),
     getCoreRowModel: getCoreRowModel(),
   });
 
   useImperativeHandle(ref, () => ({
     refresh: fetchData,
-    data: data,
-    dataIndex: Number(hoveredRowId),
+    data,
+    filters,
+    setFilters,
+    searchInput,
+    setSearchInput,
   }));
 
   return (
-    <div className="p-2">
-      <h1 className="header-1">{label}</h1>
-      <div className="flex justify-between items-center">
-        <div className="ml-2">
-          <span>Display</span>
-          <SelectionBox
-            className="ml-2 mr-2"
-            defaultValue={pagination.pageSize}
-            options={[5, 10, 20, 50, 100].map((option) => ({
-              label: option,
-              value: option,
-            }))}
-            onChange={(e) => {
-              setPagination({
-                pageIndex: 0,
-                pageSize: Number(e.target.value),
-              });
-            }}
-          />
-          <span>per page</span>
+    <div className={`block ${style}`}>
+      {enableSearch || extras ? (
+        <div className="flex items-center">
+          {enableSearch ? (
+            <div className="flex">
+              <div className="relative w-64 mx-2 my-4">
+                <Icon
+                  icon={MagnifyingGlassIcon}
+                  size={20}
+                  className="absolute left-2 top-1/2 transform -translate-y-1/2"
+                />
+                <InputBox
+                  className="pl-9 pr-2 h-10 w-full border rounded"
+                  placeholder="Search"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                />
+              </div>
+            </div>
+          ) : <div></div>}
+          <div className="flex justify-end mx-2 w-full">{extras}</div>
         </div>
-        <div className="relative w-64 mx-2 my-4">
-          <Icon
-            icon={MagnifyingGlassIcon}
-            size={20}
-            className="absolute left-2 top-1/2 transform -translate-y-1/2"
-          />
-          <InputBox
-            className="pl-9 pr-2 h-10 w-full border rounded"
-            placeholder="Search"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-          />
-        </div>
-      </div>
-      <table className="w-full">
-        <thead className="table-header">
-          {table.getHeaderGroups().map((headerGroup) => (
-            <tr key={headerGroup.id}>
-              {headerGroup.headers.map((header) => {
-                const canSort = header.column.getCanSort();
-                const sortDirection = header.column.getIsSorted();
-                return (
-                  <th
-                    key={header.id}
-                    className="text-left select-none pl-0.5"
-                    onClick={
-                      canSort
-                        ? header.column.getToggleSortingHandler()
-                        : undefined
-                    }
-                    style={{ cursor: canSort ? "pointer" : "default" }}
-                  >
-                    <span className="inline-flex items-center">
-                      {header.isPlaceholder ? null : (
-                        <>
-                          {header.column.columnDef.header}
-                          {header.column.getCanFilter() ? (
-                            <>{/* Need to figure out what to put here */}</>
-                          ) : // <InputBox
-                          //   onChange={e =>
-                          //     setColumnFilters(old => [
-                          //       ...old.filter(f => f.id !== header.column.id),
-                          //       { id: header.column.id, value: e.target.value },
-                          //     ])
-                          //   }
-                          //   placeholder="Filter..."
-                          // />
-                          null}
-                        </>
-                      )}
-                      {header.column.columnDef.header ? (
-                        <Icon
-                          icon={(
-                            sortDirection === "asc" ?
-                              TextAlignTopIcon :
-                              TextAlignBottomIcon
+      ) : null}
+
+      <div className="relative">
+        {loading && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-dark-secondary/50 dark:bg-white/50 backdrop-blur-[1px]">
+            <div className="flex flex-col items-center">
+              <div className="w-10 h-10 border-4 border-white/80 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          </div>
+        )}
+        <table className="w-full">
+          {showHeader && (
+            <thead className="table-header">
+              {table.getHeaderGroups().map((headerGroup) => (
+                <tr key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => {
+                    const visible = header.column.getIsVisible();
+                    const canSort = header.column.getCanSort();
+                    const sortDirection = header.column.getIsSorted();
+
+                    return visible && (
+                      <th
+                        key={header.id}
+                        className="text-left select-none pl-0.5"
+                        onClick={
+                          canSort
+                            ? header.column.getToggleSortingHandler()
+                            : undefined
+                        }
+                        style={{ cursor: canSort ? "pointer" : "default" }}
+                      >
+                        <span className="inline-flex items-center text-black dark:text-white">
+                          {header.isPlaceholder ? null : (
+                            <>
+                              {header.column.columnDef.header}
+                              {header.column.getCanFilter() ? (
+                                <>{/* Need to figure out what to put here */}</>
+                              ) : // <InputBox
+                              //   onChange={e =>
+                              //     setColumnFilters(old => [
+                              //       ...old.filter(f => f.id !== header.column.id),
+                              //       { id: header.column.id, value: e.target.value },
+                              //     ])
+                              //   }
+                              //   placeholder="Filter..."
+                              // />
+                              null}
+                            </>
                           )}
-                          size={20}
-                          className={
-                            "ml-3 " +
-                            (sortDirection ? "opacity-100" : "opacity-0")
-                          }
-                        />
-                      ) : null}
-                    </span>
-                  </th>
-                );
-              })}
-            </tr>
-          ))}
-        </thead>
-        <tbody>
-          {table.getRowModel().rows.map((row) => (
-            <tr
-              onClick={() => handleRowClick(row)}
-              key={row.id}
-              className="table-row"
-              onMouseEnter={() => setHoveredRowId(row.id)}
-              onMouseLeave={() => setHoveredRowId(null)}
-            >
-              {row.getVisibleCells().map((cell) => (
-                <td key={cell.id} className="border-b border-gray-500">
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </td>
+                          {header.column.columnDef.header ? (
+                            <Icon
+                              icon={(
+                                sortDirection === "asc" ?
+                                  TextAlignTopIcon :
+                                  TextAlignBottomIcon
+                              )}
+                              size={20}
+                              className={
+                                "ml-3 " +
+                                (sortDirection ? "opacity-100" : "opacity-0")
+                              }
+                            />
+                          ) : null}
+                        </span>
+                      </th>
+                    );
+                  })}
+                </tr>
               ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <div className="flex justify-between items-center mt-4">
-        <div className="ml-2">{extras}</div>
-        <div>
-          <span style={{ margin: "0 10px", fontWeight: "bold" }}>
-            {totalCount ? pagination.pageIndex * pagination.pageSize + 1 : 0} -{" "}
-            {Math.min(
-              totalCount,
-              (pagination.pageIndex + 1) * pagination.pageSize
+            </thead>
+          )}
+          <tbody>
+            {table.getRowModel().rows.length > 0 ? (
+              table.getRowModel().rows.map((row) => (
+                <tr
+                  onClick={() => handleRowClick(row)}
+                  key={row.id}
+                  className={`table-row group/row font-semibold`}
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <td
+                      key={cell.id}
+                      className={`border-b border-gray-500 ${rowStyle}
+                                ${(cell.column.columnDef.meta as any)?.style ?? ''}`}
+                    >
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  ))}
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td 
+                  colSpan={table.getVisibleLeafColumns().length} 
+                  className="h-12 text-center text-gray-400 italic"
+                >
+                  {noResultsMessage}
+                </td>
+              </tr>
             )}
-            <span style={{ fontWeight: "normal" }}> of </span>
-            {totalCount}
-          </span>
-          <Icon
-            icon={DoubleArrowLeftIcon}
-            size={15}
-            className="mx-2"
-            onClick={() => {
-              setPagination((prev) => ({
-                ...prev,
-                pageIndex: 0,
-              }));
-            }}
-            disabled={pagination.pageIndex === 0}
-          />
-          <Icon
-            icon={ChevronLeftIcon}
-            size={15}
-            onClick={() => {
-              setPagination((prev) => ({
-                ...prev,
-                pageIndex: Math.max(prev.pageIndex - 1, 0),
-              }));
-            }}
-            disabled={pagination.pageIndex === 0}
-          />
-          <InputBox
-            ref={pageNumberInputRef}
-            value={String(pagination.pageIndex + 1)}
-            className="w-15 h-9 text-center ml-4 border"
-            onChange={(e) => {
-              setPagination((prev) => ({
-                ...prev,
-                pageIndex:
-                  Math.min(
-                    Math.ceil(totalCount / pagination.pageSize),
-                    Math.max(Number(e.target.value.replace(/\D/g, "")), 1)
-                  ) - 1,
-              }));
-            }}
-          />
-          <span style={{ margin: "0 10px" }}>
-            of {Math.max(1, Math.ceil(totalCount / pagination.pageSize))}
-          </span>
-          <Icon
-            icon={ChevronRightIcon}
-            size={15}
-            onClick={() => {
-              setPagination((prev) => ({
-                ...prev,
-                pageIndex:
-                  (prev.pageIndex + 1) * prev.pageSize < totalCount
-                    ? prev.pageIndex + 1
-                    : prev.pageIndex,
-              }));
-            }}
-            disabled={
-              (pagination.pageIndex + 1) * pagination.pageSize >= totalCount
-            }
-          />
-          <Icon
-            icon={DoubleArrowRightIcon}
-            size={15}
-            className="mx-2"
-            onClick={() => {
-              setPagination((prev) => ({
-                ...prev,
-                pageIndex: Math.ceil(totalCount / prev.pageSize) - 1,
-              }));
-            }}
-            disabled={
-              (pagination.pageIndex + 1) * pagination.pageSize >= totalCount
-            }
-          />
-        </div>
+          </tbody>
+        </table>
       </div>
+
+      {showControls && (
+        <div className="flex justify-between items-center mt-4">
+          <div className="ml-2">
+            <span>Display</span>
+            <SelectionBox
+              className="ml-2 mr-2"
+              defaultValue={pagination.pageSize}
+              options={pageSizeOptions.map((option) => ({
+                label: option,
+                value: option,
+              }))}
+              onChange={(e) => {
+                setPagination({
+                  pageIndex: 0,
+                  pageSize: Number(e.target.value),
+                });
+              }}
+            />
+            <span>per page</span>
+          </div>
+          <div>
+            <span style={{ margin: "0 10px", fontWeight: "bold" }}>
+              {totalCount ? pagination.pageIndex * pagination.pageSize + 1 : 0} -{" "}
+              {Math.min(
+                totalCount,
+                (pagination.pageIndex + 1) * pagination.pageSize
+              )}
+              <span style={{ fontWeight: "normal" }}> of </span>
+              {totalCount}
+            </span>
+            <Icon
+              icon={DoubleArrowLeftIcon}
+              size={15}
+              className="mx-2"
+              onClick={() => {
+                setPagination((prev) => ({
+                  ...prev,
+                  pageIndex: 0,
+                }));
+              }}
+              disabled={pagination.pageIndex === 0}
+            />
+            <Icon
+              icon={ChevronLeftIcon}
+              size={15}
+              onClick={() => {
+                setPagination((prev) => ({
+                  ...prev,
+                  pageIndex: Math.max(prev.pageIndex - 1, 0),
+                }));
+              }}
+              disabled={pagination.pageIndex === 0}
+            />
+            <InputBox
+              ref={pageNumberInputRef}
+              value={String(pagination.pageIndex + 1)}
+              className="w-15 h-9 text-center ml-4 border"
+              onChange={(e) => {
+                setPagination((prev) => ({
+                  ...prev,
+                  pageIndex:
+                    Math.min(
+                      Math.ceil(totalCount / pagination.pageSize),
+                      Math.max(Number(e.target.value.replace(/\D/g, "")), 1)
+                    ) - 1,
+                }));
+              }}
+            />
+            <span style={{ margin: "0 10px" }}>
+              of {Math.max(1, Math.ceil(totalCount / pagination.pageSize))}
+            </span>
+            <Icon
+              icon={ChevronRightIcon}
+              size={15}
+              onClick={() => {
+                setPagination((prev) => ({
+                  ...prev,
+                  pageIndex:
+                    (prev.pageIndex + 1) * prev.pageSize < totalCount
+                      ? prev.pageIndex + 1
+                      : prev.pageIndex,
+                }));
+              }}
+              disabled={
+                (pagination.pageIndex + 1) * pagination.pageSize >= totalCount
+              }
+            />
+            <Icon
+              icon={DoubleArrowRightIcon}
+              size={15}
+              className="mx-2"
+              onClick={() => {
+                setPagination((prev) => ({
+                  ...prev,
+                  pageIndex: Math.ceil(totalCount / prev.pageSize) - 1,
+                }));
+              }}
+              disabled={
+                (pagination.pageIndex + 1) * pagination.pageSize >= totalCount
+              }
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

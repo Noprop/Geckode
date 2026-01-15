@@ -55,8 +55,6 @@ export function convertFormData<TPayload>(payload : TPayload) {
   return formData
 }
 
-
-
 export function createBaseApi<
   TData,
   TPayload,
@@ -88,7 +86,7 @@ export function createBaseApi<
     };
 
     const methods = {
-      list: (filters?: TFilters, config?: AxiosRequestConfig) => unwrap<PaginatedResponse<TData>>(api.get(baseUrl, {...{ params: filters }, config})),
+      list: (filters?: Partial<TFilters>, config?: AxiosRequestConfig) => unwrap<PaginatedResponse<TData>>(api.get(baseUrl, {...{ params: filters }, config})),
       create: (data: TPayload | FormData, config?: AxiosRequestConfig) => unwrap<Required<TData>>(api.post(baseUrl, data, config)),
     };
 

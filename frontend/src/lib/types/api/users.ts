@@ -1,3 +1,5 @@
+import { BaseFilters } from ".";
+
 export interface User {
   id: number;
   created_at?: string;
@@ -10,7 +12,10 @@ export interface User {
   avatar: string | null;
 }
 
-export interface UserFilters {}
+export interface UserFilters extends BaseFilters {
+  exclude_project: number;
+  exclude_organization: number;
+}
 
 export interface UserPayload {
   username: string;
@@ -21,3 +26,11 @@ export interface UserPayload {
   password2: string;
 }
 
+export const userSortKeys: (keyof User)[] = [
+  "id",
+  "username",
+  "first_name",
+  "last_name",
+];
+
+export type UserSortKeys = (typeof userSortKeys)[number];

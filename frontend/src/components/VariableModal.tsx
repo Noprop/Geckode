@@ -1,10 +1,10 @@
-import { Modal } from './ui/Modal';
-import { Button } from './ui/Button';
-import { InputBox, InputBoxRef } from './ui/InputBox';
+import { Modal } from '@/components/ui/modals/Modal';
+import { InputBox, InputBoxRef } from '@/components/ui/inputs/InputBox';
 import { InfoCircledIcon } from '@radix-ui/react-icons';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useRef } from 'react';
 import { useEditorStore } from '@/stores/editorStore';
+import { Button } from '@/components/ui/Button';
 
 interface Props {
   showVariableModal: boolean;
@@ -13,14 +13,14 @@ interface Props {
 
 const VariableModal = ({ showVariableModal, setShowVariableModal }: Props) => {
   const showSnackbar = useSnackbar();
-  const workspace = useEditorStore((state) => state.blocklyRef?.getWorkspace());
+  const workspace = useEditorStore((state) => state.blocklyWorkspace);
   const variableInputRef = useRef<InputBoxRef | null>(null);
 
   const handleClose = () => {
     setShowVariableModal(false);
     const flyout = workspace?.getFlyout();
     if (flyout) flyout.autoClose = true;
-  }
+  };
 
   if (!showVariableModal) return null;
 
@@ -67,11 +67,7 @@ const VariableModal = ({ showVariableModal, setShowVariableModal }: Props) => {
       >
         Please enter a name for your variable:
         <div className="flex flex-col">
-          <InputBox
-            ref={variableInputRef}
-            placeholder="Variable name"
-            className="bg-white text-black my-3 border-0"
-          />
+          <InputBox ref={variableInputRef} placeholder="Variable name" className="bg-white text-black my-3 border-0" />
         </div>
       </Modal>
     </div>

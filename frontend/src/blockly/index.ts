@@ -8,6 +8,7 @@ import { spriteBlocks } from '@/blockly/blocks/sprites';
 import { eventBlocks } from '@/blockly/blocks/events';
 import { inputBlocks } from '@/blockly/blocks/input';
 import { developmentBlocks } from '@/blockly/blocks/development';
+import { ghostBlocks } from '@/blockly/blocks/ghosts';
 
 import { javascriptGenerator } from 'blockly/javascript';
 import { useEditorStore } from '@/stores/editorStore';
@@ -28,6 +29,7 @@ const customBlocks = [
   ...eventBlocks,
   ...inputBlocks,
   ...developmentBlocks,
+  ...ghostBlocks,
 ];
 
 let isRegistered = false;

@@ -28,6 +28,9 @@ const SpritePanel = () => {
     } else if (!selectedSpriteId && sprites.length > 0) {
       setSelectedSpriteId(sprites[0].id);
     }
+    if(selectedSpriteId){
+      useEditorStore.getState().loadWorkspace(selectedSpriteId);
+    }
   }, [sprites, selectedSpriteId]);
 
   // handlers for our custom input fields for editing sprite properties

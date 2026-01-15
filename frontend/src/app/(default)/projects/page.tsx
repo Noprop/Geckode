@@ -11,22 +11,25 @@ import {
 import { useRef, useState } from "react";
 import { Table, TableRef } from "@/components/ui/Table";
 import { Button } from "@/components/ui/Button";
-import { Modal } from "@/components/ui/Modal";
-import { InputBox, InputBoxRef } from "@/components/ui/InputBox";
+import { Modal } from "@/components/ui/modals/Modal";
+import { InputBox, InputBoxRef } from "@/components/ui/inputs/InputBox";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import DragAndDrop, { DragAndDropRef } from "@/components/DragAndDrop";
 import { convertFormData } from "@/lib/api/base";
-import { FilePlusIcon, TrashIcon } from "@radix-ui/react-icons";
+import { FilePlusIcon, Share1Icon, TrashIcon } from "@radix-ui/react-icons";
+import { ProjectShareModal } from "@/components/ui/modals/ProjectShareModal";
+import { SelectionBox } from "@/components/ui/selectors/SelectionBox";
 
 export default function ProjectsPage() {
   const showSnackbar = useSnackbar();
 
   const dropboxRef = useRef<DragAndDropRef>(null);
-  const tableRef = useRef<TableRef<Project> | null>(null);
+  const tableRef = useRef<TableRef<Project, ProjectFilters> | null>(null);
   const projectNameRef = useRef<InputBoxRef | null>(null);
   const autoProjectOpenRef = useRef<InputBoxRef | null>(null);
 
-  const [showModal, setShowModal] = useState<null | "create" | "delete">(null);
+  const [showModal, setShowModal] = useState<null | "create" | "delete" | "share">(null);
+  const [rowIndex, setRowIndex] = useState<number>(0);
 
   const createProject = () => {
     projectsApi
@@ -50,7 +53,7 @@ export default function ProjectsPage() {
   };
 
   const deleteProject = () => {
-    const projectId = tableRef.current?.data[tableRef.current?.dataIndex]["id"];
+    const projectId = tableRef.current?.data[rowIndex]["id"];
 
     if (!projectId) return;
 
@@ -68,6 +71,7 @@ export default function ProjectsPage() {
 
   return (
     <div className="mx-20 my-5">
+      <h1 className="header-1">Projects</h1>
       <Table<
         Project,
         ProjectPayload,
@@ -76,7 +80,6 @@ export default function ProjectsPage() {
         typeof projectsApi
       >
         ref={tableRef}
-        label="Projects"
         api={projectsApi}
         columns={{
           id: {
@@ -86,9 +89,12 @@ export default function ProjectsPage() {
           Thumbnail: {
             key: "thumbnail",
             type: "thumbnail",
+            hideLabel: true,
+            style: "w-20",
           },
           Name: {
             key: "name",
+            style: "min-w-50",
           },
           Owner: {
             key: "owner",
@@ -98,6 +104,10 @@ export default function ProjectsPage() {
             key: "created_at",
             type: "datetime",
           },
+          "Updated At": {
+            key: "updated_at",
+            type: "datetime",
+          }
         }}
         sortKeys={projectSortKeys}
         defaultSortField="updated_at"
@@ -107,29 +117,55 @@ export default function ProjectsPage() {
         }
         actions={[
           {
+            rowIcon: Share1Icon,
+            rowIconSize: 24,
+            rowIconClicked: (index) => {
+              setRowIndex(index);
+              setShowModal("share");
+            },
+            rowIconClassName: "hover:text-green-500 mt-1",
+            canUse: (project) => ["owner", "admin", "manage", "invite"].includes(project.permission ?? ''),
+          },
+          {
             rowIcon: TrashIcon,
             rowIconSize: 24,
-            rowIconClicked: () => setShowModal("delete"),
+            rowIconClicked: (index) => {
+              setRowIndex(index);
+              setShowModal("delete");
+            },
             rowIconClassName: "hover:text-red-500 mt-1",
             canUse: (project) => project.permission === "owner",
           },
         ]}
         extras={
-          <>
+          <div className="flex grow justify-between">
+            <SelectionBox
+              options={[
+                { value: "", label: "Owned by anyone" },
+                { value: "1", label: "Owned by me" }, // TODO: Use user's ID here for value
+                { value: "0", label: "Owned by others" },
+              ]}
+              onChange={(e) => {
+                tableRef.current?.setFilters(filters => ({
+                  ...filters,
+                  ...{owner: e.target.value ? Number(e.target.value) : undefined}
+                }));
+              }}
+            />
             <Button
               onClick={() => setShowModal("create")}
               className="btn-confirm"
             >
               Create Project
             </Button>
-          </>
+          </div>
         }
+        rowStyle="py-2"
       />
 
       {showModal === "create" ? (
         <Modal
-          onClose={() => setShowModal(null)}
-          title="Create project"
+          title="Create Project"
           icon={FilePlusIcon}
           actions={
             <>
@@ -168,10 +204,10 @@ export default function ProjectsPage() {
       ) : showModal === "delete" ? (
         <Modal
           className="bg-red-500"
-          onClose={() => setShowModal(null)}
-          title={`Delete project (${
-            tableRef.current?.data?.[tableRef.current.dataIndex]["name"]
-          })`}
+          title="Delete Project"
+          subtitle={tableRef.current?.data?.[rowIndex]["name"]}
+          text="Are you sure you would like to delete this project? This is a
+                permanent change that cannot be undone."
           icon={TrashIcon}
           actions={
             <>
@@ -186,10 +222,12 @@ export default function ProjectsPage() {
               </Button>
             </>
           }
-        >
-          Are you sure you would like to delete this project? This is a
-          permanent change that cannot be undone.
-        </Modal>
+        />
+      ) : showModal === "share" && tableRef.current?.data?.[rowIndex] ? (
+        <ProjectShareModal
+          onClose={() => setShowModal(null)}
+          project={tableRef.current?.data?.[rowIndex]}
+        />
       ) : null}
     </div>
   );

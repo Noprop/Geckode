@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import organizationsApi from "@/lib/api/handlers/organizations";
-import TabSystem from "@/components/ui/TabSystem";
+import TabSystem from "@/components/ui/selectors/TabSystem";
 import { Organization } from "@/lib/types/api/organizations";
 import { authApi } from "@/lib/api/auth";
 import { User } from "@/lib/types/api/users";

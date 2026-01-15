@@ -1,13 +1,13 @@
-import { ChangeEvent, Dispatch, SetStateAction, useImperativeHandle, useState } from "react";
+import { ChangeEvent, Dispatch, HTMLAttributes, SetStateAction, useEffect, useImperativeHandle, useState } from "react";
 
 export interface SelectionBoxRef {
-  inputValue: string;
-  setInputValue: Dispatch<SetStateAction<string>>;
+  value: string;
+  setValue: Dispatch<SetStateAction<string>>;
 }
 
-interface Option {
+export interface Option {
   label: string | number;
-  value: string | number;
+  value: string | number | undefined;
 }
 
 interface SelectionBoxProps {
@@ -16,7 +16,7 @@ interface SelectionBoxProps {
   options?: Option[];
   onChange?: (e: ChangeEvent<HTMLSelectElement>) => void;
   required?: boolean;
-  className?: string;
+  className?: HTMLAttributes<HTMLElement>["className"];
   overrideClassName?: boolean;
   disabled?: boolean;
 }
@@ -31,18 +31,18 @@ export const SelectionBox = ({
   overrideClassName = false,
   disabled = false,
 }: SelectionBoxProps) => {
-  const [inputValue, setInputValue] = useState<string>(String(defaultValue));
+  const [value, setValue] = useState<string>(String(defaultValue));
 
   useImperativeHandle(ref, () => ({
-    inputValue: inputValue,
-    setInputValue: setInputValue,
+    value: value,
+    setValue: setValue,
   }));
 
   return (
     <select
-      value={inputValue}
+      value={value}
       onChange={(e) => {
-        setInputValue(e.target.value);
+        setValue(e.target.value);
         onChange(e);
       }}
       required={required}
