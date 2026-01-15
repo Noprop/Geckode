@@ -118,7 +118,6 @@ javascriptGenerator.forBlock['getProperty'] = function (block, generator) {
   return [code, Order.NONE];
 };
 
-registerFieldAngle();
 const setRotation = {
   type: "setRotation",
   tooltip: "Set the rotation of a sprite",
@@ -131,13 +130,9 @@ const setRotation = {
       options: getSpriteDropdownOptions,
     },
     {
-      type: "field_angle",
-      name: "VALUE",
-      clockwise: true,
-      offset: 90,
-      value: 90,
-      symbol: ""
-    }
+      type: 'input_value',
+      name: 'VALUE',
+    },
   ],
   previousStatement: null,
   nextStatement: null,
@@ -145,11 +140,10 @@ const setRotation = {
 }
 
 javascriptGenerator.forBlock['setRotation'] = function (block, generator) {
-  var value = block.getFieldValue("VALUE");
-  value = (value - 90) % 360;
+  const value = generator.valueToCode(block, 'VALUE', Order.NONE) || 0;
   const spriteKey = block.getFieldValue('SPRITE');
 
-  return `scene.getSprite(${spriteKey === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey + '"'}).angle = ${value}\n`;
+  return `scene.getSprite(${spriteKey === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey + '"'}).angle = (${value}-90) % 360\n`;
 };
 
 const pointAtXY = {

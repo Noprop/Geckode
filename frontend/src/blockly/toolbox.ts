@@ -75,6 +75,13 @@ const getToolbox = () => {
           {
             kind: 'block',
             type: 'setRotation',
+            inputs: {
+              VALUE: {
+                shadow: {
+                  type: 'angleGhost',
+                },
+              },
+            },
           },
           {
             kind: 'block',
