@@ -1,20 +1,16 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useImperativeHandle } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import StartGame from "@/phaser/phaserConfig";
 import { EventBus } from "@/phaser/EventBus";
 import { EDITOR_SCENE_KEY } from '@/phaser/scenes/EditorScene';
 import type EditorScene from '@/phaser/scenes/EditorScene';
 import type { Game } from 'phaser';
-import { loadPhaserState, PhaserExport } from '@/phaser/PhaserStateManager';
 import { useEditorStore } from '@/stores/editorStore';
-
-type Props = {
-  ref: any;
-};
+import GameScene from "@/phaser/scenes/GameScene";
 
 // the React hooks in this component are written in order of their actual execution.
-const PhaserContainer = ({ ref }: Props) => {
+const PhaserGame = () => {
   const isConverting = useEditorStore((state) => state.isConverting);
   const internalGameRef = useRef<Game | null>(null);
 
@@ -23,23 +19,14 @@ const PhaserContainer = ({ ref }: Props) => {
       internalGameRef.current = StartGame('game-container');
   }, []);
 
-  useImperativeHandle(
-    ref,
-    () => {
-      console.log('useImperativeHandle(), ', internalGameRef.current);
-      return {
-        game: internalGameRef.current,
-        scene: null,
-      };
-    },
-    []
-  );
-
   useEffect(() => {
     // this scene event listener will live until this Phaser react component has been torn down
     const handler = (scene: Phaser.Scene | EditorScene) => {
       if (!('key' in scene) || !(scene.key == EDITOR_SCENE_KEY)) return;
-      ref.current.scene = scene;
+      useEditorStore.getState().setPhaserRef({
+        game: internalGameRef.current as Game,
+        scene: scene as unknown as EditorScene | GameScene,
+      });
     };
     EventBus.on('current-scene-ready', handler);
 
@@ -72,20 +59,6 @@ const PhaserContainer = ({ ref }: Props) => {
     };
   }, []);
 
-  // useEffect(() => {
-  //   const handler = () => {
-  //     // const phaserState = useEditorStore.getState().phaserState;
-
-  //     // if (phaserState && Object.keys(phaserState).length > 0)
-  //     //   loadPhaserState((ref as any).current, phaserState);
-  //     // else (ref as any).current.scene.createSprite('hero', 200, 300, 'hero');
-  //   };
-  //   EventBus.on('current-scene-ready', handler);
-  //   return () => {
-  //     EventBus.off('current-scene-ready', handler);
-  //   };
-  // }, [ref]);
-
   return (
     <div className="relative">
       <div
@@ -110,4 +83,4 @@ const PhaserContainer = ({ ref }: Props) => {
   );
 };
 
-export default PhaserContainer;
+export default PhaserGame;
