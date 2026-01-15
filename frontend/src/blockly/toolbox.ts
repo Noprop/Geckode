@@ -72,6 +72,32 @@ const getToolbox = () => {
               SPRITE: spriteId,
             },
           },
+          {
+            kind: 'block',
+            type: 'setRotation',
+          },
+          {
+            kind: 'block',
+            type: 'pointAtXY',
+            inputs: {
+              x: {
+                shadow: {
+                  type: 'math_number',
+                  fields: {
+                    NUM: 0,
+                  },
+                },
+              },
+              y: {
+                shadow: {
+                  type: 'math_number',
+                  fields: {
+                    NUM: 0,
+                  },
+                },
+              },
+            },
+          },
         ],
       },
       {
@@ -201,6 +227,20 @@ const getToolbox = () => {
           {
             kind: 'block',
             type: 'runJS',
+          },
+          {
+            kind: 'block',
+            type: 'consoleLog',
+            inputs: {
+              VALUE: {
+                shadow: {
+                  type: 'math_number',
+                  fields: {
+                    NUM: 0,
+                  },
+                },
+              },
+            },
           },
         ],
       },

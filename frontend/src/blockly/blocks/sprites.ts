@@ -123,8 +123,13 @@ const setRotation = {
   type: "setRotation",
   tooltip: "Set the rotation of a sprite",
   helpUrl: "",
-  message0: "set rotation to %1",
+  message0: "rotate %1 to %2",
   args0: [
+    {
+      type: 'field_dropdown',
+      name: 'SPRITE',
+      options: getSpriteDropdownOptions,
+    },
     {
       type: "field_angle",
       name: "VALUE",
@@ -142,15 +147,22 @@ const setRotation = {
 javascriptGenerator.forBlock['setRotation'] = function (block, generator) {
   var value = block.getFieldValue("VALUE");
   value = (value - 90) % 360;
-  return `scene.player.angle = ${value}\n`;
+  const spriteKey = block.getFieldValue('SPRITE');
+
+  return `scene.getSprite(${spriteKey === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey + '"'}).angle = ${value}\n`;
 };
 
 const pointAtXY = {
   type: "pointAtXY",
   tooltip: "Point at a positin",
   helpUrl: "",
-  message0: "point at x:%1 y:%2",
+  message0: "point %1 at x:%2 y:%3",
   args0: [
+    {
+      type: 'field_dropdown',
+      name: 'SPRITE',
+      options: getSpriteDropdownOptions,
+    },
     {
       type: "input_value",
       name: "x",
@@ -171,8 +183,11 @@ const pointAtXY = {
 javascriptGenerator.forBlock['pointAtXY'] = function (block, generator) {
   const x = generator.valueToCode(block, 'x', Order.NONE) || 0;
   const y = generator.valueToCode(block, 'y', Order.NONE) || 0;
+  const spriteKey = block.getFieldValue('SPRITE');
+  const spriteName = `scene.getSprite(${spriteKey === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey + '"'})`
 
-  return `scene.player.rotation = Phaser.Math.Angle.Between(scene.player.x, scene.player.y, ${x}, ${y})\n`;
+
+  return `${spriteName}.rotation = Phaser.Math.Angle.Between(${spriteName}.x, ${spriteName}.y, ${x}, ${y})\n`;
 };
 
 export const spriteBlocks = [
