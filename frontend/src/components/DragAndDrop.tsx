@@ -118,7 +118,7 @@ const DragAndDrop = ({
           }}
         />
         <div
-          className="text-sm underline text-blue-500 hover:text-blue-400 active:text-blue-600 hover:cursor-pointer w-full text-center"
+          className="text-sm underline text-blue-500 hover:text-blue-400 active:text-blue-600 text-shadow-sm hover:cursor-pointer w-full text-center"
           onClick={() => inputRef.current?.click()}
         >
           Open File Explorer

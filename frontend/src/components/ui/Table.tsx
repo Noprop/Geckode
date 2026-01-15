@@ -102,7 +102,9 @@ export const Table = <
   TPayload extends Record<string, any>,
   TFilters extends BaseFilters,
   TSortKeys extends string,
-  TApi extends BaseApiInnerReturn<typeof createBaseApi<TData, TPayload, TFilters>>,
+  TApi extends BaseApiInnerReturn<
+    typeof createBaseApi<TData, TPayload, TFilters>
+  >
 >({
   ref,
   api,
@@ -116,13 +118,13 @@ export const Table = <
   handleRowClick = () => {},
   actions,
   extras,
-  style = '',
-  rowStyle = '',
+  style = "",
+  rowStyle = "",
   showHeader = true,
-  noResultsMessage = 'No results to display.',
+  noResultsMessage = "No results to display.",
   initialFilters = {},
   showControls = true,
-  initialSearch = '',
+  initialSearch = "",
 }: TableProps<TData, TSortKeys, TApi, TFilters>) => {
   const showSnackbar = useSnackbar();
   const pageNumberInputRef = useRef<InputBoxRef | null>(null);
@@ -155,16 +157,15 @@ export const Table = <
         page: pagination.pageIndex + 1,
         limit: pagination.pageSize,
         ordering: sorting.length
-          ? (sorting[0].desc ? "-" : "") + ((
-              Array.isArray(columns[sorting[0].id].key)
-                ? (columns[sorting[0].id].key as string[]).at(-1)
-                : columns[sorting[0].id].key
-            ) as string)
+          ? (sorting[0].desc ? "-" : "") +
+            ((Array.isArray(columns[sorting[0].id].key)
+              ? (columns[sorting[0].id].key as string[]).at(-1)
+              : columns[sorting[0].id].key) as string)
           : defaultSortField
-            ? `${defaultSortDirection === "desc" ? "-" : ""}${
-                defaultSortField as string
-              }`
-            : undefined,
+          ? `${defaultSortDirection === "desc" ? "-" : ""}${
+              defaultSortField as string
+            }`
+          : undefined,
         search: searchInput.trim(),
         ...filters,
       } as TFilters)
@@ -175,7 +176,10 @@ export const Table = <
       .catch((err) => {
         // Try again with previous page (ex: if a deletion occurs on the last page
         //                    it will throw an error due to the page not existing)
-        if (err?.response?.data?.detail === "Invalid page." && pagination.pageIndex > 0) {
+        if (
+          err?.response?.data?.detail === "Invalid page." &&
+          pagination.pageIndex > 0
+        ) {
           setPagination((prev) => ({ ...prev, pageIndex: prev.pageIndex - 1 }));
         } else {
           showSnackbar("Failed to fetch the table!", "error");
@@ -194,14 +198,21 @@ export const Table = <
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
   }, [searchInput]);
 
-  const cellRenderers: Partial<Record<ColumnTypes, (value: any, column: ColumnMap<TData>, rowId: number) => React.ReactNode>> = {
+  const cellRenderers: Partial<
+    Record<
+      ColumnTypes,
+      (value: any, column: ColumnMap<TData>, rowId: number) => React.ReactNode
+    >
+  > = {
     user: (value) => (
       <div className="flex flex-col">
-        <span className="text-base font-semibold">{value.first_name} {value.last_name}</span>
+        <span className="text-base font-semibold">
+          {value.first_name} {value.last_name}
+        </span>
         <span className="sm:italic text-xs">{value.username}</span>
       </div>
     ),
-    datetime: (value) => (new Date(value)).toLocaleString(),
+    datetime: (value) => new Date(value).toLocaleString(),
     thumbnail: (value) => (
       <div className="h-13 w-13 overflow-hidden rounded-full">
         <img
@@ -223,14 +234,15 @@ export const Table = <
             ).reduce((acc: any, key) => acc?.[key], data[rowId])
           )
             .update({
-              [(
-                Array.isArray(column.key)
-                  ? (column.key as string[]).at(-1)
-                  : column.key
-              ) as keyof TData]: e.target.value,
+              [(Array.isArray(column.key)
+                ? (column.key as string[]).at(-1)
+                : column.key) as keyof TData]: e.target.value,
             } as unknown as Partial<TPayload>)
             .catch(() => {
-              showSnackbar("Something went wrong. Please try again later.", "error");
+              showSnackbar(
+                "Something went wrong. Please try again later.",
+                "error"
+              );
             });
         }}
         className="w-full"
@@ -246,15 +258,12 @@ export const Table = <
       const renderer =
         cellRenderers[columnMapper.type ?? "other"] ?? defaultRenderer;
 
-      return columnHelper.accessor((row: TData) =>
-        (Array.isArray(columnMapper.key)
-          ? columnMapper.key
-          : [columnMapper.key]
-        ).reduce(
-          (acc: any, key) =>
-            key === '.' ? acc : acc?.[key],
-          row
-        ),
+      return columnHelper.accessor(
+        (row: TData) =>
+          (Array.isArray(columnMapper.key)
+            ? columnMapper.key
+            : [columnMapper.key]
+          ).reduce((acc: any, key) => (key === "." ? acc : acc?.[key]), row),
         {
           id: label,
           cell: (context) =>
@@ -265,21 +274,21 @@ export const Table = <
                     ? columnMapper.value(context.getValue())
                     : context.getValue(),
                   columnMapper,
-                  Number(context.row.id),
+                  Number(context.row.id)
                 ),
           header: columnMapper.hidden || columnMapper.hideLabel ? "" : label,
           enableSorting: (sortKeys as Array<keyof TData>).includes(
             (Array.isArray(columnMapper.key)
               ? (columnMapper.key as string[]).at(-1)
-              : columnMapper.key
-            ) as string
+              : columnMapper.key) as string
           ),
           enableColumnFilter: false, // Temporary
           meta: {
-            style: columnMapper.style
+            style: columnMapper.style,
           },
           enableHiding: columnMapper.hidden,
-        });
+        }
+      );
     }),
     ...(actions?.length
       ? [
@@ -314,7 +323,7 @@ export const Table = <
             enableSorting: false,
             enableColumnFilter: false,
             meta: {
-              style: "text-right pr-2 w-px whitespace-nowrap"
+              style: "text-right pr-2 w-px whitespace-nowrap",
             },
           }),
         ]
@@ -328,7 +337,7 @@ export const Table = <
       columnVisibility: Object.entries(columns).reduce((acc, [key, value]) => {
         return {
           ...acc,
-          [key]: !value?.hidden
+          [key]: !value?.hidden,
         };
       }, {}),
     },
@@ -374,7 +383,9 @@ export const Table = <
                 />
               </div>
             </div>
-          ) : <div></div>}
+          ) : (
+            <div></div>
+          )}
           <div className="flex justify-end mx-2 w-full">{extras}</div>
         </div>
       ) : null}
@@ -397,51 +408,55 @@ export const Table = <
                     const canSort = header.column.getCanSort();
                     const sortDirection = header.column.getIsSorted();
 
-                    return visible && (
-                      <th
-                        key={header.id}
-                        className="text-left select-none pl-0.5"
-                        onClick={
-                          canSort
-                            ? header.column.getToggleSortingHandler()
-                            : undefined
-                        }
-                        style={{ cursor: canSort ? "pointer" : "default" }}
-                      >
-                        <span className="inline-flex items-center text-black dark:text-white">
-                          {header.isPlaceholder ? null : (
-                            <>
-                              {header.column.columnDef.header}
-                              {header.column.getCanFilter() ? (
-                                <>{/* Need to figure out what to put here */}</>
-                              ) : // <InputBox
-                              //   onChange={e =>
-                              //     setColumnFilters(old => [
-                              //       ...old.filter(f => f.id !== header.column.id),
-                              //       { id: header.column.id, value: e.target.value },
-                              //     ])
-                              //   }
-                              //   placeholder="Filter..."
-                              // />
-                              null}
-                            </>
-                          )}
-                          {header.column.columnDef.header ? (
-                            <Icon
-                              icon={(
-                                sortDirection === "asc" ?
-                                  TextAlignTopIcon :
-                                  TextAlignBottomIcon
-                              )}
-                              size={20}
-                              className={
-                                "ml-3 " +
-                                (sortDirection ? "opacity-100" : "opacity-0")
-                              }
-                            />
-                          ) : null}
-                        </span>
-                      </th>
+                    return (
+                      visible && (
+                        <th
+                          key={header.id}
+                          className="text-left select-none px-3"
+                          onClick={
+                            canSort
+                              ? header.column.getToggleSortingHandler()
+                              : undefined
+                          }
+                          style={{ cursor: canSort ? "pointer" : "default" }}
+                        >
+                          <span className="inline-flex items-center text-black dark:text-white">
+                            {header.isPlaceholder ? null : (
+                              <>
+                                {header.column.columnDef.header}
+                                {header.column.getCanFilter() ? (
+                                  <>
+                                    {/* Need to figure out what to put here */}
+                                  </>
+                                ) : // <InputBox
+                                //   onChange={e =>
+                                //     setColumnFilters(old => [
+                                //       ...old.filter(f => f.id !== header.column.id),
+                                //       { id: header.column.id, value: e.target.value },
+                                //     ])
+                                //   }
+                                //   placeholder="Filter..."
+                                // />
+                                null}
+                              </>
+                            )}
+                            {header.column.columnDef.header ? (
+                              <Icon
+                                icon={
+                                  sortDirection === "asc"
+                                    ? TextAlignTopIcon
+                                    : TextAlignBottomIcon
+                                }
+                                size={20}
+                                className={
+                                  "ml-3 " +
+                                  (sortDirection ? "opacity-100" : "opacity-0")
+                                }
+                              />
+                            ) : null}
+                          </span>
+                        </th>
+                      )
                     );
                   })}
                 </tr>
@@ -460,17 +475,23 @@ export const Table = <
                     <td
                       key={cell.id}
                       className={`border-b border-gray-500 ${rowStyle}
-                                ${(cell.column.columnDef.meta as any)?.style ?? ''}`}
+                                ${
+                                  (cell.column.columnDef.meta as any)?.style ??
+                                  ""
+                                }`}
                     >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
                     </td>
                   ))}
                 </tr>
               ))
             ) : (
               <tr>
-                <td 
-                  colSpan={table.getVisibleLeafColumns().length} 
+                <td
+                  colSpan={table.getVisibleLeafColumns().length}
                   className="h-12 text-center text-gray-400 italic"
                 >
                   {noResultsMessage}
@@ -503,7 +524,8 @@ export const Table = <
           </div>
           <div>
             <span style={{ margin: "0 10px", fontWeight: "bold" }}>
-              {totalCount ? pagination.pageIndex * pagination.pageSize + 1 : 0} -{" "}
+              {totalCount ? pagination.pageIndex * pagination.pageSize + 1 : 0}{" "}
+              -{" "}
               {Math.min(
                 totalCount,
                 (pagination.pageIndex + 1) * pagination.pageSize

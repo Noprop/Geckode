@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import Image from 'next/image';
-import { useEffect, useState } from 'react';
+import Image from "next/image";
+import { useEffect, useState } from "react";
 import {
   HomeIcon,
   QuestionMarkCircledIcon,
@@ -11,10 +11,14 @@ import {
   MoonIcon,
   DrawingPinFilledIcon,
   ImageIcon,
-} from '@radix-ui/react-icons';
-import { useTheme } from '@/contexts/ThemeContext';
+} from "@radix-ui/react-icons";
+import { useTheme } from "@/contexts/ThemeContext";
 import TabSelector from "./ui/selectors/TabSelector";
-import { useWorkspaceView, WorkspaceView } from "@/contexts/WorkspaceViewContext";
+import {
+  useWorkspaceView,
+  WorkspaceView,
+} from "@/contexts/WorkspaceViewContext";
+import DropDownButton from "./ui/DropDownButton";
 
 export default function Header() {
   const { resolvedTheme, toggleTheme } = useTheme();
@@ -34,15 +38,7 @@ export default function Header() {
           href="/"
           className="hover:opacity-90 transition-opacity overflow-hidden h-10"
         >
-          <Image
-            src="/Geckode-logo-cropped.png"
-            alt="Geckode"
-            width={180}
-            height={40}
-            className="h-10 w-auto object-cover object-center"
-            style={{ objectPosition: 'center 42%' }}
-            priority
-          />
+          <p className="text-3xl">Geckode</p>
         </Link>
       </div>
 
@@ -52,8 +48,8 @@ export default function Header() {
           tab={view}
           setTab={setView}
           options={[
-            { value: 'blocks', label: 'Blocks', icon: DrawingPinFilledIcon },
-            { value: 'sprite', label: 'Sprite Editor', icon: ImageIcon },
+            { value: "blocks", label: "Blocks", icon: DrawingPinFilledIcon },
+            { value: "sprite", label: "Sprite Editor", icon: ImageIcon },
           ]}
         />
       </div>
@@ -66,14 +62,14 @@ export default function Header() {
           className="flex items-center justify-center w-9 h-9 rounded-full bg-white/15 text-white hover:bg-white/25 transition-colors"
           title={
             !mounted
-              ? 'Loading theme...'
-              : resolvedTheme === 'dark'
-              ? 'Switch to light mode'
-              : 'Switch to dark mode'
+              ? "Loading theme..."
+              : resolvedTheme === "dark"
+              ? "Switch to light mode"
+              : "Switch to dark mode"
           }
         >
           {mounted ? (
-            resolvedTheme === 'dark' ? (
+            resolvedTheme === "dark" ? (
               <SunIcon className="w-5 h-5" />
             ) : (
               <MoonIcon className="w-5 h-5" />
@@ -99,13 +95,17 @@ export default function Header() {
           <QuestionMarkCircledIcon className="w-5 h-5" />
         </button>
 
-        <button
-          type="button"
+        <DropDownButton
           className="flex items-center justify-center w-9 h-9 rounded-full bg-white/15 text-white hover:bg-white/25 transition-colors"
           title="User"
+          optionsMapping={{
+            "Account Settings": "tbd",
+            "My Projects": "/projects",
+            "My Organizations": "/organizations",
+          }}
         >
           <PersonIcon className="w-5 h-5" />
-        </button>
+        </DropDownButton>
       </div>
     </header>
   );
