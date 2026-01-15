@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { Game } from 'phaser';
 import { BlocklyEditorHandle } from '@/components/BlocklyEditor';
-import type { SpriteInstance } from '@/blockly/spriteRegistry';
+import type { Sprite } from '@/blockly/spriteRegistry';
 import { PhaserExport, createPhaserState } from '@/phaser/PhaserStateManager';
 import * as Blockly from 'blockly/core';
 import { javascriptGenerator } from 'blockly/javascript';
@@ -24,7 +24,7 @@ interface State {
   // State
   projectId: number | null;
   projectName: string;
-  spriteInstances: SpriteInstance[];
+  spriteInstances: Sprite[];
   spriteTextures: Map<string, string>;
   phaserState: PhaserExport | null;
   canUndo: boolean;
@@ -46,7 +46,7 @@ interface Actions {
   setBlocklyWorkspace: (blocklyWorkspace: Blockly.WorkspaceSvg) => void;
   setProjectId: (id: number) => void;
   setProjectName: (name: string) => void;
-  setSpriteInstances: (update: SpriteInstance[] | ((state: SpriteInstance[]) => SpriteInstance[])) => void;
+  setSpriteInstances: (update: Sprite[] | ((state: Sprite[]) => Sprite[])) => void;
   setPhaserState: (phaserState: PhaserExport | null) => void;
   updateUndoRedoState: () => void;
 
@@ -65,7 +65,7 @@ interface Actions {
   // Sprite Actions
   addSpriteToGame: (payload: SpriteAddPayload) => Promise<boolean>;
   removeSpriteFromGame: (spriteId: string) => Promise<boolean>;
-  updateSprite: (spriteId: string, updates: Partial<SpriteInstance>) => Promise<boolean>;
+  updateSprite: (spriteId: string, updates: Partial<Sprite>) => Promise<boolean>;
 }
 
 export interface SpriteAddPayload {
@@ -430,7 +430,7 @@ export const useEditorStore = create<State & Actions>((set, get) => ({
     return true;
   },
 
-  updateSprite: async (spriteId: string, updates: Partial<SpriteInstance>) => {
+  updateSprite: async (spriteId: string, updates: Partial<Sprite>) => {
     const { phaserRef, blocklyWorkspace, spriteInstances } = get();
     const game = phaserRef?.game;
     const scene = phaserRef?.scene;

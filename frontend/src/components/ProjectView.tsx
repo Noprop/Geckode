@@ -10,7 +10,6 @@ import GameScene from '@/phaser/scenes/GameScene';
 import SpritePanel from '@/components/SpritePanel';
 import { useWorkspaceView } from '@/contexts/WorkspaceViewContext';
 import { EventBus } from '@/phaser/EventBus';
-import { setSpriteDropdownOptions } from '@/blockly/spriteRegistry';
 import { useEditorStore } from '@/stores/editorStore';
 
 export type PhaserRef = {
@@ -29,7 +28,7 @@ const snapToGrid = (x: number, y: number): { x: number; y: number } => {
   return { x: snappedX, y: snappedY };
 };
 
-const PhaserContainer = dynamic(() => import('@/components/PhaserContainer'), {
+const PhaserContainer = dynamic(() => import('@/components/PhaserGame'), {
   ssr: false,
   loading: () => (
     <div
@@ -67,19 +66,6 @@ const ProjectView = () => {
       EventBus.off('current-scene-ready', handler);
     };
   }, [setPhaserRef]);
-
-  // Respond to pause state sync requests from Phaser scene
-  useEffect(() => {
-    const handler = () => {
-      const isEditorScene = useEditorStore.getState().isEditorScene;
-      console.log('[ProjectView] received editor scene request, responding with:', isEditorScene);
-      EventBus.emit('editor-scene-changed', isEditorScene);
-    };
-    EventBus.on('editor-request-pause-state', handler);
-    return () => {
-      EventBus.off('editor-request-pause-state', handler);
-    };
-  }, []);
 
   const workspaceListenerRef = useRef<{
     workspace: Blockly.WorkspaceSvg;
@@ -129,17 +115,6 @@ const ProjectView = () => {
     };
   }, []);
 
-  useEffect(() => {
-    setSpriteDropdownOptions(spriteInstances);
-
-    const workspace = useEditorStore.getState().blocklyWorkspace;
-    if (!workspace) return;
-
-    const state = Blockly.serialization.workspaces.save(workspace);
-
-    Blockly.serialization.workspaces.load(state, workspace);
-  }, [spriteInstances]);
-
   return (
     <div className="flex h-[calc(100vh-4rem-3.5rem)]">
       {/* Left side: Blockly editor */}
@@ -175,7 +150,7 @@ const ProjectView = () => {
             (document.getElementById('game-container') as HTMLElement).focus();
           }}
         >
-          <PhaserContainer ref={phaserRef} />
+          <PhaserContainer />
         </div>
 
         <SpritePanel />
