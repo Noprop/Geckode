@@ -5,7 +5,7 @@ export interface OrganizationProject {
   permission: string;
 }
 
-export interface OrganizationProjectFilter extends ProjectFilters {}
+export interface OrganizationProjectFilters extends ProjectFilters {}
 
 export interface OrganizationProjectPayload {
   project_id: number;

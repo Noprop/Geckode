@@ -5,9 +5,10 @@ import {
   useRef,
   useState,
   HTMLAttributes,
+  Dispatch,
+  SetStateAction,
 } from "react";
 import {
-  ColumnFilter,
   createColumnHelper,
   flexRender,
   getCoreRowModel,
@@ -19,9 +20,8 @@ import {
 } from "@tanstack/react-table";
 import { BaseFilters } from "@/lib/types/api";
 import { Icon, IconType } from "./Icon";
-import { InputBox, InputBoxRef } from "./InputBox";
-import useDebounce from "@/hooks/useDebounce";
-import { Option, SelectionBox } from "./SelectionBox";
+import { InputBox, InputBoxRef } from "./inputs/InputBox";
+import { Option, SelectionBox } from "./selectors/SelectionBox";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import {
   ChevronLeftIcon,
@@ -29,19 +29,25 @@ import {
   DoubleArrowLeftIcon,
   DoubleArrowRightIcon,
   MagnifyingGlassIcon,
-  ReloadIcon,
   TextAlignBottomIcon,
   TextAlignTopIcon,
 } from "@radix-ui/react-icons";
 import { BaseApiInnerReturn, createBaseApi } from "@/lib/api/base";
+import useMultiDebounce from "@/hooks/useMultiDebounce";
 
-export interface TableRef<TData> {
+export interface TableRef<TData, TFilters> {
   refresh: () => void;
   data: TData[];
+  filters: Filters<TFilters>;
+  setFilters: Dispatch<SetStateAction<Filters<TFilters>>>;
+  searchInput: string;
+  setSearchInput: Dispatch<SetStateAction<string>>;
 }
 
-interface TableProps<TData, TSortKeys, TApi> {
-  ref?: React.Ref<TableRef<TData>>;
+type Filters<TFilters> = Partial<Omit<TFilters, keyof BaseFilters>>;
+
+interface TableProps<TData, TSortKeys, TApi, TFilters> {
+  ref?: React.Ref<TableRef<TData, TFilters>>;
   api: TApi;
   columns: TableColumns<TData>;
   defaultSortField?: TSortKeys;
@@ -57,6 +63,9 @@ interface TableProps<TData, TSortKeys, TApi> {
   rowStyle?: string;
   showHeader?: boolean;
   noResultsMessage?: React.ReactNode;
+  initialFilters?: Filters<TFilters>;
+  showControls?: boolean;
+  initialSearch?: string;
 }
 
 type ColumnTypes = "user" | "datetime" | "thumbnail" | "select" | "other";
@@ -76,7 +85,7 @@ interface TableAction<TData> {
 
 // Column Map specifies fields/methods for each column
 type ColumnMap<TData> = {
-  key: keyof TData | [keyof TData, ...string[]];
+  key: keyof TData | [keyof TData, ...string[]] | ".";
   value?: (field: any) => any;
   type?: ColumnTypes;
   hidden?: boolean;
@@ -86,14 +95,14 @@ type ColumnMap<TData> = {
 };
 
 // A map for each column with the key being the column label
-type TableColumns<TData> = Record<string, ColumnMap<TData>>;
+export type TableColumns<TData> = Record<string, ColumnMap<TData>>;
 
 export const Table = <
   TData extends Record<string, any>,
   TPayload extends Record<string, any>,
   TFilters extends BaseFilters,
   TSortKeys extends string,
-  TApi extends BaseApiInnerReturn<typeof createBaseApi<TData, TPayload, TFilters>>
+  TApi extends BaseApiInnerReturn<typeof createBaseApi<TData, TPayload, TFilters>>,
 >({
   ref,
   api,
@@ -111,22 +120,33 @@ export const Table = <
   rowStyle = '',
   showHeader = true,
   noResultsMessage = 'No results to display.',
-}: TableProps<TData, TSortKeys, TApi>) => {
+  initialFilters = {},
+  showControls = true,
+  initialSearch = '',
+}: TableProps<TData, TSortKeys, TApi, TFilters>) => {
   const showSnackbar = useSnackbar();
   const pageNumberInputRef = useRef<InputBoxRef | null>(null);
 
   const [totalCount, setTotalCount] = useState<number>(0);
   const [data, setData] = useState<TData[]>([]);
+  const [filters, setFilters] = useState<Filters<TFilters>>(initialFilters);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: defaultPageSize,
   });
-  const [columnFilters, setColumnFilters] = useState<ColumnFilter[]>([]);
-  const [searchInput, setSearchInput] = useState<string>("");
+  const [searchInput, setSearchInput] = useState<string>(initialSearch);
   const [loading, setLoading] = useState<boolean>(true);
 
-  const debouncedSearch = useDebounce(searchInput, 1000);
+  const debouncedFilters = useMultiDebounce({
+    values: { searchInput, sorting, pagination, filters },
+    delays: {
+      searchInput: 1000,
+      sorting: 100,
+      pagination: 50,
+      filters: 300,
+    },
+  });
 
   const fetchData = () => {
     setLoading(true);
@@ -146,6 +166,7 @@ export const Table = <
               }`
             : undefined,
         search: searchInput.trim(),
+        ...filters,
       } as TFilters)
       .then((res) => {
         setTotalCount(res.count);
@@ -167,17 +188,17 @@ export const Table = <
 
   useEffect(() => {
     fetchData();
-  }, [sorting, pagination]);
+  }, [debouncedFilters]);
 
   useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-  }, [debouncedSearch]);
+  }, [searchInput]);
 
   const cellRenderers: Partial<Record<ColumnTypes, (value: any, column: ColumnMap<TData>, rowId: number) => React.ReactNode>> = {
     user: (value) => (
       <div className="flex flex-col">
         <span className="text-base font-semibold">{value.first_name} {value.last_name}</span>
-        <span className="text-sm">( {value.username} )</span>
+        <span className="sm:italic text-xs">{value.username}</span>
       </div>
     ),
     datetime: (value) => (new Date(value)).toLocaleString(),
@@ -229,7 +250,11 @@ export const Table = <
         (Array.isArray(columnMapper.key)
           ? columnMapper.key
           : [columnMapper.key]
-        ).reduce((acc: any, key) => acc?.[key], row),
+        ).reduce(
+          (acc: any, key) =>
+            key === '.' ? acc : acc?.[key],
+          row
+        ),
         {
           id: label,
           cell: (context) =>
@@ -289,7 +314,7 @@ export const Table = <
             enableSorting: false,
             enableColumnFilter: false,
             meta: {
-              style: "text-right pr-2"
+              style: "text-right pr-2 w-px whitespace-nowrap"
             },
           }),
         ]
@@ -309,7 +334,6 @@ export const Table = <
     },
     state: {
       sorting,
-      columnFilters,
     },
     getRowId: (_row, index) => index.toString(),
     manualPagination: true,
@@ -317,20 +341,23 @@ export const Table = <
     manualFiltering: true,
     onPaginationChange: setPagination,
     onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
     getSortedRowModel: getSortedRowModel(),
     getCoreRowModel: getCoreRowModel(),
   });
 
   useImperativeHandle(ref, () => ({
     refresh: fetchData,
-    data: data,
+    data,
+    filters,
+    setFilters,
+    searchInput,
+    setSearchInput,
   }));
 
   return (
     <div className={`block ${style}`}>
       {enableSearch || extras ? (
-        <div className="flex justify-between items-center">
+        <div className="flex items-center">
           {enableSearch ? (
             <div className="flex">
               <div className="relative w-64 mx-2 my-4">
@@ -346,214 +373,218 @@ export const Table = <
                   onChange={(e) => setSearchInput(e.target.value)}
                 />
               </div>
-              {loading && (
-                <div className="my-auto ml-1">
-                  <Icon
-                    icon={ReloadIcon}
-                    size={20}
-                    className="animate-spin"
-                  />
-                </div>
-              )}
             </div>
           ) : <div></div>}
-          <div className="mx-2">{extras}</div>
+          <div className="flex justify-end mx-2 w-full">{extras}</div>
         </div>
       ) : null}
-      <table className="w-full">
-        {showHeader && (
-          <thead className="table-header">
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => {
-                  const visible = header.column.getIsVisible();
-                  const canSort = header.column.getCanSort();
-                  const sortDirection = header.column.getIsSorted();
 
-                  return visible && (
-                    <th
-                      key={header.id}
-                      className="text-left select-none pl-0.5"
-                      onClick={
-                        canSort
-                          ? header.column.getToggleSortingHandler()
-                          : undefined
-                      }
-                      style={{ cursor: canSort ? "pointer" : "default" }}
-                    >
-                      <span className="inline-flex items-center text-black dark:text-white">
-                        {header.isPlaceholder ? null : (
-                          <>
-                            {header.column.columnDef.header}
-                            {header.column.getCanFilter() ? (
-                              <>{/* Need to figure out what to put here */}</>
-                            ) : // <InputBox
-                            //   onChange={e =>
-                            //     setColumnFilters(old => [
-                            //       ...old.filter(f => f.id !== header.column.id),
-                            //       { id: header.column.id, value: e.target.value },
-                            //     ])
-                            //   }
-                            //   placeholder="Filter..."
-                            // />
-                            null}
-                          </>
-                        )}
-                        {header.column.columnDef.header ? (
-                          <Icon
-                            icon={(
-                              sortDirection === "asc" ?
-                                TextAlignTopIcon :
-                                TextAlignBottomIcon
-                            )}
-                            size={20}
-                            className={
-                              "ml-3 " +
-                              (sortDirection ? "opacity-100" : "opacity-0")
-                            }
-                          />
-                        ) : null}
-                      </span>
-                    </th>
-                  );
-                })}
-              </tr>
-            ))}
-          </thead>
+      <div className="relative">
+        {loading && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-dark-secondary/50 dark:bg-white/50 backdrop-blur-[1px]">
+            <div className="flex flex-col items-center">
+              <div className="w-10 h-10 border-4 border-white/80 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          </div>
         )}
-        <tbody>
-          {table.getRowModel().rows.length > 0 ? (
-            table.getRowModel().rows.map((row) => (
-              <tr
-                onClick={() => handleRowClick(row)}
-                key={row.id}
-                className={`table-row group/row font-semibold`}
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <td
-                    key={cell.id}
-                    className={`border-b border-gray-500 ${rowStyle}
-                              ${(cell.column.columnDef.meta as any)?.style ?? ''}`}
-                  >
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
-              </tr>
-            ))
-          ) : (
-            <tr>
-              <td 
-                colSpan={table.getVisibleLeafColumns().length} 
-                className="h-12 text-center text-gray-400 italic"
-              >
-                {noResultsMessage}
-              </td>
-            </tr>
+        <table className="w-full">
+          {showHeader && (
+            <thead className="table-header">
+              {table.getHeaderGroups().map((headerGroup) => (
+                <tr key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => {
+                    const visible = header.column.getIsVisible();
+                    const canSort = header.column.getCanSort();
+                    const sortDirection = header.column.getIsSorted();
+
+                    return visible && (
+                      <th
+                        key={header.id}
+                        className="text-left select-none pl-0.5"
+                        onClick={
+                          canSort
+                            ? header.column.getToggleSortingHandler()
+                            : undefined
+                        }
+                        style={{ cursor: canSort ? "pointer" : "default" }}
+                      >
+                        <span className="inline-flex items-center text-black dark:text-white">
+                          {header.isPlaceholder ? null : (
+                            <>
+                              {header.column.columnDef.header}
+                              {header.column.getCanFilter() ? (
+                                <>{/* Need to figure out what to put here */}</>
+                              ) : // <InputBox
+                              //   onChange={e =>
+                              //     setColumnFilters(old => [
+                              //       ...old.filter(f => f.id !== header.column.id),
+                              //       { id: header.column.id, value: e.target.value },
+                              //     ])
+                              //   }
+                              //   placeholder="Filter..."
+                              // />
+                              null}
+                            </>
+                          )}
+                          {header.column.columnDef.header ? (
+                            <Icon
+                              icon={(
+                                sortDirection === "asc" ?
+                                  TextAlignTopIcon :
+                                  TextAlignBottomIcon
+                              )}
+                              size={20}
+                              className={
+                                "ml-3 " +
+                                (sortDirection ? "opacity-100" : "opacity-0")
+                              }
+                            />
+                          ) : null}
+                        </span>
+                      </th>
+                    );
+                  })}
+                </tr>
+              ))}
+            </thead>
           )}
-        </tbody>
-      </table>
-      <div className="flex justify-between items-center mt-4">
-        <div className="ml-2">
-          <span>Display</span>
-          <SelectionBox
-            className="ml-2 mr-2"
-            defaultValue={pagination.pageSize}
-            options={pageSizeOptions.map((option) => ({
-              label: option,
-              value: option,
-            }))}
-            onChange={(e) => {
-              setPagination({
-                pageIndex: 0,
-                pageSize: Number(e.target.value),
-              });
-            }}
-          />
-          <span>per page</span>
-        </div>
-        <div>
-          <span style={{ margin: "0 10px", fontWeight: "bold" }}>
-            {totalCount ? pagination.pageIndex * pagination.pageSize + 1 : 0} -{" "}
-            {Math.min(
-              totalCount,
-              (pagination.pageIndex + 1) * pagination.pageSize
+          <tbody>
+            {table.getRowModel().rows.length > 0 ? (
+              table.getRowModel().rows.map((row) => (
+                <tr
+                  onClick={() => handleRowClick(row)}
+                  key={row.id}
+                  className={`table-row group/row font-semibold`}
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <td
+                      key={cell.id}
+                      className={`border-b border-gray-500 ${rowStyle}
+                                ${(cell.column.columnDef.meta as any)?.style ?? ''}`}
+                    >
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  ))}
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td 
+                  colSpan={table.getVisibleLeafColumns().length} 
+                  className="h-12 text-center text-gray-400 italic"
+                >
+                  {noResultsMessage}
+                </td>
+              </tr>
             )}
-            <span style={{ fontWeight: "normal" }}> of </span>
-            {totalCount}
-          </span>
-          <Icon
-            icon={DoubleArrowLeftIcon}
-            size={15}
-            className="mx-2"
-            onClick={() => {
-              setPagination((prev) => ({
-                ...prev,
-                pageIndex: 0,
-              }));
-            }}
-            disabled={pagination.pageIndex === 0}
-          />
-          <Icon
-            icon={ChevronLeftIcon}
-            size={15}
-            onClick={() => {
-              setPagination((prev) => ({
-                ...prev,
-                pageIndex: Math.max(prev.pageIndex - 1, 0),
-              }));
-            }}
-            disabled={pagination.pageIndex === 0}
-          />
-          <InputBox
-            ref={pageNumberInputRef}
-            value={String(pagination.pageIndex + 1)}
-            className="w-15 h-9 text-center ml-4 border"
-            onChange={(e) => {
-              setPagination((prev) => ({
-                ...prev,
-                pageIndex:
-                  Math.min(
-                    Math.ceil(totalCount / pagination.pageSize),
-                    Math.max(Number(e.target.value.replace(/\D/g, "")), 1)
-                  ) - 1,
-              }));
-            }}
-          />
-          <span style={{ margin: "0 10px" }}>
-            of {Math.max(1, Math.ceil(totalCount / pagination.pageSize))}
-          </span>
-          <Icon
-            icon={ChevronRightIcon}
-            size={15}
-            onClick={() => {
-              setPagination((prev) => ({
-                ...prev,
-                pageIndex:
-                  (prev.pageIndex + 1) * prev.pageSize < totalCount
-                    ? prev.pageIndex + 1
-                    : prev.pageIndex,
-              }));
-            }}
-            disabled={
-              (pagination.pageIndex + 1) * pagination.pageSize >= totalCount
-            }
-          />
-          <Icon
-            icon={DoubleArrowRightIcon}
-            size={15}
-            className="mx-2"
-            onClick={() => {
-              setPagination((prev) => ({
-                ...prev,
-                pageIndex: Math.ceil(totalCount / prev.pageSize) - 1,
-              }));
-            }}
-            disabled={
-              (pagination.pageIndex + 1) * pagination.pageSize >= totalCount
-            }
-          />
-        </div>
+          </tbody>
+        </table>
       </div>
+
+      {showControls && (
+        <div className="flex justify-between items-center mt-4">
+          <div className="ml-2">
+            <span>Display</span>
+            <SelectionBox
+              className="ml-2 mr-2"
+              defaultValue={pagination.pageSize}
+              options={pageSizeOptions.map((option) => ({
+                label: option,
+                value: option,
+              }))}
+              onChange={(e) => {
+                setPagination({
+                  pageIndex: 0,
+                  pageSize: Number(e.target.value),
+                });
+              }}
+            />
+            <span>per page</span>
+          </div>
+          <div>
+            <span style={{ margin: "0 10px", fontWeight: "bold" }}>
+              {totalCount ? pagination.pageIndex * pagination.pageSize + 1 : 0} -{" "}
+              {Math.min(
+                totalCount,
+                (pagination.pageIndex + 1) * pagination.pageSize
+              )}
+              <span style={{ fontWeight: "normal" }}> of </span>
+              {totalCount}
+            </span>
+            <Icon
+              icon={DoubleArrowLeftIcon}
+              size={15}
+              className="mx-2"
+              onClick={() => {
+                setPagination((prev) => ({
+                  ...prev,
+                  pageIndex: 0,
+                }));
+              }}
+              disabled={pagination.pageIndex === 0}
+            />
+            <Icon
+              icon={ChevronLeftIcon}
+              size={15}
+              onClick={() => {
+                setPagination((prev) => ({
+                  ...prev,
+                  pageIndex: Math.max(prev.pageIndex - 1, 0),
+                }));
+              }}
+              disabled={pagination.pageIndex === 0}
+            />
+            <InputBox
+              ref={pageNumberInputRef}
+              value={String(pagination.pageIndex + 1)}
+              className="w-15 h-9 text-center ml-4 border"
+              onChange={(e) => {
+                setPagination((prev) => ({
+                  ...prev,
+                  pageIndex:
+                    Math.min(
+                      Math.ceil(totalCount / pagination.pageSize),
+                      Math.max(Number(e.target.value.replace(/\D/g, "")), 1)
+                    ) - 1,
+                }));
+              }}
+            />
+            <span style={{ margin: "0 10px" }}>
+              of {Math.max(1, Math.ceil(totalCount / pagination.pageSize))}
+            </span>
+            <Icon
+              icon={ChevronRightIcon}
+              size={15}
+              onClick={() => {
+                setPagination((prev) => ({
+                  ...prev,
+                  pageIndex:
+                    (prev.pageIndex + 1) * prev.pageSize < totalCount
+                      ? prev.pageIndex + 1
+                      : prev.pageIndex,
+                }));
+              }}
+              disabled={
+                (pagination.pageIndex + 1) * pagination.pageSize >= totalCount
+              }
+            />
+            <Icon
+              icon={DoubleArrowRightIcon}
+              size={15}
+              className="mx-2"
+              onClick={() => {
+                setPagination((prev) => ({
+                  ...prev,
+                  pageIndex: Math.ceil(totalCount / prev.pageSize) - 1,
+                }));
+              }}
+              disabled={
+                (pagination.pageIndex + 1) * pagination.pageSize >= totalCount
+              }
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

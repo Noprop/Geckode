@@ -2,7 +2,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authApi } from "@/lib/api/auth";
-import { InputBox,InputBoxRef } from "@/components/ui/InputBox";
+import { InputBox,InputBoxRef } from "@/components/ui/inputs/InputBox";
 import { Button } from "@/components/ui/Button";
 import Link from "next/link";
 import { useSnackbar } from "@/hooks/useSnackbar";

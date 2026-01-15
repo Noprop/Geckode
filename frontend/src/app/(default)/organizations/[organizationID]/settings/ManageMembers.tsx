@@ -1,7 +1,7 @@
 import DragAndDrop from "@/components/DragAndDrop";
 import { Button } from "@/components/ui/Button";
-import { InputBox, InputBoxRef } from "@/components/ui/InputBox";
-import { Modal } from "@/components/ui/Modal";
+import { InputBox, InputBoxRef } from "@/components/ui/inputs/InputBox";
+import { Modal } from "@/components/ui/modals/Modal";
 import { Table, TableRef } from "@/components/ui/Table";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import organizationsApi from "@/lib/api/handlers/organizations";
@@ -28,7 +28,7 @@ interface Props {
 export const ManageMembers = ({ org, setOrg, user }: Props) => {
   const snackbar = useSnackbar();
   const orgMemberApi = organizationsApi(org?.id).members;
-  const tableRef = useRef<TableRef<OrganizationMember> | null>(null);
+  const tableRef = useRef<TableRef<OrganizationMember, OrganizationMemberFilters> | null>(null);
 
   // inviting members
   const [orgInvites, setOrgInvites] = useState<OrganizationInvitation[]>([]);

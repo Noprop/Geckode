@@ -8,9 +8,9 @@ import {
   variableCategoryCallback,
 } from "@/blockly/callbacks";
 import { Geckode } from "@/blockly/theme";
-import { Modal } from "./ui/Modal";
+import { Modal } from "./ui/modals/Modal";
 import { Button } from "./ui/Button";
-import { InputBox, InputBoxRef } from "./ui/InputBox";
+import { InputBox, InputBoxRef } from "./ui/inputs/InputBox";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import { useEditorStore } from '@/stores/editorStore';
 import { InfoCircledIcon } from "@radix-ui/react-icons";

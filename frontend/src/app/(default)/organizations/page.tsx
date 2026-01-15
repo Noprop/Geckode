@@ -12,8 +12,8 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { Table, TableRef } from "@/components/ui/Table";
 import { Button } from "@/components/ui/Button";
-import { Modal } from "@/components/ui/Modal";
-import { InputBox, InputBoxRef } from "@/components/ui/InputBox";
+import { Modal } from "@/components/ui/modals/Modal";
+import { InputBox, InputBoxRef } from "@/components/ui/inputs/InputBox";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import DragAndDrop, { DragAndDropRef } from "@/components/DragAndDrop";
 import { ExclamationTriangleIcon, ExitIcon, FilePlusIcon, TrashIcon } from "@radix-ui/react-icons";
@@ -31,7 +31,7 @@ export default function OrganizationsPage() {
   const showSnackbar = useSnackbar();
 
   const dropboxRef = useRef<DragAndDropRef>(null);
-  const tableRef = useRef<TableRef<Organization> | null>(null);
+  const tableRef = useRef<TableRef<Organization, OrganizationFilters> | null>(null);
   const organizationNameRef = useRef<InputBoxRef | null>(null);
   const autoOrganizationOpenRef = useRef<InputBoxRef | null>(null);
 

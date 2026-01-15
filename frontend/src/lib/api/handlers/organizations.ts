@@ -3,7 +3,7 @@ import { Organization, OrganizationFilters, OrganizationPayload } from "@/lib/ty
 import { OrganizationMember, OrganizationMemberFilters, OrganizationMemberPayload } from "@/lib/types/api/organizations/members";
 import { OrganizationInvitation, OrganizationInvitationFilters, OrganizationInvitationPayload } from "@/lib/types/api/organizations/invitations";
 import { OrganizationBannedMember, OrganizationBannedMemberFilters, OrganizationBannedMemberPayload } from "@/lib/types/api/organizations/banned-members";
-import { OrganizationProject, OrganizationProjectFilter, OrganizationProjectPayload } from "@/lib/types/api/organizations/projects";
+import { OrganizationProject, OrganizationProjectFilters, OrganizationProjectPayload } from "@/lib/types/api/organizations/projects";
 
 export const ORGANIZATIONS_API_URL = 'organizations/';
 export const organizationInvitationsApiUrl = (id: number | string) => `${ORGANIZATIONS_API_URL}${id}/invitations/`;
@@ -23,7 +23,7 @@ const organizationsApi = createBaseApi<Organization, OrganizationPayload, Organi
   bannedMembers: (id: number | string) => createBaseApi<OrganizationBannedMember, OrganizationBannedMemberPayload, OrganizationBannedMemberFilters>({
     baseUrl: organizationBannedMembersApiUrl(id)
   })(),
-  projects: (id: number | string) => createBaseApi<OrganizationProject, OrganizationProjectPayload, OrganizationProjectFilter>({
+  projects: (id: number | string) => createBaseApi<OrganizationProject, OrganizationProjectPayload, OrganizationProjectFilters>({
     baseUrl: organizationProjectsApiUrl(id)
   })(),
 });

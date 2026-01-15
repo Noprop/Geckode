@@ -1,12 +1,10 @@
-import { ChangeEvent, Dispatch, SetStateAction, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { ChangeEvent, Dispatch, FocusEvent, SetStateAction, useEffect, useImperativeHandle, useRef, useState } from "react";
 
 export interface InputBoxRef {
   inputValue: string;
   setInputValue: Dispatch<SetStateAction<string>>;
   isChecked: boolean;
   setIsChecked: Dispatch<SetStateAction<boolean>>;
-  isFocused: boolean;
-  width: number;
 }
 
 interface InputBoxProps {
@@ -17,6 +15,8 @@ interface InputBoxProps {
   placeholder?: string;
   type?: React.HTMLInputTypeAttribute;
   onChange?: (e: ChangeEvent<HTMLInputElement>) => void;
+  onFocus?: (e: FocusEvent<HTMLInputElement>) => void;
+  onBlur?: (e: FocusEvent<HTMLInputElement>) => void;
   required?: boolean;
   className?: string;
   overrideClassName?: boolean;
@@ -31,6 +31,8 @@ export const InputBox = ({
   placeholder = '',
   type = "input",
   onChange = () => {},
+  onFocus = () => {},
+  onBlur = () => {},
   required = false,
   className = '',
   overrideClassName = false,
@@ -38,8 +40,6 @@ export const InputBox = ({
 }: InputBoxProps) => {
   const [inputValue, setInputValue] = useState<string>(String(defaultValue));
   const [isChecked, setIsChecked] = useState<boolean>(defaultChecked);
-  const [isFocused, setIsFocused] = useState<boolean>(false);
-  const [width, setWidth] = useState<number>(0);
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -48,15 +48,7 @@ export const InputBox = ({
     setInputValue: setInputValue,
     isChecked: isChecked,
     setIsChecked: setIsChecked,
-    isFocused: isFocused,
-    width: width,
   }));
-
-  useEffect(() => {
-    if (inputRef.current) {
-      setWidth(inputRef.current.offsetWidth);
-    }
-  }, [isFocused]);
 
   return <>
     <input
@@ -73,8 +65,8 @@ export const InputBox = ({
       required={required}
       className={(overrideClassName ? "" : "border p-2 rounded-md") + " " + className}
       disabled={disabled}
-      onFocus={() => setIsFocused(true)}
-      onBlur={() => setTimeout(() => setIsFocused(false), 100)}
+      onFocus={onFocus}
+      onBlur={onBlur}
     />
   </>;
 };

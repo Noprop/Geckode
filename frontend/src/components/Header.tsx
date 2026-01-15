@@ -13,7 +13,7 @@ import {
   ImageIcon,
 } from '@radix-ui/react-icons';
 import { useTheme } from '@/contexts/ThemeContext';
-import TabSelector from "./ui/TabSelector";
+import TabSelector from "./ui/selectors/TabSelector";
 import { useWorkspaceView, WorkspaceView } from "@/contexts/WorkspaceViewContext";
 
 export default function Header() {

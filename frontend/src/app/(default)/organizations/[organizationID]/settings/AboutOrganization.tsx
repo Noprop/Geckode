@@ -1,5 +1,5 @@
 import DragAndDrop, { DragAndDropRef } from "@/components/DragAndDrop";
-import { InputBox, InputBoxRef } from "@/components/ui/InputBox";
+import { InputBox, InputBoxRef } from "@/components/ui/inputs/InputBox";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import organizationsApi from "@/lib/api/handlers/organizations";
 import {

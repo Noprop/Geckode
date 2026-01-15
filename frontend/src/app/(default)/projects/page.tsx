@@ -11,19 +11,20 @@ import {
 import { useRef, useState } from "react";
 import { Table, TableRef } from "@/components/ui/Table";
 import { Button } from "@/components/ui/Button";
-import { Modal } from "@/components/ui/Modal";
-import { InputBox, InputBoxRef } from "@/components/ui/InputBox";
+import { Modal } from "@/components/ui/modals/Modal";
+import { InputBox, InputBoxRef } from "@/components/ui/inputs/InputBox";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import DragAndDrop, { DragAndDropRef } from "@/components/DragAndDrop";
 import { convertFormData } from "@/lib/api/base";
 import { FilePlusIcon, Share1Icon, TrashIcon } from "@radix-ui/react-icons";
 import { ProjectShareModal } from "@/components/ui/modals/ProjectShareModal";
+import { SelectionBox } from "@/components/ui/selectors/SelectionBox";
 
 export default function ProjectsPage() {
   const showSnackbar = useSnackbar();
 
   const dropboxRef = useRef<DragAndDropRef>(null);
-  const tableRef = useRef<TableRef<Project> | null>(null);
+  const tableRef = useRef<TableRef<Project, ProjectFilters> | null>(null);
   const projectNameRef = useRef<InputBoxRef | null>(null);
   const autoProjectOpenRef = useRef<InputBoxRef | null>(null);
 
@@ -137,14 +138,27 @@ export default function ProjectsPage() {
           },
         ]}
         extras={
-          <>
+          <div className="flex grow justify-between">
+            <SelectionBox
+              options={[
+                { value: "", label: "Owned by anyone" },
+                { value: "1", label: "Owned by me" }, // TODO: Use user's ID here for value
+                { value: "0", label: "Owned by others" },
+              ]}
+              onChange={(e) => {
+                tableRef.current?.setFilters(filters => ({
+                  ...filters,
+                  ...{owner: e.target.value ? Number(e.target.value) : undefined}
+                }));
+              }}
+            />
             <Button
               onClick={() => setShowModal("create")}
               className="btn-confirm"
             >
               Create Project
             </Button>
-          </>
+          </div>
         }
         rowStyle="py-2"
       />
@@ -213,9 +227,7 @@ export default function ProjectsPage() {
         <ProjectShareModal
           onClose={() => setShowModal(null)}
           project={tableRef.current?.data?.[rowIndex]}
-        >
-
-        </ProjectShareModal>
+        />
       ) : null}
     </div>
   );

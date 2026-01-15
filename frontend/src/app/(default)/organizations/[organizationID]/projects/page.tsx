@@ -3,7 +3,7 @@
 import organizationsApi from "@/lib/api/handlers/organizations";
 import {
   OrganizationProject,
-  OrganizationProjectFilter,
+  OrganizationProjectFilters,
   OrganizationProjectPayload,
   organizationProjectSortKeys,
   OrganizationProjectSortKeys,
@@ -12,8 +12,8 @@ import { useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { Table, TableRef } from "@/components/ui/Table";
 import { Button } from "@/components/ui/Button";
-import { Modal } from "@/components/ui/Modal";
-import { InputBox, InputBoxRef } from "@/components/ui/InputBox";
+import { Modal } from "@/components/ui/modals/Modal";
+import { InputBox, InputBoxRef } from "@/components/ui/inputs/InputBox";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import projectsApi from "@/lib/api/handlers/projects";
 import { Project } from "@/lib/types/api/projects";
@@ -28,7 +28,7 @@ export default function ProjectsPage() {
   const orgProjectsApi = organizationsApi(Number(organizationID)).projects;
 
   const dropboxRef = useRef<DragAndDropRef>(null);
-  const tableRef = useRef<TableRef<OrganizationProject> | null>(null);
+  const tableRef = useRef<TableRef<OrganizationProject, OrganizationProjectFilters> | null>(null);
   const projectNameRef = useRef<InputBoxRef | null>(null);
   const autoProjectOpenRef = useRef<InputBoxRef | null>(null);
   const permissionDropdownView = useRef<HTMLSelectElement | null>(null);
@@ -97,7 +97,7 @@ export default function ProjectsPage() {
       <Table<
         OrganizationProject,
         OrganizationProjectPayload,
-        OrganizationProjectFilter,
+        OrganizationProjectFilters,
         OrganizationProjectSortKeys,
         typeof orgProjectsApi
       >

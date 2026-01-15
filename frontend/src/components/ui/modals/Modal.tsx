@@ -1,6 +1,6 @@
 "use client";
 
-import { Icon, IconType } from "./Icon";
+import { Icon, IconType } from "../Icon";
 
 interface ModalProps {
   children?: React.ReactNode;
@@ -32,7 +32,7 @@ export const Modal: React.FC<ModalProps> = ({
         />
       </> : null}
 
-      <div className="fixed inset-0 z-50 flex items-end justify-center p-4 text-center sm:items-center sm:p-0">
+      <div className="fixed inset-0 z-50 flex items-end justify-center p-4 text-center sm:items-center sm:p-0 backdrop-blur-xs bg-black/30">
         <div
           className="relative transform overflow-hidden rounded-lg bg-gray-800 text-left shadow-xl outline outline-white/10 transition-all"
           onClick={(e) => e.stopPropagation()}

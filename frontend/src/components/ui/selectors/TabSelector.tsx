@@ -1,6 +1,6 @@
 "use client";
 
-import { Icon, IconType } from "./Icon";
+import { Icon, IconType } from "../Icon";
 
 interface TabSelectorProps<T> {
   tab: T;
