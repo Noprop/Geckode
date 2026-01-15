@@ -1,19 +1,19 @@
-import { Project, ProjectFilters } from "../projects";
+import { Project, ProjectFilters, ProjectPermissions } from "../projects";
 
 export interface OrganizationProject {
   project: Project;
-  permission: string;
+  permission: ProjectPermissions;
 }
 
 export interface OrganizationProjectFilters extends ProjectFilters {}
 
 export interface OrganizationProjectPayload {
   project_id: number;
-  permission: string;
+  permission: ProjectPermissions;
 }
 
 export const organizationProjectSortKeys: (keyof OrganizationProject)[] = [
-  "project"
+  "project",
 ];
 
 export type OrganizationProjectSortKeys = (typeof organizationProjectSortKeys)[number];

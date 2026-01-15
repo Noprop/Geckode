@@ -59,3 +59,12 @@ class OrganizationProjectFilter(ProjectFilter):
     class Meta:
         model = OrganizationProject
         fields = []
+
+class ProjectOrganizationFilter(PrefixedFilterSet):
+    ordering_fields = [
+        'id',
+    ]
+
+    class Meta:
+        model = OrganizationProject
+        fields = []

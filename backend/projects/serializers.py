@@ -3,6 +3,8 @@ from accounts.serializers import PublicUserSerializer
 from django.utils import timezone
 from .models import ProjectGroup, Project, ProjectCollaborator, OrganizationProject
 from accounts.models import User
+from organizations.models import Organization
+from organizations.serializers import PublicOrganizationSerializer
 
 class ProjectGroupSerializer(ModelSerializer):
     owner = PublicUserSerializer(read_only=True)
@@ -110,8 +112,9 @@ class OrganizationProjectSerializer(ModelSerializer):
             if 'view' in self.context and hasattr(self.context['view'], 'kwargs'):
                 if 'request' in self.context:
                     user = self.context['request'].user
+                    project = Project.objects.get(id=self.context['view'].kwargs.get('pk'))
 
-                    if not attrs['project'].has_permission(user, attrs['permission']):
+                    if not project.has_permission(user, attrs['permission']):
                         raise ValidationError({'permission': 'Cannot give an organization a higher permission class to the project than yourself.'})
         except Project.DoesNotExist:
             pass
@@ -121,3 +124,10 @@ class OrganizationProjectSerializer(ModelSerializer):
     def update(self, instance, validated_data):
         validated_data.pop('project_id', None)
         return super().update(instance, validated_data)
+
+class ProjectOrganizationSerializer(ModelSerializer):
+    organization = PublicOrganizationSerializer(read_only=True)
+
+    class Meta:
+        model = OrganizationProject
+        fields = ['id', 'organization', 'permission']

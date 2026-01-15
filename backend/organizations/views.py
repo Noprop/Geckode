@@ -43,6 +43,9 @@ class OrganizationViewSet(ModelViewSet):
             ).distinct()
         )
 
+        if organization.owner == request.user:
+            raise ValidationError('You are the owner of this organization.')
+
         if OrganizationMember.objects.filter(
             organization=organization,
             member=request.user,

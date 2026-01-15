@@ -3,6 +3,13 @@ from accounts.models import User
 from accounts.serializers import PublicUserSerializer
 from .models import Organization, OrganizationInvitation, OrganizationMember, OrganizationBannedMember
 
+class PublicOrganizationSerializer(ModelSerializer):
+    owner = PublicUserSerializer(read_only=True)
+
+    class Meta:
+        model = Organization
+        fields = ['id', 'owner', 'thumbnail', 'name', 'slug']
+
 class OrganizationSerializer(ModelSerializer):
     owner = PublicUserSerializer(read_only=True)
     members_count = SerializerMethodField()

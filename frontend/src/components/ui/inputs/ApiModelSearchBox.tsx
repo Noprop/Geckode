@@ -15,10 +15,12 @@ interface ApiModelSearchBoxProps<TApi, TData, TFilters> {
   ref?: Ref<ApiModelSearchBoxRef>;
   placeholder?: string;
   className?: HTMLAttributes<HTMLElement>["className"];
+  noResultsMessage?: string;
   api: TApi;
   columns: TableColumns<TData>;
   filters?: Partial<TFilters>;
   handleRowClick?: (row: Row<TData>) => void;
+  disabled?: boolean;
 }
 
 export const ApiModelSearchBox = <
@@ -31,10 +33,12 @@ export const ApiModelSearchBox = <
   ref,
   placeholder = '',
   className = '',
+  noResultsMessage,
   api,
   columns,
   filters = {},
   handleRowClick = () => {},
+  disabled,
 }: ApiModelSearchBoxProps<TApi, TData, TFilters>) => {
   const [search, setSearch] = useState<string>('');
   const [isFocused, setIsFocused] = useState<boolean>(false);
@@ -67,6 +71,7 @@ export const ApiModelSearchBox = <
           () => setIsFocused(false),
           100
         )}
+        disabled={disabled}
       />
       {hasTyped && (
         <div 
@@ -98,7 +103,7 @@ export const ApiModelSearchBox = <
             defaultPageSize={3}
             enableSearch={false}
             rowStyle="p-2"
-            noResultsMessage="No non-collaborators match this search."
+            noResultsMessage={noResultsMessage}
             showControls={false}
             showHeader={false}
             initialSearch={search}

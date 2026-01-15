@@ -4,20 +4,24 @@ import { BaseFilters } from "..";
 export interface Organization {
   id: number;
   owner: User;
-  created_at: string;
+  thumbnail: string;
   name: string;
   slug: string;
-  description: string;
-  is_public: boolean;
-  default_member_permission: string;
-  members_count: number;
-  projects_count: number;
-  thumbnail: string;
+  created_at?: string;
+  description?: string;
+  is_public?: boolean;
+  default_member_permission?: string;
+  members_count?: number;
+  projects_count?: number;
 }
 
 export interface OrganizationFilters extends BaseFilters {
   owner?: number;
   is_public?: boolean;
+  has_project?: number;
+  exclude_project?: number;
+  has_member?: number;
+  exclude_member?: number;
 }
 
 export interface OrganizationPayload {

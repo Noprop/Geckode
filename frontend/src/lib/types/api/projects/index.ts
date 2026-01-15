@@ -1,6 +1,6 @@
 import { User } from "../users";
 import { BaseFilters } from "..";
-import type { SpriteInstance } from '@/blockly/spriteRegistry';
+import { Sprite } from '@/blockly/spriteRegistry';
 import { PhaserExport } from "@/phaser/PhaserStateManager";
 
 export interface Project {
@@ -16,7 +16,7 @@ export interface Project {
   permission: string | null;
   blocks?: JSON;
   game_state?: PhaserExport;
-  sprites?: SpriteInstance[];
+  sprites?: Sprite[];
 }
 
 export interface ProjectFilters extends BaseFilters {
@@ -41,6 +41,15 @@ export const projectSortKeys: (keyof Project)[] = [
   "updated_at",
   "owner",
   "name",
-];
+] as const;
 
 export type ProjectSortKeys = (typeof projectSortKeys)[number];
+
+export const projectPermissions = {
+  "view": "View",
+  "code": "Edit",
+  "invite": "Invite",
+  "admin": "Admin",
+} as const;
+
+export type ProjectPermissions = keyof typeof projectPermissions;

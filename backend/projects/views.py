@@ -1,9 +1,8 @@
 from rest_framework.viewsets import ModelViewSet
 from .models import ProjectGroup, Project, ProjectCollaborator, OrganizationProject
-from .serializers import ProjectGroupSerializer, ProjectSerializer, ProjectCollaboratorSerializer, OrganizationProjectSerializer
-from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from .serializers import ProjectGroupSerializer, ProjectSerializer, ProjectCollaboratorSerializer, OrganizationProjectSerializer, ProjectOrganizationSerializer
 from django_filters.rest_framework import DjangoFilterBackend
-from .filters import ProjectFilter, apply_project_access_filters, ProjectCollaboratorFilter, OrganizationProjectFilter
+from .filters import ProjectFilter, apply_project_access_filters, ProjectCollaboratorFilter, OrganizationProjectFilter, ProjectOrganizationFilter
 from utils.permissions import create_user_permission_class, AnyOf
 from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.decorators import action
@@ -167,26 +166,65 @@ class OrganizationProjectViewSet(ModelViewSet):
     def get_permissions(self):
         organization = get_object_or_404(Organization, pk=self.kwargs.get('organization_pk'))
 
-        # Only allow project admins or organization managers to update or remove a project from an organization
-        if self.action in ['partial_update', 'destroy']:
-            return super().get_permissions() + [AnyOf(
+        if self.action in ['retrieve', 'list']:
+            return super().get_permissions() + [
                 create_user_permission_class(
-                    'admin',
-                )(),
-                create_user_permission_class(
-                    'manage',
+                    'view',
                     object_override=organization,
                 )(),
-            )]
+            ]
 
         # Only allow organization contributors to add projects to the organization
-        return super().get_permissions() + [
+        if self.action == 'create':
+            return super().get_permissions() + [
+                create_user_permission_class(
+                    'admin',
+                    primary_pk_class=Project,
+                )(),
+                create_user_permission_class(
+                    'contribute',
+                    object_override=organization,
+                )(),
+            ]
+
+        # Only allow project admins or organization managers to update or remove a project from an organization
+        return super().get_permissions() + [AnyOf(
             create_user_permission_class(
-                'contribute' if self.action == 'create' else 'view',
+                'admin',
+                primary_pk_class=Project,
+            )(),
+            create_user_permission_class(
+                'manage',
                 object_override=organization,
             )(),
-        ]
+        )]
 
     def perform_create(self, serializer):
         organization = get_object_or_404(Organization, pk=self.kwargs.get('organization_pk'))
         serializer.save(organization=organization)
+
+class ProjectOrganizationViewSet(ModelViewSet):
+    queryset = OrganizationProject.objects.all()
+    serializer_class = ProjectOrganizationSerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = ProjectOrganizationFilter
+
+    http_method_names = ['get']
+
+    def get_queryset(self):
+        return super().get_queryset().filter(
+            Q(project__id=self.kwargs.get('project_pk')) & (
+                Q(organization__is_public=True) |
+                Q(organization__owner__id=self.request.user.id) |
+                Q(organization__members__id=self.request.user.id)
+            )
+        ).distinct()
+
+    def get_permissions(self):
+        return super().get_permissions() + [
+            create_user_permission_class(
+                'view',
+                primary_pk_class=Project,
+                lookup='project_pk',
+            )()
+        ]

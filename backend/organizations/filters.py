@@ -14,6 +14,10 @@ class OrganizationFilter(PrefixedFilterSet):
 
     owner = NumberFilter(field_name='owner__id')
     is_public = BooleanFilter(field_name='is_public')
+    has_project = NumberFilter(field_name='projects__id')
+    exclude_project = NumberFilter(field_name='projects__id', exclude=True)
+    has_member = NumberFilter(field_name='members__id')
+    exclude_member = NumberFilter(field_name='members__id', exclude=True)
 
     class Meta:
         model = Organization

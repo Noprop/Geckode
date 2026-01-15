@@ -42,6 +42,7 @@ export interface TableRef<TData, TFilters> {
   setFilters: Dispatch<SetStateAction<Filters<TFilters>>>;
   searchInput: string;
   setSearchInput: Dispatch<SetStateAction<string>>;
+  pagination: PaginationState;
 }
 
 type Filters<TFilters> = Partial<Omit<TFilters, keyof BaseFilters>>;
@@ -92,6 +93,7 @@ type ColumnMap<TData> = {
   hideLabel?: boolean;
   options?: Option[];
   style?: string;
+  disabled?: boolean;
 };
 
 // A map for each column with the key being the column label
@@ -226,6 +228,7 @@ export const Table = <
       <SelectionBox
         defaultValue={value}
         options={column.options}
+        disabled={column?.disabled}
         onChange={(e) => {
           api(
             (Array.isArray(columns.id.key)
@@ -361,6 +364,7 @@ export const Table = <
     setFilters,
     searchInput,
     setSearchInput,
+    pagination,
   }));
 
   return (

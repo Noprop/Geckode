@@ -1,27 +1,20 @@
 import { User } from "../users";
 import { BaseFilters } from "..";
-
-export const ProjectPermissions = [
-  ['view', 'Can view projects'],
-  ['contribute', 'Can contribute projects'],
-  ['invite', 'Can invite members'],
-  ['manage', 'Can remove members'],
-  ['admin', 'Can modify details'],
-]
+import { ProjectPermissions } from ".";
 
 export interface ProjectCollaborator {
   id: number;
   collaborator: User;
-  permission: string;
+  permission: ProjectPermissions;
 }
 
 export interface ProjectCollaboratorFilters extends BaseFilters {
-  permission?: string;
+  permission?: ProjectPermissions;
 }
 
 export interface ProjectCollaboratorPayload {
   collaborator_id: number;
-  permission: string;
+  permission: ProjectPermissions;
 }
 
 export const projectCollaboratorSortKeys: (keyof User)[] = [
