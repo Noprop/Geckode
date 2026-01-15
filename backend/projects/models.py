@@ -14,6 +14,7 @@ def project_thumbnail_path(_instance, filename):
 class ProjectGroup(Model):
     owner = ForeignKey(User, related_name='project_groups', on_delete=CASCADE)
     created_at = DateTimeField(auto_now_add=True)
+    updated_at = DateTimeField(auto_now=True)
     name = CharField(max_length=200)
 
 class Project(Model):
@@ -69,6 +70,8 @@ class ProjectCollaborator(Model):
     project = ForeignKey(Project, related_name='project_collaborators', on_delete=CASCADE)
     collaborator = ForeignKey(User, related_name='project_collaborators', on_delete=CASCADE)
     permission = CharField(max_length=10, choices=Project.PERMISSION_CHOICES)
+    created_at = DateTimeField(auto_now_add=True)
+    updated_at = DateTimeField(auto_now=True)
 
     class Meta:
         unique_together = ('project', 'collaborator')
@@ -80,6 +83,8 @@ class OrganizationProject(Model):
     organization = ForeignKey(Organization, related_name='organization_projects', on_delete=CASCADE)
     project = ForeignKey(Project, related_name='organization_projects', on_delete=CASCADE)
     permission = CharField(max_length=10, choices=Project.PERMISSION_CHOICES)
+    created_at = DateTimeField(auto_now_add=True)
+    updated_at = DateTimeField(auto_now=True)
 
     class Meta:
         unique_together = ('organization', 'project')

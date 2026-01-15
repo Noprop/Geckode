@@ -64,3 +64,7 @@ Kids learn to code by dragging and dropping visual blocks instead of typing synt
 
 - Frontend: Next.js 15 + React 19, Blockly, Phaser 4, Zustand, Tailwind CSS
 - Backend: Django REST Framework with user accounts, projects, and organizations
+
+
+![Alt](https://repobeats.axiom.co/api/embed/0ee4215663ec246d7f1409bdf8c38a1694dc96a4.svg "Repobeats analytics image")
+

@@ -7,6 +7,8 @@ class OrganizationFilter(PrefixedFilterSet):
     search_fields = ['name', 'slug']
     ordering_fields = [
         'id',
+        'created_at',
+        ('owner__username', 'owner'),
         *search_fields,
     ]
 

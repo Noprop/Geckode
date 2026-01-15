@@ -72,10 +72,11 @@ App Layout
 ### Data Flow
 
 1. **User creates blocks** → Blockly workspace stores block hierarchy
-2. **Code generation** → `javascriptGenerator.workspaceToCode()` converts blocks to JavaScript
-3. **Execution** → Generated code passed to `MainMenu.runScript()` for sandboxed execution
-4. **Game updates** → Phaser scene renders changes, emits events via EventBus
-5. **State sync** → React components update via Zustand store subscriptions
+2. **Auto-compile triggered** → Workspace change listener calls `scheduleConvert()` with 400ms debounce
+3. **Code generation** → `javascriptGenerator.workspaceToCode()` converts blocks to JavaScript
+4. **Execution** → Generated code passed to `MainMenu.runScript()` for sandboxed execution (unless paused)
+5. **Game updates** → Phaser scene renders changes, emits events via EventBus
+6. **State sync** → React components update via Zustand store subscriptions
 
 ---
 
@@ -100,13 +101,18 @@ interface EditorState {
   // UI state
   canUndo: boolean;
   canRedo: boolean;
+  isConverting: boolean;          // True while auto-convert is pending/running
+  isPaused: boolean;              // Game execution paused state
 
   // Actions
   generateCode(): void;           // Convert blocks → execute in Phaser
+  scheduleConvert(): void;        // Debounced auto-convert trigger
+  cancelScheduledConvert(): void; // Cancel pending auto-convert
   saveProject(snackbar): void;    // Persist to backend
   undoWorkspace(): void;
   redoWorkspace(): void;
   updateUndoRedoState(): void;
+  togglePause(): void;            // Toggle game pause state
 }
 ```
 
@@ -155,12 +161,52 @@ javascriptGenerator.forBlock['createSprite'] = function(block) {
 BlocklyEditor attaches change listeners for:
 - **Undo/redo state** → Updates `canUndo`/`canRedo` in store
 - **Block deletion** → Removes associated sprites from game
+- **Auto-convert** → Triggers debounced code generation on block changes
 
 ```typescript
 workspace.addChangeListener((event) => {
   if (event.isUiEvent) return;
   useEditorStore.getState().updateUndoRedoState();
+
+  // Auto-convert for code-affecting changes
+  if (!event.recordUndo) return;
+  const convertableEvents = [
+    Blockly.Events.BLOCK_CREATE,
+    Blockly.Events.BLOCK_DELETE,
+    Blockly.Events.BLOCK_MOVE,
+    Blockly.Events.BLOCK_CHANGE,
+    Blockly.Events.VAR_CREATE,
+    Blockly.Events.VAR_DELETE,
+    Blockly.Events.VAR_RENAME,
+  ];
+  if (convertableEvents.includes(event.type)) {
+    useEditorStore.getState().scheduleConvert();
+  }
 });
+```
+
+### Auto-Compile System
+
+Blocks are automatically compiled to JavaScript and executed in Phaser when the workspace changes:
+
+1. **Change detection** → Workspace listener filters for code-affecting events
+2. **Debounce** → 400ms delay to batch rapid changes (e.g., dragging blocks)
+3. **Loading state** → `isConverting` set to `true` immediately, shows spinner overlay
+4. **Execution** → `generateCode()` called after debounce, converts blocks and runs in Phaser
+5. **Completion** → `isConverting` reset to `false`, overlay hidden
+
+```typescript
+// Debounce configuration in editorStore.ts
+const DEBOUNCE_MS = 400;
+
+scheduleConvert: () => {
+  set({ isConverting: true });
+  if (convertTimeoutId) clearTimeout(convertTimeoutId);
+  convertTimeoutId = setTimeout(() => {
+    generateCode();
+    set({ isConverting: false });
+  }, DEBOUNCE_MS);
+}
 ```
 
 ### Toolbox Configuration
@@ -240,6 +286,17 @@ Wraps Phaser game instance in React:
 - Exposes `{ game, scene }` via `useImperativeHandle`
 - Manages keyboard focus/blur for input handling
 - Container: 484×360px with rounded border
+- **Loading overlay** → Shows spinner when `isConverting` is true
+- **Pause overlay** → Dims canvas when `isPaused` is true
+
+```typescript
+// Overlay renders when converting or paused
+{(isConverting || isPaused) && (
+  <div className="absolute inset-0 bg-black/40">
+    {isConverting && <Spinner />}
+  </div>
+)}
+```
 
 ---
 
@@ -263,7 +320,7 @@ interface SpriteInstance {
   id: string;              // Unique ID (timestamp-based)
   label: string;           // Display name
   texture: string;         // Phaser texture key
-  variableName: string;    // Block variable name
+  name: string;    // Block variable name
   x: number;
   y: number;
   blockId: string;         // Associated Blockly block
@@ -389,7 +446,9 @@ Sprite library picker:
 Editor toolbar:
 - Undo/Redo buttons
 - Save button
-- Run/Play button (triggers `generateCode()`)
+- **Play/Stop toggle** → Pauses/resumes game execution via `togglePause()`
+  - Play icon (▶) when paused, Stop icon (■) when running
+  - Sets `game.isPaused` on the Phaser game instance
 - Project name display
 
 ---
@@ -441,10 +500,11 @@ phaserRef.scene?.runScript(code);
 
 | File | Purpose |
 |------|---------|
-| `stores/editorStore.ts` | Global state, code generation, save |
+| `stores/editorStore.ts` | Global state, code generation, auto-compile, pause control |
 | `components/ProjectView.tsx` | Main editor layout, sprite management |
-| `components/BlocklyEditor.tsx` | Blockly workspace wrapper |
-| `components/PhaserContainer.tsx` | Phaser game wrapper |
+| `components/BlocklyEditor.tsx` | Blockly workspace wrapper, auto-compile trigger |
+| `components/PhaserContainer.tsx` | Phaser game wrapper, loading/pause overlay |
+| `components/EditorFooter.tsx` | Toolbar with undo/redo, save, play/stop |
 | `phaser/scenes/MainMenu.ts` | Primary game scene, runScript() |
 | `phaser/EventBus.ts` | React-Phaser event bridge |
 | `blockly/blocks/*.ts` | Custom block definitions |

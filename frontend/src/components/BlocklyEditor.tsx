@@ -3,7 +3,7 @@
 import { useEffect, useRef, forwardRef, useImperativeHandle, useState } from "react";
 import * as Blockly from "blockly/core";
 import { registerBlockly } from "@/blockly/index";
-import toolbox from "@/blockly/toolbox";
+import getToolbox from "@/blockly/toolbox";
 import {
   variableCategoryCallback,
 } from "@/blockly/callbacks";
@@ -13,6 +13,8 @@ import { Button } from "./ui/Button";
 import { InputBox, InputBoxRef } from "./ui/InputBox";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import { useEditorStore } from '@/stores/editorStore';
+import { InfoCircledIcon } from "@radix-ui/react-icons";
+import { getSpriteDropdownOptions } from "@/blockly/spriteRegistry"
 
 registerBlockly();
 
@@ -26,19 +28,33 @@ type BlocklyEditorProps = {
 
 const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(
   ({ onWorkspaceReady }, ref) => {
+    console.log('BlocklyEditor()');
     const showSnackbar = useSnackbar();
     const blocklyDivRef = useRef<HTMLDivElement>(null);
     const workspaceRef = useRef<Blockly.WorkspaceSvg | null>(null);
     const variableInputRef = useRef<InputBoxRef | null>(null);
+    const spriteId = useEditorStore((state) => state.spriteId);
 
     const [showVariableModal, setShowVariableModal] = useState<boolean>(false);
     const [selectedToolboxItem, setSelectedToolboxItem] =
       useState<Blockly.IToolboxItem | null>(null);
 
+      useEffect(() => {
+        if (!workspaceRef.current) return;
+        
+        const workspace = workspaceRef.current;
+        const toolbox = workspace.getToolbox();
+        if (!toolbox) return;
+        
+        // Update the toolbox with fresh spriteId
+        const newToolbox = getToolbox();
+        workspace.updateToolbox(newToolbox as Blockly.utils.toolbox.ToolboxDefinition);
+      }, [spriteId]);
+    
     useEffect(() => {
       if (blocklyDivRef.current && !workspaceRef.current) {
         const blocklyOptions: Blockly.BlocklyOptions = {
-          toolbox: toolbox as Blockly.utils.toolbox.ToolboxDefinition,
+          toolbox: getToolbox() as Blockly.utils.toolbox.ToolboxDefinition,
           sounds: false,
           renderer: 'zelos',
           readOnly: false,
@@ -178,6 +194,7 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(
 
         // Listen for workspace changes to update undo/redo state and trigger auto-convert
         workspaceRef.current.addChangeListener((event) => {
+
           // Update on any event that could affect undo/redo stacks
           if (event.isUiEvent) return; // Skip UI-only events
           // Get fresh reference from store to avoid stale closure
@@ -197,6 +214,13 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(
             Blockly.Events.VAR_RENAME,
           ];
 
+          console.log('event', event);
+          console.log(
+            'convertableEvents',
+            convertableEvents.includes(
+              event.type as typeof Blockly.Events.BLOCK_CREATE
+            )
+          );
           if (convertableEvents.includes(event.type as typeof Blockly.Events.BLOCK_CREATE)) {
             useEditorStore.getState().scheduleConvert();
           }
@@ -240,7 +264,7 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(
           <Modal
             onClose={() => setShowVariableModal(false)}
             title="Create variable"
-            icon="circle-info"
+            icon={InfoCircledIcon}
             actions={
               <>
                 <Button

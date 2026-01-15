@@ -48,6 +48,7 @@ next-env.d.ts
 __pycache__/
 venv/
 *.sqlite3
+media/
 
 .cursor
 node_modules/

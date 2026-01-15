@@ -16,6 +16,7 @@ import { Modal } from "@/components/ui/Modal";
 import { InputBox, InputBoxRef } from "@/components/ui/InputBox";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import DragAndDrop, { DragAndDropRef } from "@/components/DragAndDrop";
+import { ExclamationTriangleIcon, ExitIcon, FilePlusIcon, TrashIcon } from "@radix-ui/react-icons";
 
 //spaces -> dashes, non-alphanumeric characters removed
 export const createSlug = (val: string) => {
@@ -40,6 +41,7 @@ export default function OrganizationsPage() {
   const [showModal, setShowModal] = useState<
     null | "create" | "delete" | "leave"
   >(null);
+  const [rowIndex, setRowIndex] = useState<number>(0);
 
   useEffect(() => {
     const fetchUserInfo = () => {
@@ -66,6 +68,10 @@ export default function OrganizationsPage() {
           dropboxRef.current?.files?.length! > 0
             ? dropboxRef.current?.files![0]
             : null,
+      }, {
+        headers: {
+          "Content-Type": "multipart/form-data"
+        }
       })
       .then((organization) => {
         if (autoOrganizationOpenRef.current?.isChecked) {
@@ -79,7 +85,7 @@ export default function OrganizationsPage() {
 
   const deleteOrganization = () => {
     const organizationId =
-      tableRef.current?.data[tableRef.current?.dataIndex]["id"];
+      tableRef.current?.data[rowIndex]["id"];
 
     if (!organizationId) return;
 
@@ -97,6 +103,7 @@ export default function OrganizationsPage() {
 
   return (
     <div className="mx-20 my-5">
+      <h1 className="header-1">Organizations</h1>
       <Table<
         Organization,
         OrganizationPayload,
@@ -105,7 +112,6 @@ export default function OrganizationsPage() {
         typeof organizationsApi
       >
         ref={tableRef}
-        label="Organizations"
         api={organizationsApi}
         columns={{
           id: {
@@ -138,16 +144,22 @@ export default function OrganizationsPage() {
         }
         actions={[
           {
-            rowIcon: "trash",
+            rowIcon: TrashIcon,
             rowIconSize: 24,
-            rowIconClicked: () => setShowModal("delete"),
+            rowIconClicked: (index) => {
+              setRowIndex(index);
+              setShowModal("delete");
+            },
             rowIconClassName: "hover:text-red-500 mt-1",
             canUse: (organization) => organization.owner.id === userId,
           },
           {
-            rowIcon: "leave",
+            rowIcon: ExitIcon,
             rowIconSize: 24,
-            rowIconClicked: () => setShowModal("leave"),
+            rowIconClicked: (index) => {
+              setRowIndex(index);
+              setShowModal("leave");
+            },
             rowIconClassName: "hover:text-yellow-600 mt-1",
           },
         ]}
@@ -161,13 +173,13 @@ export default function OrganizationsPage() {
             </Button>
           </>
         }
+        rowStyle="py-2"
       />
 
       {showModal === "create" ? (
         <Modal
-          onClose={() => setShowModal(null)}
-          title="Create organization"
-          icon="file-plus"
+          title="Create Organization"
+          icon={FilePlusIcon}
           actions={
             <>
               <Button onClick={createOrganization} className="btn-confirm ml-3">
@@ -210,11 +222,11 @@ export default function OrganizationsPage() {
       ) : showModal === "delete" ? (
         <Modal
           className="bg-red-500"
-          onClose={() => setShowModal(null)}
-          title={`Delete organization (${
-            tableRef.current?.data?.[tableRef.current.dataIndex]["name"]
-          })`}
-          icon="warning"
+          title="Delete Organization"
+          subtitle={tableRef.current?.data?.[rowIndex]["name"]}
+          text="Are you sure you would like to delete this organization? This is a
+                permanent change that cannot be undone."
+          icon={TrashIcon}
           actions={
             <>
               <Button onClick={deleteOrganization} className="btn-deny ml-3">
@@ -231,18 +243,15 @@ export default function OrganizationsPage() {
               </Button>
             </>
           }
-        >
-          Are you sure you would like to delete this organization? This is a
-          permanent change that cannot be undone.
-        </Modal>
+        />
       ) : showModal === "leave" ? (
         <Modal
           className="bg-yellow-600"
-          onClose={() => setShowModal(null)}
-          title={`Leave organization (${
-            tableRef.current?.data?.[tableRef.current.dataIndex]["name"]
-          })`}
-          icon="warning"
+          title="Leave Organization"
+          subtitle={tableRef.current?.data?.[rowIndex]["name"]}
+          text="Are you sure you would like to leave this organization? You may not be
+                able to be added back."
+          icon={ExclamationTriangleIcon}
           actions={
             <>
               <Button onClick={deleteOrganization} className="btn-warn ml-3">
@@ -258,10 +267,7 @@ export default function OrganizationsPage() {
               </Button>
             </>
           }
-        >
-          Are you sure you would like to leave this organization? You may not be
-          able to be added back
-        </Modal>
+        />
       ) : null}
     </div>
   );

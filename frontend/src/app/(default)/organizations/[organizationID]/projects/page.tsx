@@ -19,6 +19,7 @@ import projectsApi from "@/lib/api/handlers/projects";
 import { Project } from "@/lib/types/api/projects";
 import { ProjectPermissions } from "@/lib/types/api/projects/collaborators";
 import DragAndDrop, { DragAndDropRef } from "@/components/DragAndDrop";
+import { ExclamationTriangleIcon, FilePlusIcon, TrashIcon } from "@radix-ui/react-icons";
 
 export default function ProjectsPage() {
   const showSnackbar = useSnackbar();
@@ -33,6 +34,7 @@ export default function ProjectsPage() {
   const permissionDropdownView = useRef<HTMLSelectElement | null>(null);
 
   const [showModal, setShowModal] = useState<null | "create" | "delete">(null);
+  const [rowIndex, setRowIndex] = useState<number>(0);
 
   const createProject = () => {
     // first create project with projects API, then register it as an org project with orgProjectsApi
@@ -73,7 +75,7 @@ export default function ProjectsPage() {
 
   const deleteProject = () => {
     const projectId =
-      tableRef.current?.data[tableRef.current?.dataIndex]["project"]["id"];
+      tableRef.current?.data[rowIndex]["project"]["id"];
 
     if (!projectId) return;
 
@@ -91,6 +93,7 @@ export default function ProjectsPage() {
 
   return (
     <div className="mx-20 my-5">
+      <h1 className="header-1">Projects</h1>
       <Table<
         OrganizationProject,
         OrganizationProjectPayload,
@@ -99,7 +102,6 @@ export default function ProjectsPage() {
         typeof orgProjectsApi
       >
         ref={tableRef}
-        label="Projects"
         api={orgProjectsApi}
         columns={{
           id: {
@@ -136,9 +138,12 @@ export default function ProjectsPage() {
         }
         actions={[
           {
-            rowIcon: "trash",
+            rowIcon: TrashIcon,
             rowIconSize: 24,
-            rowIconClicked: () => setShowModal("delete"),
+            rowIconClicked: (index) => {
+              setRowIndex(index);
+              setShowModal("delete");
+            },
             rowIconClassName: "hover:text-red-500 mt-1",
             canUse: (project) => project.permission === "owner",
           },
@@ -153,13 +158,13 @@ export default function ProjectsPage() {
             </Button>
           </>
         }
+        rowStyle="py-2"
       />
 
       {showModal === "create" ? (
         <Modal
-          onClose={() => setShowModal(null)}
-          title="Create project"
-          icon="file-plus"
+          title="Create Project"
+          icon={FilePlusIcon}
           actions={
             <>
               <Button onClick={createProject} className="btn-confirm ml-3">
@@ -210,11 +215,9 @@ export default function ProjectsPage() {
       ) : showModal === "delete" ? (
         <Modal
           className="bg-red-500"
-          onClose={() => setShowModal(null)}
-          title={`Delete project (${
-            tableRef.current?.data?.[tableRef.current.dataIndex].project["name"]
-          })`}
-          icon="warning"
+          title="Delete Project"
+          subtitle={tableRef.current?.data?.[rowIndex].project["name"]}
+          icon={ExclamationTriangleIcon}
           actions={
             <>
               <Button onClick={deleteProject} className="btn-deny ml-3">

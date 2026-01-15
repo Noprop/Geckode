@@ -91,7 +91,7 @@ class ProjectCollaboratorSerializer(ModelSerializer):
 
     class Meta:
         model = ProjectCollaborator
-        fields = ['collaborator', 'collaborator_id', 'permission']
+        fields = ['id', 'collaborator', 'collaborator_id', 'permission']
 
     def update(self, instance, validated_data):
         validated_data.pop('collaborator_id', None)
@@ -103,7 +103,7 @@ class OrganizationProjectSerializer(ModelSerializer):
 
     class Meta:
         model = OrganizationProject
-        fields = ['project', 'project_id', 'permission']
+        fields = ['id', 'project', 'project_id', 'permission']
 
     def validate(self, attrs):
         try:

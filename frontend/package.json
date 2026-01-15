@@ -7,7 +7,9 @@
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "biome check",
-    "format": "biome format --write"
+    "format": "biome format --write",
+    "test": "vitest",
+    "test:run": "vitest run"
   },
   "dependencies": {
     "@blockly/field-angle": "^6.0.7",
@@ -27,10 +29,13 @@
     "react-dom": "19.1.0",
     "run": "^1.5.0",
     "tanstack": "^1.0.3",
+    "vitest": "^4.0.16",
     "zustand": "^5.0.9"
   },
   "devDependencies": {
     "@biomejs/biome": "2.2.0",
+    "jsdom": "^26.1.0",
+    "@playwright/test": "^1.57.0",
     "@tailwindcss/postcss": "^4.1.17",
     "@types/node": "^20.19.24",
     "@types/react": "^19.2.2",

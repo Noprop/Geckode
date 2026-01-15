@@ -74,10 +74,14 @@ const SPRITE_LIBRARY: SpriteAsset[] = [
 type Props = {
   isAssetModalOpen: boolean;
   setIsAssetModalOpen: Dispatch<SetStateAction<boolean>>;
-  onAssetClick: (payload: SpriteDragPayload) => Promise<boolean>;
+  addSpriteToGame: (payload: SpriteDragPayload) => Promise<boolean>;
 };
 
-const SpriteModal = ({ isAssetModalOpen, setIsAssetModalOpen, onAssetClick }: Props) => {
+const SpriteModal = ({
+  isAssetModalOpen,
+  setIsAssetModalOpen,
+  addSpriteToGame,
+}: Props) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
   const [activeTab, setActiveTab] = useState<'library' | 'editor'>('library');
@@ -133,7 +137,7 @@ const SpriteModal = ({ isAssetModalOpen, setIsAssetModalOpen, onAssetClick }: Pr
     };
 
   const handleAssetClick = (asset: SpriteAsset) => async () => {
-    const success = await onAssetClick(buildPayload(asset));
+    const success = await addSpriteToGame(buildPayload(asset));
     if (success) setIsAssetModalOpen(false);
   };
 
@@ -317,7 +321,7 @@ const SpriteModal = ({ isAssetModalOpen, setIsAssetModalOpen, onAssetClick }: Pr
       label.toLowerCase().replace(/[^\w]/g, '') || 'customsprite';
     const texture = `${safeBase}-${Date.now()}`;
     const dataUrl = generateDataUrl();
-    const success = await onAssetClick({
+    const success = await addSpriteToGame({
       kind: 'sprite-blueprint',
       texture,
       label,
@@ -454,7 +458,7 @@ const SpriteModal = ({ isAssetModalOpen, setIsAssetModalOpen, onAssetClick }: Pr
                         draggable
                         onDragStart={handleDragStart(asset)}
                         onClick={handleAssetClick(asset)}
-                        title="Click to add to center or drag into the game window"
+                        title="Click to add to center of the game window"
                       >
                         <img
                           src={asset.preview}

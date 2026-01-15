@@ -17,6 +17,7 @@ import {
 } from "@/lib/types/api/organizations/members";
 import { ProjectPermissions } from "@/lib/types/api/projects/collaborators";
 import { User } from "@/lib/types/api/users";
+import { FilePlusIcon, TrashIcon } from "@radix-ui/react-icons";
 import { ReactElement, useEffect, useRef, useState } from "react";
 
 interface Props {
@@ -170,11 +171,12 @@ export const ManageMembers = ({ org, setOrg, user }: Props) => {
 
   return (
     <>
-      <h1 className="header-1 ml-2">Owner</h1>
-      <div className="flex">
-        <img className="h-10 mr-5">{org.owner.avatar}</img>
-        <p>{org.owner.username}</p>
+      <h1 className="header-1">Owner</h1>
+      <div className="flex my-3">
+        <img className="size-10 mr-5 rounded-full" src={org.owner.avatar ?? 'user-icon.png'}/>
+        <span className="my-auto">{org.owner.username}</span>
       </div>
+      <h1 className="header-1 mt-10">Members</h1>
       <Table<
         OrganizationMember,
         OrganizationMemberPayload,
@@ -183,13 +185,11 @@ export const ManageMembers = ({ org, setOrg, user }: Props) => {
         typeof orgMemberApi
       >
         ref={tableRef}
-        label="Users"
         api={orgMemberApi}
         columns={{
           Avatar: {
-            key: "member",
+            key: ["member", "avatar"],
             type: "thumbnail",
-            value: (u: User) => u.avatar,
           },
           Username: {
             key: "member",
@@ -204,7 +204,7 @@ export const ManageMembers = ({ org, setOrg, user }: Props) => {
         defaultSortDirection="desc"
         actions={[
           {
-            rowIcon: "trash",
+            rowIcon: TrashIcon,
             rowIconSize: 24,
             rowIconClicked: () => setShowModal("remove"),
             rowIconClassName: "hover:text-red-500 mt-1",
@@ -220,15 +220,16 @@ export const ManageMembers = ({ org, setOrg, user }: Props) => {
               }}
               className="btn-confirm"
             >
-              Invite User
+              Invite Users
             </Button>
           </>
         }
+        rowStyle="py-2"
       />
       {showModal === "invite" && (
         <Modal
           title="Invite Users"
-          icon="file-plus"
+          icon={FilePlusIcon}
           actions={
             <>
               <Button onClick={inviteUsers} className="btn-confirm ml-3">

@@ -1,5 +1,5 @@
 import api from "./axios";
-import { AxiosResponse } from "axios";
+import { AxiosRequestConfig, AxiosResponse } from "axios";
 import { PaginatedResponse } from "@/lib/types/api";
 import type { HasKeys } from "@/lib/types";
 
@@ -55,8 +55,6 @@ export function convertFormData<TPayload>(payload : TPayload) {
   return formData
 }
 
-
-
 export function createBaseApi<
   TData,
   TPayload,
@@ -69,9 +67,9 @@ export function createBaseApi<
       const url = `${baseUrl}${id}/`;
 
       const methods = {
-        get: () => unwrap<Required<TData>>(api.get(url)),
-        update: (data: Partial<TPayload>) => unwrap<Required<TData>>(api.patch(url, data)),
-        delete: () => unwrap<void>(api.delete(url)),
+        get: (config?: AxiosRequestConfig) => unwrap<Required<TData>>(api.get(url, config)),
+        update: (data: Partial<TPayload>, config?: AxiosRequestConfig) => unwrap<Required<TData>>(api.patch(url, data, config)),
+        delete: (config?: AxiosRequestConfig) => unwrap<void>(api.delete(url, config)),
       };
 
       const subApiObjects = Object.entries(subApis).reduce(
@@ -88,8 +86,8 @@ export function createBaseApi<
     };
 
     const methods = {
-      list: (filters?: TFilters) => unwrap<PaginatedResponse<TData>>(api.get(baseUrl, { params: filters })),
-      create: (data: TPayload | FormData ) => unwrap<Required<TData>>(api.post(baseUrl, data)),
+      list: (filters?: TFilters, config?: AxiosRequestConfig) => unwrap<PaginatedResponse<TData>>(api.get(baseUrl, {...{ params: filters }, config})),
+      create: (data: TPayload | FormData, config?: AxiosRequestConfig) => unwrap<Required<TData>>(api.post(baseUrl, data, config)),
     };
 
     const subApiObjects = Object.entries(subApis).reduce(

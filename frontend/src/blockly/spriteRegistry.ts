@@ -1,31 +1,46 @@
 type SpriteDropdownSource = {
   id: string;
-  variableName: string;
+  name: string;
   label?: string;
 };
 
-let spriteOptions: SpriteDropdownSource[] = [];
+export type SpriteInstance = {
+  id: string;
+  tid: string;
+  name: string;
+  x: number;
+  y: number;
+  visible?: boolean;
+  size?: number;
+  direction?: number;
+  snapToGrid?: boolean;
+};
+
+let spriteList: SpriteDropdownSource[] = [];
 
 export const setSpriteDropdownOptions = (sprites: SpriteDropdownSource[]) => {
-  spriteOptions = sprites;
+  spriteList = sprites;
 };
 
 export const getSpriteDropdownOptions = (): string[][] => {
-  const seen = new Set<string>();
   const options: string[][] = [];
 
-  // Keep the original single-sprite default available for backwards compatibility.
-  options.push(['player', '__player__']);
-
-  for (const sprite of spriteOptions) {
-    const value = sprite.variableName?.trim();
-    if (!value || seen.has(value)) continue;
-    seen.add(value);
-    const display = sprite.label
-      ? `${sprite.label} (${value})`
-      : value;
-    options.push([display, value]);
-  }
+  if (spriteList.length == 0) options.push([' ', '__hero__']);
+  for (const sprite of spriteList) options.push([sprite.name, sprite.id]);
 
   return options;
+};
+
+export const createSpriteName = (name: string): string => {
+  const count = spriteList.filter((instance) => instance.name === name).length;
+  if (count === 0) {
+    return name;
+  }
+
+  if (isNaN(parseInt(name[name.length - 1]))) {
+    return createSpriteName(`${name}2`);
+  } else {
+    const lastDigit = parseInt(name[name.length - 1]);
+    return createSpriteName(`${name.slice(0, -1)}${lastDigit + 1}`);
+  }
 };
