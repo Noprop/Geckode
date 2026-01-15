@@ -8,6 +8,10 @@ import { variableCategoryCallback } from '@/blockly/callbacks';
 import { Geckode } from '@/blockly/theme';
 import { useEditorStore } from '@/stores/editorStore';
 import VariableModal from './VariableModal';
+import { useParams } from 'next/navigation';
+import projectsApi from '@/lib/api/handlers/projects';
+import starterWorkspace from '@/blockly/workspaces/starter';
+import starterWorkspaceNewProject from '@/blockly/workspaces/starterNewProject';
 
 registerBlockly();
 
@@ -20,6 +24,9 @@ type BlocklyEditorProps = {
 };
 
 const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(({ onWorkspaceReady }, ref) => {
+  const { projectID } = useParams();
+  const projectId = projectID ? Number(projectID) : null;
+
   const blocklyInjectionRef = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<Blockly.WorkspaceSvg | null>(null);
   const spriteId = useEditorStore((state) => state.spriteId);
@@ -180,8 +187,46 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(({ onW
           useEditorStore.getState().scheduleConvert();
       });
 
+      useEditorStore.setState({ blocklyWorkspace: workspaceRef.current! });
+
       // Initial update of undo/redo state
       useEditorStore.getState().updateUndoRedoState();
+
+      if (!projectId) {
+        if (workspaceRef.current?.getAllBlocks(false).length <= 0) {
+          Blockly.serialization.workspaces.load(starterWorkspace, workspaceRef.current!);
+
+          useEditorStore.setState({
+            spriteId: useEditorStore.getState().spriteInstances[0].id,
+          });
+
+          useEditorStore.getState().scheduleConvert();
+        }
+        return;
+      }
+
+      const fetchWorkspace = async () => {
+        projectsApi(projectId)
+          .get()
+          .then((project) => {
+            try {
+              Blockly.serialization.workspaces.load(
+                Object.keys(project.blocks).length ? project.blocks : starterWorkspaceNewProject,
+                workspaceRef.current!
+              );
+            } catch {
+              console.error('Failed to load workspace!');
+            }
+
+            useEditorStore.setState({
+              projectName: project.name,
+              phaserState: project.game_state,
+              spriteInstances: project.sprites,
+            });
+          });
+      };
+
+      fetchWorkspace();
     }
 
     return () => {

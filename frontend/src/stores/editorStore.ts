@@ -18,7 +18,8 @@ const DEBOUNCE_MS = 400;
 interface State {
   // Refs
   phaserRef: PhaserRef | null;
-  blocklyRef: BlocklyEditorHandle | null;
+  blocklyInstance: BlocklyEditorHandle | null;
+  blocklyWorkspace: Blockly.WorkspaceSvg | null;
 
   // State
   projectId: number | null;
@@ -40,9 +41,10 @@ interface State {
 
 interface Actions {
   // Registration Actions
-  setPhaserRef: (ref: PhaserRef | null) => void;
-  setBlocklyRef: (ref: BlocklyEditorHandle | null) => void;
-  setProjectId: (id: number | null) => void;
+  setPhaserRef: (phaserRef: PhaserRef) => void;
+  setBlocklyInstance: (blocklyInstance: BlocklyEditorHandle) => void;
+  setBlocklyWorkspace: (blocklyWorkspace: Blockly.WorkspaceSvg) => void;
+  setProjectId: (id: number) => void;
   setProjectName: (name: string) => void;
   setSpriteInstances: (update: SpriteInstance[] | ((state: SpriteInstance[]) => SpriteInstance[])) => void;
   setPhaserState: (phaserState: PhaserExport | null) => void;
@@ -76,7 +78,8 @@ export interface SpriteAddPayload {
 
 export const useEditorStore = create<State & Actions>((set, get) => ({
   phaserRef: null,
-  blocklyRef: null,
+  blocklyInstance: null,
+  blocklyWorkspace: null,
   projectId: null,
   projectName: '',
   spriteInstances: [
@@ -102,7 +105,8 @@ export const useEditorStore = create<State & Actions>((set, get) => ({
   startId: 0,
 
   setPhaserRef: (phaserRef) => set({ phaserRef }),
-  setBlocklyRef: (blocklyRef) => set({ blocklyRef }),
+  setBlocklyInstance: (blocklyInstance) => set({ blocklyInstance }),
+  setBlocklyWorkspace: (blocklyWorkspace) => set({ blocklyWorkspace }),
   setProjectId: (projectId) => set({ projectId }),
   setProjectName: (projectName) => set({ projectName }),
   setSpriteInstances: (update) =>
@@ -111,15 +115,12 @@ export const useEditorStore = create<State & Actions>((set, get) => ({
     })),
   setPhaserState: (phaserState) => set({ phaserState }),
   updateUndoRedoState: () => {
-    const { blocklyRef } = get();
-    const workspace = blocklyRef?.getWorkspace() as Blockly.WorkspaceSvg | null;
-    if (!workspace) {
-      set({ canUndo: false, canRedo: false });
-      return;
-    }
+    const { blocklyWorkspace } = get();
+    if (!blocklyWorkspace) return;
+
     // Access Blockly's internal undo stacks
-    const undoStack = (workspace as unknown as { undoStack_: unknown[] }).undoStack_ || [];
-    const redoStack = (workspace as unknown as { redoStack_: unknown[] }).redoStack_ || [];
+    const undoStack = (blocklyWorkspace as unknown as { undoStack_: unknown[] }).undoStack_ || [];
+    const redoStack = (blocklyWorkspace as unknown as { redoStack_: unknown[] }).redoStack_ || [];
     set({
       canUndo: undoStack.length > 0,
       canRedo: redoStack.length > 0,
@@ -132,11 +133,10 @@ export const useEditorStore = create<State & Actions>((set, get) => ({
   },
 
   generateCode: () => {
-    const { blocklyRef, phaserRef, spriteOutputs, spriteId } = get();
-    const workspace = blocklyRef?.getWorkspace();
-    if (!phaserRef || !workspace) return;
+    const { blocklyWorkspace, phaserRef, spriteOutputs, spriteId } = get();
+    if (!phaserRef || !blocklyWorkspace) return;
 
-    const code = javascriptGenerator.workspaceToCode(workspace as Blockly.Workspace);
+    const code = javascriptGenerator.workspaceToCode(blocklyWorkspace);
     // @ts-expect-error TODO: fix this
     const output: WorkspaceOutputType = {
       code: code,
@@ -150,7 +150,7 @@ export const useEditorStore = create<State & Actions>((set, get) => ({
 
     // save workspace state (should be moved later)
     const { spriteWorkspaces } = get();
-    const state = Blockly.serialization.workspaces.save(workspace);
+    const state = Blockly.serialization.workspaces.save(blocklyWorkspace);
 
     spriteWorkspaces.set(spriteId, state);
   },
@@ -163,9 +163,9 @@ export const useEditorStore = create<State & Actions>((set, get) => ({
     if (convertTimeoutId) clearTimeout(convertTimeoutId);
 
     const attemptConvert = () => {
-      const { phaserRef, blocklyRef, generateCode } = get();
+      const { phaserRef, blocklyWorkspace, generateCode } = get();
 
-      if (!phaserRef?.scene || !blocklyRef?.getWorkspace()) {
+      if (!phaserRef?.scene || !blocklyWorkspace) {
         // Retry after a short delay if not ready yet
         convertTimeoutId = setTimeout(attemptConvert, 100);
         return;
@@ -189,17 +189,15 @@ export const useEditorStore = create<State & Actions>((set, get) => ({
   },
 
   saveProject: async (showSnackbar) => {
-    const { projectId, projectName, blocklyRef, phaserRef, spriteInstances } = get();
+    const { projectId, projectName, blocklyWorkspace, phaserRef, spriteInstances } = get();
     if (!projectId) {
       console.error('[editorStore] saveProject() - No project id associated, returning.');
       return;
     }
+    if (!blocklyWorkspace || !phaserRef) return;
 
-    const workspace = blocklyRef?.getWorkspace();
-    if (!workspace) return;
-
-    const workspaceState = Blockly.serialization.workspaces.save(workspace);
-    const phaserState = createPhaserState(phaserRef!);
+    const workspaceState = Blockly.serialization.workspaces.save(blocklyWorkspace);
+    const phaserState = createPhaserState(phaserRef);
 
     try {
       await projectsApi(projectId).update({
@@ -215,26 +213,26 @@ export const useEditorStore = create<State & Actions>((set, get) => ({
   },
 
   exportWorkspaceState: () => {
-    const { blocklyRef } = get();
-    const workspace = blocklyRef?.getWorkspace();
-    if (!workspace) return;
+    const { blocklyWorkspace } = get();
+    if (!blocklyWorkspace) return;
 
-    const workspaceState = Blockly.serialization.workspaces.save(workspace);
+    const workspaceState = Blockly.serialization.workspaces.save(blocklyWorkspace);
 
     console.log('Current workspace state', workspaceState);
     console.log('Workspace JSON', JSON.stringify(workspaceState, null, 2));
   },
 
   undoWorkspace: () => {
-    const { blocklyRef, updateUndoRedoState } = get();
-    blocklyRef?.getWorkspace()?.undo(false);
-    // Update state after a small delay to let Blockly process the undo
+    const { blocklyWorkspace, updateUndoRedoState } = get();
+    if (!blocklyWorkspace) return;
+    blocklyWorkspace.undo(false);
     setTimeout(updateUndoRedoState, 10);
   },
 
   redoWorkspace: () => {
-    const { blocklyRef, updateUndoRedoState } = get();
-    blocklyRef?.getWorkspace()?.undo(true);
+    const { blocklyWorkspace, updateUndoRedoState } = get();
+    if (!blocklyWorkspace) return;
+    blocklyWorkspace.undo(true);
     // Update state after a small delay to let Blockly process the redo
     setTimeout(updateUndoRedoState, 10);
   },
@@ -242,18 +240,16 @@ export const useEditorStore = create<State & Actions>((set, get) => ({
   loadWorkspace: (spriteId) => {
     if (spriteId === get().spriteId) return;
     console.log('[editorStore] loadWorkspace called', spriteId);
-    const { spriteWorkspaces, blocklyRef } = get();
+    const { spriteWorkspaces, blocklyWorkspace } = get();
     set({ spriteId: spriteId });
 
-    const workspace = blocklyRef?.getWorkspace();
-    if (!workspace) return;
-    workspace.clear();
+    if (!blocklyWorkspace) return;
+    blocklyWorkspace.clear();
 
     const state = spriteWorkspaces.get(spriteId);
     if (!state) return;
 
-    Blockly.serialization.workspaces.load(state, workspace);
-
+    Blockly.serialization.workspaces.load(state, blocklyWorkspace);
     console.log(`sprite ${spriteId} workspace loaded`);
   },
 
@@ -304,12 +300,10 @@ export const useEditorStore = create<State & Actions>((set, get) => ({
 
   addSpriteToGame: async (payload: SpriteAddPayload, position?: { x: number; y: number }) => {
     console.log('[editorStore] addSpriteToGame() called', payload, position);
-    const { phaserRef, blocklyRef, spriteInstances, spriteTextures } = get();
+    const { phaserRef, blocklyWorkspace, spriteInstances, spriteTextures } = get();
     const game = phaserRef?.game;
     const scene = phaserRef?.scene;
-    const workspace = blocklyRef?.getWorkspace() as Blockly.WorkspaceSvg | null;
-
-    if (!game || !scene || !workspace) {
+    if (!game || !scene || !blocklyWorkspace) {
       // showSnackbar('Game is not ready yet. Try again in a moment.', 'error');
       console.error('[editorStore] addSpriteToGame() - Game is not ready yet. Try again in a moment.');
       return false;
@@ -418,12 +412,10 @@ export const useEditorStore = create<State & Actions>((set, get) => ({
   },
 
   removeSpriteFromGame: async (spriteId: string) => {
-    const { phaserRef, blocklyRef, spriteInstances } = get();
+    const { phaserRef, blocklyWorkspace, spriteInstances } = get();
     const game = phaserRef?.game;
     const scene = phaserRef?.scene;
-    const workspace = blocklyRef?.getWorkspace() as Blockly.WorkspaceSvg | null;
-
-    if (!game || !scene || !workspace) {
+    if (!game || !scene || !blocklyWorkspace) {
       // showSnackbar('Game is not ready yet. Try again in a moment.', 'error');
       console.error('[editorStore] removeSpriteFromGame() - Game is not ready yet. Try again in a moment.');
       return false;
@@ -439,12 +431,10 @@ export const useEditorStore = create<State & Actions>((set, get) => ({
   },
 
   updateSprite: async (spriteId: string, updates: Partial<SpriteInstance>) => {
-    const { phaserRef, blocklyRef, spriteInstances } = get();
+    const { phaserRef, blocklyWorkspace, spriteInstances } = get();
     const game = phaserRef?.game;
     const scene = phaserRef?.scene;
-    const workspace = blocklyRef?.getWorkspace() as Blockly.WorkspaceSvg | null;
-
-    if (!game || !scene || !workspace) {
+    if (!game || !scene || !blocklyWorkspace) {
       // showSnackbar('Game is not ready yet. Try again in a moment.', 'error');
       console.error('[editorStore] updateSprite() - Game is not ready yet. Try again in a moment.');
       return false;

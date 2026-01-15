@@ -72,20 +72,6 @@ const PhaserContainer = ({ ref }: Props) => {
     };
   }, []);
 
-  // useEffect(() => {
-  //   const handler = () => {
-  //     // const phaserState = useEditorStore.getState().phaserState;
-
-  //     // if (phaserState && Object.keys(phaserState).length > 0)
-  //     //   loadPhaserState((ref as any).current, phaserState);
-  //     // else (ref as any).current.scene.createSprite('hero', 200, 300, 'hero');
-  //   };
-  //   EventBus.on('current-scene-ready', handler);
-  //   return () => {
-  //     EventBus.off('current-scene-ready', handler);
-  //   };
-  // }, [ref]);
-
   return (
     <div className="relative">
       <div

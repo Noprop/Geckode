@@ -1,22 +1,17 @@
 "use client";
 
 import dynamic from 'next/dynamic';
-import { useRef, useEffect, useCallback } from 'react';
-import BlocklyEditor, { BlocklyEditorHandle } from '@/components/BlocklyEditor';
+import { useRef, useEffect } from 'react';
+import BlocklyEditor from '@/components/BlocklyEditor';
 import * as Blockly from 'blockly/core';
-import projectsApi from '@/lib/api/handlers/projects';
 import { Game } from 'phaser';
 import EditorScene from '@/phaser/scenes/EditorScene';
 import GameScene from '@/phaser/scenes/GameScene';
 import SpritePanel from '@/components/SpritePanel';
-import starterWorkspace from '@/blockly/workspaces/starter';
-import { useSnackbar } from '@/hooks/useSnackbar';
-import starterWorkspaceNewProject from '@/blockly/workspaces/starterNewProject';
 import { useWorkspaceView } from '@/contexts/WorkspaceViewContext';
 import { EventBus } from '@/phaser/EventBus';
 import { setSpriteDropdownOptions } from '@/blockly/spriteRegistry';
 import { useEditorStore } from '@/stores/editorStore';
-import type { SpriteInstance } from '@/blockly/spriteRegistry';
 
 export type PhaserRef = {
   readonly game: Game;
@@ -47,22 +42,11 @@ const PhaserContainer = dynamic(() => import('@/components/PhaserContainer'), {
   ),
 });
 
-interface ProjectViewProps {
-  projectId?: number;
-}
-
-const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
-  const showSnackbar = useSnackbar();
+const ProjectView = () => {
   const { view } = useWorkspaceView();
-  const blocklyRef = useRef<BlocklyEditorHandle>(null);
-  const phaserRef = useRef<{ game?: Game; scene?: Phaser.Scene } | null>(null);
+  const phaserRef = useRef<PhaserRef>(null);
 
-  const { setPhaserRef, setBlocklyRef, setProjectName, spriteInstances, setSpriteInstances, setPhaserState } =
-    useEditorStore();
-
-  useEffect(() => {
-    setBlocklyRef(blocklyRef.current);
-  }, [setBlocklyRef]);
+  const { setPhaserRef, spriteInstances, setSpriteInstances } = useEditorStore();
 
   // Update store when Phaser scene becomes ready
   useEffect(() => {
@@ -97,78 +81,10 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
     };
   }, []);
 
-  useEffect(() => {
-    const workspace: Blockly.Workspace = blocklyRef.current?.getWorkspace()!;
-
-    if (!projectId) {
-      if (workspace.getAllBlocks(false).length <= 0) {
-        Blockly.serialization.workspaces.load(starterWorkspace, workspace);
-
-        useEditorStore.setState({
-          spriteId: useEditorStore.getState().spriteInstances[0].id,
-        });
-
-        useEditorStore.getState().scheduleConvert();
-      }
-      return;
-    }
-
-    const fetchWorkspace = async () => {
-      projectsApi(parseInt(projectId?.toString()!))
-        .get()
-        .then((project) => {
-          try {
-            Blockly.serialization.workspaces.load(
-              Object.keys(project.blocks).length ? project.blocks : starterWorkspaceNewProject,
-              workspace
-            );
-          } catch {
-            showSnackbar('Failed to load workspace!', 'error');
-          }
-
-          setProjectName(project.name);
-          setPhaserState(project.game_state);
-          setSpriteInstances(project.sprites);
-        });
-    };
-
-    fetchWorkspace();
-  }, []);
-
   const workspaceListenerRef = useRef<{
     workspace: Blockly.WorkspaceSvg;
     listener: (event: Blockly.Events.Abstract) => void;
   } | null>(null);
-
-  const workspaceDeleteHandler = useCallback((event: Blockly.Events.Abstract) => {
-    // if (event.type !== Blockly.Events.BLOCK_DELETE) return;
-    // const deleteEvent = event as Blockly.Events.BlockDelete;
-    // if (deleteEvent.oldJson?.type !== 'createSprite') return;
-    // setSpriteInstances((prev) => {
-    //   const sprite = prev.find(
-    //     (instance) => instance.blockId === deleteEvent.blockId
-    //   );
-    //   if (!sprite) return prev;
-    //   phaserRef.current?.scene?.removeEditorSprite?.(sprite.id);
-    //   return prev.filter(
-    //     (instance) => instance.blockId !== deleteEvent.blockId
-    //   );
-    // });
-  }, []);
-
-  const handleWorkspaceReady = useCallback(
-    (workspace: Blockly.WorkspaceSvg) => {
-      if (workspaceListenerRef.current) {
-        workspaceListenerRef.current.workspace.removeChangeListener(workspaceListenerRef.current.listener);
-      }
-      workspace.addChangeListener(workspaceDeleteHandler);
-      workspaceListenerRef.current = {
-        workspace,
-        listener: workspaceDeleteHandler,
-      };
-    },
-    [workspaceDeleteHandler]
-  );
 
   useEffect(() => {
     return () => {
@@ -182,7 +98,6 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
 
   useEffect(() => {
     const handleSpriteMove = ({ id, x, y }: { id: string; x: number; y: number }) => {
-      const workspace = blocklyRef.current?.getWorkspace() as Blockly.WorkspaceSvg | null;
       const isEditorScene = useEditorStore.getState().isEditorScene;
 
       setSpriteInstances((prev) => {
@@ -204,13 +119,6 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
           });
         }
 
-        // Update Blockly block fields
-        // if (workspace && sprite.blockId) {
-        //   const block = workspace.getBlockById(sprite.blockId);
-        //   block?.setFieldValue(String(finalX), 'X');
-        //   block?.setFieldValue(String(finalY), 'Y');
-        // }
-
         return prev.map((s) => (s.id === id ? { ...s, x: finalX, y: finalY } : s));
       });
     };
@@ -224,62 +132,13 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
   useEffect(() => {
     setSpriteDropdownOptions(spriteInstances);
 
-    const workspace = blocklyRef.current?.getWorkspace();
-
+    const workspace = useEditorStore.getState().blocklyWorkspace;
     if (!workspace) return;
 
     const state = Blockly.serialization.workspaces.save(workspace);
 
     Blockly.serialization.workspaces.load(state, workspace);
   }, [spriteInstances]);
-
-  const handleUpdateSprite = useCallback((spriteId: string, updates: Partial<SpriteInstance>) => {
-    const scene = phaserRef.current?.scene;
-
-    setSpriteInstances((prev) => {
-      const sprite = prev.find((instance) => instance.id === spriteId);
-      if (!sprite) return prev;
-
-      // Update Blockly block fields if they exist
-      // if (workspace && sprite.blockId) {
-      //   const block = workspace.getBlockById(sprite.blockId);
-      //   if (block) {
-      //     if ('x' in updates && updates.x !== undefined) {
-      //       block.setFieldValue(String(updates.x), 'X');
-      //     }
-      //     if ('y' in updates && updates.y !== undefined) {
-      //       block.setFieldValue(String(updates.y), 'Y');
-      //     }
-      //     if (
-      //       'variableName' in updates &&
-      //       updates.variableName !== undefined
-      //     ) {
-      //       block.setFieldValue(updates.variableName, 'NAME');
-      //     }
-      //   }
-      // }
-
-      // Update Phaser sprite in the scene
-      if (scene && 'updateSprite' in scene) {
-        (scene as EditorScene).updateSprite(spriteId, {
-          x: updates.x as number,
-          y: updates.y as number,
-        });
-      }
-
-      console.log('workspace spriteId: ' + useEditorStore.getState().spriteId);
-
-      // Update sprite instances state
-      return prev.map((instance) => (instance.id === spriteId ? { ...instance, ...updates } : instance));
-    });
-  }, []);
-
-  useEffect(() => {
-    if (view !== 'blocks') return;
-    const workspace = blocklyRef.current?.getWorkspace() as Blockly.WorkspaceSvg | null;
-    if (!workspace) return;
-    requestAnimationFrame(() => Blockly.svgResize(workspace));
-  }, [view]);
 
   return (
     <div className="flex h-[calc(100vh-4rem-3.5rem)]">
@@ -291,7 +150,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
           }`}
           aria-hidden={view !== 'blocks'}
         >
-          <BlocklyEditor ref={blocklyRef} onWorkspaceReady={handleWorkspaceReady} />
+          <BlocklyEditor />
         </div>
         <div
           className={`absolute inset-0 flex items-center justify-center p-8 transition-opacity duration-150 ${
