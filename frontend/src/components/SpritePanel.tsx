@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState, useCallback, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Cross2Icon, EyeOpenIcon, EyeNoneIcon } from '@radix-ui/react-icons';
 import { Button } from './ui/Button';
 import { useEditorStore } from '@/stores/editorStore';

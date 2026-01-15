@@ -17,6 +17,11 @@ export default class EditorScene extends Phaser.Scene {
   } | null = null;
   private gridGraphics: Phaser.GameObjects.Graphics | null = null;
 
+  // Tilemap properties
+  private static readonly TILE_SIZE = 32;
+  private tilemap: Phaser.Tilemaps.Tilemap | null = null;
+  private groundLayer: Phaser.Tilemaps.TilemapLayer | Phaser.Tilemaps.TilemapGPULayer | null = null;
+
   constructor() {
     super(EDITOR_SCENE_KEY);
     this.key = EDITOR_SCENE_KEY;
@@ -27,6 +32,53 @@ export default class EditorScene extends Phaser.Scene {
     for (const [textureName, textureUrl] of textures.entries()) {
       this.load.image(textureName, textureUrl);
     }
+
+    // Generate a simple tileset texture if it doesn't exist
+    this.generateTilesetTexture();
+  }
+
+  private generateTilesetTexture(): void {
+    const tileSize = EditorScene.TILE_SIZE;
+
+    // Create a graphics object to draw tiles
+    const graphics = this.make.graphics({ x: 0, y: 0 });
+
+    // Tile 0: Empty/sky (transparent)
+    // We don't draw anything for tile 0
+
+    // Tile 1: Grass tile
+    graphics.fillStyle(0x4ade80); // green-400
+    graphics.fillRect(tileSize, 0, tileSize, tileSize);
+    // Add some grass texture lines
+    graphics.lineStyle(1, 0x22c55e, 0.6);
+    for (let i = 0; i < 5; i++) {
+      const x = tileSize + 4 + i * 6;
+      graphics.beginPath();
+      graphics.moveTo(x, tileSize - 2);
+      graphics.lineTo(x + 2, tileSize - 8);
+      graphics.strokePath();
+    }
+
+    // Tile 2: Dirt tile
+    graphics.fillStyle(0x92400e); // amber-800
+    graphics.fillRect(tileSize * 2, 0, tileSize, tileSize);
+    // Add some dirt texture
+    graphics.fillStyle(0x78350f, 0.5);
+    for (let i = 0; i < 6; i++) {
+      const x = tileSize * 2 + 4 + Math.random() * 24;
+      const y = 4 + Math.random() * 24;
+      graphics.fillCircle(x, y, 2);
+    }
+
+    // Tile 3: Stone tile
+    graphics.fillStyle(0x6b7280); // gray-500
+    graphics.fillRect(tileSize * 3, 0, tileSize, tileSize);
+    graphics.lineStyle(1, 0x4b5563, 0.8);
+    graphics.strokeRect(tileSize * 3 + 2, 2, tileSize - 4, tileSize - 4);
+
+    // Generate the texture (4 tiles wide, 1 tile tall)
+    graphics.generateTexture('tileset', tileSize * 4, tileSize);
+    graphics.destroy();
   }
 
   public changeScene() {
@@ -38,6 +90,11 @@ export default class EditorScene extends Phaser.Scene {
 
     this.editorSprites.clear();
     this.gridGraphics = null; // Reset on scene restart
+    this.tilemap = null;
+    this.groundLayer = null;
+
+    // Create the tilemap (sits below sprites)
+    this.createTilemap();
 
     // Dedicated layer to keep editor sprites above all game objects.
     this.editorLayer = this.add.layer();
@@ -59,6 +116,49 @@ export default class EditorScene extends Phaser.Scene {
     }
     // Tell React which scene is active (will trigger pause state sync)
     EventBus.emit('current-scene-ready', this);
+  }
+
+  private createTilemap(): void {
+    const tileSize = EditorScene.TILE_SIZE;
+    const width = 480;
+    const height = 360;
+    const mapWidth = Math.ceil(width / tileSize); // 15 tiles
+    const mapHeight = Math.ceil(height / tileSize); // ~11 tiles
+
+    // Create tilemap data - simple ground at bottom 2 rows
+    const mapData: number[][] = [];
+    for (let y = 0; y < mapHeight; y++) {
+      const row: number[] = [];
+      for (let x = 0; x < mapWidth; x++) {
+        if (y >= mapHeight - 2) {
+          // Bottom 2 rows: grass on top, dirt below
+          row.push(y === mapHeight - 2 ? 1 : 2); // 1 = grass, 2 = dirt
+        } else {
+          row.push(0); // Empty
+        }
+      }
+      mapData.push(row);
+    }
+
+    // Create tilemap from data
+    this.tilemap = this.make.tilemap({
+      data: mapData,
+      tileWidth: tileSize,
+      tileHeight: tileSize,
+    });
+
+    // Add tileset image
+    const tileset = this.tilemap.addTilesetImage('tileset', 'tileset', tileSize, tileSize, 0, 0);
+    if (!tileset) {
+      console.error('Failed to create tileset');
+      return;
+    }
+
+    // Create layer
+    this.groundLayer = this.tilemap.createLayer(0, tileset, 0, 0);
+    if (this.groundLayer) {
+      this.groundLayer.setDepth(0); // Below sprites, above background
+    }
   }
 
   private pauseHandler = (isPaused: boolean) => {
