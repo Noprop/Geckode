@@ -30,8 +30,8 @@ export default class EditorScene extends Phaser.Scene {
 
   preload() {
     const { spriteTextures } = useSpriteStore.getState();
-    for (const [textureName, textureUrl] of spriteTextures.entries()) {
-      this.load.image(textureName, textureUrl);
+    for (const [textureName, { url }] of spriteTextures.entries()) {
+      this.load.image(textureName, url);
     }
 
     // Generate a simple tileset texture if it doesn't exist

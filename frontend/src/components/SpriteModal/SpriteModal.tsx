@@ -5,7 +5,7 @@ import type { Dispatch, SetStateAction, PointerEvent as ReactPointerEvent } from
 import { Cross2Icon, Pencil2Icon, EraserIcon, ImageIcon } from '@radix-ui/react-icons';
 import { Button } from '../ui/Button';
 import SpriteLibrary from './SpriteLibrary';
-import { useEditorStore } from '@/stores/editorStore';
+import { useSpriteStore } from '@/stores/spriteStore';
 
 type Props = {
   isSpriteModalOpen: boolean;
@@ -25,7 +25,7 @@ const SpriteModal = ({ isSpriteModalOpen, setIsSpriteModalOpen }: Props) => {
     y: number;
   } | null>(null);
   const [zoom, setZoom] = useState(10);
-  const addSpriteToGame = useEditorStore.getState().addSpriteToGame;
+  const addSpriteToGame = useSpriteStore((state) => state.addSpriteToGame);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const previewRef = useRef<HTMLCanvasElement | null>(null);
@@ -295,33 +295,15 @@ const SpriteModal = ({ isSpriteModalOpen, setIsSpriteModalOpen }: Props) => {
     setPixels(createEmptyPixels());
   };
 
-  const generateDataUrl = useCallback(() => {
-    const exportCanvas = document.createElement('canvas');
-    exportCanvas.width = GRID_SIZE;
-    exportCanvas.height = GRID_SIZE;
-    const ctx = exportCanvas.getContext('2d');
-    if (!ctx) return '';
-    ctx.clearRect(0, 0, GRID_SIZE, GRID_SIZE);
-    pixels.forEach((color, index) => {
-      if (!color) return;
-      const x = index % GRID_SIZE;
-      const y = Math.floor(index / GRID_SIZE);
-      ctx.fillStyle = color;
-      ctx.fillRect(x, y, 1, 1);
-    });
-    return exportCanvas.toDataURL('image/png');
-  }, [GRID_SIZE, pixels]);
-
   const handleSaveCustomSprite = async () => {
     if (!hasPixels) return;
     const label = spriteName.trim() || 'Custom Sprite';
     const safeBase = label.toLowerCase().replace(/[^\w]/g, '') || 'customsprite';
     const texture = `${safeBase}-${Date.now()}`;
-    const dataUrl = generateDataUrl();
     const success = await addSpriteToGame({
       name: label,
       textureName: texture,
-      textureUrl: dataUrl,
+      textureUrl: '',
     });
     if (success) {
       setIsSpriteModalOpen(false);

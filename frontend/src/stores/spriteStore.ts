@@ -12,8 +12,9 @@ export interface SpriteAddPayload {
 }
 
 interface State {
+  spriteLibrary: Sprite[];
   spriteInstances: Sprite[];
-  spriteTextures: Map<string, string>;
+  spriteTextures: Map<string, { url: string; hasLoaded: boolean }>;
 }
 interface Actions {
   setSpriteInstances: (update: Sprite[] | ((state: Sprite[]) => Sprite[])) => void;
@@ -23,6 +24,22 @@ interface Actions {
 }
 
 export const useSpriteStore = create<State & Actions>((set, get) => ({
+  spriteLibrary: [
+    {
+      id: 'id_' + Date.now().toString() + '_' + Math.round(Math.random() * 10000),
+      textureName: 'hero-walk-front',
+      name: 'herowalkfront1',
+      x: 200,
+      y: 150,
+    },
+    {
+      id: 'id_' + Date.now().toString() + '_' + Math.round(Math.random() * 10000),
+      textureName: 'hero-walk-back',
+      name: 'herowalkback1',
+      x: 200,
+      y: 150,
+    },
+  ],
   // TODO: handle default sprite instances for a default project
   spriteInstances: [
     {
@@ -33,8 +50,10 @@ export const useSpriteStore = create<State & Actions>((set, get) => ({
       y: 150,
     },
   ],
-  spriteTextures: new Map<string, string>([['hero-walk-front', '/heroWalkFront1.bmp']]),
-  
+  spriteTextures: new Map<string, { url: string; hasLoaded: boolean }>([
+    ['hero-walk-front', { url: '/heroWalkFront1.png', hasLoaded: false }],
+  ]),
+
   setSpriteInstances: (update) =>
     set((state) => ({
       spriteInstances: typeof update === 'function' ? update(state.spriteInstances) : update,
@@ -55,9 +74,11 @@ export const useSpriteStore = create<State & Actions>((set, get) => ({
     const ensureTexture = async () => {
       if (scene.textures.exists(payload.textureName)) return true;
 
-      const dataUrl = spriteTextures.get(payload.textureName);
-      const isDataUrl = dataUrl?.startsWith('data:');
-      if (isDataUrl) {
+      const texture = spriteTextures.get(payload.textureName);
+      if (!texture) return false;
+      const { url, hasLoaded } = texture;
+
+      if (hasLoaded) {
         const textureReady = new Promise<void>((resolve, reject) => {
           const img = new window.Image();
           img.onload = () => {
@@ -69,10 +90,10 @@ export const useSpriteStore = create<State & Actions>((set, get) => ({
             }
           };
           img.onerror = () => reject(new Error('Failed to load base64 texture data.'));
-          img.src = dataUrl || '';
+          img.src = url;
         });
         await textureReady;
-        return;
+        return true;
       }
 
       await new Promise<void>((resolve, reject) => {
@@ -86,10 +107,11 @@ export const useSpriteStore = create<State & Actions>((set, get) => ({
         };
         scene.load.once('complete', handleComplete);
         scene.load.once('loaderror', handleError);
-        console.log('loading image', payload.textureName, dataUrl);
-        scene.load.image(payload.textureName, dataUrl);
+        console.log('loading image', payload.textureName, url);
+        scene.load.image(payload.textureName, url);
         scene.load.start();
       });
+      return false;
     };
 
     try {
