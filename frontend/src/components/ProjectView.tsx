@@ -11,6 +11,7 @@ import SpritePanel from '@/components/SpritePanel';
 import { useWorkspaceView } from '@/contexts/WorkspaceViewContext';
 import { EventBus } from '@/phaser/EventBus';
 import { useEditorStore } from '@/stores/editorStore';
+import { useSpriteStore } from '@/stores/spriteStore';
 
 export type PhaserRef = {
   readonly game: Game;
@@ -45,7 +46,8 @@ const ProjectView = () => {
   const { view } = useWorkspaceView();
   const phaserRef = useRef<PhaserRef>(null);
 
-  const { setPhaserRef, spriteInstances, setSpriteInstances } = useEditorStore();
+  const { setPhaserRef } = useEditorStore();
+  const { spriteInstances, setSpriteInstances } = useSpriteStore();
 
   // Update store when Phaser scene becomes ready
   useEffect(() => {

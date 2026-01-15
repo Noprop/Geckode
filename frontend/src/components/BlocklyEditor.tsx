@@ -12,6 +12,7 @@ import { useParams } from 'next/navigation';
 import projectsApi from '@/lib/api/handlers/projects';
 import starterWorkspace from '@/blockly/workspaces/starter';
 import starterWorkspaceNewProject from '@/blockly/workspaces/starterNewProject';
+import { useSpriteStore } from '@/stores/spriteStore';
 
 registerBlockly();
 
@@ -197,7 +198,7 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(({ onW
           Blockly.serialization.workspaces.load(starterWorkspace, workspaceRef.current!);
 
           useEditorStore.setState({
-            spriteId: useEditorStore.getState().spriteInstances[0].id,
+            spriteId: useSpriteStore.getState().spriteInstances[0]?.id ?? '',
           });
 
           useEditorStore.getState().scheduleConvert();
@@ -221,7 +222,7 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(({ onW
             useEditorStore.setState({
               projectName: project.name,
               phaserState: project.game_state,
-              spriteInstances: project.sprites,
+              spriteId: project.sprites[0]?.id ?? '',
             });
           });
       };

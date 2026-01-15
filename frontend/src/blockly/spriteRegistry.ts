@@ -1,4 +1,4 @@
-import { useEditorStore } from '@/stores/editorStore';
+import { useSpriteStore } from '@/stores/spriteStore';
 
 export type Sprite = {
   id: string;
@@ -13,16 +13,18 @@ export type Sprite = {
 };
 
 export const getSpriteDropdownOptions = (): string[][] => {
+  const { spriteInstances } = useSpriteStore.getState();
   const options: string[][] = [];
 
-  if (useEditorStore.getState().spriteInstances.length == 0) options.push([' ', '__hero__']);
-  for (const sprite of useEditorStore.getState().spriteInstances) options.push([sprite.name, sprite.id]);
+  if (spriteInstances.length == 0) options.push([' ', '__hero__']);
+  for (const sprite of spriteInstances) options.push([sprite.name, sprite.id]);
 
   return options;
 };
 
 export const createSpriteName = (name: string): string => {
-  const count = useEditorStore.getState().spriteInstances.filter((sprite) => sprite.name === name).length;
+  const { spriteInstances } = useSpriteStore.getState();
+  const count = spriteInstances.filter((sprite) => sprite.name === name).length;
 
   if (count === 0) return name;
   if (isNaN(parseInt(name[name.length - 1]))) return createSpriteName(`${name}2`);

@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useMemo, Dispatch, SetStateAction } from 'react';
-import type { SpriteAddPayload } from '@/stores/editorStore';
+import type { SpriteAddPayload } from '@/stores/spriteStore';
 import { useEditorStore } from '@/stores/editorStore';
+import { useSpriteStore } from '@/stores/spriteStore';
 
 const HERO_WALK_FRONT = '/heroWalkFront1.bmp';
 const HERO_WALK_BACK = '/heroWalkBack1.bmp';
@@ -40,7 +41,7 @@ type Props = {
 
 const SpriteLibrary = ({ setIsSpriteModalOpen }: Props) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const addSpriteToGame = useEditorStore((state) => state.addSpriteToGame);
+  const addSpriteToGame = useSpriteStore((state) => state.addSpriteToGame);
 
   const filteredSprites = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();

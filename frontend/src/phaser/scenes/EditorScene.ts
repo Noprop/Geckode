@@ -4,6 +4,7 @@ import { useEditorStore } from '@/stores/editorStore';
 
 export const EDITOR_SCENE_KEY = 'EditorScene' as const;
 import GAME_SCENE_KEY from '@/phaser/scenes/GameScene';
+import { useSpriteStore } from '@/stores/spriteStore';
 
 export default class EditorScene extends Phaser.Scene {
   public key: string;
@@ -28,8 +29,8 @@ export default class EditorScene extends Phaser.Scene {
   }
 
   preload() {
-    const textures = useEditorStore.getState().spriteTextures;
-    for (const [textureName, textureUrl] of textures.entries()) {
+    const { spriteTextures } = useSpriteStore.getState();
+    for (const [textureName, textureUrl] of spriteTextures.entries()) {
       this.load.image(textureName, textureUrl);
     }
 
@@ -110,7 +111,7 @@ export default class EditorScene extends Phaser.Scene {
       console.error('Error loading image', error);
     }
 
-    const spriteInstances = useEditorStore.getState().spriteInstances;
+    const spriteInstances = useSpriteStore.getState().spriteInstances;
     for (const instance of spriteInstances) {
       this.createSprite(instance.textureName, instance.x, instance.y, instance.id);
     }
