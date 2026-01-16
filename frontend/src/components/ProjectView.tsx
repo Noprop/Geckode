@@ -5,7 +5,7 @@ import { useRef, useEffect } from 'react';
 import BlocklyEditor from '@/components/BlocklyEditor';
 import * as Blockly from 'blockly/core';
 import EditorScene from '@/phaser/scenes/EditorScene';
-import SpritePanel from '@/components/SpritePanel';
+import SpritePanel from '@/components/PhaserPanel';
 import { useWorkspaceView } from '@/contexts/WorkspaceViewContext';
 import { EventBus } from '@/phaser/EventBus';
 import { useEditorStore } from '@/stores/editorStore';

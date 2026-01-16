@@ -1,19 +1,15 @@
 'use client';
 
-import { useState, useMemo, Dispatch, SetStateAction } from 'react';
+import { useState, useMemo } from 'react';
 import type { SpriteAddPayload } from '@/stores/spriteStore';
 import { useSpriteStore } from '@/stores/spriteStore';
 
-type Props = {
-  setIsSpriteModalOpen: Dispatch<SetStateAction<boolean>>;
-};
-
-const SpriteLibrary = ({ setIsSpriteModalOpen }: Props) => {
+const SpriteLibrary = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const addSpriteToGame = useSpriteStore((state) => state.addSpriteToGame);
   const spriteLibrary = useSpriteStore((state) => state.spriteLibrary);
   const spriteTextures = useSpriteStore((state) => state.spriteTextures);
-  console.log('spriteLibrary: ', spriteLibrary);
+  const setIsSpriteModalOpen = useSpriteStore((state) => state.setIsSpriteModalOpen);
 
   const filteredSprites = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();

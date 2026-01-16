@@ -1,18 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { Dispatch, SetStateAction, PointerEvent as ReactPointerEvent } from 'react';
+import type { PointerEvent as ReactPointerEvent } from 'react';
 import { Cross2Icon, Pencil2Icon, EraserIcon, ImageIcon } from '@radix-ui/react-icons';
 import { Button } from '../ui/Button';
 import SpriteLibrary from './SpriteLibrary';
 import { useSpriteStore } from '@/stores/spriteStore';
 
-type Props = {
-  isSpriteModalOpen: boolean;
-  setIsSpriteModalOpen: Dispatch<SetStateAction<boolean>>;
-};
-
-const SpriteModal = ({ isSpriteModalOpen, setIsSpriteModalOpen }: Props) => {
+const SpriteModal = () => {
   const [activeTab, setActiveTab] = useState<'library' | 'editor'>('library');
   const [spriteName, setSpriteName] = useState('Custom Sprite');
   const [brushSize, setBrushSize] = useState(1);
@@ -26,6 +21,9 @@ const SpriteModal = ({ isSpriteModalOpen, setIsSpriteModalOpen }: Props) => {
   } | null>(null);
   const [zoom, setZoom] = useState(10);
   const addSpriteToGame = useSpriteStore((state) => state.addSpriteToGame);
+
+  const setIsSpriteModalOpen = useSpriteStore((state) => state.setIsSpriteModalOpen);
+  const isSpriteModalOpen = useSpriteStore((state) => state.isSpriteModalOpen);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const previewRef = useRef<HTMLCanvasElement | null>(null);
@@ -356,7 +354,7 @@ const SpriteModal = ({ isSpriteModalOpen, setIsSpriteModalOpen }: Props) => {
         </div>
 
         {activeTab === 'library' ? (
-          <SpriteLibrary setIsSpriteModalOpen={setIsSpriteModalOpen} />
+          <SpriteLibrary />
         ) : (
           <div className="h-[82vh] flex border-t border-slate-200 bg-slate-800 dark:border-slate-700">
             {/* Left Tool Panel */}

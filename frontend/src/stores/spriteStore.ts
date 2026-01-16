@@ -15,12 +15,19 @@ interface State {
   spriteLibrary: Sprite[];
   spriteInstances: Sprite[];
   spriteTextures: Map<string, { url: string; hasLoaded: boolean }>;
+
+  isSpriteModalOpen: boolean;
+  selectedSpriteId: string | null;
+  selectedSprite: Sprite | null;
 }
 interface Actions {
   setSpriteInstances: (update: Sprite[] | ((state: Sprite[]) => Sprite[])) => void;
   addSpriteToGame: (payload: SpriteAddPayload) => Promise<boolean>;
   removeSpriteFromGame: (spriteId: string) => Promise<boolean>;
   updateSprite: (spriteId: string, updates: Partial<Sprite>) => Promise<boolean>;
+  setIsSpriteModalOpen: (isOpen: boolean) => void;
+  setSelectedSpriteId: (spriteId: string) => void;
+  setSelectedSprite: (sprite: Sprite) => void;
 }
 
 export const useSpriteStore = create<State & Actions>((set, get) => ({
@@ -54,6 +61,13 @@ export const useSpriteStore = create<State & Actions>((set, get) => ({
     ['hero-walk-front', { url: '/heroWalkFront1.png', hasLoaded: false }],
     ['hero-walk-back', { url: '/heroWalkBack1.png', hasLoaded: false }],
   ]),
+  selectedSpriteId: null,
+  selectedSprite: null,
+  isSpriteModalOpen: false,
+
+  setIsSpriteModalOpen: (isOpen: boolean) => set({ isSpriteModalOpen: isOpen }),
+  setSelectedSpriteId: (spriteId: string) => set({ selectedSpriteId: spriteId }),
+  setSelectedSprite: (sprite: Sprite) => set({ selectedSprite: sprite }),
 
   setSpriteInstances: (update) =>
     set((state) => ({
@@ -145,17 +159,7 @@ export const useSpriteStore = create<State & Actions>((set, get) => ({
     const duplicateCount = spriteInstances.filter((instance) => instance.name === payload.textureName).length;
     const name = `${safeBase}${duplicateCount + 1}`;
     const spriteId = `id_${Date.now()}_${Math.round(Math.random() * 1e4)}`;
-
     (scene as EditorScene).createSprite(payload.textureName, worldX, worldY, spriteId);
-
-    // const newBlock = workspace.newBlock('createSprite');
-    // newBlock.setFieldValue(variableName, 'NAME');
-    // newBlock.setFieldValue(payload.texture, 'TEXTURE');
-    // newBlock.setFieldValue(String(worldX), 'X');
-    // newBlock.setFieldValue(String(worldY), 'Y');
-    // newBlock.initSvg();
-    // newBlock.render();
-    // attachBlockToOnStart(workspace, newBlock);
 
     set(() => ({
       spriteInstances: [
