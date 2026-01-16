@@ -87,6 +87,9 @@ export default class EditorScene extends Phaser.Scene {
   }
 
   async create() {
+
+    console.log('[EditorScene] create called');
+
     this.showGrid();
 
     this.editorSprites.clear();

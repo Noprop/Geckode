@@ -190,6 +190,8 @@ export default class GameScene extends Phaser.Scene {
     // Set up collisions between sprites and tilemap
     this.setupTilemapCollisions();
 
+    this.add.sprite(100,100, "star");
+
     // Execute the Blockly-generated code
     if (data.code) {
       this.runScript(data.code);

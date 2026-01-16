@@ -7,7 +7,7 @@ import { EDITOR_SCENE_KEY } from '@/phaser/scenes/EditorScene';
 import type EditorScene from '@/phaser/scenes/EditorScene';
 import type { Game } from 'phaser';
 import { useEditorStore } from '@/stores/editorStore';
-import GameScene from "@/phaser/scenes/GameScene";
+import GameScene, { GAME_SCENE_KEY } from "@/phaser/scenes/GameScene";
 
 // the React hooks in this component are written in order of their actual execution.
 const PhaserGame = () => {
@@ -22,7 +22,7 @@ const PhaserGame = () => {
   useEffect(() => {
     // this scene event listener will live until this Phaser react component has been torn down
     const handler = (scene: Phaser.Scene | EditorScene) => {
-      if (!('key' in scene) || !(scene.key == EDITOR_SCENE_KEY)) return;
+      if (!('key' in scene) || !(scene.key == EDITOR_SCENE_KEY || scene.key == GAME_SCENE_KEY)) return;
       useEditorStore.getState().setPhaserRef({
         game: internalGameRef.current as Game,
         scene: scene as unknown as EditorScene | GameScene,

@@ -267,8 +267,14 @@ export const useEditorStore = create<State & Actions>((set, get) => ({
         spriteTextures,
         code,
       });
+
+      console.log("phaserRef: ", phaserRef);
     } else {
-      phaserRef?.scene?.scene.start('EditorScene');
+      console.log("phaserRef: ", phaserRef);
+
+      phaserRef.scene.scene.start('EditorScene');
+
+      console.log("phaserRef: ", phaserRef);
     }
   },
 }));
