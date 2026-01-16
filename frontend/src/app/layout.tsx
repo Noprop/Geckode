@@ -1,18 +1,19 @@
-import type { Metadata } from 'next';
-import './globals.css';
-import Header from '@/components/Header';
-import { WorkspaceViewProvider } from '@/contexts/WorkspaceViewContext';
-import { ThemeProvider } from 'next-themes';
+import type { Metadata } from "next";
+import "./globals.css";
+import Header from "@/components/Header";
+import { WorkspaceViewProvider } from "@/contexts/WorkspaceViewContext";
+import { ThemeProvider } from "next-themes";
+import LayoutProvider from "@/contexts/LayoutProvider";
 
 export const metadata: Metadata = {
-  title: 'Geckode',
-  description: 'A coding platform for kids',
-  authors: [{ name: 'Geckode', url: 'https://geckode.com' }],
-  creator: 'Geckode',
-  publisher: 'Geckode',
-  applicationName: 'Geckode',
-  keywords: ['coding', 'platform', 'kids', 'education'],
-  robots: 'index, follow',
+  title: "Geckode",
+  description: "A coding platform for kids",
+  authors: [{ name: "Geckode", url: "https://geckode.com" }],
+  creator: "Geckode",
+  publisher: "Geckode",
+  applicationName: "Geckode",
+  keywords: ["coding", "platform", "kids", "education"],
+  robots: "index, follow",
 
   // TODO: Add metadata
   // icons: {
@@ -44,8 +45,7 @@ export default function RootLayout({
       <body className="antialiased min-h-screen flex flex-col">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <WorkspaceViewProvider>
-            <Header />
-            {children}
+            <LayoutProvider>{children}</LayoutProvider>
           </WorkspaceViewProvider>
         </ThemeProvider>
       </body>

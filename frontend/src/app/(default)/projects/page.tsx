@@ -8,7 +8,7 @@ import {
   ProjectPayload,
   projectSortKeys,
 } from "@/lib/types/api/projects";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Table, TableRef } from "@/components/ui/Table";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/modals/Modal";
@@ -16,7 +16,13 @@ import { InputBox, InputBoxRef } from "@/components/ui/inputs/InputBox";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import DragAndDrop, { DragAndDropRef } from "@/components/DragAndDrop";
 import { convertFormData } from "@/lib/api/base";
-import { FilePlusIcon, Share1Icon, TrashIcon } from "@radix-ui/react-icons";
+import {
+  DrawingPinFilledIcon,
+  FilePlusIcon,
+  ImageIcon,
+  Share1Icon,
+  TrashIcon,
+} from "@radix-ui/react-icons";
 import { ProjectShareModal } from "@/components/ui/modals/ProjectShareModal";
 import { SelectionBox } from "@/components/ui/selectors/SelectionBox";
 
@@ -28,7 +34,9 @@ export default function ProjectsPage() {
   const projectNameRef = useRef<InputBoxRef | null>(null);
   const autoProjectOpenRef = useRef<InputBoxRef | null>(null);
 
-  const [showModal, setShowModal] = useState<null | "create" | "delete" | "share">(null);
+  const [showModal, setShowModal] = useState<
+    null | "create" | "delete" | "share"
+  >(null);
   const [rowIndex, setRowIndex] = useState<number>(0);
 
   const createProject = () => {
@@ -107,7 +115,7 @@ export default function ProjectsPage() {
           "Updated At": {
             key: "updated_at",
             type: "datetime",
-          }
+          },
         }}
         sortKeys={projectSortKeys}
         defaultSortField="updated_at"
@@ -124,7 +132,10 @@ export default function ProjectsPage() {
               setShowModal("share");
             },
             rowIconClassName: "hover:text-green-500 mt-1",
-            canUse: (project) => ["owner", "admin", "manage", "invite"].includes(project.permission ?? ''),
+            canUse: (project) =>
+              ["owner", "admin", "manage", "invite"].includes(
+                project.permission ?? ""
+              ),
           },
           {
             rowIcon: TrashIcon,
@@ -146,9 +157,11 @@ export default function ProjectsPage() {
                 { value: "0", label: "Owned by others" },
               ]}
               onChange={(e) => {
-                tableRef.current?.setFilters(filters => ({
+                tableRef.current?.setFilters((filters) => ({
                   ...filters,
-                  ...{owner: e.target.value ? Number(e.target.value) : undefined}
+                  ...{
+                    owner: e.target.value ? Number(e.target.value) : undefined,
+                  },
                 }));
               }}
             />

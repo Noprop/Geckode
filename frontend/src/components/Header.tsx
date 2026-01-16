@@ -19,12 +19,12 @@ import {
   WorkspaceView,
 } from "@/contexts/WorkspaceViewContext";
 import DropDownButton from "./ui/DropDownButton";
+import { authApi } from "@/lib/api/auth";
 
 export default function Header() {
   const { resolvedTheme, toggleTheme } = useTheme();
   const { view, setView } = useWorkspaceView();
   const [mounted, setMounted] = useState(false);
-
   // Avoid hydration mismatch by waiting until mounted
   useEffect(() => {
     setMounted(true);
@@ -99,12 +99,34 @@ export default function Header() {
           className="flex items-center justify-center w-9 h-9 rounded-full bg-white/15 text-white hover:bg-white/25 transition-colors"
           title="User"
           optionsMapping={{
-            "Account Settings": "tbd",
-            "My Projects": "/projects",
-            "My Organizations": "/organizations",
+            ...{
+              "Account Settings": "tbd",
+              "My Projects": "/projects",
+              "My Organizations": "/organizations",
+            },
+            ...(user !== null
+              ? {
+                  Logout: () => {
+                    authApi
+                      .logout()
+                      .then(() => (window.location.href = "/login"));
+                  },
+                }
+              : { Login: "/login" }),
           }}
         >
-          <PersonIcon className="w-5 h-5" />
+          {
+            // if user is blank or doesn't have an avatar, sub in a placeholder
+            !user || !user.avatar ? (
+              <PersonIcon className="w-5 h-5" />
+            ) : (
+              <Image
+                src={user.avatar}
+                alt=""
+                className="h-5 w-5 rounded-full"
+              ></Image>
+            )
+          }
         </DropDownButton>
       </div>
     </header>
