@@ -3,7 +3,6 @@ from accounts.serializers import PublicUserSerializer
 from django.utils import timezone
 from .models import ProjectGroup, Project, ProjectCollaborator, OrganizationProject
 from accounts.models import User
-from organizations.models import Organization
 from organizations.serializers import PublicOrganizationSerializer
 
 class ProjectGroupSerializer(ModelSerializer):

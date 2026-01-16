@@ -124,6 +124,7 @@ export const useEditorStore = create<State & Actions>((set, get) => ({
     spriteOutputs.set(spriteId, output);
     console.log('generateCode spriteId: ', spriteId);
     console.log('generateCode spriteOutputs: ', JSON.stringify(spriteOutputs, null, 2));
+    console.log('generateCode workspace code: \n', code);
 
     // save workspace state (should be moved later)
     const state = Blockly.serialization.workspaces.save(blocklyWorkspace);
@@ -266,8 +267,14 @@ export const useEditorStore = create<State & Actions>((set, get) => ({
         spriteTextures,
         code,
       });
+
+      console.log("phaserRef: ", phaserRef);
     } else {
-      phaserRef?.scene?.scene.start('EditorScene');
+      console.log("phaserRef: ", phaserRef);
+
+      phaserRef.scene.scene.start('EditorScene');
+
+      console.log("phaserRef: ", phaserRef);
     }
   },
 }));

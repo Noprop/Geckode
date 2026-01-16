@@ -178,7 +178,7 @@ export const ManageMembers = ({ org, setOrg, user }: Props) => {
       <div className="flex my-3">
         <img
           className="size-10 mr-5 rounded-full"
-          src={org.owner.avatar ?? "user-icon.png"}
+          src={org.owner.avatar ?? "/user-icon.png"}
         />
         <span className="my-auto">{org.owner.username}</span>
       </div>
@@ -272,9 +272,9 @@ export const ManageMembers = ({ org, setOrg, user }: Props) => {
               ref={permissionDropdownView}
               className="bg-white text-black mb-3 p-2 rounded-md"
             >
-              {Object.entries(projectPermissions).map((p) => (
-                <option key={p[0]} value={p[0]}>
-                  {p.join(" - ")}
+              {Object.entries(projectPermissions).map(([key, label]) => (
+                <option key={key} value={key}>
+                  {label}
                 </option>
               ))}
             </select>

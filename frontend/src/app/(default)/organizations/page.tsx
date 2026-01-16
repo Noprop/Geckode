@@ -16,7 +16,12 @@ import { Modal } from "@/components/ui/modals/Modal";
 import { InputBox, InputBoxRef } from "@/components/ui/inputs/InputBox";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import DragAndDrop, { DragAndDropRef } from "@/components/DragAndDrop";
-import { ExclamationTriangleIcon, ExitIcon, FilePlusIcon, TrashIcon } from "@radix-ui/react-icons";
+import {
+  ExclamationTriangleIcon,
+  ExitIcon,
+  FilePlusIcon,
+  TrashIcon,
+} from "@radix-ui/react-icons";
 
 //spaces -> dashes, non-alphanumeric characters removed
 export const createSlug = (val: string) => {
@@ -31,7 +36,9 @@ export default function OrganizationsPage() {
   const showSnackbar = useSnackbar();
 
   const dropboxRef = useRef<DragAndDropRef>(null);
-  const tableRef = useRef<TableRef<Organization, OrganizationFilters> | null>(null);
+  const tableRef = useRef<TableRef<Organization, OrganizationFilters> | null>(
+    null
+  );
   const organizationNameRef = useRef<InputBoxRef | null>(null);
   const autoOrganizationOpenRef = useRef<InputBoxRef | null>(null);
 
@@ -61,21 +68,24 @@ export default function OrganizationsPage() {
   const createOrganization = () => {
     const orgName = organizationNameRef?.current?.inputValue || "";
     organizationsApi
-      .create({
-        slug: slug,
-        name: orgName,
-        thumbnail:
-          dropboxRef.current?.files?.length! > 0
-            ? dropboxRef.current?.files![0]
-            : null,
-      }, {
-        headers: {
-          "Content-Type": "multipart/form-data"
+      .create(
+        {
+          slug: slug,
+          name: orgName,
+          thumbnail:
+            dropboxRef.current?.files?.length! > 0
+              ? dropboxRef.current?.files![0]
+              : null,
+        },
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
         }
-      })
+      )
       .then((organization) => {
         if (autoOrganizationOpenRef.current?.isChecked) {
-          window.location.href = `/organizations/${organization.id}`;
+          window.location.href = `/organizations/${organization.id}/projects/`;
         } else {
           tableRef.current?.refresh();
           setShowModal(null);
@@ -84,8 +94,7 @@ export default function OrganizationsPage() {
   };
 
   const deleteOrganization = () => {
-    const organizationId =
-      tableRef.current?.data[rowIndex]["id"];
+    const organizationId = tableRef.current?.data[rowIndex]["id"];
 
     if (!organizationId) return;
 

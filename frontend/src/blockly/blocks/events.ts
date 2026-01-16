@@ -23,7 +23,7 @@ const onUpdate = {
 javascriptGenerator.forBlock['onUpdate'] = function (block, generator) {
   const inner = generator.statementToCode(block, 'INNER');
   const spriteId = useEditorStore.getState().spriteId;
-  const updateId = useEditorStore.getState().updateId;
+  const updateId = block.id;
 
   console.log("updateId: " + updateId);
 
@@ -34,8 +34,6 @@ javascriptGenerator.forBlock['onUpdate'] = function (block, generator) {
       `}`
     ]
   )
-
-  useEditorStore.setState( {updateId: updateId + 1} )
 
   getUpdateRegistry(generator).push({
     spriteId: `${spriteId}`,
@@ -66,7 +64,7 @@ const onStart = {
 javascriptGenerator.forBlock['onStart'] = function (block, generator) {
   const inner = generator.statementToCode(block, 'INNER');
   const spriteId = useEditorStore.getState().spriteId;
-  const startId = useEditorStore.getState().startId;
+  const startId = block.id;
 
   console.log("startId: " + startId);
 
@@ -77,8 +75,6 @@ javascriptGenerator.forBlock['onStart'] = function (block, generator) {
       `}`
     ]
   )
-
-  useEditorStore.setState( { startId: startId + 1} )
 
   getStartRegistry(generator).push({
     spriteId: `${spriteId}`,

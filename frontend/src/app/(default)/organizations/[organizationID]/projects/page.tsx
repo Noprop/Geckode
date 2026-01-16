@@ -16,8 +16,11 @@ import { Modal } from "@/components/ui/modals/Modal";
 import { InputBox, InputBoxRef } from "@/components/ui/inputs/InputBox";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import projectsApi from "@/lib/api/handlers/projects";
-import { Project, ProjectPermissions } from "@/lib/types/api/projects";
-import { projectPermissions } from "@/lib/types/api/projects";
+import {
+  Project,
+  ProjectPermissions,
+  projectPermissions,
+} from "@/lib/types/api/projects";
 import DragAndDrop, { DragAndDropRef } from "@/components/DragAndDrop";
 import {
   ExclamationTriangleIcon,
@@ -202,9 +205,9 @@ export default function ProjectsPage() {
               ref={permissionDropdownView}
               className="bg-white text-black mb-3 p-2 rounded-md"
             >
-              {Object.entries(projectPermissions).map((p) => (
-                <option key={p[0]} value={p[0]}>
-                  {p.join(" - ")}
+              {Object.entries(projectPermissions).map(([key, label]) => (
+                <option key={key} value={key}>
+                  {label}
                 </option>
               ))}
             </select>

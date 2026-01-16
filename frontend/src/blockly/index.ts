@@ -65,8 +65,6 @@ if (typeof window !== 'undefined') {
     originalInit.call(this, workspace);
     (this as any).updateHandlers = [];
     (this as any).startHandlers = [];
-    useEditorStore.setState({ updateId: 0 });
-    useEditorStore.setState({ startId: 0 });
   };
 }
 

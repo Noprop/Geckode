@@ -36,21 +36,16 @@ async function request<T = any>(
     }
   }
 
-  try {
-    const response = await axios({
-      method,
-      url: `${BASE_API_URL}${url}`,
-      data,
-      withCredentials: true,
-      ...config,
-      headers: {...headers, ...config?.headers ?? {}},
-    });
+  const response = await axios({
+    method,
+    url: `${BASE_API_URL}${url}`,
+    data,
+    withCredentials: true,
+    ...config,
+    headers: {...headers, ...config?.headers ?? {}},
+  });
 
-    return response;
-  } catch (error: any) {
-    if (axios.isAxiosError(error)) throw error as AxiosError;
-    console.error("API error", error);
-  }
+  return response;
 }
 
 const api = {
