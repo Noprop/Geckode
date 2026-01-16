@@ -3,6 +3,9 @@ import './globals.css';
 import Header from '@/components/Header';
 import { WorkspaceViewProvider } from '@/contexts/WorkspaceViewContext';
 import { ThemeProvider } from 'next-themes';
+import { SnackbarProvider } from '@/contexts/SnackbarContext';
+import { authApi } from '@/lib/api/auth';
+import { UserProvider } from '@/contexts/UserContext';
 
 export const metadata: Metadata = {
   title: 'Geckode',
@@ -34,19 +37,31 @@ export const metadata: Metadata = {
   // },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  let user;
+
+  try {
+    user = await authApi.getUserDetails();
+  } catch (error: any) {
+    user = null;
+  }
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased min-h-screen flex flex-col">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <WorkspaceViewProvider>
-            <Header />
-            {children}
-          </WorkspaceViewProvider>
+          <UserProvider user={user}>
+            <SnackbarProvider>
+              <WorkspaceViewProvider>
+                <Header />
+                {children}
+              </WorkspaceViewProvider>
+            </SnackbarProvider>
+          </UserProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -73,6 +73,7 @@ class ProjectViewSet(ModelViewSet):
         ])
 
     def perform_create(self, serializer):
+        serializer.validated_data.pop('is_published', False)
         serializer.save(owner=self.request.user)
 
     def partial_update(self, request, *args, **kwargs):

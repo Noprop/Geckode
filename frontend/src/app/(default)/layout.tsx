@@ -1,4 +1,3 @@
-import { SnackbarProvider } from "@/providers/SnackbarProvider";
 import Link from "next/link";
 
 export default function EditorLayout({
@@ -12,7 +11,7 @@ export default function EditorLayout({
         className="flex-1 flex flex-col bg-light-secondary dark:bg-dark-secondary"
         id="app"
       >
-        <SnackbarProvider>{children}</SnackbarProvider>
+        {children}
       </main>
 
       {/* TODO: Finish footer */}

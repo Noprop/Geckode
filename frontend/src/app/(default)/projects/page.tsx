@@ -19,9 +19,11 @@ import { convertFormData } from "@/lib/api/base";
 import { FilePlusIcon, Share1Icon, TrashIcon } from "@radix-ui/react-icons";
 import { ProjectShareModal } from "@/components/ui/modals/ProjectShareModal";
 import { SelectionBox } from "@/components/ui/selectors/SelectionBox";
+import { useUser } from "@/contexts/UserContext";
 
 export default function ProjectsPage() {
   const showSnackbar = useSnackbar();
+  const user = useUser();
 
   const dropboxRef = useRef<DragAndDropRef>(null);
   const tableRef = useRef<TableRef<Project, ProjectFilters> | null>(null);
@@ -36,10 +38,12 @@ export default function ProjectsPage() {
       .create(
         convertFormData<ProjectPayload>({
           name: projectNameRef?.current?.inputValue || "",
-          thumbnail:
-            dropboxRef.current?.files?.length! > 0
-              ? dropboxRef.current?.files![0]
-              : null,
+          ...((dropboxRef.current?.files?.length ?? 0) > 0
+            ? {
+              thumnail: dropboxRef.current?.files![0],
+            }
+            : {}
+          ),
         })
       )
       .then((project) => {
@@ -142,7 +146,7 @@ export default function ProjectsPage() {
             <SelectionBox
               options={[
                 { value: "", label: "Owned by anyone" },
-                { value: "1", label: "Owned by me" }, // TODO: Use user's ID here for value
+                { value: user?.id ?? "", label: "Owned by me" },
                 { value: "0", label: "Owned by others" },
               ]}
               onChange={(e) => {
