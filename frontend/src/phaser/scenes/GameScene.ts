@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { EventBus } from '@/phaser/EventBus';
-import type { SpriteInstance } from '@/blockly/spriteRegistry';
+import type { Sprite } from '@/blockly/spriteRegistry';
 
 export const GAME_SCENE_KEY = 'GameScene' as const;
 import EDITOR_SCENE_KEY from '@/phaser/scenes/EditorScene';
@@ -157,7 +157,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   create(data: {
-    spriteInstances: SpriteInstance[];
+    spriteInstances: Sprite[];
     textures: Map<string, { name: string; file: string }>;
     code: string;
   }) {
