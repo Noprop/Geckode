@@ -174,12 +174,17 @@ class OrganizationProjectViewSet(ModelViewSet):
                 )(),
             ]
 
-        # Only allow organization contributors to add projects to the organization
+        # Only allow organization contributors and project admins to add projects to the organization
         if self.action == 'create':
+            try:
+                project = Project.objects.get(id=self.request.data.get('project_id'))
+            except Project.DoesNotExist:
+                raise NotFound('No project matches the given ID.')
+
             return super().get_permissions() + [
                 create_user_permission_class(
                     'admin',
-                    primary_pk_class=Project,
+                    object_override=project,
                 )(),
                 create_user_permission_class(
                     'contribute',
