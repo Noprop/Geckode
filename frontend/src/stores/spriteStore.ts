@@ -52,6 +52,7 @@ export const useSpriteStore = create<State & Actions>((set, get) => ({
   ],
   spriteTextures: new Map<string, { url: string; hasLoaded: boolean }>([
     ['hero-walk-front', { url: '/heroWalkFront1.png', hasLoaded: false }],
+    ['hero-walk-back', { url: '/heroWalkBack1.png', hasLoaded: false }],
   ]),
 
   setSpriteInstances: (update) =>

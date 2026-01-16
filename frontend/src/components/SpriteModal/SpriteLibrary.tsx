@@ -2,35 +2,34 @@
 
 import { useState, useMemo, Dispatch, SetStateAction } from 'react';
 import type { SpriteAddPayload } from '@/stores/spriteStore';
-import { useEditorStore } from '@/stores/editorStore';
 import { useSpriteStore } from '@/stores/spriteStore';
 
-const HERO_WALK_FRONT = '/heroWalkFront1.png';
-const HERO_WALK_BACK = '/heroWalkBack1.png';
-const HERO_WALK_LEFT = '/heroWalkSideLeft2.png';
+// const HERO_WALK_FRONT = '/heroWalkFront1.png';
+// const HERO_WALK_BACK = '/heroWalkBack1.png';
+// const HERO_WALK_LEFT = '/heroWalkSideLeft2.png';
 
-const spriteLibrary: SpriteAddPayload[] = [
-  {
-    name: 'Hero Walk Front',
-    textureName: 'hero-walk-front',
-    textureUrl: HERO_WALK_FRONT,
-  },
-  {
-    name: 'Hero Walk Back',
-    textureName: 'hero-walk-back',
-    textureUrl: HERO_WALK_BACK,
-  },
-  {
-    name: 'Hero Walk Left',
-    textureName: 'hero-walk-left',
-    textureUrl: HERO_WALK_LEFT,
-  },
-  // {
-  //   name: 'Hero Walk Right',
-  //   textureName: 'hero-walk-right',
-  //   textureUrl: HERO_WALK_RIGHT,
-  // },
-];
+// const spriteLibrary: SpriteAddPayload[] = [
+//   {
+//     name: 'Hero Walk Front',
+//     textureName: 'hero-walk-front',
+//     textureUrl: HERO_WALK_FRONT,
+//   },
+//   {
+//     name: 'Hero Walk Back',
+//     textureName: 'hero-walk-back',
+//     textureUrl: HERO_WALK_BACK,
+//   },
+//   {
+//     name: 'Hero Walk Left',
+//     textureName: 'hero-walk-left',
+//     textureUrl: HERO_WALK_LEFT,
+//   },
+//   // {
+//   //   name: 'Hero Walk Right',
+//   //   textureName: 'hero-walk-right',
+//   //   textureUrl: HERO_WALK_RIGHT,
+//   // },
+// ];
 
 type Props = {
   setIsSpriteModalOpen: Dispatch<SetStateAction<boolean>>;
@@ -39,6 +38,9 @@ type Props = {
 const SpriteLibrary = ({ setIsSpriteModalOpen }: Props) => {
   const [searchQuery, setSearchQuery] = useState('');
   const addSpriteToGame = useSpriteStore((state) => state.addSpriteToGame);
+  const spriteLibrary = useSpriteStore((state) => state.spriteLibrary);
+  const spriteTextures = useSpriteStore((state) => state.spriteTextures);
+  console.log('spriteLibrary: ', spriteLibrary);
 
   const filteredSprites = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -113,12 +115,20 @@ const SpriteLibrary = ({ setIsSpriteModalOpen }: Props) => {
               <div
                 key={sprite.textureName}
                 className="flex w-36 flex-col overflow-hidden rounded-xs border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:border-slate-700 dark:bg-dark-secondary cursor-pointer"
-                onClick={() => handleSpriteClick(sprite)}
+                onClick={() =>
+                  handleSpriteClick({
+                    name: sprite.name,
+                    textureName: sprite.textureName,
+                    textureUrl: spriteTextures.get(sprite.textureName)?.url || '',
+                    x: 240,
+                    y: 180,
+                  })
+                }
                 title="Click to add to center of the game window"
               >
                 <div className="relative flex aspect-4/3 items-center justify-center bg-white dark:bg-slate-900">
                   <img
-                    src={sprite.textureUrl}
+                    src={spriteTextures.get(sprite.textureName)?.url}
                     alt={sprite.name}
                     className="h-17 object-contain drop-shadow-sm"
                     style={{ imageRendering: 'pixelated' }}
