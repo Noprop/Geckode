@@ -1,9 +1,7 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import { EventBus } from '@/phaser/EventBus';
 import type { Sprite } from '@/blockly/spriteRegistry';
-
-export const GAME_SCENE_KEY = 'GameScene' as const;
-import EDITOR_SCENE_KEY from '@/phaser/scenes/EditorScene';
+import { GAME_SCENE_KEY, EDITOR_SCENE_KEY } from '@/phaser/sceneKeys';
 
 type SandboxContext = {
   scene: GameScene;
@@ -12,8 +10,9 @@ type SandboxContext = {
 };
 
 // Utility to create an async function at runtime.
-const AsyncFunction = Object.getPrototypeOf(async function () {})
-  .constructor as new (...args: string[]) => (...args: any[]) => Promise<any>;
+const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor as new (...args: string[]) => (
+  ...args: any[]
+) => Promise<any>;
 
 export default class GameScene extends Phaser.Scene {
   public key: string;
@@ -156,16 +155,13 @@ export default class GameScene extends Phaser.Scene {
     this.scene.start(EDITOR_SCENE_KEY as unknown as string);
   }
 
-  create(data: {
-    spriteInstances: Sprite[];
-    textures: Map<string, { name: string; file: string }>;
-    code: string;
-  }) {
+  create(data: { spriteInstances: Sprite[]; textures: Map<string, { name: string; file: string }>; code: string }) {
     console.log('[GameScene] create called', data);
 
     // Reset tilemap state
     this.tilemap = null;
     this.groundLayer = null;
+    this.gameSprites.clear();
 
     // Create the tilemap first (sits below everything)
     this.createTilemap();

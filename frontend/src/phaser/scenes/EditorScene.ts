@@ -1,9 +1,6 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import { EventBus } from '@/phaser/EventBus';
-import { useEditorStore } from '@/stores/editorStore';
-
-export const EDITOR_SCENE_KEY = 'EditorScene' as const;
-import GAME_SCENE_KEY from '@/phaser/scenes/GameScene';
+import { EDITOR_SCENE_KEY, GAME_SCENE_KEY } from '@/phaser/sceneKeys';
 import { useSpriteStore } from '@/stores/spriteStore';
 
 export default class EditorScene extends Phaser.Scene {
@@ -82,10 +79,6 @@ export default class EditorScene extends Phaser.Scene {
     graphics.destroy();
   }
 
-  public changeScene() {
-    this.scene.start(GAME_SCENE_KEY as unknown as string);
-  }
-
   async create() {
     this.showGrid();
 
@@ -111,11 +104,13 @@ export default class EditorScene extends Phaser.Scene {
       console.error('Error loading image', error);
     }
 
+    // create sprites
     const spriteInstances = useSpriteStore.getState().spriteInstances;
+    console.log('[EditorScene] creating sprites: ', spriteInstances);
     for (const instance of spriteInstances) {
       this.createSprite(instance.textureName, instance.x, instance.y, instance.id);
     }
-    // Tell React which scene is active (will trigger pause state sync)
+
     EventBus.emit('current-scene-ready', this);
   }
 
@@ -177,6 +172,7 @@ export default class EditorScene extends Phaser.Scene {
   }
 
   public createSprite(textureName: string, x: number, y: number, id: string) {
+    console.log('[EditorScene] creating sprite: ', textureName, x, y, id);
     const sprite = this.physics.add.sprite(x, y, textureName);
     sprite.setName(id);
     sprite.setData('editorSpriteId', id);
@@ -298,6 +294,7 @@ export default class EditorScene extends Phaser.Scene {
   }
 
   public hideGrid(): void {
+    console.log('[EditorScene] hiding grid');
     if (this.gridGraphics) {
       this.gridGraphics.setVisible(false);
     }

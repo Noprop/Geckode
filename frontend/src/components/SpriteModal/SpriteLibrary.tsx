@@ -4,33 +4,6 @@ import { useState, useMemo, Dispatch, SetStateAction } from 'react';
 import type { SpriteAddPayload } from '@/stores/spriteStore';
 import { useSpriteStore } from '@/stores/spriteStore';
 
-// const HERO_WALK_FRONT = '/heroWalkFront1.png';
-// const HERO_WALK_BACK = '/heroWalkBack1.png';
-// const HERO_WALK_LEFT = '/heroWalkSideLeft2.png';
-
-// const spriteLibrary: SpriteAddPayload[] = [
-//   {
-//     name: 'Hero Walk Front',
-//     textureName: 'hero-walk-front',
-//     textureUrl: HERO_WALK_FRONT,
-//   },
-//   {
-//     name: 'Hero Walk Back',
-//     textureName: 'hero-walk-back',
-//     textureUrl: HERO_WALK_BACK,
-//   },
-//   {
-//     name: 'Hero Walk Left',
-//     textureName: 'hero-walk-left',
-//     textureUrl: HERO_WALK_LEFT,
-//   },
-//   // {
-//   //   name: 'Hero Walk Right',
-//   //   textureName: 'hero-walk-right',
-//   //   textureUrl: HERO_WALK_RIGHT,
-//   // },
-// ];
-
 type Props = {
   setIsSpriteModalOpen: Dispatch<SetStateAction<boolean>>;
 };

@@ -4,19 +4,12 @@ import dynamic from 'next/dynamic';
 import { useRef, useEffect } from 'react';
 import BlocklyEditor from '@/components/BlocklyEditor';
 import * as Blockly from 'blockly/core';
-import { Game } from 'phaser';
 import EditorScene from '@/phaser/scenes/EditorScene';
-import GameScene from '@/phaser/scenes/GameScene';
 import SpritePanel from '@/components/SpritePanel';
 import { useWorkspaceView } from '@/contexts/WorkspaceViewContext';
 import { EventBus } from '@/phaser/EventBus';
 import { useEditorStore } from '@/stores/editorStore';
 import { useSpriteStore } from '@/stores/spriteStore';
-
-export type PhaserRef = {
-  readonly game: Game;
-  readonly scene: EditorScene | GameScene;
-} | null;
 
 const GRID_SIZE = 50;
 const CENTER_X = 240;
@@ -44,30 +37,8 @@ const PhaserContainer = dynamic(() => import('@/components/PhaserGame'), {
 
 const ProjectView = () => {
   const { view } = useWorkspaceView();
-  const phaserRef = useRef<PhaserRef>(null);
-
-  const { setPhaserRef } = useEditorStore();
   const { spriteInstances, setSpriteInstances } = useSpriteStore();
-
-  // Update store when Phaser scene becomes ready
-  useEffect(() => {
-    const handler = (scene: Phaser.Scene) => {
-      if (phaserRef.current?.game) {
-        setPhaserRef({
-          game: phaserRef.current.game,
-          scene: scene as unknown as EditorScene | GameScene,
-        });
-      }
-      // Send current pause state to newly ready scene (listener is already set up)
-      const isEditorScene = useEditorStore.getState().isEditorScene;
-      EventBus.emit('editor-scene-changed', isEditorScene);
-    };
-
-    EventBus.on('current-scene-ready', handler);
-    return () => {
-      EventBus.off('current-scene-ready', handler);
-    };
-  }, [setPhaserRef]);
+  const phaserRef = useEditorStore((state) => state.phaserRef);
 
   const workspaceListenerRef = useRef<{
     workspace: Blockly.WorkspaceSvg;
@@ -86,7 +57,7 @@ const ProjectView = () => {
 
   useEffect(() => {
     const handleSpriteMove = ({ id, x, y }: { id: string; x: number; y: number }) => {
-      const isEditorScene = useEditorStore.getState().isEditorScene;
+      const { isEditorScene } = useEditorStore.getState();
 
       setSpriteInstances((prev) => {
         const sprite = prev.find((s) => s.id === id);
@@ -101,7 +72,7 @@ const ProjectView = () => {
           finalX = snapped.x;
           finalY = snapped.y;
           // Update Phaser sprite to snapped position
-          (phaserRef.current?.scene as EditorScene)?.updateSprite(id, {
+          (phaserRef?.scene as EditorScene)?.updateSprite(id, {
             x: finalX,
             y: finalY,
           });
@@ -112,9 +83,7 @@ const ProjectView = () => {
     };
 
     EventBus.on('editor-sprite-moved', handleSpriteMove);
-    return () => {
-      EventBus.off('editor-sprite-moved', handleSpriteMove);
-    };
+    return () => void EventBus.off('editor-sprite-moved', handleSpriteMove);
   }, []);
 
   return (
