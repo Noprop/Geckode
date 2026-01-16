@@ -3,6 +3,7 @@ import './globals.css';
 import Header from '@/components/Header';
 import { WorkspaceViewProvider } from '@/contexts/WorkspaceViewContext';
 import { ThemeProvider } from 'next-themes';
+import { SnackbarProvider } from '@/providers/SnackbarProvider';
 
 export const metadata: Metadata = {
   title: 'Geckode',
@@ -43,10 +44,12 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased min-h-screen flex flex-col">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <WorkspaceViewProvider>
-            <Header />
-            {children}
-          </WorkspaceViewProvider>
+          <SnackbarProvider>
+            <WorkspaceViewProvider>
+              <Header />
+              {children}
+            </WorkspaceViewProvider>
+          </SnackbarProvider>
         </ThemeProvider>
       </body>
     </html>

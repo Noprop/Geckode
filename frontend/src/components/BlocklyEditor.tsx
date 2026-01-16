@@ -63,7 +63,7 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(({ onW
         },
         theme: Geckode,
         zoom: {
-          controls: true,
+          controls: false,
           wheel: true,
           startScale: 0.75,
           maxScale: 2.0,
