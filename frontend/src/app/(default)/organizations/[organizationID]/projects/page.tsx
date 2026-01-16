@@ -16,8 +16,7 @@ import { Modal } from "@/components/ui/modals/Modal";
 import { InputBox, InputBoxRef } from "@/components/ui/inputs/InputBox";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import projectsApi from "@/lib/api/handlers/projects";
-import { Project } from "@/lib/types/api/projects";
-import { ProjectPermissions } from "@/lib/types/api/projects/collaborators";
+import { Project, ProjectPermissions, projectPermissions } from "@/lib/types/api/projects";
 import DragAndDrop, { DragAndDropRef } from "@/components/DragAndDrop";
 import { ExclamationTriangleIcon, FilePlusIcon, TrashIcon } from "@radix-ui/react-icons";
 
@@ -56,7 +55,7 @@ export default function ProjectsPage() {
       .then((project) => {
         const _permission = permissionDropdownView.current?.value ?? "view";
         orgProjectsApi
-          .create({ project_id: project.id, permission: _permission })
+          .create({ project_id: project.id, permission: _permission as ProjectPermissions })
           .then(() => {
             if (autoProjectOpenRef.current?.isChecked) {
               window.location.href = `/projects/${project.id}`;
@@ -193,9 +192,9 @@ export default function ProjectsPage() {
               ref={permissionDropdownView}
               className="bg-white text-black mb-3 p-2 rounded-md"
             >
-              {ProjectPermissions.map((p) => (
-                <option key={p[0]} value={p[0]}>
-                  {p.join(" - ")}
+              {Object.entries(projectPermissions).map(([key, label]) => (
+                <option key={key} value={key}>
+                  {label}
                 </option>
               ))}
             </select>
