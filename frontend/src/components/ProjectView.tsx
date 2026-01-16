@@ -65,7 +65,6 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
   const showSnackbar = useSnackbar();
   const blocklyRef = useRef<BlocklyEditorRef>(null);
   const phaserRef = useRef<{ game?: any; scene?: any } | null>(null);
-  const yDocRef = useRef<Doc | null>(null);
 
   const [canMoveSprite, setCanMoveSprite] = useState(true);
   const [phaserState, setPhaserState] = useState<PhaserExport | null>(null);
@@ -159,7 +158,6 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
       awareness.setLocalStateField('user', toPublicUser(user!));
 
       const yDoc = provider.document;
-      yDocRef.current = yDoc;
 
       const blocklyEvents = yDoc.getArray<object>('blockly-events');
 
@@ -218,6 +216,67 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
         ].some(type => type === event.type)) {
           return;
         }
+
+        console.log('event', event.toJson());
+
+        const serializeBlock = (block: Blockly.Block) => {
+          const inputs = Object.fromEntries(block.inputList.map(input => {
+            const shadowBlock = input.connection?.getShadowState(true);
+            const targetBlock = input.connection?.targetBlock();
+
+            return [
+              input.name,
+              {
+                ...(shadowBlock && {
+                  shadow: {
+                    id: shadowBlock.id,
+                  }
+                }),
+                ...(targetBlock && !targetBlock.isShadow() && {
+                  block: {
+                    id: targetBlock.id,
+                  }
+                }),
+              }
+            ];
+          }).filter(input => Object.keys(input[1]).length));
+
+          const nextShadowBlock = block.nextConnection?.getShadowState(true);
+          const nextTargetBlock = block.nextConnection?.targetBlock();
+
+          const next = {
+            ...(nextShadowBlock && {
+              shadow: {
+                id: nextShadowBlock.id,
+              }
+            }),
+            ...(nextTargetBlock && !nextTargetBlock.isShadow() && {
+              block: {
+                id: nextTargetBlock.id,
+              }
+            }),
+          };
+
+          return {
+            ...Blockly.serialization.blocks.save(
+              block, {
+                addCoordinates: true,
+                addInputBlocks: false,
+                addNextBlocks: false,
+                doFullSerialization: false
+              }
+            ),
+            ...(Object.keys(inputs).length && {inputs: inputs}),
+            ...(Object.keys(next).length && {next: next}),
+          };
+        };
+
+        const block = workspace.getBlockById((event as any).blockId);
+        if (block) console.log(
+          event.type,
+          serializeBlock(block),
+        );
+        
 
         if (event.type === Blockly.Events.BLOCK_DELETE) {
           stopDragPolling(); // This stops the polling when dragging the block to the toolbox to delete
