@@ -1,4 +1,4 @@
-import EditorFooter from '@/components/EditorFooter';
+import EditorFooter from "@/components/EditorFooter";
 
 export default function EditorLayout({
   children,

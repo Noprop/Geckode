@@ -1,30 +1,30 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import organizationsApi from "@/lib/api/handlers/organizations";
+import projectsApi from "@/lib/api/handlers/projects";
 import TabSystem from "@/components/ui/selectors/TabSystem";
-import { Organization } from "@/lib/types/api/organizations";
+import { Project } from "@/lib/types/api/projects";
 import { authApi } from "@/lib/api/auth";
 import { User } from "@/lib/types/api/users";
-import { AboutOrganization } from "./AboutOrganization";
+import { AboutProject } from "./AboutProject";
 import { ManageMembers } from "./ManageMembers";
 import { useLayout } from "@/contexts/LayoutProvider";
 
-const OrganizationSettingsPage = () => {
+const ProjectSettingsPage = () => {
   const layout = useLayout();
 
-  const orgID = Number(useParams().organizationID);
-  const [org, setOrg] = useState<Organization>();
+  const prjID = Number(useParams().projectID);
+  const [prj, setPrj] = useState<Project>();
 
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
     layout.setFooterVisibility(false);
 
-    // fetch api for org name
-    organizationsApi(orgID)
+    // fetch api for prj name
+    projectsApi(prjID)
       .get()
-      .then((org) => setOrg(org));
+      .then((prj) => setPrj(prj));
 
     authApi.getUserDetails().then((user) => {
       setUser(user);
@@ -34,18 +34,16 @@ const OrganizationSettingsPage = () => {
   return (
     <div className="mx-50 my-5">
       <h1 className="header-1 mt-4">Settings</h1>
-      <h1 className="header-2 mt-20 h-12">{org?.name}</h1>
+      <h1 className="header-2 mt-20 h-12">{prj?.name}</h1>
       <TabSystem
         tabs={[
           {
-            title: "About Organization",
-            element: (
-              <AboutOrganization org={org!} setOrg={setOrg} user={user!} />
-            ),
+            title: "About Project",
+            element: <AboutProject prj={prj!} setPrj={setPrj} user={user!} />,
           },
           {
             title: "Manage Members",
-            element: <ManageMembers org={org!} setOrg={setOrg} user={user!} />,
+            element: <ManageMembers prj={prj!} setPrj={setPrj} user={user!} />,
           },
         ]}
       ></TabSystem>
@@ -53,4 +51,4 @@ const OrganizationSettingsPage = () => {
   );
 };
 
-export default OrganizationSettingsPage;
+export default ProjectSettingsPage;

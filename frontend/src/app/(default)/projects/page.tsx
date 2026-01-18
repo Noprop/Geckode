@@ -19,6 +19,7 @@ import { convertFormData } from "@/lib/api/base";
 import {
   DrawingPinFilledIcon,
   FilePlusIcon,
+  GearIcon,
   ImageIcon,
   Share1Icon,
   TrashIcon,
@@ -26,8 +27,11 @@ import {
 import { ProjectShareModal } from "@/components/ui/modals/ProjectShareModal";
 import { SelectionBox } from "@/components/ui/selectors/SelectionBox";
 import { useUser } from "@/contexts/UserContext";
+import { useLayout } from "@/contexts/LayoutProvider";
+import { useRouter } from "next/navigation";
 
 export default function ProjectsPage() {
+  const router = useRouter();
   const showSnackbar = useSnackbar();
   const user = useUser();
 
@@ -41,6 +45,11 @@ export default function ProjectsPage() {
   >(null);
   const [rowIndex, setRowIndex] = useState<number>(0);
 
+  const layout = useLayout();
+  useEffect(() => {
+    layout.attachFooterLHS(<p>Hello</p>);
+  }, []);
+
   const createProject = () => {
     projectsApi
       .create(
@@ -48,11 +57,10 @@ export default function ProjectsPage() {
           name: projectNameRef?.current?.inputValue || "",
           ...((dropboxRef.current?.files?.length ?? 0) > 0
             ? {
-              thumnail: dropboxRef.current?.files![0],
-            }
-            : {}
-          ),
-        })
+                thumnail: dropboxRef.current?.files![0],
+              }
+            : {}),
+        }),
       )
       .then((project) => {
         if (autoProjectOpenRef.current?.isChecked) {
@@ -77,13 +85,17 @@ export default function ProjectsPage() {
         tableRef.current?.refresh();
       })
       .catch((err) =>
-        showSnackbar("Something went wrong. Please try again.", "error")
+        showSnackbar("Something went wrong. Please try again.", "error"),
       );
   };
 
   return (
     <div className="mx-20 my-5">
-      <h1 className="header-1">Projects</h1>
+      <div className="flex w-full">
+        <h1 className="header-1">Projects</h1>
+        <div className="flex w-full justify-end"></div>
+      </div>
+
       <Table<
         Project,
         ProjectPayload,
@@ -138,7 +150,7 @@ export default function ProjectsPage() {
             rowIconClassName: "hover:text-green-500 mt-1",
             canUse: (project) =>
               ["owner", "admin", "manage", "invite"].includes(
-                project.permission ?? ""
+                project.permission ?? "",
               ),
           },
           {
@@ -150,6 +162,16 @@ export default function ProjectsPage() {
             },
             rowIconClassName: "hover:text-red-500 mt-1",
             canUse: (project) => project.permission === "owner",
+          },
+          {
+            rowIcon: GearIcon,
+            rowIconSize: 24,
+            rowIconClassName: "transition-transform hover:rotate-22",
+            rowIconClicked: (index) => {
+              router.push(
+                `/projects/${tableRef.current?.data?.[index].id}/settings`,
+              );
+            },
           },
         ]}
         extras={

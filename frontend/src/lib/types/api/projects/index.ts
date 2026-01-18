@@ -33,6 +33,7 @@ export interface ProjectPayload {
   blocks?: {[key: string]: any};
   game_state?: {[key: string]: any};
   sprites?: {[key: string]: any};
+  permission: ProjectPermissions | "owner";
 }
 
 export const projectSortKeys: (keyof Project)[] = [

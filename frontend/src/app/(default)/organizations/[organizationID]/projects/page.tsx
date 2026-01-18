@@ -9,7 +9,7 @@ import {
   OrganizationProjectSortKeys,
 } from "@/lib/types/api/organizations/projects";
 import { useRef, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Table, TableRef } from "@/components/ui/Table";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/modals/Modal";
@@ -25,10 +25,12 @@ import DragAndDrop, { DragAndDropRef } from "@/components/DragAndDrop";
 import {
   ExclamationTriangleIcon,
   FilePlusIcon,
+  GearIcon,
   TrashIcon,
 } from "@radix-ui/react-icons";
 
 export default function ProjectsPage() {
+  const router = useRouter();
   const showSnackbar = useSnackbar();
 
   const { organizationID } = useParams();
@@ -99,13 +101,24 @@ export default function ProjectsPage() {
         tableRef.current?.refresh();
       })
       .catch((err) =>
-        showSnackbar("Something went wrong. Please try again.", "error")
+        showSnackbar("Something went wrong. Please try again.", "error"),
       );
   };
 
   return (
     <div className="mx-20 my-5">
-      <h1 className="header-1">Projects</h1>
+      <div className="w-full flex">
+        <h1 className="header-1">Projects</h1>
+
+        <div className="w-full flex justify-end">
+          <GearIcon
+            className="h-full w-7 transition-transform hover:rotate-22 hover:cursor-pointer"
+            onClick={() =>
+              router.push(`/organizations/${Number(organizationID)}/settings`)
+            }
+          />
+        </div>
+      </div>
       <Table<
         OrganizationProject,
         OrganizationProjectPayload,

@@ -22,9 +22,15 @@ import DropDownButton from "@/components/ui/DropDownButton";
 import { authApi } from "@/lib/api/auth";
 import { User } from "@/lib/types/api/users";
 
+// contains all controls for layour
 export interface LayoutContextType {
-  attachMiddle: (element: React.ReactElement) => void;
-  attachRHS: (element: React.ReactElement) => void;
+  attachHeaderMiddle: (element: React.ReactElement) => void;
+  attachHeaderRHS: (element: React.ReactElement) => void;
+  setHeaderVisibility: (x: boolean) => void;
+  attachFooterLHS: (element: React.ReactElement) => void;
+  attachFooterMiddle: (element: React.ReactElement) => void;
+  attachFooterRHS: (element: React.ReactElement) => void;
+  setFooterVisibility: (b: boolean) => void;
 }
 
 export const LayoutContext = createContext<LayoutContextType | null>(null);
@@ -48,18 +54,53 @@ export default function LayoutProvider({
   const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState<User | null>(null);
 
-  // user-added elements on the middle and right-hand side
-  const [middleElement, setMiddleElement] = useState<ReactElement>();
-  const [rhsElement, setRhsElement] = useState<ReactElement>();
+  // developer-added controls for header and footer element
+  const [middleHeaderElement, setMiddleHeaderElement] =
+    useState<ReactElement>();
+  const [rhsHeaderElement, setRhsHeaderElement] = useState<ReactElement>();
+  const [headerVisible, setHeaderVisible] = useState<boolean>(true);
 
-  const attachMiddle = useCallback(
-    (element: ReactElement) => setMiddleElement(element),
-    []
+  const [lhsFooterElement, setLhsFooterElement] = useState<ReactElement>();
+  const [middleFooterElement, setMiddleFooterElement] =
+    useState<ReactElement>();
+  const [rhsFooterElement, setRhsFooterElement] = useState<ReactElement>();
+  const [footerVisible, setFooterVisible] = useState<boolean>(true);
+
+  // functions for interacting with header and footer through context
+  const attachHeaderMiddle = useCallback(
+    (element: ReactElement) => setMiddleHeaderElement(element),
+    [],
   );
 
-  const attachRHS = useCallback(
-    (element: ReactElement) => setRhsElement(element),
-    []
+  const attachHeaderRHS = useCallback(
+    (element: ReactElement) => setRhsHeaderElement(element),
+    [],
+  );
+
+  const setHeaderVisibility = useCallback(
+    (b: boolean) => setHeaderVisible(b),
+    [],
+  );
+
+  const attachFooterLHS = useCallback(
+    (element: ReactElement) => setLhsFooterElement(element),
+    [],
+  );
+
+  // functions for interacting with header and footer through context
+  const attachFooterMiddle = useCallback(
+    (element: ReactElement) => setMiddleFooterElement(element),
+    [],
+  );
+
+  const attachFooterRHS = useCallback(
+    (element: ReactElement) => setRhsFooterElement(element),
+    [],
+  );
+
+  const setFooterVisibility = useCallback(
+    (b: boolean) => setFooterVisible(b),
+    [],
   );
 
   // Avoid hydration mismatch by waiting until mounted
@@ -72,102 +113,125 @@ export default function LayoutProvider({
       .catch(() => {});
   }, []);
 
+  const ctxValue: LayoutContextType = {
+    attachHeaderMiddle,
+    attachHeaderRHS,
+    setHeaderVisibility,
+    attachFooterLHS,
+    attachFooterMiddle,
+    attachFooterRHS,
+    setFooterVisibility,
+  };
+
   return (
-    <LayoutContext.Provider value={{ attachMiddle, attachRHS }}>
-      <header className="bg-primary-green flex items-center h-16 px-4 shadow-md">
-        {/* Left section - Logo */}
-        <div className="flex items-center flex-1">
-          <Link
-            href="/"
-            className="hover:opacity-90 transition-opacity overflow-hidden h-10"
-          >
-            <p className="text-3xl">Geckode</p>
-          </Link>
-        </div>
+    <LayoutContext.Provider value={ctxValue}>
+      {headerVisible && (
+        <header className="bg-primary-green flex items-center h-16 px-4 shadow-md">
+          {/* Left section - Logo */}
+          <div className="flex items-center flex-1">
+            <Link
+              href="/"
+              className="hover:opacity-90 transition-opacity overflow-hidden h-10"
+            >
+              <p className="text-3xl">Geckode</p>
+            </Link>
+          </div>
 
-        {/* Center section - Workspace Toggle */}
-        <div className="flex items-center justify-center flex-1">
-          {middleElement}
-        </div>
+          {/* Center section - Workspace Toggle */}
+          <div className="flex items-center justify-center flex-1">
+            {middleHeaderElement}
+          </div>
 
-        {/* Right section - Utility actions */}
-        <div className="flex items-center justify-end flex-1 gap-2">
-          {rhsElement}
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className="flex items-center justify-center w-9 h-9 rounded-full bg-white/15 text-white hover:bg-white/25 transition-colors"
-            title={
-              !mounted
-                ? "Loading theme..."
-                : resolvedTheme === "dark"
-                ? "Switch to light mode"
-                : "Switch to dark mode"
-            }
-          >
-            {mounted ? (
-              resolvedTheme === "dark" ? (
-                <SunIcon className="w-5 h-5" />
+          {/* Right section - Utility actions */}
+          <div className="flex items-center justify-end flex-1 gap-2">
+            {rhsHeaderElement}
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="flex items-center justify-center w-9 h-9 rounded-full bg-white/15 text-white hover:bg-white/25 transition-colors"
+              title={
+                !mounted
+                  ? "Loading theme..."
+                  : resolvedTheme === "dark"
+                    ? "Switch to light mode"
+                    : "Switch to dark mode"
+              }
+            >
+              {mounted ? (
+                resolvedTheme === "dark" ? (
+                  <SunIcon className="w-5 h-5" />
+                ) : (
+                  <MoonIcon className="w-5 h-5" />
+                )
               ) : (
-                <MoonIcon className="w-5 h-5" />
-              )
-            ) : (
-              <div className="w-5 h-5" /> // Empty placeholder with same dimensions
-            )}
-          </button>
+                <div className="w-5 h-5" /> // Empty placeholder with same dimensions
+              )}
+            </button>
 
-          <Link
-            href="/projects"
-            className="flex items-center justify-center w-9 h-9 rounded-full bg-white/15 text-white hover:bg-white/25 transition-colors"
-            title="Home"
-          >
-            <HomeIcon className="w-5 h-5" />
-          </Link>
+            <Link
+              href="/projects"
+              className="flex items-center justify-center w-9 h-9 rounded-full bg-white/15 text-white hover:bg-white/25 transition-colors"
+              title="Home"
+            >
+              <HomeIcon className="w-5 h-5" />
+            </Link>
 
-          <button
-            type="button"
-            className="flex items-center justify-center w-9 h-9 rounded-full bg-white/15 text-white hover:bg-white/25 transition-colors"
-            title="Help"
-          >
-            <QuestionMarkCircledIcon className="w-5 h-5" />
-          </button>
+            <button
+              type="button"
+              className="flex items-center justify-center w-9 h-9 rounded-full bg-white/15 text-white hover:bg-white/25 transition-colors"
+              title="Help"
+            >
+              <QuestionMarkCircledIcon className="w-5 h-5" />
+            </button>
 
-          <DropDownButton
-            className="flex items-center justify-center w-9 h-9 rounded-full bg-white/15 text-white hover:bg-white/25 transition-colors"
-            title="User"
-            optionsMapping={{
-              ...{
-                "Account Settings": "tbd",
-                "My Projects": "/projects",
-                "My Organizations": "/organizations",
-              },
-              ...(user !== null
-                ? {
-                    Logout: () => {
-                      authApi
-                        .logout()
-                        .then(() => (window.location.href = "/login"));
-                    },
-                  }
-                : { Login: "/login" }),
-            }}
-          >
-            {
-              // if user is blank or doesn't have an avatar, sub in a placeholder
-              !user || !user.avatar ? (
-                <PersonIcon className="w-5 h-5" />
-              ) : (
-                <Image
-                  src={user.avatar}
-                  alt=""
-                  className="h-5 w-5 rounded-full"
-                ></Image>
-              )
-            }
-          </DropDownButton>
-        </div>
-      </header>
+            <DropDownButton
+              className="flex items-center justify-center w-9 h-9 rounded-full bg-white/15 text-white hover:bg-white/25 transition-colors"
+              title="User"
+              optionsMapping={{
+                ...{
+                  "Account Settings": "tbd",
+                  "My Projects": "/projects",
+                  "My Organizations": "/organizations",
+                },
+                ...(user !== null
+                  ? {
+                      Logout: () => {
+                        authApi
+                          .logout()
+                          .then(() => (window.location.href = "/login"));
+                      },
+                    }
+                  : { Login: "/login" }),
+              }}
+            >
+              {
+                // if user is blank or doesn't have an avatar, sub in a placeholder
+                !user || !user.avatar ? (
+                  <PersonIcon className="w-5 h-5" />
+                ) : (
+                  <Image
+                    src={user.avatar}
+                    alt=""
+                    className="h-5 w-5 rounded-full"
+                  ></Image>
+                )
+              }
+            </DropDownButton>
+          </div>
+        </header>
+      )}
       {children}
+      {footerVisible && (
+        <footer className="fixed bottom-0 left-0 right-0 h-14 bg-light-secondary dark:bg-dark-secondary border-t border-slate-300 dark:border-slate-600 flex items-center justify-between px-4 z-49">
+          <div className="flex gap-2">{lhsFooterElement}</div>
+          <div className="flex items-center justify-end flex-1 gap-2">
+            {middleFooterElement}
+          </div>
+          <div className="flex items-center justify-end flex-1 gap-2">
+            {rhsFooterElement}
+          </div>
+        </footer>
+      )}
     </LayoutContext.Provider>
   );
 }

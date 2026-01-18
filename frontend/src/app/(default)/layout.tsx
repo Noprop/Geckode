@@ -13,14 +13,6 @@ export default function EditorLayout({
       >
         {children}
       </main>
-
-      {/* TODO: Finish footer */}
-      <footer className="fixed bottom-0 left-0 right-0 h-14 bg-light-secondary dark:bg-dark-secondary border-t border-slate-300 dark:border-slate-600 flex items-center justify-between px-4 z-49">
-        <div className="flex gap-2">
-          <Link href="/projects">Projects</Link>
-        </div>
-      </footer>
     </>
   );
 }
-

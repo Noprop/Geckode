@@ -20,8 +20,10 @@ import {
   ExclamationTriangleIcon,
   ExitIcon,
   FilePlusIcon,
+  GearIcon,
   TrashIcon,
 } from "@radix-ui/react-icons";
+import { useRouter } from "next/navigation";
 
 //spaces -> dashes, non-alphanumeric characters removed
 export const createSlug = (val: string) => {
@@ -35,9 +37,11 @@ export const createSlug = (val: string) => {
 export default function OrganizationsPage() {
   const showSnackbar = useSnackbar();
 
+  const router = useRouter();
+
   const dropboxRef = useRef<DragAndDropRef>(null);
   const tableRef = useRef<TableRef<Organization, OrganizationFilters> | null>(
-    null
+    null,
   );
   const organizationNameRef = useRef<InputBoxRef | null>(null);
   const autoOrganizationOpenRef = useRef<InputBoxRef | null>(null);
@@ -58,7 +62,7 @@ export default function OrganizationsPage() {
           setUserId(res.id);
         })
         .catch((err) =>
-          showSnackbar("Something went wrong. Please try again.", "error")
+          showSnackbar("Something went wrong. Please try again.", "error"),
         );
     };
 
@@ -81,7 +85,7 @@ export default function OrganizationsPage() {
           headers: {
             "Content-Type": "multipart/form-data",
           },
-        }
+        },
       )
       .then((organization) => {
         if (autoOrganizationOpenRef.current?.isChecked) {
@@ -106,7 +110,7 @@ export default function OrganizationsPage() {
         tableRef.current?.refresh();
       })
       .catch((err) =>
-        showSnackbar("Something went wrong. Please try again.", "error")
+        showSnackbar("Something went wrong. Please try again.", "error"),
       );
   };
 
@@ -148,7 +152,7 @@ export default function OrganizationsPage() {
         defaultSortDirection="desc"
         handleRowClick={(row) =>
           (window.location.href = `/organizations/${row.getValue(
-            "id"
+            "id",
           )}/projects/`)
         }
         actions={[
@@ -170,6 +174,16 @@ export default function OrganizationsPage() {
               setShowModal("leave");
             },
             rowIconClassName: "hover:text-yellow-600 mt-1",
+          },
+          {
+            rowIcon: GearIcon,
+            rowIconSize: 24,
+            rowIconClassName: "transition-transform hover:rotate-22",
+            rowIconClicked: (index) => {
+              router.push(
+                `/organizations/${tableRef.current?.data?.[index].id}/settings`,
+              );
+            },
           },
         ]}
         extras={
