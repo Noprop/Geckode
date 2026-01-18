@@ -8,7 +8,8 @@ import { useWorkspaceView } from '@/contexts/WorkspaceViewContext';
 import { EventBus } from '@/phaser/EventBus';
 import { useEditorStore } from '@/stores/editorStore';
 import { useSpriteStore } from '@/stores/spriteStore';
-import Phaser from './Phaser';
+import Phaser from './PhaserPanel/Phaser';
+import type { Sprite } from '@/blockly/spriteRegistry';
 
 const GRID_SIZE = 50;
 const CENTER_X = 240;
@@ -23,8 +24,8 @@ const snapToGrid = (x: number, y: number): { x: number; y: number } => {
 
 const ProjectView = () => {
   const { view } = useWorkspaceView();
-  const { spriteInstances, setSpriteInstances } = useSpriteStore();
-  const phaserRef = useEditorStore((state) => state.phaserRef);
+  const { setSpriteInstances } = useSpriteStore();
+  const phaserScene = useEditorStore((state) => state.phaserScene);
   const { isEditorScene, toggleGame, undoWorkspace, redoWorkspace, canUndo, canRedo } = useEditorStore();
 
   const workspaceListenerRef = useRef<{
@@ -44,28 +45,25 @@ const ProjectView = () => {
 
   useEffect(() => {
     const handleSpriteMove = ({ id, x, y }: { id: string; x: number; y: number }) => {
-      const { isEditorScene } = useEditorStore.getState();
-
-      setSpriteInstances((prev) => {
-        const sprite = prev.find((s) => s.id === id);
-        if (!sprite) return prev;
+      if (!(phaserScene instanceof EditorScene)) return;
+      setSpriteInstances((state) => {
+        const sprite = state.find((s: Sprite) => s.id === id);
+        if (!sprite) return state;
 
         let finalX = x;
         let finalY = y;
 
-        // Apply snap-to-grid if enabled and editor scene
-        if (sprite.snapToGrid && isEditorScene) {
+        if (sprite.snapToGrid) {
           const snapped = snapToGrid(x, y);
           finalX = snapped.x;
           finalY = snapped.y;
-          // Update Phaser sprite to snapped position
-          (phaserRef?.scene as EditorScene)?.updateSprite(id, {
+          phaserScene.updateSprite(id, {
             x: finalX,
             y: finalY,
           });
         }
 
-        return prev.map((s) => (s.id === id ? { ...s, x: finalX, y: finalY } : s));
+        return state.map((s: Sprite) => (s.id === id ? { ...s, x: finalX, y: finalY } : s));
       });
     };
 
@@ -75,7 +73,6 @@ const ProjectView = () => {
 
   return (
     <div className="flex h-[calc(100vh-4rem)]">
-      {/* Blockly editor area */}
       <div className="relative flex-1 min-h-0 min-w-0 bg-light-whiteboard dark:bg-dark-whiteboard mr-2 overflow-hidden">
         <div
           className={`absolute inset-0 transition-opacity duration-150 ${
@@ -102,7 +99,6 @@ const ProjectView = () => {
           </div>
         </div>
 
-        {/* Undo/Redo overlay - positioned at bottom left, past the toolbox text (~150px) */}
         {view === 'blocks' && (
           <div className="absolute bottom-8 right-[30px] flex items-center gap-2.5 z-9999 pointer-events-auto">
             <button
@@ -141,14 +137,7 @@ const ProjectView = () => {
                   transform: 'rotate(180deg) scaleY(-1)',
                 }}
               >
-                <svg
-                  aria-hidden="true"
-                  focusable="false"
-                  viewBox="0 0 16 16"
-                  width="20"
-                  height="20"
-                  fill="currentColor"
-                >
+                <svg aria-hidden="true" focusable="false" viewBox="0 0 16 16" width="20" height="20" fill="currentColor">
                   <path d="M1.22 6.28a.749.749 0 0 1 0-1.06l3.5-3.5a.749.749 0 1 1 1.06 1.06L3.561 5h7.188l.001.007L10.749 5c.058 0 .116.007.171.019A4.501 4.501 0 0 1 10.5 14H8.796a.75.75 0 0 1 0-1.5H10.5a3 3 0 1 0 0-6H3.561L5.78 8.72a.749.749 0 1 1-1.06 1.06l-3.5-3.5Z"></path>
                 </svg>
               </span>
@@ -157,7 +146,6 @@ const ProjectView = () => {
         )}
       </div>
 
-      {/* Phaser panel area */}
       <div className="flex flex-col pr-2 pt-2" style={{ width: '492px' }}>
         <Phaser />
       </div>

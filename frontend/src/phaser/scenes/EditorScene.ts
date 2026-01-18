@@ -106,7 +106,6 @@ export default class EditorScene extends Phaser.Scene {
 
     // create sprites
     const spriteInstances = useSpriteStore.getState().spriteInstances;
-    console.log('[EditorScene] creating sprites: ', spriteInstances);
     for (const instance of spriteInstances) {
       this.createSprite(instance.textureName, instance.x, instance.y, instance.id);
     }
@@ -172,7 +171,6 @@ export default class EditorScene extends Phaser.Scene {
   }
 
   public createSprite(textureName: string, x: number, y: number, id: string) {
-    console.log('[EditorScene] creating sprite: ', textureName, x, y, id);
     const sprite = this.physics.add.sprite(x, y, textureName);
     sprite.setName(id);
     sprite.setData('editorSpriteId', id);

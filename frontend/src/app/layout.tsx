@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
-import Header from '@/components/Header';
+import Header from '@/components/Header/Header';
 import { WorkspaceViewProvider } from '@/contexts/WorkspaceViewContext';
 import { ThemeProvider } from 'next-themes';
 import { SnackbarProvider } from '@/providers/SnackbarProvider';

@@ -17,18 +17,11 @@ export type PhaserRef = {
 const PhaserGame = () => {
   const isConverting = useEditorStore((state) => state.isConverting);
   const phaserRef = useRef<Phaser.Game | null>(null);
-  const { setPhaserRef } = useEditorStore();
 
   // Update store when Phaser scene becomes ready
   useEffect(() => {
     const handler = (scene: EditorScene | GameScene) => {
-      console.log('[PhaserGame] current-scene-ready handler called', scene);
-      if (phaserRef.current) {
-        setPhaserRef({
-          game: phaserRef.current as Game,
-          scene: scene,
-        });
-      }
+      useEditorStore.getState().setPhaserScene(scene);
       // Send current pause state to newly ready scene (listener is already set up)
       const isEditorScene = useEditorStore.getState().isEditorScene;
       EventBus.emit('editor-scene-changed', isEditorScene);
@@ -41,10 +34,11 @@ const PhaserGame = () => {
   }, []);
 
   useLayoutEffect(() => {
-    console.log('[PhaserGame] useLayoutEffect called');
-    // let's start the game before React renders the first frame
-
-    if (!phaserRef.current) phaserRef.current = StartGame('game-container');
+    // start the Phaser game before React renders the first frame
+    if (!phaserRef.current) {
+      phaserRef.current = StartGame('game-container');
+      useEditorStore.getState().setPhaserGame(phaserRef.current);
+    }
     const handler = (scene: EditorScene | GameScene) => useEditorStore.getState().setPhaserScene(scene);
 
     EventBus.on('current-scene-ready', handler);
