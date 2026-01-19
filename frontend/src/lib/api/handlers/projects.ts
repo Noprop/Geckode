@@ -9,6 +9,7 @@ export const PROJECTS_API_URL = 'projects/';
 export const PROJECT_GROUPS_API_URL = 'project-groups/';
 export const projectCollaboratorsApiUrl = (id: number | string) => `${PROJECTS_API_URL}${id}/collaborators/`;
 export const projectOrganizationsApiUrl = (id: number | string) => `${PROJECTS_API_URL}${id}/organizations/`;
+export const projectInvitationsApiUrl = (id: number | string) => `${PROJECTS_API_URL}${id}/invitations/`;
 
 const projectsApi = createBaseApi<Project, ProjectPayload, ProjectFilters>({
   baseUrl: PROJECTS_API_URL
@@ -23,7 +24,7 @@ const projectsApi = createBaseApi<Project, ProjectPayload, ProjectFilters>({
     baseUrl: projectOrganizationsApiUrl(id),
   })(),
   invitationsApi: (id: number | string) => createBaseApi<ProjectInvitation, ProjectInvitationPayload, ProjectInvitationFilters>({
-    baseUrl: projectOrganizationsApiUrl(id),
+    baseUrl: projectInvitationsApiUrl(id),
   })(),
 });
 

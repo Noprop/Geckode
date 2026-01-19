@@ -1,29 +1,22 @@
 import { User } from "../users";
 import { BaseFilters } from "..";
-
-export const PrjPermissions = [
-  ['view', 'Can view projects'],
-  ['contribute', 'Can contribute projects'],
-  ['invite', 'Can invite members'],
-  ['manage', 'Can remove members'],
-  ['admin', 'Can modify details'],
-]
+import { ProjectPermissions } from ".";
 
 export interface ProjectInvitation {
   id: number;
   invited_at: string;
   invitee: User;
   inviter: User;
-  permission: string;
+  permission: ProjectPermissions;
 }
 
 export interface ProjectInvitationFilters extends BaseFilters {
   invitee?: number;
   inviter?: number;
-  permission?: string;
+  permission?: ProjectPermissions;
 }
 
 export interface ProjectInvitationPayload {
   invitee_id: number;
-  permission: string;
+  permission: ProjectPermissions;
 }

@@ -1,11 +1,11 @@
 import { Button } from "@/components/ui/Button";
-import { InputBox, InputBoxRef } from "@/components/ui/inputs/InputBox";
+import { InputBox } from "@/components/ui/inputs/InputBox";
 import { Modal } from "@/components/ui/modals/Modal";
 import { Table, TableRef } from "@/components/ui/Table";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import projectsApi from "@/lib/api/handlers/projects";
 import usersApi from "@/lib/api/handlers/users";
-import { Project } from "@/lib/types/api/projects";
+import { Project, ProjectPermissions, projectPermissions } from "@/lib/types/api/projects";
 import { ProjectInvitation } from "@/lib/types/api/projects/invitations";
 import {
   ProjectCollaborator,
@@ -14,7 +14,6 @@ import {
   projectCollaboratorSortKeys,
   ProjectCollaboratorSortKeys,
 } from "@/lib/types/api/projects/collaborators";
-import { projectPermissions } from "@/lib/types/api/projects";
 import { User } from "@/lib/types/api/users";
 import { FilePlusIcon, TrashIcon } from "@radix-ui/react-icons";
 import { ReactElement, useEffect, useRef, useState } from "react";
@@ -151,7 +150,7 @@ export const ManageMembers = ({ prj, setPrj, user }: Props) => {
 
   // invites all users listed in usersToInvite with set permission
   const inviteUsers = () => {
-    const perm: string = permissionDropdownView.current?.value as string;
+    const perm = permissionDropdownView.current?.value as ProjectPermissions;
     let errorOccurred = false;
 
     usersToInvite.forEach((user) => {
