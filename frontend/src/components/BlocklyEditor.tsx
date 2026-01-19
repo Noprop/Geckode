@@ -51,6 +51,8 @@ const BlocklyEditor = ({ ref, onWorkspaceReady }: BlocklyEditorProps) => {
         theme: Geckode,
       };
 
+      Blockly.BlockSvg.prototype.bumpNeighbours = function() {};
+
       workspaceRef.current = Blockly.inject(
         blocklyDivRef.current,
         blocklyOptions

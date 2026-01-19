@@ -17,10 +17,25 @@ import starterWorkspace from "@/blockly/starterWorkspace";
 import { Button } from "./ui/Button";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import { HocuspocusProvider } from "@hocuspocus/provider";
-import type { YArrayEvent, Doc, Transaction } from 'yjs';
+import type { Transaction, YMapEvent } from 'yjs';
 import { authApi } from "@/lib/api/auth";
 import { useAuth } from "@/contexts/AuthContext";
 import { PublicUser, toPublicUser } from "@/lib/types/api/users";
+
+type Block = Omit<
+  Blockly.serialization.blocks.State,
+  "id" | "inputs" | "next"
+> & Partial<{
+  "isShadow": boolean;
+  "parentId": string;
+  "inputName": string;
+}>;
+
+interface SerializedBlock extends Omit<Block, "isShadow" | "parentId"> {
+  id: string;
+  inputs?: Record<string, Record<"block" | "shadow", string>>;
+  next?: Record<string, Record<"block" | "shadow", string>>;
+}
 
 export type PhaserRef = {
   readonly game: Game;
@@ -159,7 +174,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
 
       const yDoc = provider.document;
 
-      const blocklyEvents = yDoc.getArray<object>('blockly-events');
+      const blocksMap = yDoc.getMap<Block>('blocks');
 
       let pollingInterval: NodeJS.Timeout | null = null;
       let oldCoordinate: Blockly.utils.Coordinate | null = null;
@@ -204,38 +219,46 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
           });
         }
 
-        // Only these events will get pushed straight to the doc
         if (![
           Blockly.Events.BLOCK_CREATE,
           Blockly.Events.BLOCK_DELETE,
           Blockly.Events.BLOCK_MOVE,
           Blockly.Events.BLOCK_CHANGE,
-          Blockly.Events.VAR_CREATE,
-          Blockly.Events.VAR_RENAME,
-          Blockly.Events.VAR_DELETE,
         ].some(type => type === event.type)) {
           return;
         }
 
         console.log('event', event.toJson());
+        console.log('event group', event.group);
 
-        const serializeBlock = (block: Blockly.Block) => {
-          const inputs = Object.fromEntries(block.inputList.map(input => {
-            const shadowBlock = input.connection?.getShadowState(true);
+        const serializeBlock = (blockId: string): SerializedBlock => {
+          const block = workspace.getBlockById(blockId);
+          console.log('original block object', block);
+
+          if (!block) throw Error;
+
+          console.log('original block json', Blockly.serialization.blocks.save(
+            block,
+            {
+              addCoordinates: true,
+              addInputBlocks: true,
+              addNextBlocks: true,
+              doFullSerialization: false
+            }
+          ));
+
+          const inputs = Object.fromEntries(block.inputList.map((input) => {
+            const shadowBlock = input.connection?.getShadowState();
             const targetBlock = input.connection?.targetBlock();
 
             return [
               input.name,
               {
                 ...(shadowBlock && {
-                  shadow: {
-                    id: shadowBlock.id,
-                  }
+                  shadow: shadowBlock.id,
                 }),
                 ...(targetBlock && !targetBlock.isShadow() && {
-                  block: {
-                    id: targetBlock.id,
-                  }
+                  block: targetBlock.id,
                 }),
               }
             ];
@@ -246,15 +269,36 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
 
           const next = {
             ...(nextShadowBlock && {
-              shadow: {
-                id: nextShadowBlock.id,
-              }
+              shadow: nextShadowBlock.id,
             }),
             ...(nextTargetBlock && !nextTargetBlock.isShadow() && {
-              block: {
-                id: nextTargetBlock.id,
-              }
+              block: nextTargetBlock.id,
             }),
+          };
+
+          const parentBlock = block.getParent();
+          const inputName = parentBlock?.inputList.filter((input) => (
+            input.connection?.targetBlock() === block
+          ))?.[0]?.name;
+          //const inputName = (block.outputConnection || block.previousConnection)?.getParentInput()?.name;
+          const extraState = block.saveExtraState?.();
+          const collapsed = block.isCollapsed();
+          const deletable = block.isDeletable();
+          const movable = block.isMovable();
+          const editable = block.isEditable();
+          const enabled = block.isEnabled();
+          const inline = block.inputsInline
+
+          const methodMapping: Partial<Record<keyof Block, keyof Blockly.Block>> = {
+            "extraState": "saveExtraState",
+            "isShadow": "isShadow",
+            "collapsed": "isCollapsed",
+            "deletable": "isDeletable",
+            "movable": "isMovable",
+            "editable": "isEditable",
+            "enabled": "isEnabled",
+            "inline": "inputsInline",
+            "data": "data",
           };
 
           return {
@@ -263,28 +307,310 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
                 addCoordinates: true,
                 addInputBlocks: false,
                 addNextBlocks: false,
-                doFullSerialization: false
               }
             ),
             ...(Object.keys(inputs).length && {inputs: inputs}),
             ...(Object.keys(next).length && {next: next}),
-          };
+            ...(block.isShadow() && {
+              isShadow: true,
+            }),
+            ...(parentBlock?.id && {
+              parentId: parentBlock?.id,
+            }),
+            ...(inputName && {
+              inputName,
+            }),
+            ...Object.fromEntries(Object.entries(methodMapping).map(
+              ([field, method]) => ([
+                field,
+                (typeof block[method]) === 'function'
+                  ? (block[method] as Function)()
+                  : block[method],
+              ])
+            ).filter(([_, value]) => value)),
+          } as SerializedBlock;
         };
 
-        const block = workspace.getBlockById((event as any).blockId);
-        if (block) console.log(
-          event.type,
-          serializeBlock(block),
-        );
-        
+        const addShadowBlockToBlockList = (
+          blocks: Record<string, Block>,
+          block: Blockly.Block,
+          parentId: string,
+        ): void => {
+          block.inputList.forEach((input) => {
+            const targetBlock = input.connection?.targetBlock();
+            if (targetBlock?.isShadow()) {
+              const shadowBlock = Blockly.serialization.blocks.save(
+                targetBlock,
+              );
+              if (!shadowBlock?.id) return;
+              console.log('shadow block here', shadowBlock);
+              blocks[shadowBlock.id] = {
+                type: shadowBlock.type,
+                parentId: parentId,
+                inputName: input.name,
+                isShadow: true,
+                ...Object.fromEntries(Object.entries(shadowBlock).filter(
+                  ([field, _]) =>
+                    !["inputs", "icons", "disabledReasons", "icons", "next"].includes(field)
+                ))
+              };
+
+              if (shadowBlock?.inputs) {
+                addShadowBlockToBlockList(
+                  blocks,
+                  targetBlock,
+                  shadowBlock.id,
+                );
+              }
+            }
+          });
+        }
+
+        const getBlocksFromSerializedBlock = (
+          block: SerializedBlock,
+        ): Record<string, Block> => {
+          let blocks = {
+            [block.id]: {
+              ...Object.fromEntries(
+                (["type", "fields", "x", "y", "parentId", "isShadow",
+                  "inputName", "extraState", "collapsed", "deletable",
+                  "movable", "editable", "enabled", "inline", "data"])
+                  .map((field) => (
+                    [field, block[field as keyof SerializedBlock]])
+                  )
+              ),
+              ...(block?.inputs && {
+                inputs: new Set(Object.keys(block.inputs))
+              }),
+            }
+          } as Record<string, Block>;
+
+          Object.entries(block?.inputs ?? {}).forEach(([inputName, value]) => {
+            if (value?.block) {
+              blocks = {
+                ...blocks,
+                ...getBlocksFromSerializedBlock(
+                  {...serializeBlock(value.block), inputName},
+                ),
+              };
+            }
+            if (value?.shadow) {
+              const blocklyBlock = workspace.getBlockById(block.id);
+              if (!blocklyBlock) return;
+              addShadowBlockToBlockList(
+                blocks,
+                blocklyBlock,
+                block.id,
+              );
+            }
+          });
+
+          return blocks;
+        }
 
         if (event.type === Blockly.Events.BLOCK_DELETE) {
           stopDragPolling(); // This stops the polling when dragging the block to the toolbox to delete
+          const deleteEvent = event as Blockly.Events.BlockDelete;
+          if (deleteEvent.wasShadow) return;
+          yDoc.transact(() => {
+            (deleteEvent.ids ?? []).forEach((id) => {
+              blocksMap.delete(id);
+            });
+          }, yDoc.clientID);
+          return;
         }
 
+        if (event.type === Blockly.Events.BLOCK_MOVE) {
+          const moveEvent = event as Blockly.Events.BlockMove;
+          const prevData = blocksMap.get(moveEvent.blockId ?? '');
+          if (!prevData) return;
+          yDoc.transact(() => {
+            blocksMap.set(
+              moveEvent.blockId!,
+              {
+                ...prevData,
+                parentId: moveEvent.newParentId,
+                inputName: moveEvent.newInputName,
+                x: moveEvent.newCoordinate?.x,
+                y: moveEvent.newCoordinate?.y,
+              }
+            )
+          }, yDoc.clientID);
+          return;
+        }
+
+        const blockEvent = event as Blockly.Events.BlockCreate | Blockly.Events.BlockChange;
+
+        const serializedBlock = serializeBlock(blockEvent.blockId ?? '');
+        console.log(event.type, serializedBlock);
+        console.log('blocks from getBlocksFromSerializedBlock', getBlocksFromSerializedBlock(serializedBlock));
+
+        const blocks = getBlocksFromSerializedBlock(
+          serializeBlock(
+            blockEvent.blockId ?? '',
+          ),
+        );
+        console.log('blocks created/updated', blocks);
+
         yDoc.transact(() => {
-          blocklyEvents.push([event.toJson()]);
+          Object.keys(blocks).forEach((id) => {
+            blocksMap.set(id, blocks[id]);
+          });
         }, yDoc.clientID);
+      };
+
+      const blocksMapObserver = (yEvent: YMapEvent<Block>, transaction: Transaction) => {
+        if (transaction.origin === yDoc.clientID) return;
+
+        Blockly.Events.disable();
+
+        yEvent.changes.keys.forEach((change, key) => {
+          if (change.action === 'add') {
+            const data = blocksMap.get(key);
+            if (!data) return;
+            console.log('yEvent add', key, data)
+            Blockly.serialization.blocks.append({
+              id: key,
+              ...(Object.fromEntries(Object.entries(data).filter(
+                ([field, _]) => !["isShadow", "parentId", "inputName"].includes(field)
+              )) as Blockly.serialization.blocks.State),
+            }, workspace, {
+              recordUndo: false,
+            });
+            const block = workspace.getBlockById(key);
+            if (!block) return;
+            block.setShadow(data.isShadow ?? false);
+            block.setDisabledReason(!(data.enabled ?? true), '');
+          } else if (change.action === 'update') {
+            const data = blocksMap.get(key);
+            if (!data) return;
+
+            let block;
+
+            if (data?.isShadow) {
+              let currData: Block | undefined = data;
+              let prevInputName: string = data.inputName ?? '';
+              let prevKey = key;
+              const path: string[] = [];
+              while (currData?.isShadow) {
+                path.unshift(prevInputName);
+                prevKey = currData.parentId ?? '';
+                currData = blocksMap.get(currData.parentId ?? '');
+                prevInputName = currData?.inputName ?? '';
+              }
+              block = workspace.getBlockById(prevKey);
+              console.log('non-shadow block obtained', block);
+              if (!block) return;
+              for (const inputName of path) {
+                if (!block) return;
+                block = block.getInputTargetBlock(inputName);
+              }
+              console.log('final block obtained', block);
+            } else {
+              block = workspace.getBlockById(key);
+            }
+
+            if (!block) return;
+
+            Object.entries(data.fields ?? {}).forEach(([name, value]) => {
+              block.setFieldValue(value, name);
+            });
+
+            if (data?.extraState) {
+              block.loadExtraState?.(data.extraState);
+            }
+
+            if (!block.getParent()) {
+              const coordinates = block.getRelativeToSurfaceXY();
+              block.moveBy(
+                (data.x ?? coordinates.x) - coordinates.x,
+                (data.y ?? coordinates.y) - coordinates.y,
+              );
+            }
+
+            const methodMapping: Partial<Record<keyof Block, keyof Blockly.Block>> = {
+              "extraState": "loadExtraState",
+              "isShadow": "setShadow",
+              "collapsed": "setCollapsed",
+              "deletable": "setDeletable",
+              "movable": "setMovable",
+              "editable": "setEditable",
+              "enabled": "setDisabledReason",
+              "inline": "inputsInline",
+              "data": "data",
+            };
+
+            Object.entries(methodMapping).forEach(([field, method]) => {
+              if ((typeof block[method] === 'function')) {
+                if (method === 'setDisabledReason') {
+                  (block[method] as Function)(!(data[field as keyof Block] ?? true));
+                } else {
+                  (block[method] as Function)(
+                    data[field as keyof Block] ?? (
+                      method === "loadExtraState" ? {} : false
+                    )
+                  );
+                }
+              } else {
+                (block[method] as any) = block[method];
+              }
+            });
+          } else if (change.action === 'delete') {
+            console.log('attempting to remove block by id', key);
+            workspace.getBlockById(key)?.dispose();
+          }
+        });
+
+        yEvent.changes.keys.forEach((change, key) => {
+          if (change.action === 'delete') return;
+          const data = blocksMap.get(key);
+          if (!data?.parentId) return;
+          const parentData = blocksMap.get(data.parentId);
+          if (!data) return;
+          console.log('block ids', key, data.parentId);
+          const childBlock = workspace.getBlockById(key);
+          const parentBlock = workspace.getBlockById(data.parentId);
+          if (!childBlock || !parentBlock) return;
+          console.log('attempting to get input', data.inputName, parentBlock.getInput(data.inputName ?? '')?.connection);
+          const inputConnection = (
+            data.inputName
+            ? parentBlock.getInput(data.inputName)?.connection
+            : parentBlock.nextConnection
+          );
+          const childConnection = childBlock.outputConnection || childBlock.previousConnection;
+          console.log('connections', inputConnection, childConnection);
+          if ((!data?.isShadow || parentData?.isShadow) && inputConnection && childConnection
+            && inputConnection.targetConnection !== childConnection) {
+            inputConnection.connect(childConnection);
+          }
+        });
+
+        // Add the shadow states to the blocks
+        yEvent.changes.keys.forEach((change, key) => {
+          if (change.action !== 'add') return;
+          const data = blocksMap.get(key);
+          if (!data?.parentId || !data?.isShadow) return;
+          const shadowBlock = workspace.getBlockById(key);
+          const parentBlock = workspace.getBlockById(data.parentId);
+          if (!shadowBlock || !parentBlock || parentBlock.isShadow()) return;
+          const shadowState = Blockly.serialization.blocks.save(
+            shadowBlock,
+            {
+              doFullSerialization: true,
+            }
+          );
+          parentBlock.getInput(data.inputName ?? '')?.connection?.setShadowState(shadowState);
+        });
+
+        // Dispose the shadow blocks (no longer needed)
+        yEvent.changes.keys.forEach((change, key) => {
+          if (change.action !== 'add') return;
+          const data = blocksMap.get(key);
+          if (!data?.isShadow) return;
+          workspace.getBlockById(key)?.dispose();
+        });
+
+        Blockly.Events.enable();
       };
 
       awareness.on('update', ({ added, updated, removed }: Record<string, Array<any>>) => {
@@ -331,32 +657,12 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
         }
       });
 
-      const eventsObserver = (yEvent: YArrayEvent<object>, transaction: Transaction) => {
-        if (transaction.origin !== yDoc.clientID) {
-          yEvent.changes.added.forEach(item => {
-            item.content.getContent().forEach((event: any) => {
-              applyBlocklyEvent(event, workspace);
-            });
-          });
-        }
-
-        // This if statement needs to get fixed; should only not run when the document is being reset
-        // For some reason the client's transaction origins are always its own provider and doesn't know what the server set it as
-        if (transaction.origin !== provider) {
-          yEvent.changes.deleted.forEach(item => {
-            item.content.getContent().forEach((event: any) => {
-              applyBlocklyEvent(event, workspace, false);
-            });
-          });
-        }
-      };
-
       workspace.addChangeListener(eventsListener);
-      blocklyEvents.observe(eventsObserver);
+      blocksMap.observe(blocksMapObserver);
 
       cleanupFunc = () => {
         workspace.removeChangeListener(eventsListener);
-        blocklyEvents.unobserve(eventsObserver);
+        blocksMap.unobserve(blocksMapObserver);
         provider.destroy();
       };
     }
