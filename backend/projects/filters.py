@@ -2,9 +2,10 @@ from functools import reduce
 from operator import or_
 from django.db.models import Q
 from utils.filters import PrefixedFilterSet, make_owner_id_filter, make_nullable_boolean_filter
-from django_filters import NumberFilter, BooleanFilter, CharFilter
-from .models import Project, ProjectCollaborator, OrganizationProject
+from django_filters import NumberFilter, BooleanFilter, CharFilter, ChoiceFilter
+from .models import Project, ProjectCollaborator, OrganizationProject, ProjectInvitation
 from accounts.filters import UserFilter
+from accounts.models import User
 
 '''
 Filter the query set to restrict projects to those published or the user has access
@@ -67,4 +68,28 @@ class ProjectOrganizationFilter(PrefixedFilterSet):
 
     class Meta:
         model = OrganizationProject
+        fields = []
+
+class ProjectInvitationFilter(PrefixedFilterSet):
+    search_fields = [
+        (field1, field2)
+        for field1 in ['invitee', 'inviter']
+        for field2 in User.SEARCH_FIELDS
+    ]
+    ordering_fields = [
+        'id',
+        'invited_at',
+        *[
+            (f'{field1}__{field2}', f'{field1}_{field2}')
+            for field1, field2 in search_fields
+        ],
+        'created_at',
+    ]
+
+    invitee = NumberFilter(field_name='invitee__id')
+    inviter = NumberFilter(field_name='inviter__id')
+    permission = ChoiceFilter(choices=Project.PERMISSION_CHOICES)
+
+    class Meta:
+        model = ProjectInvitation
         fields = []

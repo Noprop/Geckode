@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework_nested.routers import DefaultRouter, NestedDefaultRouter
-from .views import ProjectGroupViewSet, ProjectViewSet, ProjectCollaboratorViewSet, ProjectOrganizationViewSet, OrganizationProjectViewSet
+from .views import ProjectGroupViewSet, ProjectViewSet, ProjectCollaboratorViewSet, ProjectInvitationViewSet, ProjectOrganizationViewSet, OrganizationProjectViewSet
 
 router = DefaultRouter()
 router.register(r'project-groups', ProjectGroupViewSet, basename='project-groups')
@@ -8,6 +8,7 @@ router.register(r'projects', ProjectViewSet, basename='projects')
 
 projects_router = NestedDefaultRouter(router, r'projects', lookup='project')
 projects_router.register(r'collaborators', ProjectCollaboratorViewSet, basename='project-collaborators')
+projects_router.register(r'invitations', ProjectInvitationViewSet, basename='project-invitations')
 
 urlpatterns = [
     path('', include(router.urls)),
