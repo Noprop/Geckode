@@ -1,9 +1,8 @@
 from rest_framework.serializers import ModelSerializer, PrimaryKeyRelatedField, BooleanField, SerializerMethodField, ValidationError
 from accounts.serializers import PublicUserSerializer
 from django.utils import timezone
-from .models import ProjectGroup, Project, ProjectCollaborator, OrganizationProject
+from .models import ProjectGroup, Project, ProjectCollaborator, OrganizationProject, ProjectInvitation
 from accounts.models import User
-from organizations.models import Organization
 from organizations.serializers import PublicOrganizationSerializer
 
 class ProjectGroupSerializer(ModelSerializer):
@@ -131,3 +130,32 @@ class ProjectOrganizationSerializer(ModelSerializer):
     class Meta:
         model = OrganizationProject
         fields = ['id', 'organization', 'permission']
+
+
+class ProjectInvitationSerializer(ModelSerializer):
+    invitee = PublicUserSerializer(read_only=True)
+    invitee_id = PrimaryKeyRelatedField(queryset=User.objects.all(), write_only=True, source='invitee')
+    inviter = PublicUserSerializer(read_only=True)
+
+    class Meta:
+        model = ProjectInvitation
+        fields = ['id', 'invited_at', 'invitee', 'invitee_id', 'inviter', 'permission']
+        read_only_fields = ['invited_at']
+
+    def validate(self, attrs : dict[str, any]) -> dict[str, any]:
+        try:
+            if 'view' in self.context and hasattr(self.context['view'], 'kwargs'):
+                project = Project.objects.get(id=self.context['view'].kwargs.get('project_pk'))
+
+                if project.has_member(attrs['invitee']):
+                    raise ValidationError('Cannot invite an already-existing member to the project.')
+
+                if 'request' in self.context:
+                    user = self.context['request'].user
+
+                    if not project.has_permission(user, attrs['permission']):
+                        raise ValidationError('Cannot give an invited member a higher permission class.')
+        except Project.DoesNotExist:
+            pass
+
+        return attrs

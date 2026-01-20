@@ -13,7 +13,7 @@ export interface Project {
   published_at: string | null;
   fork_count: number;
   thumbnail: string | null;
-  permission: string | null;
+  permission: ProjectPermissions | "owner";
   blocks?: JSON;
   game_state?: PhaserExport;
   sprites?: Sprite[];
@@ -33,6 +33,7 @@ export interface ProjectPayload {
   blocks?: {[key: string]: any};
   game_state?: {[key: string]: any};
   sprites?: {[key: string]: any};
+  permission: ProjectPermissions | "owner";
 }
 
 export const projectSortKeys: (keyof Project)[] = [

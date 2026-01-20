@@ -1,18 +1,20 @@
 from rest_framework.viewsets import ModelViewSet
-from .models import ProjectGroup, Project, ProjectCollaborator, OrganizationProject
-from .serializers import ProjectGroupSerializer, ProjectSerializer, ProjectCollaboratorSerializer, OrganizationProjectSerializer, ProjectOrganizationSerializer
+from .models import ProjectGroup, Project, ProjectCollaborator, OrganizationProject, ProjectInvitation
+from .serializers import ProjectGroupSerializer, ProjectSerializer, ProjectInvitationSerializer, ProjectCollaboratorSerializer, OrganizationProjectSerializer, ProjectOrganizationSerializer
 from django_filters.rest_framework import DjangoFilterBackend
-from .filters import ProjectFilter, apply_project_access_filters, ProjectCollaboratorFilter, OrganizationProjectFilter, ProjectOrganizationFilter
+from .filters import ProjectFilter, apply_project_access_filters, ProjectCollaboratorFilter, ProjectInvitationFilter, OrganizationProjectFilter, ProjectOrganizationFilter
 from utils.permissions import create_user_permission_class, AnyOf
-from rest_framework.exceptions import NotFound, PermissionDenied
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.request import Request
 from rest_framework.status import HTTP_200_OK
 from django.shortcuts import get_object_or_404
 from organizations.models import Organization
 from django.db.models import Q
 from accounts.models import User
 from accounts.serializers import PublicUserSerializer
+
 
 class ProjectGroupViewSet(ModelViewSet):
     queryset = ProjectGroup.objects.all()
@@ -73,6 +75,7 @@ class ProjectViewSet(ModelViewSet):
         ])
 
     def perform_create(self, serializer):
+        serializer.validated_data.pop('is_published', False)
         serializer.save(owner=self.request.user)
 
     def partial_update(self, request, *args, **kwargs):
@@ -233,3 +236,51 @@ class ProjectOrganizationViewSet(ModelViewSet):
                 lookup='project_pk',
             )()
         ]
+    
+
+
+class ProjectInvitationViewSet(ModelViewSet):
+    queryset = ProjectInvitation.objects.all()
+    serializer_class = ProjectInvitationSerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = ProjectInvitationFilter
+
+    http_method_names = ['get', 'post', 'delete']
+
+    def get_permissions(self) -> list[any]:
+        '''
+        Only allow users that can invite to create invitations in the org
+        Restrict all other methods to managers
+        However, allow the inviter or invitee to delete the object (repeal or reject the invitation)
+        '''
+
+        return super().get_permissions() + [
+            create_user_permission_class(
+                'invite' if self.action == 'create' else 'manage',
+                user_override_fields=['inviter', 'invitee'],
+                primary_pk_class=Project,
+                lookup='project_pk',
+                secondary_pk_class=ProjectInvitation,
+                secondary_pk_kwargs={'id': self.kwargs.get('pk')},
+            )()
+        ]
+
+    def get_queryset(self):
+        return super().get_queryset().filter(project=self.kwargs.get('project_pk'))
+
+    def perform_create(self, serializer : ProjectInvitationSerializer) -> None:
+        project : Project = get_object_or_404(Project, pk=self.kwargs.get('project_pk'))
+
+        serializer.save(project=project, inviter=self.request.user)
+
+    @action(detail=True, methods=['post'])
+    def accept(self, request : Request, project_pk : str|None = None, pk=None) :
+        project = get_object_or_404(Project, pk=project_pk)
+        invitation = self.get_object()
+
+        if invitation.invitee != request.user:
+            return PermissionDenied("You are not authorized to accept this invitation.")
+
+        project.add_member(invitation.invitee, invitation.permission, invitation.inviter)
+
+        return Response({"status": "accepted"}, status=HTTP_200_OK)

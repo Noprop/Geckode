@@ -1,19 +1,21 @@
-import type { Metadata } from 'next';
-import './globals.css';
-import Header from '@/components/Header/Header';
-import { WorkspaceViewProvider } from '@/contexts/WorkspaceViewContext';
-import { ThemeProvider } from 'next-themes';
-import { SnackbarProvider } from '@/providers/SnackbarProvider';
+import type { Metadata } from "next";
+import "./globals.css";
+import Header from "@/components/Header/Header";
+import { WorkspaceViewProvider } from "@/contexts/WorkspaceViewContext";
+import { ThemeProvider } from "next-themes";
+import { SnackbarProvider } from "@/contexts/SnackbarContext";
+import { authApi } from "@/lib/api/auth";
+import { UserProvider } from "@/contexts/UserContext";
 
 export const metadata: Metadata = {
-  title: 'Geckode',
-  description: 'A coding platform for kids',
-  authors: [{ name: 'Geckode', url: 'https://geckode.com' }],
-  creator: 'Geckode',
-  publisher: 'Geckode',
-  applicationName: 'Geckode',
-  keywords: ['coding', 'platform', 'kids', 'education'],
-  robots: 'index, follow',
+  title: "Geckode",
+  description: "A coding platform for kids",
+  authors: [{ name: "Geckode", url: "https://geckode.com" }],
+  creator: "Geckode",
+  publisher: "Geckode",
+  applicationName: "Geckode",
+  keywords: ["coding", "platform", "kids", "education"],
+  robots: "index, follow",
 
   // TODO: Add metadata
   // icons: {
@@ -35,21 +37,31 @@ export const metadata: Metadata = {
   // },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  let user;
+
+  try {
+    user = await authApi.getUserDetails();
+  } catch (error: any) {
+    user = null;
+  }
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased min-h-screen flex flex-col">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <SnackbarProvider>
-            <WorkspaceViewProvider>
-              <Header />
-              {children}
-            </WorkspaceViewProvider>
-          </SnackbarProvider>
+          <UserProvider user={user}>
+            <SnackbarProvider>
+              <WorkspaceViewProvider>
+                <Header />
+                {children}
+              </WorkspaceViewProvider>
+            </SnackbarProvider>
+          </UserProvider>
         </ThemeProvider>
       </body>
     </html>

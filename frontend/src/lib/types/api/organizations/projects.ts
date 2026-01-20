@@ -2,7 +2,7 @@ import { Project, ProjectFilters, ProjectPermissions } from "../projects";
 
 export interface OrganizationProject {
   project: Project;
-  permission: ProjectPermissions;
+  permission: ProjectPermissions | "owner";
 }
 
 export interface OrganizationProjectFilters extends ProjectFilters {}

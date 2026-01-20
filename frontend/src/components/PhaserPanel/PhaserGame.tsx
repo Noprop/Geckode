@@ -8,11 +8,6 @@ import type { Game } from 'phaser';
 import { useEditorStore } from '@/stores/editorStore';
 import GameScene from '@/phaser/scenes/GameScene';
 
-export type PhaserRef = {
-  readonly game: Game;
-  readonly scene: EditorScene | GameScene;
-} | null;
-
 // the React hooks in this component are written in order of their actual execution.
 const PhaserGame = () => {
   const isConverting = useEditorStore((state) => state.isConverting);
@@ -46,7 +41,6 @@ const PhaserGame = () => {
   }, []);
 
   useEffect(() => {
-    // this scene event listener will live until this Phaser react component has been torn down
     const container = document.getElementById('game-container') as HTMLDivElement;
     const keyboard = phaserRef.current?.input?.keyboard;
     if (!container || !keyboard) throw new Error('Game container or keyboard not found');

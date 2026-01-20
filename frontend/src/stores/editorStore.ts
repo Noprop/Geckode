@@ -262,6 +262,7 @@ export const useEditorStore = create<State & Actions>((set, get) => ({
         spriteTextures,
         code,
       });
+
       set({ isEditorScene: false });
       (document.getElementById('game-container') as HTMLElement).focus();
     } else {

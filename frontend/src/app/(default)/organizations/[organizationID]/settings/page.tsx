@@ -8,15 +8,20 @@ import { authApi } from "@/lib/api/auth";
 import { User } from "@/lib/types/api/users";
 import { AboutOrganization } from "./AboutOrganization";
 import { ManageMembers } from "./ManageMembers";
+import { useLayout } from "@/contexts/LayoutProvider";
 
 const OrganizationSettingsPage = () => {
+  const layout = useLayout();
+
   const orgID = Number(useParams().organizationID);
   const [org, setOrg] = useState<Organization>();
 
   const [user, setUser] = useState<User | null>(null);
 
-  // fetch api for org name
   useEffect(() => {
+    layout.setFooterVisibility(false);
+
+    // fetch api for org name
     organizationsApi(orgID)
       .get()
       .then((org) => setOrg(org));

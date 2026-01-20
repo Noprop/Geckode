@@ -6,7 +6,7 @@ interface props {
   className?: string;
   type?: "submit" | "reset" | "button";
   title?: string;
-  optionsMapping?: Record<string, string>; // maps dropdown labels to urls
+  optionsMapping?: Record<string, string | (() => void)>; // maps dropdown labels to urls
   bottomBuffer?: number; // positioning of dropdown compared to button
   rightBuffer?: number;
 }
@@ -47,13 +47,18 @@ const DropDownButton = ({
         >
           {Object.entries(optionsMapping!).length > 0 && (
             <ul>
-              {Object.entries(optionsMapping!).map((entry) => (
+              {Object.entries(optionsMapping!).map(([label, action]) => (
                 <li
-                  key={entry[0]}
+                  key={label}
                   className="p-2 cursor-pointer"
-                  onClick={() => (window.location.href = entry[1])}
+                  onClick={() =>
+                    // either redirect user to string provided or trigger the function
+                    typeof action === "string"
+                      ? (window.location.href = action)
+                      : action()
+                  }
                 >
-                  {entry[0]}
+                  {label}
                 </li>
               ))}
             </ul>

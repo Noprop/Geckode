@@ -56,6 +56,23 @@ class Project(Model):
             organization_projects__permission__in=permissions_allowed.get(required_permission, []),
             members=user
         ).exists()
+    
+    def has_member(self, user : User, include_owner=True) -> bool:
+        if include_owner and user == self.owner:
+            return True
+        return self.collaborators.filter(pk=user.pk).exists()
+    
+    def add_member(self, user : User, permission : str, invited_by : User | None = None) -> None:
+        ProjectCollaborator.objects.create(
+            project=self,
+            collaborator=user,
+            permission=permission,
+        )
+
+        ProjectInvitation.objects.filter(
+            project=self,
+            invitee=user,
+        ).delete()
 
     def get_permission(self, user):
         if user == self.owner:
@@ -88,6 +105,19 @@ class OrganizationProject(Model):
 
     class Meta:
         unique_together = ('organization', 'project')
+
+    def has_permission(self, user, required_permission):
+        return self.project.has_permission(user, required_permission)
+
+class ProjectInvitation(Model):
+    invited_at = DateTimeField(auto_now_add=True)
+    project = ForeignKey(Project, related_name='invitations', on_delete=CASCADE)
+    invitee = ForeignKey(User, related_name='invitee_project_invitations', on_delete=CASCADE)
+    inviter = ForeignKey(User, related_name='inviter_project_invitations', on_delete=CASCADE)
+    permission = CharField(max_length=10, choices=Project.PERMISSION_CHOICES)
+
+    class Meta:
+        unique_together = ('project', 'invitee', 'inviter')
 
     def has_permission(self, user, required_permission):
         return self.project.has_permission(user, required_permission)

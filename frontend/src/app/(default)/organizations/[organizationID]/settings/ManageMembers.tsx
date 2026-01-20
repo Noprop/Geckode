@@ -15,7 +15,7 @@ import {
   organizationMemberSortKeys,
   OrganizationMemberSortKeys,
 } from "@/lib/types/api/organizations/members";
-import { ProjectPermissions } from "@/lib/types/api/projects/collaborators";
+import { projectPermissions } from "@/lib/types/api/projects";
 import { User } from "@/lib/types/api/users";
 import { FilePlusIcon, TrashIcon } from "@radix-ui/react-icons";
 import { ReactElement, useEffect, useRef, useState } from "react";
@@ -28,7 +28,10 @@ interface Props {
 export const ManageMembers = ({ org, setOrg, user }: Props) => {
   const snackbar = useSnackbar();
   const orgMemberApi = organizationsApi(org?.id).members;
-  const tableRef = useRef<TableRef<OrganizationMember, OrganizationMemberFilters> | null>(null);
+  const tableRef = useRef<TableRef<
+    OrganizationMember,
+    OrganizationMemberFilters
+  > | null>(null);
 
   // inviting members
   const [orgInvites, setOrgInvites] = useState<OrganizationInvitation[]>([]);
@@ -173,7 +176,10 @@ export const ManageMembers = ({ org, setOrg, user }: Props) => {
     <>
       <h1 className="header-1">Owner</h1>
       <div className="flex my-3">
-        <img className="size-10 mr-5 rounded-full" src={org.owner.avatar ?? 'user-icon.png'}/>
+        <img
+          className="size-10 mr-5 rounded-full"
+          src={org.owner.avatar ?? "/user-icon.png"}
+        />
         <span className="my-auto">{org.owner.username}</span>
       </div>
       <h1 className="header-1 mt-10">Members</h1>
@@ -266,9 +272,9 @@ export const ManageMembers = ({ org, setOrg, user }: Props) => {
               ref={permissionDropdownView}
               className="bg-white text-black mb-3 p-2 rounded-md"
             >
-              {ProjectPermissions.map((p) => (
-                <option key={p[0]} value={p[0]}>
-                  {p.join(" - ")}
+              {Object.entries(projectPermissions).map(([key, label]) => (
+                <option key={key} value={key}>
+                  {label}
                 </option>
               ))}
             </select>
