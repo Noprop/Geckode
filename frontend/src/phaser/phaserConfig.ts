@@ -1,8 +1,6 @@
-import { Boot } from './scenes/Boot';
 import EditorScene from './scenes/EditorScene';
 import GameScene from './scenes/GameScene';
 import * as Phaser from 'phaser';
-import { Preloader } from './scenes/Preloader';
 
 // Find out more information about the Game Config at:
 // https://docs.phaser.io/api-documentation/typedef/types-core#gameconfig
@@ -17,7 +15,7 @@ const config = {
   },
   parent: 'phaser-container',
   backgroundColor: '#707090',
-  scene: [Boot, Preloader, EditorScene, GameScene],
+  scene: [EditorScene, GameScene],
   physics: {
     default: 'arcade',
     arcade: {

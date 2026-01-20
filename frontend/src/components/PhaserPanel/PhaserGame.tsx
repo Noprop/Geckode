@@ -2,44 +2,51 @@
 
 import { useEffect, useLayoutEffect, useRef } from "react";
 import StartGame from "@/phaser/phaserConfig";
-import { EventBus } from "@/phaser/EventBus";
-import { EDITOR_SCENE_KEY } from '@/phaser/scenes/EditorScene';
+import { EventBus } from '@/phaser/EventBus';
 import type EditorScene from '@/phaser/scenes/EditorScene';
 import type { Game } from 'phaser';
 import { useEditorStore } from '@/stores/editorStore';
-import GameScene, { GAME_SCENE_KEY } from "@/phaser/scenes/GameScene";
+import GameScene from '@/phaser/scenes/GameScene';
 
 // the React hooks in this component are written in order of their actual execution.
 const PhaserGame = () => {
   const isConverting = useEditorStore((state) => state.isConverting);
-  const internalGameRef = useRef<Game | null>(null);
+  const phaserRef = useRef<Phaser.Game | null>(null);
+
+  // Update store when Phaser scene becomes ready
+  useEffect(() => {
+    const handler = (scene: EditorScene | GameScene) => {
+      useEditorStore.getState().setPhaserScene(scene);
+      // Send current pause state to newly ready scene (listener is already set up)
+      const isEditorScene = useEditorStore.getState().isEditorScene;
+      EventBus.emit('editor-scene-changed', isEditorScene);
+    };
+
+    EventBus.on('current-scene-ready', handler);
+    return () => {
+      EventBus.off('current-scene-ready', handler);
+    };
+  }, []);
 
   useLayoutEffect(() => {
-    if (!internalGameRef.current)
-      internalGameRef.current = StartGame('game-container');
+    // start the Phaser game before React renders the first frame
+    if (!phaserRef.current) {
+      phaserRef.current = StartGame('game-container');
+      useEditorStore.getState().setPhaserGame(phaserRef.current);
+    }
+    const handler = (scene: EditorScene | GameScene) => useEditorStore.getState().setPhaserScene(scene);
+
+    EventBus.on('current-scene-ready', handler);
+    return () => void EventBus.off('current-scene-ready', handler);
   }, []);
 
   useEffect(() => {
-    // this scene event listener will live until this Phaser react component has been torn down
-    const handler = (scene: Phaser.Scene | EditorScene) => {
-      if (!('key' in scene) || !(scene.key == EDITOR_SCENE_KEY || scene.key == GAME_SCENE_KEY)) return;
-      useEditorStore.getState().setPhaserRef({
-        game: internalGameRef.current as Game,
-        scene: scene as unknown as EditorScene | GameScene,
-      });
-    };
-    EventBus.on('current-scene-ready', handler);
-
-    const container = document.getElementById(
-      'game-container'
-    ) as HTMLDivElement;
-    const keyboard = internalGameRef.current?.input?.keyboard;
-    if (!container || !keyboard)
-      throw new Error('Game container or keyboard not found');
+    const container = document.getElementById('game-container') as HTMLDivElement;
+    const keyboard = phaserRef.current?.input?.keyboard;
+    if (!container || !keyboard) throw new Error('Game container or keyboard not found');
 
     const handleDocumentPointerDown = (event: PointerEvent) => {
-      if (!container.contains(event.target as Node) && keyboard.enabled)
-        keyboard.enabled = false;
+      if (!container.contains(event.target as Node) && keyboard.enabled) keyboard.enabled = false;
     };
 
     container.addEventListener('focus', () => {
@@ -53,10 +60,7 @@ const PhaserGame = () => {
     });
     document.addEventListener('pointerdown', handleDocumentPointerDown);
 
-    return () => {
-      EventBus.off('current-scene-ready', handler);
-      document.removeEventListener('pointerdown', handleDocumentPointerDown);
-    };
+    return () => void document.removeEventListener('pointerdown', handleDocumentPointerDown);
   }, []);
 
   return (

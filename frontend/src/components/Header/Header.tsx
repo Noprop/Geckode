@@ -1,8 +1,9 @@
 "use client";
 
-import Link from "next/link";
-import Image from "next/image";
-import { useEffect, useState } from "react";
+import Link from 'next/link';
+import dynamic from 'next/dynamic';
+import Image from 'next/image';
+import { useEffect, useState } from 'react';
 import {
   HomeIcon,
   QuestionMarkCircledIcon,
@@ -11,18 +12,19 @@ import {
   MoonIcon,
   DrawingPinFilledIcon,
   ImageIcon,
-} from "@radix-ui/react-icons";
-import { useTheme } from "@/contexts/ThemeContext";
-import TabSelector from "./ui/selectors/TabSelector";
-import {
-  useWorkspaceView,
-  WorkspaceView,
-} from "@/contexts/WorkspaceViewContext";
-import DropDownButton from "./ui/DropDownButton";
+} from '@radix-ui/react-icons';
+import { useTheme } from '@/contexts/ThemeContext';
+import TabSelector from '@/components/ui/selectors/TabSelector';
+import { useWorkspaceView, WorkspaceView } from '@/contexts/WorkspaceViewContext';
+import DropDownButton from '@/components/ui/DropDownButton';
+
+const ProjectControls = dynamic(() => import('./ProjectControls'), { ssr: false });
 import { authApi } from "@/lib/api/auth";
+import { useUser } from '@/contexts/UserContext';
 
 export default function Header() {
   const { resolvedTheme, toggleTheme } = useTheme();
+  const user = useUser();
   const { view, setView } = useWorkspaceView();
   const [mounted, setMounted] = useState(false);
   // Avoid hydration mismatch by waiting until mounted
@@ -33,14 +35,14 @@ export default function Header() {
   return (
     <header className="bg-primary-green flex items-center h-16 px-4 shadow-md">
       {/* Left section - Logo */}
-      <div className="flex items-center flex-1">
-        <Link
-          href="/"
-          className="hover:opacity-90 transition-opacity overflow-hidden h-10"
-        >
+      <div className="flex items-center">
+        <Link href="/" className="hover:opacity-90 transition-opacity overflow-hidden h-10">
           <p className="text-3xl">Geckode</p>
         </Link>
       </div>
+
+      {/* Project controls section - Scratch style */}
+      <ProjectControls />
 
       {/* Center section - Workspace Toggle */}
       <div className="flex items-center justify-center flex-1">
@@ -48,28 +50,22 @@ export default function Header() {
           tab={view}
           setTab={setView}
           options={[
-            { value: "blocks", label: "Blocks", icon: DrawingPinFilledIcon },
-            { value: "sprite", label: "Sprite Editor", icon: ImageIcon },
+            { value: 'blocks', label: 'Blocks', icon: DrawingPinFilledIcon },
+            { value: 'sprite', label: 'Sprite Editor', icon: ImageIcon },
           ]}
         />
       </div>
 
       {/* Right section - Utility actions */}
-      <div className="flex items-center justify-end flex-1 gap-2">
+      <div className="flex items-center justify-end gap-2">
         <button
           type="button"
           onClick={toggleTheme}
           className="flex items-center justify-center w-9 h-9 rounded-full bg-white/15 text-white hover:bg-white/25 transition-colors"
-          title={
-            !mounted
-              ? "Loading theme..."
-              : resolvedTheme === "dark"
-              ? "Switch to light mode"
-              : "Switch to dark mode"
-          }
+          title={!mounted ? 'Loading theme...' : resolvedTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
         >
           {mounted ? (
-            resolvedTheme === "dark" ? (
+            resolvedTheme === 'dark' ? (
               <SunIcon className="w-5 h-5" />
             ) : (
               <MoonIcon className="w-5 h-5" />

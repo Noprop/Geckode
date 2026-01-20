@@ -3,8 +3,6 @@ import { useEditorStore } from '@/stores/editorStore';
 const getToolbox = () => {
   const spriteId = useEditorStore.getState().spriteId || 'BIG BAD MISTAKE';
 
-  console.log("toolbox test", spriteId);
-
   return {
     kind: 'categoryToolbox',
     contents: [

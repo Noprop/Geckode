@@ -17,10 +17,8 @@ import { useSnackbar } from "@/hooks/useSnackbar";
 import DragAndDrop, { DragAndDropRef } from "@/components/DragAndDrop";
 import { convertFormData } from "@/lib/api/base";
 import {
-  DrawingPinFilledIcon,
   FilePlusIcon,
   GearIcon,
-  ImageIcon,
   Share1Icon,
   TrashIcon,
 } from "@radix-ui/react-icons";
@@ -60,6 +58,7 @@ export default function ProjectsPage() {
                 thumnail: dropboxRef.current?.files![0],
               }
             : {}),
+          permission: "owner",
         }),
       )
       .then((project) => {
