@@ -24,6 +24,7 @@
     "react-dom": "19.1.0",
     "run": "^1.5.0",
     "tanstack": "^1.0.3",
+    "y-protocols": "^1.0.7",
     "yjs": "^13.6.27"
   },
   "devDependencies": {

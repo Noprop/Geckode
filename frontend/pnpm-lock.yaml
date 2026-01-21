@@ -13,7 +13,7 @@ importers:
         version: 3.1.3(blockly@12.3.1)
       '@hocuspocus/provider':
         specifier: ^3.4.0
-        version: 3.4.0(y-protocols@1.0.6(yjs@13.6.27))(yjs@13.6.27)
+        version: 3.4.0(y-protocols@1.0.7(yjs@13.6.27))(yjs@13.6.27)
       '@tanstack/react-table':
         specifier: ^8.21.3
         version: 8.21.3(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -50,6 +50,9 @@ importers:
       tanstack:
         specifier: ^1.0.3
         version: 1.0.3(@opentelemetry/api@1.9.0)(@tiptap/core@2.27.1(@tiptap/pm@2.27.1))(@tiptap/extension-code-block@2.27.1(@tiptap/core@2.27.1(@tiptap/pm@2.27.1))(@tiptap/pm@2.27.1))(@tiptap/pm@2.27.1)(@types/react-dom@19.2.2(@types/react@19.2.2))(@types/react@19.2.2)(highlight.js@11.11.1)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(video.js@8.23.4)(ws@8.18.3)(zod@3.25.76)
+      y-protocols:
+        specifier: ^1.0.7
+        version: 1.0.7(yjs@13.6.27)
       yjs:
         specifier: ^13.6.27
         version: 13.6.27
@@ -2217,8 +2220,8 @@ packages:
   xmlchars@2.2.0:
     resolution: {integrity: sha512-JZnDKK8B0RCDw84FNdDAIpZK+JuJw+s7Lz8nksI7SIuU3UXJJslUthsi+uWBUYOwPFwW7W7PRLRfUKpxjtjFCw==}
 
-  y-protocols@1.0.6:
-    resolution: {integrity: sha512-vHRF2L6iT3rwj1jub/K5tYcTT/mEYDUppgNPXwp8fmLpui9f7Yeq3OEtTLVF012j39QnV+KEQpNqoN7CWU7Y9Q==}
+  y-protocols@1.0.7:
+    resolution: {integrity: sha512-YSVsLoXxO67J6eE/nV4AtFtT3QEotZf5sK5BHxFBXso7VDUT3Tx07IfA6hsu5Q5OmBdMkQVmFZ9QOA7fikWvnw==}
     engines: {node: '>=16.0.0', npm: '>=8.0.0'}
     peerDependencies:
       yjs: ^13.0.0
@@ -2364,13 +2367,13 @@ snapshots:
     dependencies:
       lib0: 0.2.114
 
-  '@hocuspocus/provider@3.4.0(y-protocols@1.0.6(yjs@13.6.27))(yjs@13.6.27)':
+  '@hocuspocus/provider@3.4.0(y-protocols@1.0.7(yjs@13.6.27))(yjs@13.6.27)':
     dependencies:
       '@hocuspocus/common': 3.4.0
       '@lifeomic/attempt': 3.1.0
       lib0: 0.2.114
       ws: 8.18.3
-      y-protocols: 1.0.6(yjs@13.6.27)
+      y-protocols: 1.0.7(yjs@13.6.27)
       yjs: 13.6.27
     transitivePeerDependencies:
       - bufferutil
@@ -4344,7 +4347,7 @@ snapshots:
 
   xmlchars@2.2.0: {}
 
-  y-protocols@1.0.6(yjs@13.6.27):
+  y-protocols@1.0.7(yjs@13.6.27):
     dependencies:
       lib0: 0.2.114
       yjs: 13.6.27

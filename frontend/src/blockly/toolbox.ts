@@ -81,10 +81,23 @@ const toolbox = {
           type: 'controls_if',
           inputs: {
             IF0: {
-              shadow: {
+              block: {
                 type: 'logic_boolean',
                 fields: {
                   BOOL: 'TRUE',
+                },
+              },
+              shadow: {
+                type: 'logic_negate',
+                inputs: {
+                  BOOL: {
+                    shadow: {
+                      type: 'logic_boolean',
+                      fields: {
+                        BOOL: 'TRUE',
+                      },
+                    }
+                  }
                 },
               },
             },
@@ -93,6 +106,23 @@ const toolbox = {
         {
           kind: 'block',
           type: 'controls_ifelse',
+          inputs: {
+            IF0: {
+              shadow: {
+                type: 'logic_negate',
+                inputs: {
+                  BOOL: {
+                    shadow: {
+                      type: 'logic_boolean',
+                      fields: {
+                        BOOL: 'TRUE',
+                      },
+                    }
+                  }
+                },
+              },
+            }
+          }
         },
         {
           kind: 'block',
@@ -122,6 +152,16 @@ const toolbox = {
           fields: {
             OP: 'AND',
           },
+          inputs: {
+            A: {
+              shadow: {
+                type: 'logic_boolean',
+                fields: {
+                  BOOL: 'TRUE'
+                }
+              }
+            }
+          }
         },
         {
           kind: 'block',

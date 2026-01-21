@@ -1,11 +1,7 @@
-import { Document, Server } from '@hocuspocus/server';
-import * as Y from 'yjs';
+import { Server } from '@hocuspocus/server';
 import * as Blockly from 'blockly';
 import { customBlocks } from './customBlocks.js';
 
-const ORIGIN_RESET_TAG = 'document-reset';
-const ORIGIN_VALIDATION_TAG = 'server-validation';
-const BLOCKLY_EVENTS_ARRAY_NAME = 'blockly-events';
 const workspaces: Record<string, Blockly.Workspace> = {};
 
 Blockly.defineBlocksWithJsonArray(customBlocks);
@@ -30,7 +26,7 @@ const server = new Server({
       if (!res.ok) throw new Error("Invalid token");
 
       const data = await res.json();
-      console.log('after auth', data);
+      //console.log('after auth', data);
 
       if (data.permission === 'view') {
         connectionConfig.readOnly = true;
@@ -67,6 +63,13 @@ const server = new Server({
     }
 
     console.log('documentName', documentName);
+
+    const blocksMap = document.getMap('blocks');
+
+    blocksMap.observe((event) => {
+      console.log('blocks', blocksMap.toJSON());
+      console.log('var block', (blocksMap.get('NfP}Jcq}LwhS!Q=z63am') as any)?.fields?.VAR)
+    });
 
     return document;
   },
