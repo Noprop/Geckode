@@ -23,7 +23,7 @@ const SpriteEditor = () => {
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const previewRef = useRef<HTMLCanvasElement | null>(null);
-  const GRID_SIZE = 32;
+  const GRID_SIZE = 48;
   const MIN_ZOOM = 4;
   const MAX_ZOOM = 20;
 
@@ -286,15 +286,48 @@ const SpriteEditor = () => {
     setPixels(createEmptyPixels());
   };
 
+  const registerTexture = useSpriteStore((state) => state.registerTexture);
+  const addToSpriteLibrary = useSpriteStore((state) => state.addToSpriteLibrary);
+
   const handleSaveCustomSprite = async () => {
     if (!hasPixels) return;
     const label = spriteName.trim() || 'Custom Sprite';
     const safeBase = label.toLowerCase().replace(/[^\w]/g, '') || 'customsprite';
     const texture = `${safeBase}-${Date.now()}`;
+  
+    // Create a clean canvas with just the sprite pixels (no grid)
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = GRID_SIZE;
+    exportCanvas.height = GRID_SIZE;
+    const ctx = exportCanvas.getContext('2d');
+    if (!ctx) return;
+  
+    // Draw pixels to export canvas
+    pixels.forEach((color, index) => {
+      if (!color) return;
+      const x = index % GRID_SIZE;
+      const y = Math.floor(index / GRID_SIZE);
+      ctx.fillStyle = color;
+      ctx.fillRect(x, y, 1, 1);
+    });
+  
+    // Convert to data URL
+    const dataUrl = exportCanvas.toDataURL('image/png');
+  
+    // Register the texture before adding sprite
+    registerTexture(texture, dataUrl, true);
+  
+    const spriteId = `id_${Date.now()}_${Math.round(Math.random() * 1e4)}`;
+    addToSpriteLibrary({
+      id: spriteId,
+      textureName: texture,
+      name: label,
+    });
+
     const success = await addSpriteToGame({
       name: label,
       textureName: texture,
-      textureUrl: '',
+      textureUrl: dataUrl,
     });
     if (success) {
       setIsSpriteModalOpen(false);

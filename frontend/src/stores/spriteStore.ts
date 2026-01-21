@@ -28,6 +28,8 @@ interface Actions {
   setIsSpriteModalOpen: (isOpen: boolean) => void;
   setSelectedSpriteId: (spriteId: string) => void;
   setSelectedSprite: (sprite: SpriteInstance) => void;
+  registerTexture: (textureName: string, textureUrl: string, hasLoaded?: boolean) => void;
+  addToSpriteLibrary: (sprite: SpriteDefinition) => void;
 }
 
 export const useSpriteStore = create<State & Actions>((set, get) => ({
@@ -217,6 +219,20 @@ export const useSpriteStore = create<State & Actions>((set, get) => ({
       spriteInstances: state.spriteInstances.map((instance) =>
         instance.id === spriteId ? { ...instance, ...updates } : instance
       ),
+    }));
+  },
+
+  registerTexture: (textureName: string, url: string, hasLoaded = true) => {
+    set((state) => {
+      const newTextures = new Map(state.spriteTextures);
+      newTextures.set(textureName, { url, hasLoaded });
+      return { spriteTextures: newTextures };
+    });
+  },
+
+  addToSpriteLibrary: (sprite: SpriteDefinition) => {
+    set((state) => ({
+      spriteLibrary: [...state.spriteLibrary, sprite],
     }));
   },
 }));
