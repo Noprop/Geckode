@@ -1,11 +1,15 @@
 import { useSpriteStore } from '@/stores/spriteStore';
 
-export type Sprite = {
+export type SpriteDefinition = {
   id: string;
   textureName: string;
   name: string;
+};
+
+export type SpriteInstance = SpriteDefinition & {
   x: number;
   y: number;
+  instanceId: string;
   visible?: boolean;
   size?: number;
   direction?: number;

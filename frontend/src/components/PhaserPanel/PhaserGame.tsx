@@ -4,16 +4,25 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 import StartGame from "@/phaser/phaserConfig";
 import { EventBus } from '@/phaser/EventBus';
 import type EditorScene from '@/phaser/scenes/EditorScene';
-import type { Game } from 'phaser';
 import { useEditorStore } from '@/stores/editorStore';
 import GameScene from '@/phaser/scenes/GameScene';
 
-// the React hooks in this component are written in order of their actual execution.
 const PhaserGame = () => {
   const isConverting = useEditorStore((state) => state.isConverting);
   const phaserRef = useRef<Phaser.Game | null>(null);
 
-  // Update store when Phaser scene becomes ready
+  useLayoutEffect(() => {
+    // start the Phaser game before React renders the first frame
+    if (!phaserRef.current) {
+      phaserRef.current = StartGame('game-container');
+      useEditorStore.getState().setPhaserGame(phaserRef.current);
+    }
+    const handler = (scene: EditorScene | GameScene) => useEditorStore.getState().setPhaserScene(scene);
+
+    EventBus.on('current-scene-ready', handler);
+    return () => void EventBus.off('current-scene-ready', handler);
+  }, []);
+
   useEffect(() => {
     const handler = (scene: EditorScene | GameScene) => {
       useEditorStore.getState().setPhaserScene(scene);
@@ -26,18 +35,6 @@ const PhaserGame = () => {
     return () => {
       EventBus.off('current-scene-ready', handler);
     };
-  }, []);
-
-  useLayoutEffect(() => {
-    // start the Phaser game before React renders the first frame
-    if (!phaserRef.current) {
-      phaserRef.current = StartGame('game-container');
-      useEditorStore.getState().setPhaserGame(phaserRef.current);
-    }
-    const handler = (scene: EditorScene | GameScene) => useEditorStore.getState().setPhaserScene(scene);
-
-    EventBus.on('current-scene-ready', handler);
-    return () => void EventBus.off('current-scene-ready', handler);
   }, []);
 
   useEffect(() => {

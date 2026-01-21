@@ -1,24 +1,14 @@
 import { useEditorStore } from '@/stores/editorStore';
-import SpritePanel from '../PhaserPanel';
 import * as Blockly from 'blockly/core';
-import dynamic from 'next/dynamic';
 import { PlayIcon, StopIcon } from '@/components/icons';
-
-const PhaserGame = dynamic(() => import('@/components/PhaserPanel/PhaserGame'), {
-  ssr: false,
-  loading: () => (
-    <div
-      className="bg-white dark:bg-black"
-      style={{
-        width: '480px',
-        height: '360px',
-      }}
-    />
-  ),
-});
+import PhaserGame from './PhaserGame';
+import SpriteModal from '../SpriteModal/SpriteModal';
+import PhaserSpriteControls from './PhaserSpriteControls';
+import PhaserSpriteList from './PhaserSpriteList';
+import PhaserSceneList from './PhaserSceneList';
 
 const Phaser = () => {
-  const { isEditorScene, toggleGame } = useEditorStore();
+  const { isEditorScene, toggleEditor } = useEditorStore();
 
   return (
     <>
@@ -33,15 +23,22 @@ const Phaser = () => {
 
       <div className="flex items-center justify-start h-10">
         <button
-          onClick={toggleGame}
+          onClick={toggleEditor}
           className="w-8 h-8 flex items-center justify-center rounded text-white transition-all bg-primary-green hover:bg-primary-green/90 hover:translate-y-px hover:shadow-[0_2px_0_0_#1a5c3a] active:translate-y-[3px] active:shadow-none shadow-[0_4px_0_0_#1a5c3a] cursor-pointer"
-          title={isEditorScene ? 'Run Game' : 'Stop Game'}
+          title={isEditorScene ? 'Run Game' : 'Edit Game'}
         >
           {isEditorScene ? <PlayIcon /> : <StopIcon />}
         </button>
       </div>
 
-      <SpritePanel />
+      <section className="flex-1 rounded-lg bg-light-secondary p-3 text-sm shadow dark:bg-dark-secondary flex flex-col min-h-0 overflow-hidden">
+        <PhaserSpriteControls />
+        <div className="flex flex-1 gap-0 min-h-0 overflow-hidden">
+          <PhaserSpriteList />
+          <PhaserSceneList />
+        </div>
+        <SpriteModal />
+      </section>
     </>
   );
 };
