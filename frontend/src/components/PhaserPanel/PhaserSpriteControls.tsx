@@ -1,47 +1,58 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSpriteStore } from "@/stores/spriteStore";
 import { EyeOpenIcon, EyeNoneIcon } from "@radix-ui/react-icons";
-import type { Sprite } from "@/blockly/spriteRegistry";
+import type { SpriteInstance } from "@/blockly/spriteRegistry";
+
+// todo, move to constant/global variable
+const CENTER_X = 240;
+const CENTER_Y = 180;
 
 const PhaserSpriteControls = () => {
-    // track editing state for inputs; allows empty while editing
-  const [editingValues, setEditingValues] = useState<Record<string, string>>({});
-  const [originalName, setOriginalName] = useState<string>('');
-
-
   const selectedSprite = useSpriteStore((state) => state.selectedSprite);
   const selectedSpriteId = useSpriteStore((state) => state.selectedSpriteId);
   const updateSprite = useSpriteStore((state) => state.updateSprite);
 
-  const handleFieldChange = (field: keyof Sprite, value: string | number | boolean) => {
-    if (!selectedSpriteId) return;
-    updateSprite(selectedSpriteId, { [field]: value });
-  };
-  const handleFocus = (field: string, currentValue: string | number) => {
-    setEditingValues((prev) => ({ ...prev, [field]: String(currentValue) }));
-    if (field === 'variableName') setOriginalName(String(currentValue));
-  };
-  const handleInputChange = (field: string, value: string) => {
-    setEditingValues((prev) => ({ ...prev, [field]: value }));
-  };
-
-  // used for name, x, y, size, direction fields
-  const handleBlur = (field: keyof Sprite, defaultValue: string | number) => {
-    const editedValue = editingValues[field as string];
-
-    let finalValue: string | number;
-    if (editedValue === '' || editedValue === undefined) {
-      finalValue = defaultValue;
-    } else if (field === 'name') {
-      finalValue = editedValue;
+  const [values, setValues] = useState({ name: '', x: '', y: '', size: '', direction: '', snapToGrid: false, visible: true });
+  useEffect(() => {
+    if (selectedSprite) {
+      setValues({
+        name: selectedSprite.name,
+        x: String(selectedSprite.x ?? CENTER_X),
+        y: String(selectedSprite.y ?? CENTER_Y),
+        size: String(selectedSprite.size ?? 100),
+        direction: String(selectedSprite.direction ?? 90),
+        snapToGrid: selectedSprite.snapToGrid ?? false,
+        visible: selectedSprite.visible ?? true
+      });
     } else {
-      const parsed = parseInt(editedValue);
+      setValues({ name: '', x: '', y: '', size: '', direction: '', snapToGrid: false, visible: true });
+    }
+  }, [selectedSpriteId]);
+
+  const handleInputChange = (field: keyof typeof values, value: string) => {
+    setValues((prev) => ({ ...prev, [field]: value }));
+  };
+  const handleBlur = (field: keyof SpriteInstance, defaultValue: number | string) => {
+    if (!selectedSpriteId) return;
+    const rawValue = values[field as keyof typeof values];
+    
+    let finalValue: string | number;
+    if (field === 'name') {
+      finalValue = String(rawValue).trim() || String(defaultValue);
+    } else {
+      const parsed = parseFloat(String(rawValue));
       finalValue = isNaN(parsed) ? defaultValue : parsed;
     }
 
+    // Only update if value actually changed
+    if (selectedSprite && selectedSprite[field] !== finalValue) {
+      updateSprite(selectedSpriteId, { [field]: finalValue });
+    }
+  };
+  // For boolean/toggle fields (snapToGrid, visible) - update store immediately
+  const handleToggle = (field: keyof SpriteInstance, value: boolean) => {
     if (!selectedSpriteId) return;
-    updateSprite(selectedSpriteId, { [field]: finalValue });
-    setEditingValues({});
+    updateSprite(selectedSpriteId, { [field]: value });
   };
 
   return (
@@ -51,10 +62,9 @@ const PhaserSpriteControls = () => {
           <label className="font-semibold text-slate-600 dark:text-slate-400">Sprite</label>
           <input
             type="text"
-            value={'name' in editingValues ? editingValues.name : selectedSprite?.name || ''}
-            onFocus={() => handleFocus('name', selectedSprite?.name || '')}
+            value={values.name}
             onChange={(e) => handleInputChange('name', e.target.value)}
-            onBlur={() => handleBlur('name', originalName)}
+            onBlur={() => handleBlur('name', 'Sprite')}
             disabled={!selectedSprite}
             className="w-28 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs outline-none transition focus:border-primary-green focus:ring-2 focus:ring-primary-green/20 disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-600 dark:bg-dark-hover dark:text-slate-100 dark:disabled:bg-dark-tertiary dark:disabled:text-slate-500"
             placeholder="—"
@@ -67,10 +77,9 @@ const PhaserSpriteControls = () => {
           <label className="text-slate-600 dark:text-slate-400">x</label>
           <input
             type="number"
-            value={'x' in editingValues ? editingValues.x : selectedSprite?.x ?? ''}
-            onFocus={() => handleFocus('x', selectedSprite?.x ?? 0)}
+            value={values.x}
             onChange={(e) => handleInputChange('x', e.target.value)}
-            onBlur={() => handleBlur('x', 0)}
+            onBlur={() => handleBlur('x', CENTER_X)}
             disabled={!selectedSprite}
             className="w-14 rounded-full border border-slate-300 bg-white px-2 py-1.5 text-xs text-center outline-none transition focus:border-primary-green focus:ring-2 focus:ring-primary-green/20 disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-600 dark:bg-dark-hover dark:text-slate-100 dark:disabled:bg-dark-tertiary dark:disabled:text-slate-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
@@ -82,10 +91,9 @@ const PhaserSpriteControls = () => {
           <label className="text-slate-600 dark:text-slate-400">y</label>
           <input
             type="number"
-            value={'y' in editingValues ? editingValues.y : selectedSprite?.y ?? ''}
-            onFocus={() => handleFocus('y', selectedSprite?.y ?? 0)}
+            value={values.y}
             onChange={(e) => handleInputChange('y', e.target.value)}
-            onBlur={() => handleBlur('y', 0)}
+            onBlur={() => handleBlur('y', CENTER_Y)}
             disabled={!selectedSprite}
             className="w-14 rounded-full border border-slate-300 bg-white px-2 py-1.5 text-xs text-center outline-none transition focus:border-primary-green focus:ring-2 focus:ring-primary-green/20 disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-600 dark:bg-dark-hover dark:text-slate-100 dark:disabled:bg-dark-tertiary dark:disabled:text-slate-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
@@ -95,11 +103,8 @@ const PhaserSpriteControls = () => {
         <label className="flex cursor-pointer items-center gap-1.5">
           <input
             type="checkbox"
-            checked={selectedSprite?.snapToGrid ?? false}
-            onChange={() => {
-              if (!selectedSpriteId) return;
-              updateSprite(selectedSpriteId, { snapToGrid: !(selectedSprite?.snapToGrid ?? false) });
-            }}
+            checked={values.snapToGrid}
+            onChange={() => handleToggle('snapToGrid', !values.snapToGrid)}
             disabled={!selectedSprite}
             className="h-3.5 w-3.5 accent-primary-green cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           />
@@ -148,8 +153,8 @@ const PhaserSpriteControls = () => {
           <label className="font-semibold text-slate-600 dark:text-slate-400">Size</label>
           <input
             type="number"
-            value={'size' in editingValues ? editingValues.size : selectedSprite?.size ?? 100}
-            onFocus={() => handleFocus('size', selectedSprite?.size ?? 100)}
+            // value={'size' in editingValues ? editingValues.size : selectedSprite?.size ?? 100}
+            // onFocus={() => handleFocus('size', selectedSprite?.size ?? 100)}
             onChange={(e) => handleInputChange('size', e.target.value)}
             onBlur={() => handleBlur('size', 100)}
             disabled={!selectedSprite}
@@ -164,8 +169,8 @@ const PhaserSpriteControls = () => {
           <label className="font-semibold text-slate-600 dark:text-slate-400">Direction</label>
           <input
             type="number"
-            value={'direction' in editingValues ? editingValues.direction : selectedSprite?.direction ?? 90}
-            onFocus={() => handleFocus('direction', selectedSprite?.direction ?? 90)}
+            // value={'direction' in editingValues ? editingValues.direction : selectedSprite?.direction ?? 90}
+            // onFocus={() => handleFocus('direction', selectedSprite?.direction ?? 90)}
             onChange={(e) => handleInputChange('direction', e.target.value)}
             onBlur={() => handleBlur('direction', 0)}
             disabled={!selectedSprite}

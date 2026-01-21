@@ -170,6 +170,15 @@ export const useSpriteStore = create<State & Actions>((set, get) => ({
           y: worldY,
         },
       ],
+      selectedSpriteId: spriteId,
+      selectedSprite: {
+        id: spriteId,
+        instanceId: spriteId,
+        textureName: payload.textureName,
+        name: name,
+        x: worldX,
+        y: worldY,
+      },
     }));
 
     return true;
@@ -179,11 +188,23 @@ export const useSpriteStore = create<State & Actions>((set, get) => ({
     const { phaserGame, phaserScene } = useEditorStore.getState();
     if (!phaserGame || !phaserScene) throw new Error('Game is not ready yet.');
     if (!(phaserScene instanceof EditorScene)) throw new Error('Should not be able to remove sprite from game scene.');
-
+  
     phaserScene.removeSprite(spriteId);
-    set((state) => ({
-      spriteInstances: state.spriteInstances.filter((instance) => instance.id !== spriteId),
-    }));
+    const currentInstances = get().spriteInstances;
+    
+    if (currentInstances.length === 1) {
+      set({ selectedSpriteId: null, selectedSprite: null, spriteInstances: [] });
+    } else {
+      let curSpriteIdx = currentInstances.findIndex((instance) => instance.id === spriteId);
+      if (curSpriteIdx === currentInstances.length - 1) curSpriteIdx--;
+      const filteredInstances = currentInstances.filter((instance) => instance.id !== spriteId);
+
+      set({
+        spriteInstances: filteredInstances,
+        selectedSpriteId: filteredInstances[curSpriteIdx].id,
+        selectedSprite: filteredInstances[curSpriteIdx],
+      });
+    }
   },
 
   updateSprite: (spriteId: string, updates: Partial<SpriteInstance>) => {

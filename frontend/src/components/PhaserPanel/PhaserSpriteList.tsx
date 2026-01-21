@@ -6,12 +6,13 @@ import { Cross2Icon } from '@radix-ui/react-icons';
 
 const PhaserSpriteList = () => {
   const sprites = useSpriteStore((state) => state.spriteInstances);
-  const isSpriteModalOpen = useSpriteStore((state) => state.isSpriteModalOpen);
   const setIsSpriteModalOpen = useSpriteStore((state) => state.setIsSpriteModalOpen);
   const selectedSpriteId = useSpriteStore((state) => state.selectedSpriteId);
   const setSelectedSpriteId = useSpriteStore((state) => state.setSelectedSpriteId);
   const setSelectedSprite = useSpriteStore((state) => state.setSelectedSprite);
   const removeSpriteFromGame = useSpriteStore((state) => state.removeSpriteFromGame);
+
+  console.log('[STATE FROM SPRITE LIST] selectedSpriteId: ', selectedSpriteId);
 
   const handleSpriteSelect = (spriteId: string) => {
     useEditorStore.getState().loadWorkspace(spriteId);
@@ -54,6 +55,8 @@ const PhaserSpriteList = () => {
           <div className="grid grid-cols-[repeat(auto-fill,minmax(75px,1fr))] gap-2 pr-1">
             {sprites.map((sprite) => {
               const isSelected = sprite.id === selectedSpriteId;
+              console.log('[PhaserSpriteList] isSelected: ', isSelected, 'selectedSpriteId: ', selectedSpriteId);
+
               return (
                 <div
                   key={sprite.id}
@@ -80,7 +83,10 @@ const PhaserSpriteList = () => {
                   {isSelected && (
                     <button
                       type="button"
-                      onClick={() => removeSpriteFromGame(sprite.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeSpriteFromGame(sprite.id)
+                      }}
                       className="absolute top-1 right-1 rounded-full bg-slate-700/80 hover:bg-red-500 text-white p-0.5 transition shadow"
                       title="Delete sprite"
                     >
