@@ -9,7 +9,7 @@ import { EventBus } from '@/phaser/EventBus';
 import { useEditorStore } from '@/stores/editorStore';
 import { useSpriteStore } from '@/stores/spriteStore';
 import Phaser from './PhaserPanel/Phaser';
-import type { Sprite } from '@/blockly/spriteRegistry';
+import type { SpriteInstance } from '@/blockly/spriteRegistry';
 
 const GRID_SIZE = 50;
 const CENTER_X = 240;
@@ -47,7 +47,7 @@ const ProjectView = () => {
     const handleSpriteMove = ({ id, x, y }: { id: string; x: number; y: number }) => {
       if (!(phaserScene instanceof EditorScene)) return;
       setSpriteInstances((state) => {
-        const sprite = state.find((s: Sprite) => s.id === id);
+        const sprite = state.find((s: SpriteInstance) => s.id === id);
         if (!sprite) return state;
 
         let finalX = x;
@@ -63,7 +63,7 @@ const ProjectView = () => {
           });
         }
 
-        return state.map((s: Sprite) => (s.id === id ? { ...s, x: finalX, y: finalY } : s));
+        return state.map((s: SpriteInstance) => (s.id === id ? { ...s, x: finalX, y: finalY } : s));
       });
     };
 

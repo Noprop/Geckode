@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { EventBus } from '@/phaser/EventBus';
-import { EDITOR_SCENE_KEY, GAME_SCENE_KEY } from '@/phaser/sceneKeys';
+import { EDITOR_SCENE_KEY } from '@/phaser/sceneKeys';
 import { useSpriteStore } from '@/stores/spriteStore';
 
 export default class EditorScene extends Phaser.Scene {
@@ -33,6 +33,43 @@ export default class EditorScene extends Phaser.Scene {
 
     // Generate a simple tileset texture if it doesn't exist
     this.generateTilesetTexture();
+  }
+
+  async create() {
+    this.showGrid();
+
+    console.log('editor sprites: ', this.editorSprites);
+    this.editorSprites.clear();
+    this.gridGraphics = null; // Reset on scene restart
+    this.tilemap = null;
+    this.groundLayer = null;
+
+    // Create the tilemap (sits below sprites)
+    this.createTilemap();
+
+    // Dedicated layer to keep editor sprites above all game objects.
+    this.editorLayer = this.add.layer();
+    this.editorLayer.setDepth(EditorScene.EDITOR_SPRITE_BASE_DEPTH);
+
+    this.registerDragEvents();
+
+    // Set up pause state listener for grid visibility BEFORE telling React scene is ready
+    this.setupGridListener();
+    try {
+      await this.load.image('hero-walk-front', '/heroWalkFront1.bmp');
+    } catch (error) {
+      console.error('Error loading image', error);
+    }
+
+    // create sprites
+    const spriteInstances = useSpriteStore.getState().spriteInstances;
+    for (const instance of spriteInstances) {
+      this.createSprite(instance.textureName, instance.x, instance.y, instance.id);
+    }
+
+    EventBus.emit('current-scene-ready', this);
+
+    console.log(this.textures.getTextureKeys());
   }
 
   private generateTilesetTexture(): void {
@@ -77,43 +114,6 @@ export default class EditorScene extends Phaser.Scene {
     // Generate the texture (4 tiles wide, 1 tile tall)
     graphics.generateTexture('tileset', tileSize * 4, tileSize);
     graphics.destroy();
-  }
-
-  async create() {
-
-    console.log('[EditorScene] create called');
-
-    this.showGrid();
-
-    this.editorSprites.clear();
-    this.gridGraphics = null; // Reset on scene restart
-    this.tilemap = null;
-    this.groundLayer = null;
-
-    // Create the tilemap (sits below sprites)
-    this.createTilemap();
-
-    // Dedicated layer to keep editor sprites above all game objects.
-    this.editorLayer = this.add.layer();
-    this.editorLayer.setDepth(EditorScene.EDITOR_SPRITE_BASE_DEPTH);
-
-    this.registerDragEvents();
-
-    // Set up pause state listener for grid visibility BEFORE telling React scene is ready
-    this.setupGridListener();
-    try {
-      await this.load.image('hero-walk-front', '/heroWalkFront1.bmp');
-    } catch (error) {
-      console.error('Error loading image', error);
-    }
-
-    // create sprites
-    const spriteInstances = useSpriteStore.getState().spriteInstances;
-    for (const instance of spriteInstances) {
-      this.createSprite(instance.textureName, instance.x, instance.y, instance.id);
-    }
-
-    EventBus.emit('current-scene-ready', this);
   }
 
   private createTilemap(): void {

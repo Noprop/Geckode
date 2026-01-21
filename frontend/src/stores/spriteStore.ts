@@ -1,4 +1,4 @@
-import type { Sprite } from '@/blockly/spriteRegistry';
+import type { SpriteDefinition, SpriteInstance } from '@/blockly/spriteRegistry';
 import { create } from 'zustand';
 import { useEditorStore } from './editorStore';
 import EditorScene from '@/phaser/scenes/EditorScene';
@@ -12,22 +12,22 @@ export interface SpriteAddPayload {
 }
 
 interface State {
-  spriteLibrary: Sprite[];
-  spriteInstances: Sprite[];
+  spriteLibrary: SpriteDefinition[];
+  spriteInstances: SpriteInstance[];
   spriteTextures: Map<string, { url: string; hasLoaded: boolean }>;
 
   isSpriteModalOpen: boolean;
   selectedSpriteId: string | null;
-  selectedSprite: Sprite | null;
+  selectedSprite: SpriteInstance | null;
 }
 interface Actions {
-  setSpriteInstances: (update: Sprite[] | ((state: Sprite[]) => Sprite[])) => void;
+  setSpriteInstances: (update: SpriteInstance[] | ((state: SpriteInstance[]) => SpriteInstance[])) => void;
   addSpriteToGame: (payload: SpriteAddPayload) => Promise<boolean>;
   removeSpriteFromGame: (spriteId: string) => void;
-  updateSprite: (spriteId: string, updates: Partial<Sprite>) => void;
+  updateSprite: (spriteId: string, updates: Partial<SpriteInstance>) => void;
   setIsSpriteModalOpen: (isOpen: boolean) => void;
   setSelectedSpriteId: (spriteId: string) => void;
-  setSelectedSprite: (sprite: Sprite) => void;
+  setSelectedSprite: (sprite: SpriteInstance) => void;
 }
 
 export const useSpriteStore = create<State & Actions>((set, get) => ({
@@ -36,15 +36,11 @@ export const useSpriteStore = create<State & Actions>((set, get) => ({
       id: 'id_' + Date.now().toString() + '_' + Math.round(Math.random() * 10000),
       textureName: 'hero-walk-front',
       name: 'herowalkfront1',
-      x: 200,
-      y: 150,
     },
     {
       id: 'id_' + Date.now().toString() + '_' + Math.round(Math.random() * 10000),
       textureName: 'hero-walk-back',
       name: 'herowalkback1',
-      x: 200,
-      y: 150,
     },
   ],
   // TODO: handle default sprite instances for a default project
@@ -53,6 +49,7 @@ export const useSpriteStore = create<State & Actions>((set, get) => ({
       id: 'id_' + Date.now().toString() + '_' + Math.round(Math.random() * 10000),
       textureName: 'hero-walk-front',
       name: 'herowalkfront1',
+      instanceId: 'id_' + Date.now().toString() + '_' + Math.round(Math.random() * 10000),
       x: 200,
       y: 150,
     },
@@ -67,14 +64,13 @@ export const useSpriteStore = create<State & Actions>((set, get) => ({
 
   setIsSpriteModalOpen: (isOpen: boolean) => set({ isSpriteModalOpen: isOpen }),
   setSelectedSpriteId: (spriteId: string) => set({ selectedSpriteId: spriteId }),
-  setSelectedSprite: (sprite: Sprite) => set({ selectedSprite: sprite }),
+  setSelectedSprite: (sprite: SpriteInstance) => set({ selectedSprite: sprite }),
 
   setSpriteInstances: (update) =>
     set((state) => ({
       spriteInstances: typeof update === 'function' ? update(state.spriteInstances) : update,
     })),
   addSpriteToGame: async (payload: SpriteAddPayload, position?: { x: number; y: number }) => {
-    console.log('[editorStore] addSpriteToGame() called', payload, position);
     const { phaserGame, phaserScene, blocklyWorkspace } = useEditorStore.getState();
     const { spriteInstances, spriteTextures } = get();
 
@@ -134,7 +130,6 @@ export const useSpriteStore = create<State & Actions>((set, get) => ({
     try {
       await ensureTexture();
     } catch (error) {
-      console.warn('Could not load sprite texture.', error);
       // showSnackbar('Could not load that sprite image. Please try again.', 'error');
       console.error('[editorStore] addSpriteToGame() - Could not load that sprite image. Please try again.');
       return false;
@@ -163,11 +158,12 @@ export const useSpriteStore = create<State & Actions>((set, get) => ({
     const spriteId = `id_${Date.now()}_${Math.round(Math.random() * 1e4)}`;
     phaserScene.createSprite(payload.textureName, worldX, worldY, spriteId);
 
-    set(() => ({
+    set((state) => ({
       spriteInstances: [
         ...spriteInstances,
         {
           id: spriteId,
+          instanceId: spriteId,
           textureName: payload.textureName,
           name: name,
           x: worldX,
@@ -190,7 +186,7 @@ export const useSpriteStore = create<State & Actions>((set, get) => ({
     }));
   },
 
-  updateSprite: (spriteId: string, updates: Partial<Sprite>) => {
+  updateSprite: (spriteId: string, updates: Partial<SpriteInstance>) => {
     const { phaserGame, phaserScene } = useEditorStore.getState();
     if (!phaserGame || !phaserScene) throw new Error('Game is not ready yet.');
     if (!(phaserScene instanceof EditorScene)) throw new Error('Should not be able to update sprite from game scene.');

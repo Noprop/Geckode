@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { EventBus } from '@/phaser/EventBus';
-import type { Sprite } from '@/blockly/spriteRegistry';
+import type { SpriteInstance } from '@/blockly/spriteRegistry';
 import { GAME_SCENE_KEY, EDITOR_SCENE_KEY } from '@/phaser/sceneKeys';
 
 type SandboxContext = {
@@ -155,7 +155,7 @@ export default class GameScene extends Phaser.Scene {
     this.scene.start(EDITOR_SCENE_KEY as unknown as string);
   }
 
-  create(data: { spriteInstances: Sprite[]; textures: Map<string, { name: string; file: string }>; code: string }) {
+  create(data: { spriteInstances: SpriteInstance[]; textures: Map<string, { name: string; file: string }>; code: string }) {
     console.log('[GameScene] create called', data);
 
     // Reset tilemap state

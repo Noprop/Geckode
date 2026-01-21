@@ -4,7 +4,6 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 import StartGame from "@/phaser/phaserConfig";
 import { EventBus } from '@/phaser/EventBus';
 import type EditorScene from '@/phaser/scenes/EditorScene';
-import type { Game } from 'phaser';
 import { useEditorStore } from '@/stores/editorStore';
 import GameScene from '@/phaser/scenes/GameScene';
 

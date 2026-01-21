@@ -1,7 +1,7 @@
 import { User } from "../users";
 import { BaseFilters } from "..";
-import { Sprite } from '@/blockly/spriteRegistry';
 import { PhaserExport } from "@/phaser/PhaserStateManager";
+import { SpriteInstance } from "@/blockly/spriteRegistry";
 
 export interface Project {
   id: number;
@@ -16,7 +16,7 @@ export interface Project {
   permission: ProjectPermissions | "owner";
   blocks?: JSON;
   game_state?: PhaserExport;
-  sprites?: Sprite[];
+  sprites?: SpriteInstance[];
 }
 
 export interface ProjectFilters extends BaseFilters {
