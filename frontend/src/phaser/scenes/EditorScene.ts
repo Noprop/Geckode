@@ -26,8 +26,8 @@ export default class EditorScene extends Phaser.Scene {
   }
 
   preload() {
-    const { spriteTextures } = useSpriteStore.getState();
-    for (const [textureName, { url }] of spriteTextures.entries()) {
+    for (const [textureName, { url }] of useSpriteStore.getState().spriteTextures.entries()) {
+      if (this.textures.exists(textureName)) continue;
       this.load.image(textureName, url);
     }
 
@@ -38,7 +38,9 @@ export default class EditorScene extends Phaser.Scene {
   async create() {
     this.showGrid();
 
-    console.log('editor sprites: ', this.editorSprites);
+    console.log('hero-walk-front exists: ', this.textures.exists('hero-walk-front'));
+    console.log('test exists: ', this.textures.exists('test'));
+
     this.editorSprites.clear();
     this.gridGraphics = null; // Reset on scene restart
     this.tilemap = null;
@@ -406,6 +408,9 @@ export default class EditorScene extends Phaser.Scene {
       const snappedY = Math.round(finalY);
       sprite.setPosition(snappedX, snappedY);
       this.editorLayer.bringToTop(sprite);
+
+      console.log('[EditorScene] sprite moved: ', sprite.getData('editorSpriteId'), snappedX, snappedY);
+
       EventBus.emit('editor-sprite-moved', {
         id: sprite.getData('editorSpriteId'),
         x: snappedX,

@@ -25,8 +25,7 @@ const snapToGrid = (x: number, y: number): { x: number; y: number } => {
 const ProjectView = () => {
   const { view } = useWorkspaceView();
   const { setSpriteInstances } = useSpriteStore();
-  const phaserScene = useEditorStore((state) => state.phaserScene);
-  const { isEditorScene, toggleGame, undoWorkspace, redoWorkspace, canUndo, canRedo } = useEditorStore();
+  const { undoWorkspace, redoWorkspace, canUndo, canRedo } = useEditorStore();
 
   const workspaceListenerRef = useRef<{
     workspace: Blockly.WorkspaceSvg;
@@ -45,7 +44,9 @@ const ProjectView = () => {
 
   useEffect(() => {
     const handleSpriteMove = ({ id, x, y }: { id: string; x: number; y: number }) => {
+      const phaserScene = useEditorStore.getState().phaserScene;
       if (!(phaserScene instanceof EditorScene)) return;
+
       setSpriteInstances((state) => {
         const sprite = state.find((s: SpriteInstance) => s.id === id);
         if (!sprite) return state;

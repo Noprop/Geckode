@@ -8,7 +8,7 @@ import PhaserSpriteList from './PhaserSpriteList';
 import PhaserSceneList from './PhaserSceneList';
 
 const Phaser = () => {
-  const { isEditorScene, toggleGame } = useEditorStore();
+  const { isEditorScene, toggleEditor } = useEditorStore();
 
   return (
     <>
@@ -23,9 +23,9 @@ const Phaser = () => {
 
       <div className="flex items-center justify-start h-10">
         <button
-          onClick={toggleGame}
+          onClick={toggleEditor}
           className="w-8 h-8 flex items-center justify-center rounded text-white transition-all bg-primary-green hover:bg-primary-green/90 hover:translate-y-px hover:shadow-[0_2px_0_0_#1a5c3a] active:translate-y-[3px] active:shadow-none shadow-[0_4px_0_0_#1a5c3a] cursor-pointer"
-          title={isEditorScene ? 'Run Game' : 'Stop Game'}
+          title={isEditorScene ? 'Run Game' : 'Edit Game'}
         >
           {isEditorScene ? <PlayIcon /> : <StopIcon />}
         </button>

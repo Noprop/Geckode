@@ -63,7 +63,7 @@ interface Actions {
   undoWorkspace: () => void;
   redoWorkspace: () => void;
   loadWorkspace: (id: string) => void;
-  toggleGame: () => void;
+  toggleEditor: () => void;
   setSpriteId: (id: string) => void;
 }
 
@@ -225,12 +225,9 @@ export const useEditorStore = create<State & Actions>((set, get) => ({
     console.log(`sprite ${spriteId} workspace loaded`);
   },
 
-  toggleGame: () => {
+  toggleEditor: () => {
     const { isEditorScene, phaserScene } = get();
-    if (!phaserScene) {
-      console.error('[editorStore] toggleGame() - Phaser scene is not set.');
-      return;
-    }
+    if (!phaserScene) throw new Error('toggleEditor() - Phaser scene is not set.');
 
     if (isEditorScene) {
       const { spriteInstances } = useSpriteStore.getState();
@@ -254,7 +251,7 @@ export const useEditorStore = create<State & Actions>((set, get) => ({
 
       const code = [...outputs.map((o) => o?.code), startCode, updateCode].join('\n\n');
 
-      console.log('[toggleGame] code: ', code);
+      console.log('[toggleEditor] code: ', code);
       const { spriteTextures } = useSpriteStore.getState();
 
       phaserScene?.scene.start(GAME_SCENE_KEY, {
