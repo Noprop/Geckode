@@ -189,9 +189,10 @@ export default class GameScene extends Phaser.Scene {
 
     // Add collisions between all game sprites and the ground layer
     for (const sprite of this.gameSprites.values()) {
-      this.physics.add.collider(sprite, this.groundLayer);
+      // this.physics.add.collider(sprite, this.groundLayer);
       // Enable gravity for sprites so they fall onto the ground
-      sprite.setCollideWorldBounds(true);
+      // sprite.setGravityY(3000);
+      // sprite.setCollideWorldBounds(true);
     }
   }
 
@@ -217,6 +218,9 @@ export default class GameScene extends Phaser.Scene {
     sprite.setName(id);
     sprite.setData('gameSpriteId', id);
     sprite.setDepth(GameScene.GAME_SPRITE_BASE_DEPTH);
+    sprite.setDamping(true);
+    sprite.setDrag(0.005);
+
     this.gameLayer.add(sprite);
     this.gameLayer.bringToTop(sprite);
     this.gameSprites.set(id, sprite);
@@ -225,6 +229,14 @@ export default class GameScene extends Phaser.Scene {
     if (this.groundLayer) {
       this.physics.add.collider(sprite, this.groundLayer);
       sprite.setCollideWorldBounds(true);
+    }
+
+    // iterate over all sprites and add collider
+    for (const otherSprite of this.gameSprites.values()) {
+      if (otherSprite.getData('gameSpriteId') !== id) {
+        this.physics.add.collider(sprite, otherSprite);
+        otherSprite.setCollideWorldBounds(true);
+      }
     }
 
     return sprite;
