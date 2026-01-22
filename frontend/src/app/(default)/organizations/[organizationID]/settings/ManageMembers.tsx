@@ -19,6 +19,7 @@ import { projectPermissions } from "@/lib/types/api/projects";
 import { User } from "@/lib/types/api/users";
 import { FilePlusIcon, TrashIcon } from "@radix-ui/react-icons";
 import { ReactElement, useEffect, useRef, useState } from "react";
+import UserSelect, { ListUserStatus, UserSelectRef } from "./UserSelect";
 
 interface Props {
   org: Organization;
@@ -35,25 +36,10 @@ export const ManageMembers = ({ org, setOrg, user }: Props) => {
 
   // inviting members
   const [orgInvites, setOrgInvites] = useState<OrganizationInvitation[]>([]);
-  const [invSearchResults, setInvSearchResults] = useState<User[]>([]);
-  const [usersToInvite, setUsersToInvite] = useState<User[]>([]);
   const permissionDropdownView = useRef<HTMLSelectElement | null>(null);
+  const userInviteRef = useRef<UserSelectRef>(null);
 
   const [showModal, setShowModal] = useState<"remove" | "invite" | null>(null);
-
-  // searches for users in invite modal with provided search criteria, sets results to invSearchResults
-  const searchForUsers = (searchValue: string) => {
-    const searchCriteria = searchValue.trim();
-
-    if (searchCriteria === "" || searchCriteria === undefined) {
-      setInvSearchResults([]);
-      return;
-    }
-
-    usersApi.list({ search: searchCriteria }).then((res) => {
-      setInvSearchResults(res.results);
-    });
-  };
 
   // gets all invites already sent out by organization
   const getCurrentInvites = () => {
@@ -62,92 +48,24 @@ export const ManageMembers = ({ org, setOrg, user }: Props) => {
       .then((res) => setOrgInvites(res.results));
   };
 
-  // determines entry properties when listed in the "Invite User" section
-  const ListUserInvite = ({ user }: { user: User }): ReactElement => {
-    const [status, setStatus] = useState<
-      "to-be-invited" | "already-member" | "already-invited" | "standard"
-    >("standard");
-
-    useEffect(() => {
-      // determine if user is member or owner
-      tableRef.current?.data.forEach((orgMember) => {
-        if (orgMember.member.id === user.id) {
-          setStatus("already-member");
-          return;
-        }
-      });
-      if (org.owner.id === user.id) setStatus("already-member");
-
-      // determine if user is already set to be invited
-      if (status === "standard") {
-        usersToInvite.forEach((tbiUser) => {
-          if (tbiUser.id === user.id) {
-            setStatus("to-be-invited");
-            return;
-          }
-        });
-      }
-    }, []);
-
-    // determine if user already has a pending invite
-    if (status === "standard") {
-      orgInvites.forEach((invitedUser) => {
-        if (invitedUser.invitee.id === user.id) {
-          setStatus("already-invited");
-          return;
-        }
-      });
+  const determineUserStatus = (user: User): ListUserStatus => {
+    // determine if user is an orgMember or owner
+    if (org.owner.id === user.id) return "already-member";
+    for (var orgMember of tableRef.current?.data!) {
+      if (orgMember.member.id === user.id) return "already-member";
     }
 
-    return (
-      <li
-        className={
-          "p-1 my-1 w-full flex rounded-md " +
-          (status === "to-be-invited"
-            ? "bg-primary-green text-white"
-            : status === "already-member" || status === "already-invited"
-            ? "bg-gray-500 text-white"
-            : "")
-        }
-      >
-        <p>{user.username}</p>
-        {status === "standard" ? (
-          <button
-            className="ml-auto mr-3 rounded-sm h-5 w-5 cursor-pointer border border-light-txt dark:border-dark-txt"
-            onClick={() => {
-              // add user to usersToInvite
-              let us = Object.assign([], usersToInvite);
-              us.push(user);
-              setUsersToInvite(us);
-            }}
-          >
-            +
-          </button>
-        ) : status === "to-be-invited" ? (
-          <button
-            className="ml-auto mr-3 cursor-pointer rounded-sm h-5 w-5 border border-white bg-white text-primary-green"
-            onClick={() => {
-              // remove user from usersToInvite
-              let us = Object.assign([], usersToInvite) as User[];
-              for (let i = 0; i < us.length; i++) {
-                if (us[i].id === user.id) {
-                  us.splice(i, 1);
-                  setUsersToInvite(us);
-                  return;
-                }
-              }
-            }}
-          >
-            -
-          </button>
-        ) : (
-          <p className="italic ml-auto mr-3 text-slate-300">
-            {" "}
-            {status === "already-member" ? "Member" : "Invite sent"}
-          </p>
-        )}
-      </li>
-    );
+    // determine if user is already set to be invited
+    for (var tbiUser of userInviteRef.current?.usersSelected!) {
+      if (tbiUser.id === user.id) return "selected";
+    }
+
+    // determine if user already has a pending invite
+    for (var invitedUser of orgInvites) {
+      if (invitedUser.invitee.id === user.id) return "already-invited";
+    }
+
+    return "standard";
   };
 
   // invites all users listed in usersToInvite with set permission
@@ -155,7 +73,7 @@ export const ManageMembers = ({ org, setOrg, user }: Props) => {
     const perm: string = permissionDropdownView.current?.value as string;
     let errorOccurred = false;
 
-    usersToInvite.forEach((user) => {
+    userInviteRef.current?.usersSelected.forEach((user) => {
       organizationsApi(org.id)
         .invitationsApi.create({
           invitee_id: user.id,
@@ -163,8 +81,6 @@ export const ManageMembers = ({ org, setOrg, user }: Props) => {
         })
         .catch(() => (errorOccurred = true));
 
-      setUsersToInvite([]);
-      setInvSearchResults([]);
       setShowModal(null);
 
       if (!errorOccurred) snackbar("Sent invitations to users!", "success");
@@ -243,8 +159,6 @@ export const ManageMembers = ({ org, setOrg, user }: Props) => {
               </Button>
               <Button
                 onClick={() => {
-                  setUsersToInvite([]);
-                  setInvSearchResults([]);
                   setShowModal(null);
                 }}
                 className="btn-neutral"
@@ -256,16 +170,10 @@ export const ManageMembers = ({ org, setOrg, user }: Props) => {
         >
           <p>Username:</p>
           <div className="flex flex-col w-90">
-            <InputBox
-              onChange={(e) => searchForUsers(e.target.value)}
-              placeholder="Search username:"
-              className="bg-white text-black mb-3 border-0"
+            <UserSelect
+              ref={userInviteRef}
+              determineUserStatus={determineUserStatus}
             />
-            <ul className="mb-3 p-1 rounded-md h-40 border border-white overflow-y-scroll standard-scrollbar bg-light-tertiary dark:bg-dark-tertiary text-light-txt dark:text-dark-txt">
-              {invSearchResults.map((user) => (
-                <ListUserInvite user={user} key={user.id} />
-              ))}
-            </ul>
 
             <p>Permission:</p>
             <select
