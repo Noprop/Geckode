@@ -161,7 +161,7 @@ javascriptGenerator.forBlock['setRotation'] = function (block, generator) {
 
 const pointAtXY = {
   type: "pointAtXY",
-  tooltip: "Point at a positin",
+  tooltip: "Point at a position",
   helpUrl: "",
   message0: "point %1 at x:%2 y:%3",
   args0: [
@@ -198,10 +198,47 @@ javascriptGenerator.forBlock['pointAtXY'] = function (block, generator) {
   return '';
 };
 
+const isTouching = {
+  type: "isTouching",
+  tooltip: "Test for collision",
+  helpUrl: "",
+  message0: "%1 touching %2 ?",
+  args0: [
+    {
+      type: 'input_value',
+      name: 'SPRITE1',
+    },
+    {
+      type: "input_value",
+      name: 'SPRITE2',
+    },
+  ],
+  inputsInline: true,
+  output: "Boolean",
+  colour: "%{BKY_SPRITES_HUE}",
+  
+}
+
+javascriptGenerator.forBlock['isTouching'] = function (block, generator) {
+
+  const spriteKey1 = generator.valueToCode(block, 'SPRITE1', Order.NONE) || '';
+  const spriteKey2 = generator.valueToCode(block, 'SPRITE2', Order.NONE) || '';
+  if (useSpriteStore.getState().spriteInstances.map(s => s.id).includes(spriteKey1)
+      && useSpriteStore.getState().spriteInstances.map(s => s.id).includes(spriteKey2)){
+    const spriteName1 = `scene.getSprite(${spriteKey1 === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey1 + '"'})`;
+    const spriteName2 = `scene.getSprite(${spriteKey2 === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey2 + '"'})`;
+    
+    return [`scene.physics.world.overlap(${spriteName1}, ${spriteName2})`, Order.NONE];
+  }
+  return [`false`, Order.NONE];
+};
+
+
 export const spriteBlocks = [
   setProperty,
   changeProperty,
   getProperty,
   setRotation,
   pointAtXY,
+  isTouching
 ];

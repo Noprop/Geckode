@@ -128,6 +128,7 @@ export const useEditorStore = create<State & Actions>((set, get) => ({
     // save workspace state (should be moved later)
     const state = Blockly.serialization.workspaces.save(blocklyWorkspace);
     spriteWorkspaces.set(spriteId, state);
+    //console.log('state', state);
   },
 
   scheduleConvert: () => {
