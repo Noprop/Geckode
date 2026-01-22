@@ -1,6 +1,7 @@
 import { javascriptGenerator, Order } from "blockly/javascript";
 import { getSpriteDropdownOptions } from '@/blockly/spriteRegistry';
 import { useEditorStore } from '@/stores/editorStore';
+import { useSpriteStore } from "@/stores/spriteStore";
 
 const setProperty = {
   type: 'setProperty',
@@ -35,11 +36,15 @@ const setProperty = {
 
 javascriptGenerator.forBlock['setProperty'] = function (block, generator) {
   const value = generator.valueToCode(block, 'VALUE', Order.NONE) || 0;
-  const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || 0;
+  const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
 
-  return `scene.getSprite(${spriteKey === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey + '"'}).set${block.getFieldValue(
-    'PROPERTY'
-  )}(${value})\n`;
+  if (useSpriteStore.getState().spriteInstances.map(s => s.id).includes(spriteKey)){
+    return `scene.getSprite(${spriteKey === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey + '"'}).set${block.getFieldValue(
+      'PROPERTY'
+    )}(${value})\n`;
+  }
+
+  return '';
 };
 
 const changeProperty = {
@@ -75,11 +80,15 @@ const changeProperty = {
 
 javascriptGenerator.forBlock['changeProperty'] = function (block, generator) {
   const value = generator.valueToCode(block, 'VALUE', Order.NONE) || 0;
-  const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || 0;
+  const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
 
-  return `scene.getSprite(${spriteKey === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey + '"'}).body.${block.getFieldValue(
-    'PROPERTY'
-  )} += ${value}\n`;
+  if (useSpriteStore.getState().spriteInstances.map(s => s.id).includes(spriteKey)){
+    return `scene.getSprite(${spriteKey === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey + '"'}).body.${block.getFieldValue(
+      'PROPERTY'
+    )} += ${value}\n`;
+  }
+
+  return '';
 };
 
 const getProperty = {
@@ -108,12 +117,15 @@ const getProperty = {
 };
 
 javascriptGenerator.forBlock['getProperty'] = function (block, generator) {
-  const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || 0;
+  const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
+  if (useSpriteStore.getState().spriteInstances.map(s => s.id).includes(spriteKey)){
+    const code = `scene.getSprite(${spriteKey === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey + '"'}).${block.getFieldValue(
+      'PROPERTY'
+    )}`;
+    return [code, Order.NONE];
+  }
+  return['', Order.NONE];
   
-  const code = `scene.getSprite(${spriteKey === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey + '"'}).${block.getFieldValue(
-    'PROPERTY'
-  )}`;
-  return [code, Order.NONE];
 };
 
 const setRotation = {
@@ -139,9 +151,12 @@ const setRotation = {
 
 javascriptGenerator.forBlock['setRotation'] = function (block, generator) {
   const value = generator.valueToCode(block, 'VALUE', Order.NONE) || 0;
-  const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || 0;
+  const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
 
-  return `scene.getSprite(${spriteKey === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey + '"'}).angle = (${value}-90) % 360\n`;
+  if (useSpriteStore.getState().spriteInstances.map(s => s.id).includes(spriteKey)){
+    return `scene.getSprite(${spriteKey === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey + '"'}).angle = (${value}-90) % 360\n`;
+  }
+  return '';
 };
 
 const pointAtXY = {
@@ -175,11 +190,12 @@ const pointAtXY = {
 javascriptGenerator.forBlock['pointAtXY'] = function (block, generator) {
   const x = generator.valueToCode(block, 'x', Order.NONE) || 0;
   const y = generator.valueToCode(block, 'y', Order.NONE) || 0;
-  const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || 0;
-  const spriteName = `scene.getSprite(${spriteKey === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey + '"'})`
-
-
-  return `${spriteName}.rotation = Phaser.Math.Angle.Between(${spriteName}.x, ${spriteName}.y, ${x}, ${y})\n`;
+  const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
+  if (useSpriteStore.getState().spriteInstances.map(s => s.id).includes(spriteKey)){
+    const spriteName = `scene.getSprite(${spriteKey === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey + '"'})`
+    return `${spriteName}.rotation = Phaser.Math.Angle.Between(${spriteName}.x, ${spriteName}.y, ${x}, ${y})\n`;
+  }
+  return '';
 };
 
 export const spriteBlocks = [
