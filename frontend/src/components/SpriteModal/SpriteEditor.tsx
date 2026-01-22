@@ -6,6 +6,10 @@ import { Pencil2Icon, EraserIcon } from '@radix-ui/react-icons';
 import { Button } from '../ui/Button';
 import { useSpriteStore } from '@/stores/spriteStore';
 
+const GRID_SIZE = 48;
+const MIN_ZOOM = 4;
+const MAX_ZOOM = 20;
+
 const SpriteEditor = () => {
   const [spriteName, setSpriteName] = useState('Custom Sprite');
   const [brushSize, setBrushSize] = useState(1);
@@ -20,15 +24,15 @@ const SpriteEditor = () => {
   const [zoom, setZoom] = useState(10);
   const addSpriteToGame = useSpriteStore((state) => state.addSpriteToGame);
   const setIsSpriteModalOpen = useSpriteStore((state) => state.setIsSpriteModalOpen);
+  const registerTexture = useSpriteStore((state) => state.registerTexture);
+  const addToSpriteLibrary = useSpriteStore((state) => state.addToSpriteLibrary);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const previewRef = useRef<HTMLCanvasElement | null>(null);
-  const GRID_SIZE = 48;
-  const MIN_ZOOM = 4;
-  const MAX_ZOOM = 20;
-
-  const createEmptyPixels = useCallback(() => Array.from({ length: GRID_SIZE * GRID_SIZE }, () => ''), [GRID_SIZE]);
-  const [pixels, setPixels] = useState<string[]>(createEmptyPixels);
+  
+  // Layer 1 is the main layer, layer 2 is for visual effects that aren't saved
+  const [layer1, setLayer1] = useState<string[]>(Array.from({ length: GRID_SIZE * GRID_SIZE }, () => ''));
+  const [layer2, setLayer2] = useState<string[]>(Array.from({ length: GRID_SIZE * GRID_SIZE }, () => ''));
 
   const palette = [
     '#0f172a',
@@ -42,6 +46,23 @@ const SpriteEditor = () => {
     '#ec4899',
     '#ffffff',
   ];
+
+  const canvasContainerRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const container = canvasContainerRef.current;
+    if (!container) return;
+    
+    const handleWheel = (event: WheelEvent) => {
+      if (event.ctrlKey || event.metaKey) {
+        event.preventDefault();
+        const delta = event.deltaY > 0 ? -0.25 : 0.25;
+        setZoom((z) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z + delta)));
+      }
+    };
+    
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => container.removeEventListener('wheel', handleWheel);
+  }, []);
 
   const drawChecker = useCallback(
     (ctx: CanvasRenderingContext2D, cellSize: number) => {
@@ -71,7 +92,7 @@ const SpriteEditor = () => {
 
     drawChecker(ctx, cellSize);
 
-    pixels.forEach((color, index) => {
+    layer1.forEach((color, index) => {
       if (!color) return;
       const x = index % GRID_SIZE;
       const y = Math.floor(index / GRID_SIZE);
@@ -94,7 +115,7 @@ const SpriteEditor = () => {
         ctx.stroke();
       }
     }
-  }, [zoom, GRID_SIZE, drawChecker, pixels, showGrid]);
+  }, [zoom, GRID_SIZE, drawChecker, layer1, showGrid]);
 
   const renderPreview = useCallback(() => {
     const preview = previewRef.current;
@@ -109,14 +130,14 @@ const SpriteEditor = () => {
 
     drawChecker(ctx, scale);
 
-    pixels.forEach((color, index) => {
+    layer1.forEach((color, index) => {
       if (!color) return;
       const x = index % GRID_SIZE;
       const y = Math.floor(index / GRID_SIZE);
       ctx.fillStyle = color;
       ctx.fillRect(x * scale, y * scale, scale, scale);
     });
-  }, [GRID_SIZE, drawChecker, pixels]);
+  }, [GRID_SIZE, drawChecker, layer1]);
 
   useEffect(() => {
     renderCanvas();
@@ -136,7 +157,7 @@ const SpriteEditor = () => {
 
   const paintAt = useCallback(
     (x: number, y: number, color: string) => {
-      setPixels((prev) => {
+      setLayer1((prev) => {
         const next = [...prev];
         const offset = Math.floor(brushSize / 2);
         for (let dy = 0; dy < brushSize; dy += 1) {
@@ -146,6 +167,7 @@ const SpriteEditor = () => {
             next[py * GRID_SIZE + px] = color;
           }
         }
+        console.log('[SpriteEditor] paintAt()', next);
         return next;
       });
     },
@@ -154,7 +176,7 @@ const SpriteEditor = () => {
 
   const floodFill = useCallback(
     (startX: number, startY: number, fillColor: string) => {
-      setPixels((prev) => {
+      setLayer1((prev) => {
         const next = [...prev];
         const targetColor = prev[startY * GRID_SIZE + startX];
         if (targetColor === fillColor) return prev;
@@ -182,7 +204,7 @@ const SpriteEditor = () => {
 
   const drawRectangle = useCallback(
     (x1: number, y1: number, x2: number, y2: number, color: string) => {
-      setPixels((prev) => {
+      setLayer1((prev) => {
         const next = [...prev];
         const minX = Math.min(x1, x2);
         const maxX = Math.max(x1, x2);
@@ -211,6 +233,7 @@ const SpriteEditor = () => {
   };
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    console.log('[SpriteEditor] handlePointerDown()');
     event.preventDefault();
     const position = getPointerPosition(event);
     if (!position) return;
@@ -229,10 +252,23 @@ const SpriteEditor = () => {
     }
   };
 
-  const handlePointerMove = (event: ReactPointerEvent<HTMLCanvasElement>) => {
-    if (!isDrawing) return;
+  const drawShadow = (x: number, y: number) => {
+    console.log('[SpriteEditor] drawShadow()');
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillRect(x, y, 1, 1);
+  }
+
+  const handlePointerMove = (event: ReactPointerEvent<HTMLCanvasElement>) => { 
     const position = getPointerPosition(event);
     if (!position) return;
+    if (!isDrawing) {
+      drawShadow(position.x, position.y);
+      return;
+    }
 
     if (activeTool === 'pen') {
       paintAt(position.x, position.y, selectedColor);
@@ -262,34 +298,14 @@ const SpriteEditor = () => {
     };
   }, []);
 
-  // Handle mouse wheel zoom (Ctrl/Cmd + scroll or pinch on trackpad)
-  const handleWheel = useCallback((event: WheelEvent) => {
-    if (event.ctrlKey || event.metaKey) {
-      event.preventDefault();
-      const delta = event.deltaY > 0 ? -2 : 2;
-      setZoom((z) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z + delta)));
-    }
-  }, []);
-
-  // Attach wheel listener to canvas container
-  const canvasContainerRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    const container = canvasContainerRef.current;
-    if (!container) return;
-    container.addEventListener('wheel', handleWheel, { passive: false });
-    return () => container.removeEventListener('wheel', handleWheel);
-  }, [handleWheel]);
-
-  const hasPixels = useMemo(() => pixels.some(Boolean), [pixels]);
+  const hasPixels = useMemo(() => layer1.some(Boolean), [layer1]);
 
   const resetCanvas = () => {
-    setPixels(createEmptyPixels());
+    setLayer1(Array.from({ length: GRID_SIZE * GRID_SIZE }, () => ''));
+    setLayer2(Array.from({ length: GRID_SIZE * GRID_SIZE }, () => ''));
   };
 
-  const registerTexture = useSpriteStore((state) => state.registerTexture);
-  const addToSpriteLibrary = useSpriteStore((state) => state.addToSpriteLibrary);
-
-  const handleSaveCustomSprite = async () => {
+  const saveToAssets = async () => {
     if (!hasPixels) return;
     const label = spriteName.trim() || 'Custom Sprite';
     const safeBase = label.toLowerCase().replace(/[^\w]/g, '') || 'customsprite';
@@ -303,7 +319,7 @@ const SpriteEditor = () => {
     if (!ctx) return;
   
     // Draw pixels to export canvas
-    pixels.forEach((color, index) => {
+    layer1.forEach((color, index) => {
       if (!color) return;
       const x = index % GRID_SIZE;
       const y = Math.floor(index / GRID_SIZE);
@@ -484,7 +500,10 @@ const SpriteEditor = () => {
                 imageRendering: 'pixelated',
               }}
               onPointerDown={handlePointerDown}
-              onPointerMove={handlePointerMove}
+              onPointerMove={(event) => {
+                // console.log('[SpriteEditor] onPointerMove()');
+                handlePointerMove(event);
+              }}
               onPointerUp={handlePointerUp}
             />
           </div>
@@ -494,7 +513,7 @@ const SpriteEditor = () => {
         <div className="h-10 flex items-center justify-center gap-2 bg-slate-700 border-t border-slate-600 shrink-0">
           <button
             type="button"
-            onClick={() => setZoom((z) => Math.max(MIN_ZOOM, z - 2))}
+            onClick={() => setZoom((z) => Math.max(MIN_ZOOM, z - 1.5))}
             disabled={zoom <= MIN_ZOOM}
             className="w-8 h-8 flex items-center justify-center rounded bg-slate-600 hover:bg-slate-500 disabled:opacity-40 disabled:cursor-not-allowed text-white cursor-pointer transition"
             title="Zoom out"
@@ -507,7 +526,7 @@ const SpriteEditor = () => {
           <span className="text-xs text-slate-300 w-16 text-center">{Math.round((zoom / 10) * 100)}%</span>
           <button
             type="button"
-            onClick={() => setZoom((z) => Math.min(MAX_ZOOM, z + 2))}
+            onClick={() => setZoom((z) => Math.min(MAX_ZOOM, z + 1.5))}
             disabled={zoom >= MAX_ZOOM}
             className="w-8 h-8 flex items-center justify-center rounded bg-slate-600 hover:bg-slate-500 disabled:opacity-40 disabled:cursor-not-allowed text-white cursor-pointer transition"
             title="Zoom in"
@@ -545,8 +564,8 @@ const SpriteEditor = () => {
           <Button
             className="btn-confirm h-9 px-4"
             disabled={!hasPixels}
-            onClick={handleSaveCustomSprite}
-            title="Add sprite to game"
+            onClick={saveToAssets}
+            title="Save resource to assets"
           >
             Add to Game
           </Button>
