@@ -58,6 +58,22 @@ export function getStartRegistry(generator: any): StartHandler[] {
   return generator.startHandlers;
 }
 
+export function isIsolated(block: Blockly.Block): boolean {
+  let currentBlock: Blockly.Block | null = block;
+  
+  while (currentBlock) {
+    // Check if current block is an onUpdate block
+    if (currentBlock.type === 'onUpdate' || currentBlock.type === 'onStart') {
+      return false;
+    }
+    
+    // Traverse up to the parent block
+    currentBlock = currentBlock.getSurroundParent();
+  }
+  
+  return true;
+}
+
 if (typeof window !== 'undefined') {
   const originalInit = javascriptGenerator.init;
 

@@ -2,6 +2,7 @@ import { javascriptGenerator, Order } from "blockly/javascript";
 import { getSpriteDropdownOptions } from '@/blockly/spriteRegistry';
 import { useEditorStore } from '@/stores/editorStore';
 import { useSpriteStore } from "@/stores/spriteStore";
+import { isIsolated } from '@/blockly/index';
 
 const setProperty = {
   type: 'setProperty',
@@ -37,9 +38,10 @@ const setProperty = {
 javascriptGenerator.forBlock['setProperty'] = function (block, generator) {
   const value = generator.valueToCode(block, 'VALUE', Order.NONE) || 0;
   const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
+  const spriteName = spriteKey === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey + '"'
 
-  if (useSpriteStore.getState().spriteInstances.map(s => s.id).includes(spriteKey)){
-    return `scene.getSprite(${spriteKey === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey + '"'}).set${block.getFieldValue(
+  if (useSpriteStore.getState().spriteInstances.map(s => s.id).includes(spriteKey) && !isIsolated(block)){
+    return `scene.getSprite(${spriteName}).set${block.getFieldValue(
       'PROPERTY'
     )}(${value})\n`;
   }
@@ -191,6 +193,11 @@ javascriptGenerator.forBlock['pointAtXY'] = function (block, generator) {
   const x = generator.valueToCode(block, 'x', Order.NONE) || 0;
   const y = generator.valueToCode(block, 'y', Order.NONE) || 0;
   const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
+  
+  // Example: Check if this block is inside an update loop
+  // const inUpdateLoop = isInUpdateLoop(block);
+  // You can use this to generate different code based on context
+  
   if (useSpriteStore.getState().spriteInstances.map(s => s.id).includes(spriteKey)){
     const spriteName = `scene.getSprite(${spriteKey === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey + '"'})`
     return `${spriteName}.rotation = Phaser.Math.Angle.Between(${spriteName}.x, ${spriteName}.y, ${x}, ${y})\n`;
