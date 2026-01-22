@@ -56,10 +56,7 @@ export default async function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <UserProvider user={user}>
             <SnackbarProvider>
-              <WorkspaceViewProvider>
-                <Header />
-                {children}
-              </WorkspaceViewProvider>
+              <WorkspaceViewProvider>{children}</WorkspaceViewProvider>
             </SnackbarProvider>
           </UserProvider>
         </ThemeProvider>

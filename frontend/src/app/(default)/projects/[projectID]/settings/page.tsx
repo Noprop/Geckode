@@ -7,20 +7,15 @@ import { Project } from "@/lib/types/api/projects";
 import { authApi } from "@/lib/api/auth";
 import { User } from "@/lib/types/api/users";
 import { AboutProject } from "./AboutProject";
-import { ManageMembers } from "./ManageMembers";
-import { useLayout } from "@/contexts/LayoutProvider";
+import { ManageCollaborators } from "./ManageCollaborators";
 
 const ProjectSettingsPage = () => {
-  const layout = useLayout();
-
   const prjID = Number(useParams().projectID);
   const [prj, setPrj] = useState<Project>();
 
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    layout.setFooterVisibility(false);
-
     // fetch api for prj name
     projectsApi(prjID)
       .get()
@@ -42,8 +37,10 @@ const ProjectSettingsPage = () => {
             element: <AboutProject prj={prj!} setPrj={setPrj} user={user!} />,
           },
           {
-            title: "Manage Members",
-            element: <ManageMembers prj={prj!} setPrj={setPrj} user={user!} />,
+            title: "Manage Collaborators",
+            element: (
+              <ManageCollaborators prj={prj!} setPrj={setPrj} user={user!} />
+            ),
           },
         ]}
       ></TabSystem>
