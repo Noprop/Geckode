@@ -41,6 +41,9 @@ const BlocklyEditor = () => {
   useEffect(() => {
     // inject Blockly into the div
     if (blocklyInjectionRef.current && !workspaceRef.current) {
+      // This avoids the weird bumping between blocks that caused desync
+      Blockly.BlockSvg.prototype.bumpNeighbours = function() {};
+
       const blocklyOptions: Blockly.BlocklyOptions = {
         toolbox: getToolbox() as Blockly.utils.toolbox.ToolboxDefinition,
         sounds: false,

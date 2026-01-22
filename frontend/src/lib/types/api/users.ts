@@ -1,4 +1,5 @@
 import { BaseFilters } from ".";
+import { pick } from "..";
 
 export interface User {
   id: number;
@@ -11,6 +12,19 @@ export interface User {
   is_superuser?: boolean;
   avatar: string | null;
 }
+
+export const publicUserKeys = [
+  "id",
+  "username",
+  "first_name",
+  "last_name",
+  "avatar",
+] as const;
+
+export type PublicUser = Pick<User, typeof publicUserKeys[number]>;
+
+export const toPublicUser = (user: User) =>
+  pick(user, publicUserKeys);
 
 export interface UserFilters extends BaseFilters {
   exclude_project: number;

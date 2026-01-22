@@ -10,6 +10,8 @@ import { useEditorStore } from "@/stores/editorStore";
 import { useSpriteStore } from "@/stores/spriteStore";
 import Phaser from "./PhaserPanel/Phaser";
 import type { SpriteInstance } from "@/blockly/spriteRegistry";
+import { useBlockSync } from "@/hooks/yjs/useBlockSync";
+import { useVariableSync } from "@/hooks/yjs/useVariableSync";
 
 const GRID_SIZE = 50;
 const CENTER_X = 240;
@@ -24,23 +26,21 @@ const snapToGrid = (x: number, y: number): { x: number; y: number } => {
   return { x: snappedX, y: snappedY };
 };
 
-const ProjectView = () => {
+interface ProjectViewProps {
+  projectId?: number;
+}
+
+const ProjectView = ({ projectId }: ProjectViewProps) => {
+  const documentName = String(projectId ?? 0);
   const { view } = useWorkspaceView();
   const { setSpriteInstances } = useSpriteStore();
   const { undoWorkspace, redoWorkspace, canUndo, canRedo } = useEditorStore();
 
-  const workspaceListenerRef = useRef<{
-    workspace: Blockly.WorkspaceSvg;
-    listener: (event: Blockly.Events.Abstract) => void;
-  } | null>(null);
+  // useBlockSync(documentName);
+  // useVariableSync(documentName);
 
   useEffect(() => {
     return () => {
-      if (workspaceListenerRef.current) {
-        workspaceListenerRef.current.workspace.removeChangeListener(
-          workspaceListenerRef.current.listener,
-        );
-      }
       // Cancel any pending auto-convert on unmount
       useEditorStore.getState().cancelScheduledConvert();
     };
