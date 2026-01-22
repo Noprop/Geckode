@@ -18,6 +18,7 @@ import { useSpriteStore } from "@/stores/spriteStore";
 import TabSelector from "./ui/selectors/TabSelector";
 import { DrawingPinFilledIcon, ImageIcon } from "@radix-ui/react-icons";
 import { useLayout } from "@/contexts/LayoutProvider";
+import EditorFooter from "./EditorFooter";
 
 export type PhaserRef = {
   readonly game: Game;
@@ -72,7 +73,7 @@ const ProjectView = () => {
       const isEditorScene = useEditorStore.getState().isEditorScene;
       EventBus.emit("editor-scene-changed", isEditorScene);
 
-      layout.attachMiddle(
+      layout.attachHeaderMiddle(
         <TabSelector<WorkspaceView>
           tab={view}
           setTab={setView}
@@ -80,8 +81,10 @@ const ProjectView = () => {
             { value: "blocks", label: "Blocks", icon: DrawingPinFilledIcon },
             { value: "sprite", label: "Sprite Editor", icon: ImageIcon },
           ]}
-        />
+        />,
       );
+
+      layout.attachFooterRHS(<EditorFooter />);
     };
 
     EventBus.on("current-scene-ready", handler);
@@ -99,7 +102,7 @@ const ProjectView = () => {
     return () => {
       if (workspaceListenerRef.current) {
         workspaceListenerRef.current.workspace.removeChangeListener(
-          workspaceListenerRef.current.listener
+          workspaceListenerRef.current.listener,
         );
       }
       // Cancel any pending auto-convert on unmount
@@ -139,7 +142,7 @@ const ProjectView = () => {
         }
 
         return prev.map((s) =>
-          s.id === id ? { ...s, x: finalX, y: finalY } : s
+          s.id === id ? { ...s, x: finalX, y: finalY } : s,
         );
       });
     };

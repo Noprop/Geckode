@@ -13,7 +13,6 @@ export default function EditorLayout({
       >
         {children}
       </main>
-      <EditorFooter />
     </>
   );
 }

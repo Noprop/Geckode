@@ -106,7 +106,7 @@ export const Table = <
   TSortKeys extends string,
   TApi extends BaseApiInnerReturn<
     typeof createBaseApi<TData, TPayload, TFilters>
-  >
+  >,
 >({
   ref,
   api,
@@ -164,10 +164,10 @@ export const Table = <
               ? (columns[sorting[0].id].key as string[]).at(-1)
               : columns[sorting[0].id].key) as string)
           : defaultSortField
-          ? `${defaultSortDirection === "desc" ? "-" : ""}${
-              defaultSortField as string
-            }`
-          : undefined,
+            ? `${defaultSortDirection === "desc" ? "-" : ""}${
+                defaultSortField as string
+              }`
+            : undefined,
         search: searchInput.trim(),
         ...filters,
       } as TFilters)
@@ -234,7 +234,7 @@ export const Table = <
             (Array.isArray(columns.id.key)
               ? columns.id.key
               : [columns.id.key]
-            ).reduce((acc: any, key) => acc?.[key], data[rowId])
+            ).reduce((acc: any, key) => acc?.[key], data[rowId]),
           )
             .update({
               [(Array.isArray(column.key)
@@ -244,7 +244,7 @@ export const Table = <
             .catch(() => {
               showSnackbar(
                 "Something went wrong. Please try again later.",
-                "error"
+                "error",
               );
             });
         }}
@@ -277,20 +277,20 @@ export const Table = <
                     ? columnMapper.value(context.getValue())
                     : context.getValue(),
                   columnMapper,
-                  Number(context.row.id)
+                  Number(context.row.id),
                 ),
           header: columnMapper.hidden || columnMapper.hideLabel ? "" : label,
           enableSorting: (sortKeys as Array<keyof TData>).includes(
             (Array.isArray(columnMapper.key)
               ? (columnMapper.key as string[]).at(-1)
-              : columnMapper.key) as string
+              : columnMapper.key) as string,
           ),
           enableColumnFilter: false, // Temporary
           meta: {
             style: columnMapper.style,
           },
           enableHiding: columnMapper.hidden,
-        }
+        },
       );
     }),
     ...(actions?.length
@@ -486,7 +486,7 @@ export const Table = <
                     >
                       {flexRender(
                         cell.column.columnDef.cell,
-                        cell.getContext()
+                        cell.getContext(),
                       )}
                     </td>
                   ))}
@@ -532,7 +532,7 @@ export const Table = <
               -{" "}
               {Math.min(
                 totalCount,
-                (pagination.pageIndex + 1) * pagination.pageSize
+                (pagination.pageIndex + 1) * pagination.pageSize,
               )}
               <span style={{ fontWeight: "normal" }}> of </span>
               {totalCount}
@@ -570,7 +570,7 @@ export const Table = <
                   pageIndex:
                     Math.min(
                       Math.ceil(totalCount / pagination.pageSize),
-                      Math.max(Number(e.target.value.replace(/\D/g, "")), 1)
+                      Math.max(Number(e.target.value.replace(/\D/g, "")), 1),
                     ) - 1,
                 }));
               }}
