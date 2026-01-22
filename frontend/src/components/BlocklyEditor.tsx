@@ -16,15 +16,7 @@ import { useSpriteStore } from '@/stores/spriteStore';
 
 registerBlockly();
 
-export interface BlocklyEditorHandle {
-  getWorkspace: () => Blockly.WorkspaceSvg | null;
-}
-
-type BlocklyEditorProps = {
-  onWorkspaceReady?: (workspace: Blockly.WorkspaceSvg) => void;
-};
-
-const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(({ onWorkspaceReady }, ref) => {
+const BlocklyEditor = () => {
   const { projectID } = useParams();
   const projectId = projectID ? Number(projectID) : null;
 
@@ -63,7 +55,7 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(({ onW
         },
         theme: Geckode,
         zoom: {
-          controls: true,
+          controls: false,
           wheel: true,
           startScale: 0.75,
           maxScale: 2.0,
@@ -153,8 +145,6 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(({ onW
         }, 500);
       }
 
-      onWorkspaceReady?.(workspaceRef.current);
-
       workspaceRef.current.registerButtonCallback('createVariableButton', () => {
         setShowVariableModal(true);
         const flyout = workspaceRef.current?.getFlyout();
@@ -188,7 +178,7 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(({ onW
           useEditorStore.getState().scheduleConvert();
       });
 
-      useEditorStore.setState({ blocklyWorkspace: workspaceRef.current! });
+      useEditorStore.getState().setBlocklyWorkspace(workspaceRef.current!);
 
       // Initial update of undo/redo state
       useEditorStore.getState().updateUndoRedoState();
@@ -197,10 +187,7 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(({ onW
         if (workspaceRef.current?.getAllBlocks(false).length <= 0) {
           Blockly.serialization.workspaces.load(starterWorkspace, workspaceRef.current!);
 
-          useEditorStore.setState({
-            spriteId: useSpriteStore.getState().spriteInstances[0]?.id ?? '',
-          });
-
+          useEditorStore.getState().setSpriteId(useSpriteStore.getState().spriteInstances[0]?.id ?? '');
           useEditorStore.getState().scheduleConvert();
         }
         return;
@@ -239,18 +226,7 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(({ onW
         workspaceRef.current = null;
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  if (workspaceRef.current) Blockly.svgResize(workspaceRef.current);
-
-  useImperativeHandle(
-    ref,
-    () => ({
-      getWorkspace: () => workspaceRef.current,
-    }),
-    []
-  );
 
   return (
     <>
@@ -258,6 +234,6 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(({ onW
       <VariableModal showVariableModal={showVariableModal} setShowVariableModal={setShowVariableModal} />
     </>
   );
-});
+};
 
 export default BlocklyEditor;

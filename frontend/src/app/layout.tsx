@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import Header from "@/components/Header";
+import Header from "@/components/Header/Header";
 import { WorkspaceViewProvider } from "@/contexts/WorkspaceViewContext";
 import { ThemeProvider } from "next-themes";
 import { SnackbarProvider } from "@/contexts/SnackbarContext";
 import { authApi } from "@/lib/api/auth";
 import { UserProvider } from "@/contexts/UserContext";
-import LayoutProvider from "@/contexts/LayoutProvider";
 
 export const metadata: Metadata = {
   title: "Geckode",
@@ -58,7 +57,8 @@ export default async function RootLayout({
           <UserProvider user={user}>
             <SnackbarProvider>
               <WorkspaceViewProvider>
-                <LayoutProvider>{children}</LayoutProvider>
+                <Header />
+                {children}
               </WorkspaceViewProvider>
             </SnackbarProvider>
           </UserProvider>

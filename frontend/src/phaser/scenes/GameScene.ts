@@ -1,9 +1,7 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import { EventBus } from '@/phaser/EventBus';
-import type { Sprite } from '@/blockly/spriteRegistry';
-
-export const GAME_SCENE_KEY = 'GameScene' as const;
-import EDITOR_SCENE_KEY from '@/phaser/scenes/EditorScene';
+import type { SpriteInstance } from '@/blockly/spriteRegistry';
+import { GAME_SCENE_KEY, EDITOR_SCENE_KEY } from '@/phaser/sceneKeys';
 
 type SandboxContext = {
   scene: GameScene;
@@ -12,8 +10,9 @@ type SandboxContext = {
 };
 
 // Utility to create an async function at runtime.
-const AsyncFunction = Object.getPrototypeOf(async function () {})
-  .constructor as new (...args: string[]) => (...args: any[]) => Promise<any>;
+const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor as new (...args: string[]) => (
+  ...args: any[]
+) => Promise<any>;
 
 export default class GameScene extends Phaser.Scene {
   public key: string;
@@ -48,6 +47,51 @@ export default class GameScene extends Phaser.Scene {
   preload() {
     this.generateTilesetTexture();
   }
+
+  create(data: { spriteInstances: SpriteInstance[]; textures: Map<string, { name: string; file: string }>; code: string }) {
+    console.log('[GameScene] create called', data);
+
+    // Reset tilemap state
+    this.tilemap = null;
+    this.groundLayer = null;
+    this.gameSprites.clear();
+
+    // Create the tilemap first (sits below everything)
+    this.createTilemap();
+
+    this.cursors = this.input.keyboard?.createCursorKeys()!;
+    this.wasd = this.input.keyboard?.addKeys({
+      W: Phaser.Input.Keyboard.KeyCodes.W,
+      A: Phaser.Input.Keyboard.KeyCodes.A,
+      S: Phaser.Input.Keyboard.KeyCodes.S,
+      D: Phaser.Input.Keyboard.KeyCodes.D,
+    }) as unknown as typeof this.wasd;
+
+    // Dedicated layer to keep editor sprites above all game objects.
+    this.gameLayer = this.add.layer();
+    this.gameLayer.setDepth(GameScene.GAME_SPRITE_BASE_DEPTH);
+
+    for (const instance of data.spriteInstances) {
+      const textureName = instance.textureName;
+      this.addGameSprite(textureName, instance.x, instance.y, instance.id);
+    }
+
+    // Set up collisions between sprites and tilemap
+    this.setupTilemapCollisions();
+
+    // Execute the Blockly-generated code
+    if (data.code) {
+      this.runScript(data.code);
+    }
+
+    // Tell React which scene is active (will trigger pause state sync)
+    EventBus.emit('current-scene-ready', this);
+
+    this.startHook();
+  }
+
+  startHook() {}
+  update() {}
 
   private generateTilesetTexture(): void {
     const tileSize = GameScene.TILE_SIZE;
@@ -147,7 +191,6 @@ export default class GameScene extends Phaser.Scene {
     for (const sprite of this.gameSprites.values()) {
       this.physics.add.collider(sprite, this.groundLayer);
       // Enable gravity for sprites so they fall onto the ground
-      sprite.setGravityY(300);
       sprite.setCollideWorldBounds(true);
     }
   }
@@ -155,56 +198,6 @@ export default class GameScene extends Phaser.Scene {
   public changeScene() {
     this.scene.start(EDITOR_SCENE_KEY as unknown as string);
   }
-
-  create(data: {
-    spriteInstances: Sprite[];
-    textures: Map<string, { name: string; file: string }>;
-    code: string;
-  }) {
-    console.log('[GameScene] create called', data);
-
-    // Reset tilemap state
-    this.tilemap = null;
-    this.groundLayer = null;
-
-    // Create the tilemap first (sits below everything)
-    this.createTilemap();
-
-    this.cursors = this.input.keyboard?.createCursorKeys()!;
-    this.wasd = this.input.keyboard?.addKeys({
-      W: Phaser.Input.Keyboard.KeyCodes.W,
-      A: Phaser.Input.Keyboard.KeyCodes.A,
-      S: Phaser.Input.Keyboard.KeyCodes.S,
-      D: Phaser.Input.Keyboard.KeyCodes.D,
-    }) as unknown as typeof this.wasd;
-
-    // Dedicated layer to keep editor sprites above all game objects.
-    this.gameLayer = this.add.layer();
-    this.gameLayer.setDepth(GameScene.GAME_SPRITE_BASE_DEPTH);
-
-    for (const instance of data.spriteInstances) {
-      const textureName = instance.textureName;
-      this.addGameSprite(textureName, instance.x, instance.y, instance.id);
-    }
-
-    // Set up collisions between sprites and tilemap
-    this.setupTilemapCollisions();
-
-    this.add.sprite(100,100, "star");
-
-    // Execute the Blockly-generated code
-    if (data.code) {
-      this.runScript(data.code);
-    }
-
-    // Tell React which scene is active (will trigger pause state sync)
-    EventBus.emit('current-scene-ready', this);
-
-    this.startHook();
-  }
-
-  startHook() {}
-  update() {}
 
   /**
    * TODO: Implement pause handler
@@ -231,7 +224,6 @@ export default class GameScene extends Phaser.Scene {
     // Add collision with ground if tilemap exists
     if (this.groundLayer) {
       this.physics.add.collider(sprite, this.groundLayer);
-      sprite.setGravityY(300);
       sprite.setCollideWorldBounds(true);
     }
 

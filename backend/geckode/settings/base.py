@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -143,9 +144,13 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
+        'accounts.authentication.JWTAuthentication',
     ],
     'DEFAULT_PAGINATION_CLASS': 'utils.pagination.DynamicMetadataPagination',
     'PAGE_SIZE': 10,
 }
 
 ASGI_APPLICATION = 'geckode.asgi.application'
+
+JWT_ALGORITHM = "HS256"
+JWT_MAX_AGE = timedelta(minutes=30)

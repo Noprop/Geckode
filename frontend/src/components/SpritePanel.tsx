@@ -5,13 +5,13 @@ import { Cross2Icon, EyeOpenIcon, EyeNoneIcon } from '@radix-ui/react-icons';
 import { Button } from './ui/Button';
 import { useEditorStore } from '@/stores/editorStore';
 import SpriteModal from './SpriteModal/SpriteModal';
-import type { Sprite } from '@/blockly/spriteRegistry';
+import type { SpriteInstance } from '@/blockly/spriteRegistry';
 import { useSpriteStore } from '@/stores/spriteStore';
 
 const SpritePanel = () => {
   const [isSpriteModalOpen, setIsSpriteModalOpen] = useState(false);
   const [selectedSpriteId, setSelectedSpriteId] = useState<string | null>(null);
-  const [selectedSprite, setSelectedSprite] = useState<Sprite | null>(null);
+  const [selectedSprite, setSelectedSprite] = useState<SpriteInstance | null>(null);
 
   // track editing state for inputs; allows empty while editing
   const [editingValues, setEditingValues] = useState<Record<string, string>>({});
@@ -23,7 +23,7 @@ const SpritePanel = () => {
 
   // auto-select first sprite or clear selection when sprites change
   useEffect(() => {
-    if (selectedSpriteId && !sprites.find((s: Sprite) => s.id === selectedSpriteId)) {
+    if (selectedSpriteId && !sprites.find((s: SpriteInstance) => s.id === selectedSpriteId)) {
       setSelectedSpriteId(sprites.length > 0 ? sprites[0].id : null);
     } else if (!selectedSpriteId && sprites.length > 0) {
       setSelectedSpriteId(sprites[0].id);
@@ -32,7 +32,7 @@ const SpritePanel = () => {
       useEditorStore.getState().loadWorkspace(selectedSpriteId);
     }
 
-    setSelectedSprite(sprites.find((s: Sprite) => s.id === selectedSpriteId) || null);  
+    setSelectedSprite(sprites.find((s: SpriteInstance) => s.id === selectedSpriteId) || null);  
   }, [sprites, selectedSpriteId]);
 
   // handlers for our custom input fields for editing sprite properties
@@ -41,7 +41,7 @@ const SpritePanel = () => {
     useEditorStore.getState().loadWorkspace(spriteId);
     setSelectedSpriteId(spriteId);
   };
-  const handleFieldChange = (field: keyof Sprite, value: string | number | boolean) => {
+  const handleFieldChange = (field: keyof SpriteInstance, value: string | number | boolean) => {
     if (!selectedSpriteId) return;
     updateSprite(selectedSpriteId, { [field]: value });
   };
@@ -54,7 +54,7 @@ const SpritePanel = () => {
   };
 
   // used for name, x, y, size, direction fields
-  const handleBlur = (field: keyof Sprite, defaultValue: string | number) => {
+  const handleBlur = (field: keyof SpriteInstance, defaultValue: string | number) => {
     const editedValue = editingValues[field as string];
 
     let finalValue: string | number;
@@ -313,8 +313,7 @@ const SpritePanel = () => {
         </div>
       </div>
 
-      {/* TODO: The modal shouldn't be placed here. */}
-      <SpriteModal isSpriteModalOpen={isSpriteModalOpen} setIsSpriteModalOpen={setIsSpriteModalOpen} />
+      <SpriteModal />
     </section>
   );
 };

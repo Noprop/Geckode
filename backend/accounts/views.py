@@ -9,6 +9,9 @@ from .serializers import UserSerializer
 from django_filters.rest_framework import DjangoFilterBackend
 from .filters import UserFilter
 from rest_framework.request import HttpRequest, Request
+import jwt
+import datetime
+from django.conf import settings
 
 class LoginView(APIView):
     authentication_classes = []
@@ -31,6 +34,20 @@ class LogoutView(APIView):
 class UserDetailsView(APIView):
     def get(self, request : Request):
         return Response(UserSerializer(request.user).data)
+
+class GetJWTToken(APIView):
+    def get(self, request):
+        token = jwt.encode(
+            {
+                "user_id": request.user.id,
+                "username": request.user.username,
+                "exp": datetime.datetime.now(datetime.timezone.utc) + settings.JWT_MAX_AGE
+            },
+            settings.SECRET_KEY,
+            algorithm=settings.JWT_ALGORITHM
+        )
+
+        return Response({"access_token": token})
 
 class UserViewSet(ModelViewSet):
     queryset = User.objects.all()

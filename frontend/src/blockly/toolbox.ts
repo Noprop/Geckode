@@ -3,8 +3,6 @@ import { useEditorStore } from '@/stores/editorStore';
 const getToolbox = () => {
   const spriteId = useEditorStore.getState().spriteId || 'BIG BAD MISTAKE';
 
-  console.log("toolbox test", spriteId);
-
   return {
     kind: 'categoryToolbox',
     contents: [
@@ -34,10 +32,15 @@ const getToolbox = () => {
           {
             kind: 'block',
             type: 'setProperty',
-            fields: {
-              SPRITE: spriteId,
-            },
             inputs: {
+              SPRITE: {
+                shadow: {
+                  type: 'spriteGhost',
+                  fields: {
+                    SPRITE: spriteId,
+                  },
+                },
+              },
               VALUE: {
                 shadow: {
                   type: 'math_number',
@@ -51,10 +54,15 @@ const getToolbox = () => {
           {
             kind: 'block',
             type: 'changeProperty',
-            fields: {
-              SPRITE: spriteId,
-            },
             inputs: {
+              SPRITE: {
+                shadow: {
+                  type: 'spriteGhost',
+                  fields: {
+                    SPRITE: spriteId,
+                  },
+                },
+              },
               VALUE: {
                 shadow: {
                   type: 'math_number',
@@ -68,14 +76,29 @@ const getToolbox = () => {
           {
             kind: 'block',
             type: 'getProperty',
-            fields: {
-              SPRITE: spriteId,
+            inputs: {
+              SPRITE: {
+                shadow: {
+                  type: 'spriteGhost',
+                  fields: {
+                    SPRITE: spriteId,
+                  },
+                },
+              },
             },
           },
           {
             kind: 'block',
             type: 'setRotation',
             inputs: {
+              SPRITE: {
+                shadow: {
+                  type: 'spriteGhost',
+                  fields: {
+                    SPRITE: spriteId,
+                  },
+                },
+              },
               VALUE: {
                 shadow: {
                   type: 'angleGhost',
@@ -87,6 +110,14 @@ const getToolbox = () => {
             kind: 'block',
             type: 'pointAtXY',
             inputs: {
+              SPRITE: {
+                shadow: {
+                  type: 'spriteGhost',
+                  fields: {
+                    SPRITE: spriteId,
+                  },
+                },
+              },
               x: {
                 shadow: {
                   type: 'math_number',
@@ -308,20 +339,7 @@ const getToolbox = () => {
           },
         },
       },
-      {
-        kind: 'block',
-        type: 'setProperty',
-        inputs: {
-          VALUE: {
-            shadow: {
-              type: 'math_number',
-              fields: {
-                NUM: 0,
-              },
-            },
-          },
-        },
-      },
+
       {
         kind: 'block',
         type: 'getProperty',

@@ -1,29 +1,15 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { useRef, useEffect } from "react";
 import BlocklyEditor from "@/components/BlocklyEditor";
 import * as Blockly from "blockly/core";
-import { Game } from "phaser";
 import EditorScene from "@/phaser/scenes/EditorScene";
-import GameScene from "@/phaser/scenes/GameScene";
-import SpritePanel from "@/components/SpritePanel";
-import {
-  useWorkspaceView,
-  WorkspaceView,
-} from "@/contexts/WorkspaceViewContext";
+import { useWorkspaceView } from "@/contexts/WorkspaceViewContext";
 import { EventBus } from "@/phaser/EventBus";
 import { useEditorStore } from "@/stores/editorStore";
 import { useSpriteStore } from "@/stores/spriteStore";
-import TabSelector from "./ui/selectors/TabSelector";
-import { DrawingPinFilledIcon, ImageIcon } from "@radix-ui/react-icons";
-import { useLayout } from "@/contexts/LayoutProvider";
-import EditorFooter from "./EditorFooter";
-
-export type PhaserRef = {
-  readonly game: Game;
-  readonly scene: EditorScene | GameScene;
-} | null;
+import Phaser from "./PhaserPanel/Phaser";
+import type { SpriteInstance } from "@/blockly/spriteRegistry";
 
 const GRID_SIZE = 50;
 const CENTER_X = 240;
@@ -38,60 +24,10 @@ const snapToGrid = (x: number, y: number): { x: number; y: number } => {
   return { x: snappedX, y: snappedY };
 };
 
-const PhaserContainer = dynamic(() => import("@/components/PhaserGame"), {
-  ssr: false,
-  loading: () => (
-    <div
-      className="bg-white dark:bg-black"
-      style={{
-        width: "480px",
-        height: "360px",
-      }}
-    />
-  ),
-});
-
 const ProjectView = () => {
-  const { view, setView } = useWorkspaceView();
-  const phaserRef = useRef<PhaserRef>(null);
-
-  const layout = useLayout();
-
-  const { setPhaserRef } = useEditorStore();
-  const { spriteInstances, setSpriteInstances } = useSpriteStore();
-
-  // Update store when Phaser scene becomes ready
-  useEffect(() => {
-    const handler = (scene: Phaser.Scene) => {
-      if (phaserRef.current?.game) {
-        setPhaserRef({
-          game: phaserRef.current.game,
-          scene: scene as unknown as EditorScene | GameScene,
-        });
-      }
-      // Send current pause state to newly ready scene (listener is already set up)
-      const isEditorScene = useEditorStore.getState().isEditorScene;
-      EventBus.emit("editor-scene-changed", isEditorScene);
-
-      layout.attachHeaderMiddle(
-        <TabSelector<WorkspaceView>
-          tab={view}
-          setTab={setView}
-          options={[
-            { value: "blocks", label: "Blocks", icon: DrawingPinFilledIcon },
-            { value: "sprite", label: "Sprite Editor", icon: ImageIcon },
-          ]}
-        />,
-      );
-
-      layout.attachFooterRHS(<EditorFooter />);
-    };
-
-    EventBus.on("current-scene-ready", handler);
-    return () => {
-      EventBus.off("current-scene-ready", handler);
-    };
-  }, [setPhaserRef]);
+  const { view } = useWorkspaceView();
+  const { setSpriteInstances } = useSpriteStore();
+  const { undoWorkspace, redoWorkspace, canUndo, canRedo } = useEditorStore();
 
   const workspaceListenerRef = useRef<{
     workspace: Blockly.WorkspaceSvg;
@@ -120,42 +56,38 @@ const ProjectView = () => {
       x: number;
       y: number;
     }) => {
-      const isEditorScene = useEditorStore.getState().isEditorScene;
+      const phaserScene = useEditorStore.getState().phaserScene;
+      if (!(phaserScene instanceof EditorScene)) return;
 
-      setSpriteInstances((prev) => {
-        const sprite = prev.find((s) => s.id === id);
-        if (!sprite) return prev;
+      setSpriteInstances((state) => {
+        const sprite = state.find((s: SpriteInstance) => s.id === id);
+        if (!sprite) return state;
 
         let finalX = x;
         let finalY = y;
 
-        // Apply snap-to-grid if enabled and editor scene
-        if (sprite.snapToGrid && isEditorScene) {
+        if (sprite.snapToGrid) {
           const snapped = snapToGrid(x, y);
           finalX = snapped.x;
           finalY = snapped.y;
-          // Update Phaser sprite to snapped position
-          (phaserRef.current?.scene as EditorScene)?.updateSprite(id, {
+          phaserScene.updateSprite(id, {
             x: finalX,
             y: finalY,
           });
         }
 
-        return prev.map((s) =>
+        return state.map((s: SpriteInstance) =>
           s.id === id ? { ...s, x: finalX, y: finalY } : s,
         );
       });
     };
 
     EventBus.on("editor-sprite-moved", handleSpriteMove);
-    return () => {
-      EventBus.off("editor-sprite-moved", handleSpriteMove);
-    };
+    return () => void EventBus.off("editor-sprite-moved", handleSpriteMove);
   }, []);
 
   return (
-    <div className="flex h-[calc(100vh-4rem-3.5rem)]">
-      {/* Left side: Blockly editor */}
+    <div className="flex h-[calc(100vh-4rem)]">
       <div className="relative flex-1 min-h-0 min-w-0 bg-light-whiteboard dark:bg-dark-whiteboard mr-2 overflow-hidden">
         <div
           className={`absolute inset-0 transition-opacity duration-150 ${
@@ -171,7 +103,10 @@ const ProjectView = () => {
           }`}
           aria-hidden={view !== "sprite"}
         >
-          <div className="w-full max-w-3xl rounded-2xl border border-dashed border-slate-400 bg-white/80 p-8 text-center shadow-md backdrop-blur-sm dark:border-slate-700 dark:bg-dark-secondary/80">
+          <div
+            className="w-full max-w-3xl rounded-2xl border border-dashed border-slate-400
+          bg-white/80 p-8 text-center shadow-md backdrop-blur-sm dark:border-slate-700 dark:bg-dark-secondary/80"
+          >
             <h2 className="text-2xl font-bold text-primary-green drop-shadow-sm">
               Sprite Editor Workspace
             </h2>
@@ -181,23 +116,70 @@ const ProjectView = () => {
             </p>
           </div>
         </div>
+
+        {view === "blocks" && (
+          <div className="absolute bottom-8 right-[30px] flex items-center gap-2.5 z-9999 pointer-events-auto">
+            <button
+              onClick={undoWorkspace}
+              disabled={!canUndo}
+              className={`
+                w-10.5 h-10.5 flex items-center justify-center rounded text-white transition-all
+                ${
+                  canUndo
+                    ? "bg-primary-green hover:bg-primary-green/90 hover:translate-y-px hover:shadow-[0_2px_0_0_#1a5c3a] active:translate-y-[3px] active:shadow-none shadow-[0_4px_0_0_#1a5c3a] cursor-pointer"
+                    : "bg-slate-400 dark:bg-slate-600 shadow-[0_4px_0_0_#64748b] dark:shadow-[0_4px_0_0_#334155] opacity-90"
+                }
+              `}
+              title="Undo"
+            >
+              <svg
+                aria-hidden="true"
+                focusable="false"
+                viewBox="0 0 16 16"
+                width="20"
+                height="20"
+                fill="currentColor"
+              >
+                <path d="M1.22 6.28a.749.749 0 0 1 0-1.06l3.5-3.5a.749.749 0 1 1 1.06 1.06L3.561 5h7.188l.001.007L10.749 5c.058 0 .116.007.171.019A4.501 4.501 0 0 1 10.5 14H8.796a.75.75 0 0 1 0-1.5H10.5a3 3 0 1 0 0-6H3.561L5.78 8.72a.749.749 0 1 1-1.06 1.06l-3.5-3.5Z"></path>
+              </svg>
+            </button>
+            <button
+              onClick={redoWorkspace}
+              disabled={!canRedo}
+              className={`
+                w-10.5 h-10.5 flex items-center justify-center rounded text-white transition-all
+                ${
+                  canRedo
+                    ? "bg-primary-green hover:bg-primary-green/90 hover:translate-y-px hover:shadow-[0_2px_0_0_#1a5c3a] active:translate-y-[3px] active:shadow-none shadow-[0_4px_0_0_#1a5c3a] cursor-pointer"
+                    : "bg-slate-400 dark:bg-slate-600 shadow-[0_4px_0_0_#64748b] dark:shadow-[0_4px_0_0_#334155] opacity-90"
+                }
+              `}
+              title="Redo"
+            >
+              <span
+                style={{
+                  display: "inline-block",
+                  transform: "rotate(180deg) scaleY(-1)",
+                }}
+              >
+                <svg
+                  aria-hidden="true"
+                  focusable="false"
+                  viewBox="0 0 16 16"
+                  width="20"
+                  height="20"
+                  fill="currentColor"
+                >
+                  <path d="M1.22 6.28a.749.749 0 0 1 0-1.06l3.5-3.5a.749.749 0 1 1 1.06 1.06L3.561 5h7.188l.001.007L10.749 5c.058 0 .116.007.171.019A4.501 4.501 0 0 1 10.5 14H8.796a.75.75 0 0 1 0-1.5H10.5a3 3 0 1 0 0-6H3.561L5.78 8.72a.749.749 0 1 1-1.06 1.06l-3.5-3.5Z"></path>
+                </svg>
+              </span>
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Right side: Phaser game, sprite list, and scene list */}
-      <div
-        className="flex flex-col h-[calc(100vh-4rem-3.5rem)] py-3 pr-2"
-        style={{ width: "492px" }}
-      >
-        <div
-          onPointerDown={() => {
-            if (typeof Blockly.hideChaff === "function") Blockly.hideChaff();
-            (document.getElementById("game-container") as HTMLElement).focus();
-          }}
-        >
-          <PhaserContainer />
-        </div>
-
-        <SpritePanel />
+      <div className="flex flex-col pr-2 pt-2" style={{ width: "492px" }}>
+        <Phaser />
       </div>
     </div>
   );
