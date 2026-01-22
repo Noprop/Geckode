@@ -19,9 +19,8 @@ const setProperty = {
       ],
     },
     {
-      type: 'field_dropdown',
+      type: 'input_value',
       name: 'SPRITE',
-      options: getSpriteDropdownOptions,
     },
     {
       type: 'input_value',
@@ -30,12 +29,13 @@ const setProperty = {
   ],
   previousStatement: null,
   nextStatement: null,
+  inputsInline: true,
   colour: '%{BKY_SPRITES_HUE}',
 };
 
 javascriptGenerator.forBlock['setProperty'] = function (block, generator) {
   const value = generator.valueToCode(block, 'VALUE', Order.NONE) || 0;
-  const spriteKey = block.getFieldValue('SPRITE');
+  const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || 0;
 
   return `scene.getSprite(${spriteKey === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey + '"'}).set${block.getFieldValue(
     'PROPERTY'
@@ -59,9 +59,8 @@ const changeProperty = {
       ],
     },
     {
-      type: 'field_dropdown',
+      type: 'input_value',
       name: 'SPRITE',
-      options: getSpriteDropdownOptions,
     },
     {
       type: 'input_value',
@@ -70,12 +69,13 @@ const changeProperty = {
   ],
   previousStatement: null,
   nextStatement: null,
+  inputsInline: true,
   colour: '%{BKY_SPRITES_HUE}',
 };
 
 javascriptGenerator.forBlock['changeProperty'] = function (block, generator) {
   const value = generator.valueToCode(block, 'VALUE', Order.NONE) || 0;
-  const spriteKey = block.getFieldValue('SPRITE');
+  const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || 0;
 
   return `scene.getSprite(${spriteKey === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey + '"'}).body.${block.getFieldValue(
     'PROPERTY'
@@ -89,9 +89,8 @@ const getProperty = {
   message0: 'get %1 %2',
   args0: [
     {
-      type: 'field_dropdown',
+      type: 'input_value',
       name: 'SPRITE',
-      options: getSpriteDropdownOptions,
     },
     {
       type: 'field_dropdown',
@@ -109,7 +108,7 @@ const getProperty = {
 };
 
 javascriptGenerator.forBlock['getProperty'] = function (block, generator) {
-  const spriteKey = block.getFieldValue('SPRITE');
+  const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || 0;
   
   const code = `scene.getSprite(${spriteKey === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey + '"'}).${block.getFieldValue(
     'PROPERTY'
@@ -124,9 +123,8 @@ const setRotation = {
   message0: "rotate %1 to %2",
   args0: [
     {
-      type: 'field_dropdown',
+      type: 'input_value',
       name: 'SPRITE',
-      options: getSpriteDropdownOptions,
     },
     {
       type: 'input_value',
@@ -135,12 +133,13 @@ const setRotation = {
   ],
   previousStatement: null,
   nextStatement: null,
+  inputsInline: true,
   colour: "%{BKY_SPRITES_HUE}"
 }
 
 javascriptGenerator.forBlock['setRotation'] = function (block, generator) {
   const value = generator.valueToCode(block, 'VALUE', Order.NONE) || 0;
-  const spriteKey = block.getFieldValue('SPRITE');
+  const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || 0;
 
   return `scene.getSprite(${spriteKey === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey + '"'}).angle = (${value}-90) % 360\n`;
 };
@@ -152,9 +151,8 @@ const pointAtXY = {
   message0: "point %1 at x:%2 y:%3",
   args0: [
     {
-      type: 'field_dropdown',
+      type: 'input_value',
       name: 'SPRITE',
-      options: getSpriteDropdownOptions,
     },
     {
       type: "input_value",
@@ -169,14 +167,15 @@ const pointAtXY = {
   ],
   previousStatement: null,
   nextStatement: null,
+  inputsInline: true,
   colour: "%{BKY_SPRITES_HUE}",
-  inlineInputs: true
+  
 }
 
 javascriptGenerator.forBlock['pointAtXY'] = function (block, generator) {
   const x = generator.valueToCode(block, 'x', Order.NONE) || 0;
   const y = generator.valueToCode(block, 'y', Order.NONE) || 0;
-  const spriteKey = block.getFieldValue('SPRITE');
+  const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || 0;
   const spriteName = `scene.getSprite(${spriteKey === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey + '"'})`
 
 
