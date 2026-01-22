@@ -191,7 +191,6 @@ export default class GameScene extends Phaser.Scene {
     for (const sprite of this.gameSprites.values()) {
       this.physics.add.collider(sprite, this.groundLayer);
       // Enable gravity for sprites so they fall onto the ground
-      sprite.setGravityY(300);
       sprite.setCollideWorldBounds(true);
     }
   }
@@ -225,7 +224,6 @@ export default class GameScene extends Phaser.Scene {
     // Add collision with ground if tilemap exists
     if (this.groundLayer) {
       this.physics.add.collider(sprite, this.groundLayer);
-      sprite.setGravityY(300);
       sprite.setCollideWorldBounds(true);
     }
 
