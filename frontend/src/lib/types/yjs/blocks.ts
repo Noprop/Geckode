@@ -7,6 +7,7 @@ export type Block = Omit<
   isShadow: boolean;
   parentId: string;
   inputName: string;
+  comment: string;
 }>;
 
 export interface SerializedBlock extends Omit<Block, "isShadow" | "parentId"> {

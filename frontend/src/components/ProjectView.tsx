@@ -16,7 +16,7 @@ import SpriteEditor, {
 import { Button } from "./ui/Button";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import { useBlockSync } from "@/hooks/useBlockSync";
-import { useVariableSync } from "@/hooks/useVariablesSync";
+import { useVariableSync } from "@/hooks/useVariableSync";
 
 export type PhaserRef = {
   readonly game: Game;
@@ -39,7 +39,7 @@ interface ProjectViewProps {
 
 const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
   const documentName = String(projectId ?? 0);
-  
+
   const showSnackbar = useSnackbar();
   const blocklyRef = useRef<BlocklyEditorRef>(null);
   const phaserRef = useRef<{ game?: any; scene?: any } | null>(null);

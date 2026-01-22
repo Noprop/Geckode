@@ -64,6 +64,7 @@ export const serializeBlock = (
     "enabled": "isEnabled",
     "inline": "inputsInline",
     "data": "data",
+    "comment": "getCommentText",
   };
 
   return {
@@ -138,7 +139,9 @@ export const getBlocksFromSerializedBlock = (
       ...Object.fromEntries(
         (["type", "fields", "x", "y", "parentId", "isShadow",
           "inputName", "extraState", "collapsed", "deletable",
-          "movable", "editable", "enabled", "inline", "data"])
+          "movable", "editable", "enabled", "inline", "data",
+          "comment",
+        ])
           .map((field) => (
             [field, block[field as keyof SerializedBlock]])
           )

@@ -188,6 +188,7 @@ export const useBlockSync = (
           "enabled": "setDisabledReason",
           "inline": "inputsInline",
           "data": "data",
+          "comment": "setCommentText",
         };
 
         // Keep track of connections to reconnect them (something disconnects here)
@@ -202,7 +203,11 @@ export const useBlockSync = (
             } else {
               (block[method] as Function)(
                 data[field as keyof Block] ?? (
-                  method === "loadExtraState" ? {} : false
+                  method === "loadExtraState"
+                    ? {}
+                    : method === "setCommentText"
+                      ? null
+                      : false
                 )
               );
             }
