@@ -26,6 +26,7 @@ const SpriteEditor = () => {
   } | null>(null);
   const [zoom, setZoom] = useState(10);
   const [gridSize, setGridSize] = useState(48);
+  const [isEditingZoom, setIsEditingZoom] = useState(false);
   const addSpriteToGame = useSpriteStore((state) => state.addSpriteToGame);
   const setIsSpriteModalOpen = useSpriteStore((state) => state.setIsSpriteModalOpen);
   const registerTexture = useSpriteStore((state) => state.registerTexture);
@@ -585,7 +586,30 @@ const SpriteEditor = () => {
               <path d="M21 21l-4.35-4.35M8 11h6" />
             </svg>
           </button>
-          <span className="text-xs text-slate-300 w-16 text-center">{Math.round((zoom / 10) * 100)}%</span>
+          {isEditingZoom ? (
+            <input
+              type="number"
+              defaultValue={Math.round(zoom * 10)}
+              onBlur={(e) => {
+                const percent = parseInt(e.target.value, 10);
+                if (!isNaN(percent)) setZoom(Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, percent / 10)));
+                setIsEditingZoom(false);
+              }}
+              onKeyDown={(e) => e.key === 'Enter' ? e.currentTarget.blur() : e.key === 'Escape' && setIsEditingZoom(false)}
+              className="w-14 h-6 px-1 text-xs text-slate-300 text-center bg-slate-600 border border-slate-500 rounded outline-none focus:border-primary-green [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              autoFocus
+              onFocus={(e) => e.target.select()}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsEditingZoom(true)}
+              className="w-14 h-6 text-xs text-slate-300 text-center hover:bg-slate-600 rounded cursor-pointer transition"
+              title="Click to edit zoom"
+            >
+              {Math.round(zoom * 10)}%
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setZoom((z) => Math.min(MAX_ZOOM, z + 1.5))}
