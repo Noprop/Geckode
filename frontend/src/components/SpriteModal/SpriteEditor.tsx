@@ -20,12 +20,11 @@ const SpriteEditor = () => {
   const [activeTool, setActiveTool] = useState<Tool>('pen');
   const [showGrid, setShowGrid] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
-  const [rectangleStart, setRectangleStart] = useState<{
-    x: number;
-    y: number;
-  } | null>(null);
-  const [zoom, setZoom] = useState(10);
-  const [gridSize, setGridSize] = useState(48);
+  const [rectangleStart, setRectangleStart] = useState<{ x: number; y: number } | null>(null);
+  const [lineStart, setLineStart] = useState<{ x: number; y: number } | null>(null);
+  const [ovalStart, setOvalStart] = useState<{ x: number; y: number } | null>(null);
+  const [zoom, setZoom] = useState(7);
+  const [gridSize, setGridSize] = useState(64);
   const [isEditingZoom, setIsEditingZoom] = useState(false);
   const addSpriteToGame = useSpriteStore((state) => state.addSpriteToGame);
   const setIsSpriteModalOpen = useSpriteStore((state) => state.setIsSpriteModalOpen);
@@ -92,13 +91,13 @@ const SpriteEditor = () => {
   };
 
   const drawShadow = (x: number, y: number) => {
-    console.log('[SpriteEditor] drawShadow()');
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-    ctx.fillRect(x, y, 1, 1);
+    // console.log('[SpriteEditor] drawShadow()');
+    // const canvas = canvasRef.current;
+    // if (!canvas) return;
+    // const ctx = canvas.getContext('2d');
+    // if (!ctx) return;
+    // ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    // ctx.fillRect(x, y, 1, 1);
   }
 
   const drawChecker = useCallback(
@@ -137,6 +136,15 @@ const SpriteEditor = () => {
       ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
     });
 
+    // Render layer2 (preview layer) on top
+    layer2.forEach((color, index) => {
+      if (!color) return;
+      const x = index % gridSize;
+      const y = Math.floor(index / gridSize);
+      ctx.fillStyle = color;
+      ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+    });
+
     if (showGrid) {
       ctx.strokeStyle = 'rgba(15,23,42,0.15)';
       ctx.lineWidth = 0.5;
@@ -152,7 +160,7 @@ const SpriteEditor = () => {
         ctx.stroke();
       }
     }
-  }, [zoom, gridSize, drawChecker, layer1, showGrid]);
+  }, [zoom, gridSize, drawChecker, layer1, layer2, showGrid]);
 
   const renderPreview = useCallback(() => {
     const preview = previewRef.current;
@@ -223,25 +231,6 @@ const SpriteEditor = () => {
     },
     [gridSize]
   );
-  const drawRectangle = useCallback(
-    (x1: number, y1: number, x2: number, y2: number, color: string) => {
-      setLayer1((prev) => {
-        const next = [...prev];
-        const minX = Math.min(x1, x2);
-        const maxX = Math.max(x1, x2);
-        const minY = Math.min(y1, y2);
-        const maxY = Math.max(y1, y2);
-        for (let y = minY; y <= maxY; y++) {
-          for (let x = minX; x <= maxX; x++) {
-            next[y * gridSize + x] = color;
-          }
-        }
-        return next;
-      });
-    },
-    [gridSize]
-  );
-
   // Bresenham's line algorithm
   const getLinePixels = (x0: number, y0: number, x1: number, y1: number) => {
     const pixels: { x: number; y: number }[] = [];
@@ -271,17 +260,55 @@ const SpriteEditor = () => {
     return pixels;
   };
 
+  // Apply brush size to a list of pixels
+  const applyBrush = (pixels: { x: number; y: number }[], color: string, layer: string[]) => {
+    const offset = Math.floor(brushSize / 2);
+    pixels.forEach(p => {
+      for (let dy = 0; dy < brushSize; dy++) {
+        for (let dx = 0; dx < brushSize; dx++) {
+          const px = Math.max(0, Math.min(gridSize - 1, p.x + dx - offset));
+          const py = Math.max(0, Math.min(gridSize - 1, p.y + dy - offset));
+          layer[py * gridSize + px] = color;
+        }
+      }
+    });
+  };
+
+  // Get pixels for hollow rectangle outline
+  const getRectanglePixels = (x1: number, y1: number, x2: number, y2: number) => {
+    const minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
+    const minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
+    const pixels: { x: number; y: number }[] = [];
+    for (let x = minX; x <= maxX; x++) { pixels.push({ x, y: minY }, { x, y: maxY }); }
+    for (let y = minY + 1; y < maxY; y++) { pixels.push({ x: minX, y }, { x: maxX, y }); }
+    return pixels;
+  };
+
+  // Get pixels for hollow oval outline
+  const getOvalPixels = (x1: number, y1: number, x2: number, y2: number) => {
+    const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
+    const rx = Math.abs(x2 - x1) / 2, ry = Math.abs(y2 - y1) / 2;
+    if (rx === 0 || ry === 0) return [];
+    const pixels: { x: number; y: number }[] = [];
+    const steps = Math.max(Math.ceil(2 * Math.PI * Math.max(rx, ry)), 32);
+    for (let i = 0; i < steps; i++) {
+      const angle = (2 * Math.PI * i) / steps;
+      const x = Math.round(cx + rx * Math.cos(angle));
+      const y = Math.round(cy + ry * Math.sin(angle));
+      if (x >= 0 && x < gridSize && y >= 0 && y < gridSize) pixels.push({ x, y });
+    }
+    return pixels;
+  };
+
   // Pointer events
-  const getPointerPosition = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+  const getPointerPosition = (event: { clientX: number; clientY: number }, allowOutside = false) => {
     const canvas = canvasRef.current;
     if (!canvas) return null;
     const rect = canvas.getBoundingClientRect();
-    console.log('[SpriteEditor] getPointerPosition()', event, rect);
     const scale = rect.width / gridSize;
-    console.log('[SpriteEditor] getPointerPosition() scale:', scale);
     const x = Math.floor((event.clientX - rect.left) / scale);
     const y = Math.floor((event.clientY - rect.top) / scale);
-    if (x < 0 || y < 0 || x >= gridSize || y >= gridSize) return null;
+    if (!allowOutside && (x < 0 || y < 0 || x >= gridSize || y >= gridSize)) return null;
     return { x, y };
   };
   const handlePointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
@@ -308,41 +335,83 @@ const SpriteEditor = () => {
     } else if (activeTool === 'rectangle') {
       setRectangleStart(position);
       setIsDrawing(true);
+    } else if (activeTool === 'line') {
+      setLineStart(position);
+      setIsDrawing(true);
+    } else if (activeTool === 'oval') {
+      setOvalStart(position);
+      setIsDrawing(true);
+    } else if (activeTool === 'color-picker') {
+      const pickedColor = layer1[position.y * gridSize + position.x];
+      setPrimaryColor(pickedColor);
     }
   };
-  const handlePointerMove = (event: ReactPointerEvent<HTMLCanvasElement>) => {
-    const position = getPointerPosition(event);
-    if (!position) return;
-    if (!isDrawing) {
-      drawShadow(position.x, position.y);
-      return;
-    }
+  // Clip line endpoint to canvas boundary while preserving direction
+  const clipToCanvas = (start: { x: number; y: number }, end: { x: number; y: number }) => {
+    let { x, y } = end;
+    const dx = x - start.x, dy = y - start.y;
+    let t = 1;
+    if (x < 0) t = Math.min(t, -start.x / dx);
+    if (x >= gridSize) t = Math.min(t, (gridSize - 1 - start.x) / dx);
+    if (y < 0) t = Math.min(t, -start.y / dy);
+    if (y >= gridSize) t = Math.min(t, (gridSize - 1 - start.y) / dy);
+    if (t < 1) { x = Math.round(start.x + dx * t); y = Math.round(start.y + dy * t); }
+    return { x: Math.max(0, Math.min(gridSize - 1, x)), y: Math.max(0, Math.min(gridSize - 1, y)) };
+  };
 
-    // Use color based on which button initiated drawing
+  const handlePointerMove = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    const isShapeTool = ['line', 'rectangle', 'oval'].includes(activeTool);
+    const position = getPointerPosition(event, isDrawing && isShapeTool);
+    if (!position) return;
+    if (!isDrawing) { drawShadow(position.x, position.y); return; }
+
     const color = activeButtonRef.current === 2 ? secondaryColor : primaryColor;
 
     if (activeTool === 'pen') {
       const prev = prevPosRef.current;
       if (prev && (Math.abs(position.x - prev.x) > 1 || Math.abs(position.y - prev.y) > 1)) {
-        // fast movement - interpolate using Bresenham's line
-        const pixels = getLinePixels(prev.x, prev.y, position.x, position.y);
-        pixels.forEach(p => paintAt(p.x, p.y, color));
+        getLinePixels(prev.x, prev.y, position.x, position.y).forEach(p => paintAt(p.x, p.y, color));
       } else {
         paintAt(position.x, position.y, color);
       }
       prevPosRef.current = position;
     } else if (activeTool === 'eraser') {
       paintAt(position.x, position.y, '');
+    } else if (activeTool === 'line' && lineStart) {
+      const cp = clipToCanvas(lineStart, position);
+      const pixels = getLinePixels(lineStart.x, lineStart.y, cp.x, cp.y);
+      setLayer2(() => { const next = Array(gridSize * gridSize).fill(''); applyBrush(pixels, color, next); return next; });
+    } else if (activeTool === 'rectangle' && rectangleStart) {
+      const cp = clipToCanvas(rectangleStart, position);
+      const pixels = getRectanglePixels(rectangleStart.x, rectangleStart.y, cp.x, cp.y);
+      setLayer2(() => { const next = Array(gridSize * gridSize).fill(''); applyBrush(pixels, color, next); return next; });
+    } else if (activeTool === 'oval' && ovalStart) {
+      const cp = clipToCanvas(ovalStart, position);
+      const pixels = getOvalPixels(ovalStart.x, ovalStart.y, cp.x, cp.y);
+      setLayer2(() => { const next = Array(gridSize * gridSize).fill(''); applyBrush(pixels, color, next); return next; });
     }
   };
   const handlePointerUp = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    const pos = getPointerPosition(event, true);
+    if (!pos) return;
+    const color = activeButtonRef.current === 2 ? secondaryColor : primaryColor;
+    const clearLayer2 = () => setLayer2(Array(gridSize * gridSize).fill(''));
+
+    const commitShape = (start: { x: number; y: number }, pixels: { x: number; y: number }[], resetStart: () => void) => {
+      setLayer1((prev) => { const next = [...prev]; applyBrush(pixels, color, next); return next; });
+      resetStart();
+      clearLayer2();
+    };
+
     if (activeTool === 'rectangle' && rectangleStart && isDrawing) {
-      const position = getPointerPosition(event);
-      if (position) {
-        const color = activeButtonRef.current === 2 ? secondaryColor : primaryColor;
-        drawRectangle(rectangleStart.x, rectangleStart.y, position.x, position.y, color);
-      }
-      setRectangleStart(null);
+      const cp = clipToCanvas(rectangleStart, pos);
+      commitShape(rectangleStart, getRectanglePixels(rectangleStart.x, rectangleStart.y, cp.x, cp.y), () => setRectangleStart(null));
+    } else if (activeTool === 'line' && lineStart && isDrawing) {
+      const cp = clipToCanvas(lineStart, pos);
+      commitShape(lineStart, getLinePixels(lineStart.x, lineStart.y, cp.x, cp.y), () => setLineStart(null));
+    } else if (activeTool === 'oval' && ovalStart && isDrawing) {
+      const cp = clipToCanvas(ovalStart, pos);
+      commitShape(ovalStart, getOvalPixels(ovalStart.x, ovalStart.y, cp.x, cp.y), () => setOvalStart(null));
     }
     setIsDrawing(false);
   };
@@ -395,10 +464,6 @@ const SpriteEditor = () => {
   };
 
   useEffect(() => {
-    const stopDrawing = () => setIsDrawing(false);
-    window.addEventListener('pointerup', stopDrawing);
-    window.addEventListener('pointerleave', stopDrawing);
-
     const handleWheel = (event: WheelEvent) => {
       if (event.ctrlKey || event.metaKey) {
         event.preventDefault();
@@ -406,16 +471,43 @@ const SpriteEditor = () => {
         setZoom((z) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z + delta)));
       }
     };
-
     const container = canvasContainerRef.current;
     if (!container) throw new Error('Canvas container should exist.');
     container.addEventListener('wheel', handleWheel, { passive: false });
-    return () => {
-      window.removeEventListener('pointerup', stopDrawing);
-      window.removeEventListener('pointerleave', stopDrawing);
-      container.removeEventListener('wheel', handleWheel);
-    };
+    return () => container.removeEventListener('wheel', handleWheel);
   }, []);
+
+  // Window-level pointer tracking for shape tools
+  useEffect(() => {
+    if (!isDrawing) return;
+    const isShapeTool = lineStart || rectangleStart || ovalStart;
+    if (!isShapeTool) return;
+
+    const color = activeButtonRef.current === 2 ? secondaryColor : primaryColor;
+    const handleWindowMove = (e: PointerEvent) => {
+      const pos = getPointerPosition(e, true);
+      if (!pos) return;
+      let pixels: { x: number; y: number }[] = [];
+      if (lineStart) { const cp = clipToCanvas(lineStart, pos); pixels = getLinePixels(lineStart.x, lineStart.y, cp.x, cp.y); }
+      else if (rectangleStart) { const cp = clipToCanvas(rectangleStart, pos); pixels = getRectanglePixels(rectangleStart.x, rectangleStart.y, cp.x, cp.y); }
+      else if (ovalStart) { const cp = clipToCanvas(ovalStart, pos); pixels = getOvalPixels(ovalStart.x, ovalStart.y, cp.x, cp.y); }
+      setLayer2(() => { const next = Array(gridSize * gridSize).fill(''); applyBrush(pixels, color, next); return next; });
+    };
+    const handleWindowUp = (e: PointerEvent) => {
+      const pos = getPointerPosition(e, true);
+      if (!pos) { setIsDrawing(false); return; }
+      let pixels: { x: number; y: number }[] = [];
+      if (lineStart) { const cp = clipToCanvas(lineStart, pos); pixels = getLinePixels(lineStart.x, lineStart.y, cp.x, cp.y); setLineStart(null); }
+      else if (rectangleStart) { const cp = clipToCanvas(rectangleStart, pos); pixels = getRectanglePixels(rectangleStart.x, rectangleStart.y, cp.x, cp.y); setRectangleStart(null); }
+      else if (ovalStart) { const cp = clipToCanvas(ovalStart, pos); pixels = getOvalPixels(ovalStart.x, ovalStart.y, cp.x, cp.y); setOvalStart(null); }
+      setLayer1((prev) => { const next = [...prev]; applyBrush(pixels, color, next); return next; });
+      setLayer2(Array(gridSize * gridSize).fill(''));
+      setIsDrawing(false);
+    };
+    window.addEventListener('pointermove', handleWindowMove);
+    window.addEventListener('pointerup', handleWindowUp);
+    return () => { window.removeEventListener('pointermove', handleWindowMove); window.removeEventListener('pointerup', handleWindowUp); };
+  }, [isDrawing, lineStart, rectangleStart, ovalStart, primaryColor, secondaryColor, gridSize, brushSize]);
 
   // Keyboard shortcuts for undo/redo
   useEffect(() => {
@@ -445,7 +537,7 @@ const SpriteEditor = () => {
     <div className="flex-1 min-h-0 flex border-t border-slate-200 bg-slate-800 dark:border-slate-700">
       <div className="w-30 flex flex-col gap-3 p-2 bg-slate-700 dark:bg-slate-800 border-r border-slate-600">
         <div className="grid grid-cols-3 rounded overflow-hidden">
-          {[2, 3, 4].map((size) => (
+          {[1, 2, 3].map((size) => (
             <button
               key={size}
               type="button"
