@@ -187,11 +187,38 @@ const BlocklyEditor = () => {
       useEditorStore.getState().updateUndoRedoState();
 
       if (!projectId) {
-        if (workspaceRef.current?.getAllBlocks(false).length <= 0) {
-          Blockly.serialization.workspaces.load(starterWorkspace, workspaceRef.current!);
+        const loadPersistedOrDefault = () => {
+          let spriteId = useSpriteStore.getState().spriteInstances[0]?.id;
 
-          useEditorStore.getState().setSpriteId(useSpriteStore.getState().spriteInstances[0]?.id ?? '');
+          // no sprites - create a default front-facing sprite
+          if (!spriteId) {
+            spriteId = `id_${Date.now()}_${Math.round(Math.random() * 1e4)}`;
+            useSpriteStore.setState({
+              spriteInstances: [{
+                id: spriteId,
+                instanceId: spriteId,
+                textureName: 'hero-walk-front',
+                name: 'herowalkfront1',
+                x: 200,
+                y: 150,
+              }],
+            });
+          }
+
+          const persisted = useEditorStore.getState().spriteWorkspaces.get(spriteId);
+          Blockly.serialization.workspaces.load(
+            persisted ?? starterWorkspace,
+            workspaceRef.current!
+          );
+          useEditorStore.getState().setSpriteId(spriteId);
           useEditorStore.getState().scheduleConvert();
+        };
+
+        // call immediately if hydrated, otherwise wait
+        if (useEditorStore.persist.hasHydrated()) {
+          loadPersistedOrDefault();
+        } else {
+          useEditorStore.persist.onFinishHydration(loadPersistedOrDefault);
         }
         return;
       }

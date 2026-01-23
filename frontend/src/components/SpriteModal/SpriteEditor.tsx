@@ -187,7 +187,6 @@ const SpriteEditor = () => {
   // Tools
   const paintAt = useCallback(
     (x: number, y: number, color: string) => {
-      console.log('[SpriteEditor] paintAt()', x, y, color);
       setLayer1((prev) => {
         const next = [...prev];
         const offset = Math.floor(brushSize / 2);
@@ -198,7 +197,6 @@ const SpriteEditor = () => {
             next[py * gridSize + px] = color;
           }
         }
-        console.log('[SpriteEditor] paintAt()', next);
         return next;
       });
     },
