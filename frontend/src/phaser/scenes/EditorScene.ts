@@ -38,9 +38,6 @@ export default class EditorScene extends Phaser.Scene {
   async create() {
     this.showGrid();
 
-    console.log('hero-walk-front exists: ', this.textures.exists('hero-walk-front'));
-    console.log('test exists: ', this.textures.exists('test'));
-
     this.editorSprites.clear();
     this.gridGraphics = null; // Reset on scene restart
     this.tilemap = null;
@@ -70,8 +67,6 @@ export default class EditorScene extends Phaser.Scene {
     }
 
     EventBus.emit('current-scene-ready', this);
-
-    console.log(this.textures.getTextureKeys());
   }
 
   private generateTilesetTexture(): void {
@@ -188,7 +183,6 @@ export default class EditorScene extends Phaser.Scene {
     // TODO: Add collision detection
     // this.player.setCollideWorldBounds(true);
 
-    // console.log(this.scene)
     return sprite;
   }
 
@@ -241,7 +235,7 @@ export default class EditorScene extends Phaser.Scene {
 
     if (!this.gridGraphics) {
       this.gridGraphics = this.add.graphics();
-      this.gridGraphics.setDepth(Number.MAX_SAFE_INTEGER);
+      this.gridGraphics.setDepth(EditorScene.EDITOR_SPRITE_BASE_DEPTH - 1);
     }
 
     this.gridGraphics.clear();
@@ -297,10 +291,7 @@ export default class EditorScene extends Phaser.Scene {
   }
 
   public hideGrid(): void {
-    console.log('[EditorScene] hiding grid');
-    if (this.gridGraphics) {
-      this.gridGraphics.setVisible(false);
-    }
+    if (this.gridGraphics) this.gridGraphics.setVisible(false);
   }
 
   update() {}
@@ -408,8 +399,6 @@ export default class EditorScene extends Phaser.Scene {
       const snappedY = Math.round(finalY);
       sprite.setPosition(snappedX, snappedY);
       this.editorLayer.bringToTop(sprite);
-
-      console.log('[EditorScene] sprite moved: ', sprite.getData('editorSpriteId'), snappedX, snappedY);
 
       EventBus.emit('editor-sprite-moved', {
         id: sprite.getData('editorSpriteId'),
