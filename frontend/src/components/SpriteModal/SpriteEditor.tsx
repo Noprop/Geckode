@@ -507,6 +507,20 @@ const SpriteEditor = () => {
     return () => { window.removeEventListener('pointermove', handleWindowMove); window.removeEventListener('pointerup', handleWindowUp); };
   }, [isDrawing, lineStart, rectangleStart, ovalStart, primaryColor, secondaryColor, gridSize, brushSize]);
 
+  // Window-level pointer tracking for pen and eraser
+  useEffect(() => {
+    if (!isDrawing) return;
+    if (activeTool !== 'pen' && activeTool !== 'eraser') return;
+
+    const handleWindowUp = () => {
+      setIsDrawing(false);
+      prevPosRef.current = null;
+    };
+
+    window.addEventListener('pointerup', handleWindowUp);
+    return () => window.removeEventListener('pointerup', handleWindowUp);
+  }, [isDrawing, activeTool]);
+
   // Keyboard shortcuts for undo/redo
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -558,9 +572,9 @@ const SpriteEditor = () => {
           <button
             type="button"
             onClick={swapColors}
-            className="absolute right-1.5 bottom-0 w-18 h-8 rounded-xs cursor-pointer transition"
+            className="absolute right-1.5 bottom-0 w-18 h-8 rounded-xs cursor-pointer transition-shadow"
             style={{
-              backgroundColor: secondaryColor || undefined,
+              backgroundColor: secondaryColor || '#9e9e9e',
               backgroundImage: !secondaryColor
                 ? 'linear-gradient(45deg, #6e6e6e 25%, transparent 25%), linear-gradient(-45deg, #6e6e6e 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #6e6e6e 75%), linear-gradient(-45deg, transparent 75%, #6e6e6e 75%)'
                 : undefined,
@@ -572,9 +586,9 @@ const SpriteEditor = () => {
           <button
             type="button"
             onClick={swapColors}
-            className="absolute left-1.5 top-0 w-18 h-8 rounded-xs cursor-pointer transition"
+            className="absolute left-1.5 top-0 w-18 h-8 rounded-xs cursor-pointer transition-shadow"
             style={{
-              backgroundColor: primaryColor || undefined,
+              backgroundColor: primaryColor || '#9e9e9e',
               backgroundImage: !primaryColor
                 ? 'linear-gradient(45deg, #6e6e6e 25%, transparent 25%), linear-gradient(-45deg, #6e6e6e 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #6e6e6e 75%), linear-gradient(-45deg, transparent 75%, #6e6e6e 75%)'
                 : undefined,
