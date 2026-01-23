@@ -12,8 +12,6 @@ const PhaserSpriteList = () => {
   const setSelectedSprite = useSpriteStore((state) => state.setSelectedSprite);
   const removeSpriteFromGame = useSpriteStore((state) => state.removeSpriteFromGame);
 
-  console.log('[STATE FROM SPRITE LIST] selectedSpriteId: ', selectedSpriteId);
-
   const handleSpriteSelect = (spriteId: string) => {
     useEditorStore.getState().loadWorkspace(spriteId);
     setSelectedSpriteId(spriteId);

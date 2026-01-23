@@ -6,17 +6,17 @@ import { Button } from '../ui/Button';
 import { useSpriteStore } from '@/stores/spriteStore';
 import EditorTools from './EditorTools';
 
-const GRID_SIZE = 48;
 const MIN_ZOOM = 6;
 const MAX_ZOOM = 20;
 const MAX_HISTORY = 50;
 
-type Tool = 'pen' | 'eraser' | 'bucket' | 'rectangle' | 'line' | 'oval' | 'rectangle-selection' | 'pan-tool' | 'color-picker';
+export type Tool = 'pen' | 'eraser' | 'bucket' | 'rectangle' | 'line' | 'oval' | 'rectangle-selection' | 'pan-tool' | 'color-picker';
 
 const SpriteEditor = () => {
   const [spriteName, setSpriteName] = useState('Custom Sprite');
   const [brushSize, setBrushSize] = useState(2);
-  const [selectedColor, setSelectedColor] = useState('#10b981');
+  const [primaryColor, setPrimaryColor] = useState('#10b981');
+  const [secondaryColor, setSecondaryColor] = useState('#3b82f6');
   const [activeTool, setActiveTool] = useState<Tool>('pen');
   const [showGrid, setShowGrid] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -25,6 +25,7 @@ const SpriteEditor = () => {
     y: number;
   } | null>(null);
   const [zoom, setZoom] = useState(10);
+  const [gridSize, setGridSize] = useState(48);
   const addSpriteToGame = useSpriteStore((state) => state.addSpriteToGame);
   const setIsSpriteModalOpen = useSpriteStore((state) => state.setIsSpriteModalOpen);
   const registerTexture = useSpriteStore((state) => state.registerTexture);
@@ -34,10 +35,17 @@ const SpriteEditor = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const previewRef = useRef<HTMLCanvasElement | null>(null);
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
+  const activeButtonRef = useRef<number>(0); // 0 = left click, 2 = right click
+
+  // Swap primary and secondary colors
+  const swapColors = () => {
+    setPrimaryColor(secondaryColor);
+    setSecondaryColor(primaryColor);
+  };
 
   // Layer 1 is the main layer, layer 2 is for visual effects that aren't saved
-  const [layer1, setLayer1] = useState<string[]>(Array.from({ length: GRID_SIZE * GRID_SIZE }, () => ''));
-  const [layer2, setLayer2] = useState<string[]>(Array.from({ length: GRID_SIZE * GRID_SIZE }, () => ''));
+  const [layer1, setLayer1] = useState<string[]>(Array.from({ length: gridSize * gridSize }, () => ''));
+  const [layer2, setLayer2] = useState<string[]>(Array.from({ length: gridSize * gridSize }, () => ''));
 
   // Undo/Redo history
   const undoStackRef = useRef<string[][]>([]);
@@ -47,14 +55,14 @@ const SpriteEditor = () => {
 
   const palette = [
     '#ffffff',
-    '#000000',
-    '#10b981',
-    '#22c55e',
-    '#38bdf8',
     '#ef4444',
-    '#facc15',
-    '#a855f7',
-  ]; 
+    '#10b981',
+    '#3b82f6',
+    '#f97316',
+    '#000000',
+    '#8b5cf6',
+    '#fbbf24',
+  ];
 
   // Save current state to undo history
   const saveToHistory = () => {
@@ -96,15 +104,15 @@ const SpriteEditor = () => {
     (ctx: CanvasRenderingContext2D, cellSize: number) => {
       const light = '#9e9e9e';
       const dark = '#6e6e6e';
-      for (let y = 0; y < GRID_SIZE; y += 1) {
-        for (let x = 0; x < GRID_SIZE; x += 1) {
+      for (let y = 0; y < gridSize; y += 1) {
+        for (let x = 0; x < gridSize; x += 1) {
           const isDark = (x + y) % 2 === 0;
           ctx.fillStyle = isDark ? light : dark;
           ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
         }
       }
     },
-    [GRID_SIZE]
+    [gridSize]
   );
 
   const renderCanvas = useCallback(() => {
@@ -114,16 +122,16 @@ const SpriteEditor = () => {
     if (!ctx) return;
 
     const cellSize = Math.round(zoom);
-    canvas.width = GRID_SIZE * cellSize;
-    canvas.height = GRID_SIZE * cellSize;
+    canvas.width = gridSize * cellSize;
+    canvas.height = gridSize * cellSize;
     ctx.imageSmoothingEnabled = false;
 
     drawChecker(ctx, cellSize);
 
     layer1.forEach((color, index) => {
       if (!color) return;
-      const x = index % GRID_SIZE;
-      const y = Math.floor(index / GRID_SIZE);
+      const x = index % gridSize;
+      const y = Math.floor(index / gridSize);
       ctx.fillStyle = color;
       ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
     });
@@ -131,19 +139,19 @@ const SpriteEditor = () => {
     if (showGrid) {
       ctx.strokeStyle = 'rgba(15,23,42,0.15)';
       ctx.lineWidth = 0.5;
-      for (let i = 0; i <= GRID_SIZE; i += 1) {
+      for (let i = 0; i <= gridSize; i += 1) {
         ctx.beginPath();
         ctx.moveTo(i * cellSize + 0.25, 0);
-        ctx.lineTo(i * cellSize + 0.25, GRID_SIZE * cellSize);
+        ctx.lineTo(i * cellSize + 0.25, gridSize * cellSize);
         ctx.stroke();
 
         ctx.beginPath();
         ctx.moveTo(0, i * cellSize + 0.25);
-        ctx.lineTo(GRID_SIZE * cellSize, i * cellSize + 0.25);
+        ctx.lineTo(gridSize * cellSize, i * cellSize + 0.25);
         ctx.stroke();
       }
     }
-  }, [zoom, GRID_SIZE, drawChecker, layer1, showGrid]);
+  }, [zoom, gridSize, drawChecker, layer1, showGrid]);
 
   const renderPreview = useCallback(() => {
     const preview = previewRef.current;
@@ -152,22 +160,20 @@ const SpriteEditor = () => {
     if (!ctx) return;
 
     const scale = 4;
-    preview.width = GRID_SIZE * scale;
-    preview.height = GRID_SIZE * scale;
+    preview.width = gridSize * scale;
+    preview.height = gridSize * scale;
     ctx.imageSmoothingEnabled = false;
 
     drawChecker(ctx, scale);
 
     layer1.forEach((color, index) => {
       if (!color) return;
-      const x = index % GRID_SIZE;
-      const y = Math.floor(index / GRID_SIZE);
+      const x = index % gridSize;
+      const y = Math.floor(index / gridSize);
       ctx.fillStyle = color;
       ctx.fillRect(x * scale, y * scale, scale, scale);
     });
-  }, [GRID_SIZE, drawChecker, layer1]);
-
-  const clampCoord = (value: number) => Math.max(0, Math.min(GRID_SIZE - 1, value));
+  }, [gridSize, drawChecker, layer1]);
 
   // Tools
   const paintAt = useCallback(
@@ -178,22 +184,22 @@ const SpriteEditor = () => {
         const offset = Math.floor(brushSize / 2);
         for (let dy = 0; dy < brushSize; dy += 1) {
           for (let dx = 0; dx < brushSize; dx += 1) {
-            const px = Math.max(0, Math.min(GRID_SIZE - 1, x + dx - offset));
-            const py = Math.max(0, Math.min(GRID_SIZE - 1, y + dy - offset));
-            next[py * GRID_SIZE + px] = color;
+            const px = Math.max(0, Math.min(gridSize - 1, x + dx - offset));
+            const py = Math.max(0, Math.min(gridSize - 1, y + dy - offset));
+            next[py * gridSize + px] = color;
           }
         }
         console.log('[SpriteEditor] paintAt()', next);
         return next;
       });
     },
-    [GRID_SIZE, brushSize]
+    [gridSize, brushSize]
   );
   const floodFill = useCallback(
     (startX: number, startY: number, fillColor: string) => {
       setLayer1((prev) => {
         const next = [...prev];
-        const targetColor = prev[startY * GRID_SIZE + startX];
+        const targetColor = prev[startY * gridSize + startX];
         if (targetColor === fillColor) return prev;
 
         const queue: [number, number][] = [[startX, startY]];
@@ -203,18 +209,18 @@ const SpriteEditor = () => {
           const [x, y] = queue.shift()!;
           const key = `${x},${y}`;
           if (visited.has(key)) continue;
-          if (x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE) continue;
-          if (next[y * GRID_SIZE + x] !== targetColor) continue;
+          if (x < 0 || x >= gridSize || y < 0 || y >= gridSize) continue;
+          if (next[y * gridSize + x] !== targetColor) continue;
 
           visited.add(key);
-          next[y * GRID_SIZE + x] = fillColor;
+          next[y * gridSize + x] = fillColor;
 
           queue.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
         }
         return next;
       });
     },
-    [GRID_SIZE]
+    [gridSize]
   );
   const drawRectangle = useCallback(
     (x1: number, y1: number, x2: number, y2: number, color: string) => {
@@ -226,19 +232,19 @@ const SpriteEditor = () => {
         const maxY = Math.max(y1, y2);
         for (let y = minY; y <= maxY; y++) {
           for (let x = minX; x <= maxX; x++) {
-            next[y * GRID_SIZE + x] = color;
+            next[y * gridSize + x] = color;
           }
         }
         return next;
       });
     },
-    [GRID_SIZE]
+    [gridSize]
   );
 
   // Bresenham's line algorithm
   const getLinePixels = (x0: number, y0: number, x1: number, y1: number) => {
     const pixels: { x: number; y: number }[] = [];
-    
+
     const dx = Math.abs(x1 - x0);
     const dy = Math.abs(y1 - y0);
     const sx = x0 < x1 ? 1 : -1;
@@ -247,9 +253,9 @@ const SpriteEditor = () => {
 
     while (true) {
       pixels.push({ x: x0, y: y0 });
-      
+
       if (x0 === x1 && y0 === y1) break;
-      
+
       const e2 = 2 * err;
       if (e2 > -dy) {
         err -= dy;
@@ -260,7 +266,7 @@ const SpriteEditor = () => {
         y0 += sy;
       }
     }
-    
+
     return pixels;
   };
 
@@ -270,11 +276,11 @@ const SpriteEditor = () => {
     if (!canvas) return null;
     const rect = canvas.getBoundingClientRect();
     console.log('[SpriteEditor] getPointerPosition()', event, rect);
-    const scale = rect.width / GRID_SIZE;
+    const scale = rect.width / gridSize;
     console.log('[SpriteEditor] getPointerPosition() scale:', scale);
     const x = Math.floor((event.clientX - rect.left) / scale);
     const y = Math.floor((event.clientY - rect.top) / scale);
-    if (x < 0 || y < 0 || x >= GRID_SIZE || y >= GRID_SIZE) return null;
+    if (x < 0 || y < 0 || x >= gridSize || y >= gridSize) return null;
     return { x, y };
   };
   const handlePointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
@@ -282,24 +288,28 @@ const SpriteEditor = () => {
     const position = getPointerPosition(event);
     if (!position) return;
 
+    // Track which button was pressed (0 = left, 2 = right)
+    activeButtonRef.current = event.button;
+    const color = event.button === 2 ? secondaryColor : primaryColor;
+
     // Save state before drawing for undo
     saveToHistory();
 
     if (activeTool === 'pen') {
       setIsDrawing(true);
       prevPosRef.current = position;
-      paintAt(position.x, position.y, selectedColor);
+      paintAt(position.x, position.y, color);
     } else if (activeTool === 'eraser') {
       setIsDrawing(true);
       paintAt(position.x, position.y, '');
     } else if (activeTool === 'bucket') {
-      floodFill(position.x, position.y, selectedColor);
+      floodFill(position.x, position.y, color);
     } else if (activeTool === 'rectangle') {
       setRectangleStart(position);
       setIsDrawing(true);
     }
   };
-  const handlePointerMove = (event: ReactPointerEvent<HTMLCanvasElement>) => { 
+  const handlePointerMove = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     const position = getPointerPosition(event);
     if (!position) return;
     if (!isDrawing) {
@@ -307,14 +317,17 @@ const SpriteEditor = () => {
       return;
     }
 
+    // Use color based on which button initiated drawing
+    const color = activeButtonRef.current === 2 ? secondaryColor : primaryColor;
+
     if (activeTool === 'pen') {
       const prev = prevPosRef.current;
       if (prev && (Math.abs(position.x - prev.x) > 1 || Math.abs(position.y - prev.y) > 1)) {
         // fast movement - interpolate using Bresenham's line
         const pixels = getLinePixels(prev.x, prev.y, position.x, position.y);
-        pixels.forEach(p => paintAt(p.x, p.y, selectedColor));
+        pixels.forEach(p => paintAt(p.x, p.y, color));
       } else {
-        paintAt(position.x, position.y, selectedColor);
+        paintAt(position.x, position.y, color);
       }
       prevPosRef.current = position;
     } else if (activeTool === 'eraser') {
@@ -325,7 +338,8 @@ const SpriteEditor = () => {
     if (activeTool === 'rectangle' && rectangleStart && isDrawing) {
       const position = getPointerPosition(event);
       if (position) {
-        drawRectangle(rectangleStart.x, rectangleStart.y, position.x, position.y, selectedColor);
+        const color = activeButtonRef.current === 2 ? secondaryColor : primaryColor;
+        drawRectangle(rectangleStart.x, rectangleStart.y, position.x, position.y, color);
       }
       setRectangleStart(null);
     }
@@ -339,29 +353,29 @@ const SpriteEditor = () => {
     const label = spriteName.trim() || 'Custom Sprite';
     const safeBase = label.toLowerCase().replace(/[^\w]/g, '') || 'customsprite';
     const texture = `${safeBase}-${Date.now()}`;
-  
+
     // Create a clean canvas with just the sprite pixels (no grid)
     const exportCanvas = document.createElement('canvas');
-    exportCanvas.width = GRID_SIZE;
-    exportCanvas.height = GRID_SIZE;
+    exportCanvas.width = gridSize;
+    exportCanvas.height = gridSize;
     const ctx = exportCanvas.getContext('2d');
     if (!ctx) return;
-  
+
     // Draw pixels to export canvas
     layer1.forEach((color, index) => {
       if (!color) return;
-      const x = index % GRID_SIZE;
-      const y = Math.floor(index / GRID_SIZE);
+      const x = index % gridSize;
+      const y = Math.floor(index / gridSize);
       ctx.fillStyle = color;
       ctx.fillRect(x, y, 1, 1);
     });
-  
+
     // Convert to data URL
     const dataUrl = exportCanvas.toDataURL('image/png');
-  
+
     // Register the texture before adding sprite
     registerTexture(texture, dataUrl, true);
-  
+
     const spriteId = `id_${Date.now()}_${Math.round(Math.random() * 1e4)}`;
     addToSpriteLibrary({
       id: spriteId,
@@ -429,17 +443,16 @@ const SpriteEditor = () => {
   return (
     <div className="flex-1 min-h-0 flex border-t border-slate-200 bg-slate-800 dark:border-slate-700">
       <div className="w-30 flex flex-col gap-3 p-2 bg-slate-700 dark:bg-slate-800 border-r border-slate-600">
-        <div className="grid grid-cols-2 gap-1 pb-3 border-b border-slate-600">
-          {[1, 2, 3, 4].map((size) => (
+        <div className="grid grid-cols-3 rounded overflow-hidden">
+          {[2, 3, 4].map((size) => (
             <button
               key={size}
               type="button"
               onClick={() => setBrushSize(size)}
-              className={`w-6 h-6 flex items-center justify-center rounded cursor-pointer transition ${
-                brushSize === size
-                  ? 'bg-primary-green ring-2 ring-primary-green ring-offset-1 ring-offset-slate-700'
-                  : 'bg-slate-600 hover:bg-slate-500'
-              }`}
+              className={`h-9 flex items-center justify-center cursor-pointer transition ${brushSize === size
+                ? 'bg-primary-green'
+                : 'bg-slate-600 hover:bg-slate-500'
+                }`}
               title={`${size}x${size} brush`}
             >
               <div className="bg-white" style={{ width: size * 3 + 2, height: size * 3 + 2 }} />
@@ -449,41 +462,86 @@ const SpriteEditor = () => {
 
         <EditorTools activeTool={activeTool} setActiveTool={setActiveTool} />
 
-        <div className="grid grid-cols-2 gap-1">
-          {palette.slice(0, 8).map((color) => (
-            console.log('[SpriteEditor] palette', color),
-            <button
-              key={color}
-              type="button"
-              onClick={() => setSelectedColor(color)}
-              className={`w-6 h-6 rounded cursor-pointer transition ${
-                selectedColor === color ? 'ring-2 ring-white ring-offset-1 ring-offset-slate-700' : ''
-              }`}
-              style={{ backgroundColor: color }}
-              title={color}
-            />
-          ))}
+        {/* Dual color indicator */}
+        <div className="relative w-full h-12 mx-auto mt-2.5 mb-1">
+          <button
+            type="button"
+            onClick={swapColors}
+            className="absolute right-1.5 bottom-0 w-18 h-8 rounded-xs cursor-pointer transition"
+            style={{
+              backgroundColor: secondaryColor || undefined,
+              backgroundImage: !secondaryColor
+                ? 'linear-gradient(45deg, #6e6e6e 25%, transparent 25%), linear-gradient(-45deg, #6e6e6e 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #6e6e6e 75%), linear-gradient(-45deg, transparent 75%, #6e6e6e 75%)'
+                : undefined,
+              backgroundSize: '8px 8px',
+              backgroundPosition: '0 0, 0 4px, 4px -4px, -4px 0px',
+            }}
+            title="Secondary color (right-click) - Click to swap"
+          />
+          <button
+            type="button"
+            onClick={swapColors}
+            className="absolute left-1.5 top-0 w-18 h-8 rounded-xs cursor-pointer transition"
+            style={{
+              backgroundColor: primaryColor || undefined,
+              backgroundImage: !primaryColor
+                ? 'linear-gradient(45deg, #6e6e6e 25%, transparent 25%), linear-gradient(-45deg, #6e6e6e 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #6e6e6e 75%), linear-gradient(-45deg, transparent 75%, #6e6e6e 75%)'
+                : undefined,
+              backgroundSize: '8px 8px',
+              backgroundPosition: '0 0, 0 4px, 4px -4px, -4px 0px',
+            }}
+            title="Primary color (left-click) - Click to swap"
+          />
         </div>
 
-        <label
-          className="w-full h-8 flex items-center justify-center rounded cursor-pointer bg-slate-600 hover:bg-slate-500 transition"
-          title="Pick custom color"
-        >
-          <div className="w-4 h-4 rounded border border-white/30" style={{ backgroundColor: selectedColor }} />
-          <input
-            type="color"
-            value={selectedColor}
-            onChange={(e) => setSelectedColor(e.target.value)}
-            className="hidden"
-          />
-        </label>
+        {/* Color palette section */}
+        <div className="flex flex-col gap-2 pt-2">
+          <div className="grid grid-cols-3 w-full gap-1.5">
+            <button
+              type="button"
+              onClick={() => setPrimaryColor('')}
+              className="rounded-xs cursor-pointer transition aspect-square hover:ring-2 hover:ring-white/40"
+              style={{
+                backgroundImage: 'linear-gradient(45deg, #6e6e6e 25%, transparent 25%), linear-gradient(-45deg, #6e6e6e 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #6e6e6e 75%), linear-gradient(-45deg, transparent 75%, #6e6e6e 75%)',
+                backgroundSize: '8px 8px',
+                backgroundPosition: '0 0, 0 4px, 4px -4px, -4px 0px',
+                backgroundColor: '#9e9e9e',
+              }}
+              title="Transparent"
+            />
+            {palette.map((color) => (
+              <button
+                key={color}
+                type="button"
+                onClick={() => setPrimaryColor(color)}
+                className="rounded-xs cursor-pointer transition aspect-square hover:ring-2 hover:ring-white/40"
+                style={{ backgroundColor: color }}
+                title={color}
+              />
+            ))}
+          </div>
 
-        <div className="flex-1"/>
+          <label
+            className="w-full h-8 flex items-center justify-center gap-2 rounded cursor-pointer bg-slate-600 hover:bg-slate-500 transition"
+            title="Pick custom color"
+          >
+            <div className="w-4 h-4 rounded border border-white/30" style={{ backgroundColor: primaryColor }} />
+            <span className="text-xs text-slate-300">Custom</span>
+            <input
+              type="color"
+              value={primaryColor || '#000000'}
+              onChange={(e) => setPrimaryColor(e.target.value)}
+              className="hidden"
+            />
+          </label>
+        </div>
+
+        <div className="flex-1" />
         <button
           type="button"
           onClick={() => {
-            setLayer1(Array.from({ length: GRID_SIZE * GRID_SIZE }, () => ''));
-            setLayer2(Array.from({ length: GRID_SIZE * GRID_SIZE }, () => ''));
+            setLayer1(Array.from({ length: gridSize * gridSize }, () => ''));
+            setLayer2(Array.from({ length: gridSize * gridSize }, () => ''));
           }}
           className="w-full h-8 flex items-center justify-center rounded bg-red-600/80 hover:bg-red-600 text-white text-xs font-medium cursor-pointer transition"
           title="Clear canvas"
@@ -502,13 +560,14 @@ const SpriteEditor = () => {
               ref={canvasRef}
               className="cursor-crosshair select-none touch-none"
               style={{
-                width: GRID_SIZE * zoom,
-                height: GRID_SIZE * zoom,
+                width: gridSize * zoom,
+                height: gridSize * zoom,
                 imageRendering: 'pixelated',
               }}
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
+              onContextMenu={(e) => e.preventDefault()}
             />
           </div>
         </div>

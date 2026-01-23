@@ -1,7 +1,6 @@
 import { EraserIcon } from "@radix-ui/react-icons";
 import { PencilIcon, BucketIcon, LineIcon, CircleIcon, RectangleSelectionIcon, HandIcon, ColorPickerIcon } from '@/components/icons';
-
-type Tool = 'pen' | 'eraser' | 'bucket' | 'rectangle' | 'line' | 'oval' | 'rectangle-selection' | 'pan-tool' | 'color-picker';
+import type { Tool } from './SpriteEditor';
 
 interface ToolButtonProps {
   tool: Tool;
@@ -28,7 +27,7 @@ const ToolButton = ({ tool, activeTool, onClick, title, children }: ToolButtonPr
 
 const EditorTools = ({ activeTool, setActiveTool }: { activeTool: Tool, setActiveTool: (tool: Tool) => void }) => {
   return (
-    <div className="grid grid-cols-2 gap-2 w-fit mx-auto pb-3 border-b border-slate-600">
+    <div className="grid grid-cols-2 gap-2 w-fit mx-auto">
       <ToolButton tool="pen" activeTool={activeTool} onClick={() => setActiveTool('pen')} title="Pen tool">
         <PencilIcon className="w-5 h-5" />
       </ToolButton>
