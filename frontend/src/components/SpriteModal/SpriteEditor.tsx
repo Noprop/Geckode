@@ -2,19 +2,22 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
-import { Pencil2Icon, EraserIcon } from '@radix-ui/react-icons';
 import { Button } from '../ui/Button';
 import { useSpriteStore } from '@/stores/spriteStore';
+import EditorTools from './EditorTools';
 
 const GRID_SIZE = 48;
 const MIN_ZOOM = 6;
 const MAX_ZOOM = 20;
+const MAX_HISTORY = 50;
+
+type Tool = 'pen' | 'eraser' | 'bucket' | 'rectangle' | 'line' | 'oval' | 'rectangle-selection' | 'pan-tool' | 'color-picker';
 
 const SpriteEditor = () => {
   const [spriteName, setSpriteName] = useState('Custom Sprite');
   const [brushSize, setBrushSize] = useState(2);
   const [selectedColor, setSelectedColor] = useState('#10b981');
-  const [activeTool, setActiveTool] = useState<'pen' | 'bucket' | 'eraser' | 'rectangle'>('pen');
+  const [activeTool, setActiveTool] = useState<Tool>('pen');
   const [showGrid, setShowGrid] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
   const [rectangleStart, setRectangleStart] = useState<{
@@ -36,6 +39,12 @@ const SpriteEditor = () => {
   const [layer1, setLayer1] = useState<string[]>(Array.from({ length: GRID_SIZE * GRID_SIZE }, () => ''));
   const [layer2, setLayer2] = useState<string[]>(Array.from({ length: GRID_SIZE * GRID_SIZE }, () => ''));
 
+  // Undo/Redo history
+  const undoStackRef = useRef<string[][]>([]);
+  const redoStackRef = useRef<string[][]>([]);
+  const layer1Ref = useRef(layer1);
+  layer1Ref.current = layer1;
+
   const palette = [
     '#ffffff',
     '#000000',
@@ -46,6 +55,32 @@ const SpriteEditor = () => {
     '#facc15',
     '#a855f7',
   ]; 
+
+  // Save current state to undo history
+  const saveToHistory = () => {
+    undoStackRef.current.push([...layer1Ref.current]);
+    if (undoStackRef.current.length > MAX_HISTORY) {
+      undoStackRef.current.shift();
+    }
+    // Clear redo stack when new action is performed
+    redoStackRef.current = [];
+  };
+
+  // Undo function
+  const undo = () => {
+    if (undoStackRef.current.length === 0) return;
+    const previousState = undoStackRef.current.pop()!;
+    redoStackRef.current.push([...layer1Ref.current]);
+    setLayer1(previousState);
+  };
+
+  // Redo function
+  const redo = () => {
+    if (redoStackRef.current.length === 0) return;
+    const nextState = redoStackRef.current.pop()!;
+    undoStackRef.current.push([...layer1Ref.current]);
+    setLayer1(nextState);
+  };
 
   const drawShadow = (x: number, y: number) => {
     console.log('[SpriteEditor] drawShadow()');
@@ -78,7 +113,7 @@ const SpriteEditor = () => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const cellSize = zoom;
+    const cellSize = Math.round(zoom);
     canvas.width = GRID_SIZE * cellSize;
     canvas.height = GRID_SIZE * cellSize;
     ctx.imageSmoothingEnabled = false;
@@ -236,6 +271,7 @@ const SpriteEditor = () => {
     const rect = canvas.getBoundingClientRect();
     console.log('[SpriteEditor] getPointerPosition()', event, rect);
     const scale = rect.width / GRID_SIZE;
+    console.log('[SpriteEditor] getPointerPosition() scale:', scale);
     const x = Math.floor((event.clientX - rect.left) / scale);
     const y = Math.floor((event.clientY - rect.top) / scale);
     if (x < 0 || y < 0 || x >= GRID_SIZE || y >= GRID_SIZE) return null;
@@ -245,6 +281,9 @@ const SpriteEditor = () => {
     event.preventDefault();
     const position = getPointerPosition(event);
     if (!position) return;
+
+    // Save state before drawing for undo
+    saveToHistory();
 
     if (activeTool === 'pen') {
       setIsDrawing(true);
@@ -259,7 +298,7 @@ const SpriteEditor = () => {
       setRectangleStart(position);
       setIsDrawing(true);
     }
-  }; 
+  };
   const handlePointerMove = (event: ReactPointerEvent<HTMLCanvasElement>) => { 
     const position = getPointerPosition(event);
     if (!position) return;
@@ -363,6 +402,25 @@ const SpriteEditor = () => {
     };
   }, []);
 
+  // Keyboard shortcuts for undo/redo
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === 'z' && !event.shiftKey) {
+        event.preventDefault();
+        undo();
+      } else if (
+        ((event.metaKey || event.ctrlKey) && event.key === 'y') ||
+        ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key === 'z')
+      ) {
+        event.preventDefault();
+        redo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   useEffect(() => {
     renderCanvas();
     renderPreview();
@@ -370,7 +428,7 @@ const SpriteEditor = () => {
 
   return (
     <div className="flex-1 min-h-0 flex border-t border-slate-200 bg-slate-800 dark:border-slate-700">
-      <div className="w-16 flex flex-col gap-3 p-2 bg-slate-700 dark:bg-slate-800 border-r border-slate-600">
+      <div className="w-30 flex flex-col gap-3 p-2 bg-slate-700 dark:bg-slate-800 border-r border-slate-600">
         <div className="grid grid-cols-2 gap-1 pb-3 border-b border-slate-600">
           {[1, 2, 3, 4].map((size) => (
             <button
@@ -389,61 +447,7 @@ const SpriteEditor = () => {
           ))}
         </div>
 
-        <div className="flex flex-col gap-1 pb-3 border-b border-slate-600">
-          <button
-            type="button"
-            onClick={() => setActiveTool('pen')}
-            className={`w-full h-10 flex items-center justify-center rounded cursor-pointer transition ${
-              activeTool === 'pen'
-                ? 'bg-primary-green text-white'
-                : 'bg-slate-600 text-slate-300 hover:bg-slate-500'
-            }`}
-            title="Pen tool"
-          >
-            <Pencil2Icon className="w-5 h-5" />
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTool('bucket')}
-            className={`w-full h-10 flex items-center justify-center rounded cursor-pointer transition ${
-              activeTool === 'bucket'
-                ? 'bg-primary-green text-white'
-                : 'bg-slate-600 text-slate-300 hover:bg-slate-500'
-            }`}
-            title="Bucket fill tool"
-          >
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M19 11.5s-2 2.17-2 3.5a2 2 0 0 0 4 0c0-1.33-2-3.5-2-3.5zM5.21 10L10 5.21L14.79 10M16.56 10.35L10 3.79L3.44 10.35a1.5 1.5 0 0 0 0 2.12l6.56 6.56a1.5 1.5 0 0 0 2.12 0l6.56-6.56a1.5 1.5 0 0 0-.12-2.12z" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTool('eraser')}
-            className={`w-full h-10 flex items-center justify-center rounded cursor-pointer transition ${
-              activeTool === 'eraser'
-                ? 'bg-primary-green text-white'
-                : 'bg-slate-600 text-slate-300 hover:bg-slate-500'
-            }`}
-            title="Eraser tool"
-          >
-            <EraserIcon className="w-5 h-5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTool('rectangle')}
-            className={`w-full h-10 flex items-center justify-center rounded cursor-pointer transition ${
-              activeTool === 'rectangle'
-                ? 'bg-primary-green text-white'
-                : 'bg-slate-600 text-slate-300 hover:bg-slate-500'
-            }`}
-            title="Rectangle tool"
-          >
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="3" y="3" width="18" height="18" rx="1" />
-            </svg>
-          </button>
-        </div>
+        <EditorTools activeTool={activeTool} setActiveTool={setActiveTool} />
 
         <div className="grid grid-cols-2 gap-1">
           {palette.slice(0, 8).map((color) => (
