@@ -1,10 +1,8 @@
 import { Button } from "@/components/ui/Button";
-import { InputBox } from "@/components/ui/inputs/InputBox";
 import { Modal } from "@/components/ui/modals/Modal";
 import { Table, TableRef } from "@/components/ui/Table";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import projectsApi from "@/lib/api/handlers/projects";
-import usersApi from "@/lib/api/handlers/users";
 import {
   Project,
   ProjectPermissions,
@@ -31,7 +29,7 @@ interface Props {
   setPrj: React.Dispatch<React.SetStateAction<Project | undefined>>;
   user: User;
 }
-export const ManageMembers = ({ prj, setPrj, user }: Props) => {
+export const ManageCollaborators = ({ prj, setPrj, user }: Props) => {
   const snackbar = useSnackbar();
   const prjCollaboratorApi = projectsApi(prj?.id).collaborators;
   const tableRef = useRef<TableRef<

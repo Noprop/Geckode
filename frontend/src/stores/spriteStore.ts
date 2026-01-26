@@ -1,5 +1,6 @@
 import type { SpriteDefinition, SpriteInstance } from '@/blockly/spriteRegistry';
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { useEditorStore } from './editorStore';
 import EditorScene from '@/phaser/scenes/EditorScene';
 
@@ -32,7 +33,9 @@ interface Actions {
   addToSpriteLibrary: (sprite: SpriteDefinition) => void;
 }
 
-export const useSpriteStore = create<State & Actions>((set, get) => ({
+export const useSpriteStore = create<State & Actions>()(
+  persist(
+    (set, get) => ({
   spriteLibrary: [
     {
       id: 'id_' + Date.now().toString() + '_' + Math.round(Math.random() * 10000),
@@ -235,4 +238,21 @@ export const useSpriteStore = create<State & Actions>((set, get) => ({
       spriteLibrary: [...state.spriteLibrary, sprite],
     }));
   },
-}));
+    }),
+    {
+      name: 'geckode-sprites',
+      partialize: (state) => ({
+        spriteInstances: state.spriteInstances,
+        spriteLibrary: state.spriteLibrary,
+        spriteTextures: [...state.spriteTextures.entries()],
+      }),
+      merge: (persisted: any, current) => ({
+        ...current,
+        ...(persisted || {}),
+        spriteTextures: persisted?.spriteTextures
+          ? new Map(persisted.spriteTextures)
+          : current.spriteTextures,
+      }),
+    }
+  )
+);

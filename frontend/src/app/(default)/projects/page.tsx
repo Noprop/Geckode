@@ -25,7 +25,6 @@ import {
 import { ProjectShareModal } from "@/components/ui/modals/ProjectShareModal";
 import { SelectionBox } from "@/components/ui/selectors/SelectionBox";
 import { useUser } from "@/contexts/UserContext";
-import { useLayout } from "@/contexts/LayoutProvider";
 import { useRouter } from "next/navigation";
 
 export default function ProjectsPage() {
@@ -42,11 +41,6 @@ export default function ProjectsPage() {
     null | "create" | "delete" | "share"
   >(null);
   const [rowIndex, setRowIndex] = useState<number>(0);
-
-  const layout = useLayout();
-  useEffect(() => {
-    layout.attachFooterLHS(<p>Hello</p>);
-  }, []);
 
   const createProject = () => {
     projectsApi

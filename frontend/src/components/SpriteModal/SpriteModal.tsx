@@ -1,15 +1,26 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Cross2Icon, Pencil2Icon, ImageIcon } from '@radix-ui/react-icons';
 import SpriteLibrary from './SpriteLibrary';
 import SpriteEditor from './SpriteEditor';
 import { useSpriteStore } from '@/stores/spriteStore';
 
 const SpriteModal = () => {
-  const [activeTab, setActiveTab] = useState<'library' | 'editor'>('library');
+  const [activeTab, setActiveTab] = useState<'library' | 'editor'>('editor');
   const setIsSpriteModalOpen = useSpriteStore((state) => state.setIsSpriteModalOpen);
   const isSpriteModalOpen = useSpriteStore((state) => state.isSpriteModalOpen);
+
+  useEffect(() => {
+    if (!isSpriteModalOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsSpriteModalOpen(false);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isSpriteModalOpen, setIsSpriteModalOpen]);
 
   if (!isSpriteModalOpen) return <></>;
 

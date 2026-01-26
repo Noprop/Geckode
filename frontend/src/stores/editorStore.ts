@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { PhaserExport, createPhaserState } from '@/phaser/PhaserStateManager';
 import * as Blockly from 'blockly/core';
 import { javascriptGenerator } from 'blockly/javascript';
@@ -67,7 +68,9 @@ interface Actions {
   setSpriteId: (id: string) => void;
 }
 
-export const useEditorStore = create<State & Actions>((set, get) => ({
+export const useEditorStore = create<State & Actions>()(
+  persist(
+    (set, get) => ({
   // Phaser/Blockly state
   blocklyWorkspace: null,
   phaserScene: null,
@@ -269,4 +272,20 @@ export const useEditorStore = create<State & Actions>((set, get) => ({
       set({ isEditorScene: true });
     }
   },
-}));
+    }),
+    {
+      name: 'geckode-workspaces',
+      partialize: (state) => ({
+        spriteWorkspaces: [...state.spriteWorkspaces.entries()],
+        projectName: state.projectName,
+      }),
+      merge: (persisted: any, current) => ({
+        ...current,
+        ...(persisted || {}),
+        spriteWorkspaces: persisted?.spriteWorkspaces
+          ? new Map(persisted.spriteWorkspaces)
+          : current.spriteWorkspaces,
+      }),
+    }
+  )
+);
