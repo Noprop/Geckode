@@ -84,7 +84,7 @@ javascriptGenerator.forBlock['changeProperty'] = function (block, generator) {
   const value = generator.valueToCode(block, 'VALUE', Order.NONE) || 0;
   const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
 
-  if (useSpriteStore.getState().spriteInstances.map(s => s.id).includes(spriteKey)){
+  if (useSpriteStore.getState().spriteInstances.map(s => s.id).includes(spriteKey) && !isIsolated(block)){
     return `scene.getSprite(${spriteKey === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey + '"'}).body.${block.getFieldValue(
       'PROPERTY'
     )} += ${value}\n`;
@@ -120,7 +120,7 @@ const getProperty = {
 
 javascriptGenerator.forBlock['getProperty'] = function (block, generator) {
   const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
-  if (useSpriteStore.getState().spriteInstances.map(s => s.id).includes(spriteKey)){
+  if (useSpriteStore.getState().spriteInstances.map(s => s.id).includes(spriteKey) && !isIsolated(block)){
     const code = `scene.getSprite(${spriteKey === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey + '"'}).${block.getFieldValue(
       'PROPERTY'
     )}`;
@@ -155,7 +155,7 @@ javascriptGenerator.forBlock['setRotation'] = function (block, generator) {
   const value = generator.valueToCode(block, 'VALUE', Order.NONE) || 0;
   const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
 
-  if (useSpriteStore.getState().spriteInstances.map(s => s.id).includes(spriteKey)){
+  if (useSpriteStore.getState().spriteInstances.map(s => s.id).includes(spriteKey) && !isIsolated(block)){
     return `scene.getSprite(${spriteKey === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey + '"'}).angle = (${value}-90) % 360\n`;
   }
   return '';
@@ -198,7 +198,7 @@ javascriptGenerator.forBlock['pointAtXY'] = function (block, generator) {
   // const inUpdateLoop = isInUpdateLoop(block);
   // You can use this to generate different code based on context
   
-  if (useSpriteStore.getState().spriteInstances.map(s => s.id).includes(spriteKey)){
+  if (useSpriteStore.getState().spriteInstances.map(s => s.id).includes(spriteKey) && !isIsolated(block)){
     const spriteName = `scene.getSprite(${spriteKey === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey + '"'})`
     return `${spriteName}.rotation = Phaser.Math.Angle.Between(${spriteName}.x, ${spriteName}.y, ${x}, ${y})\n`;
   }
@@ -231,7 +231,7 @@ javascriptGenerator.forBlock['isTouching'] = function (block, generator) {
   const spriteKey1 = generator.valueToCode(block, 'SPRITE1', Order.NONE) || '';
   const spriteKey2 = generator.valueToCode(block, 'SPRITE2', Order.NONE) || '';
   if (useSpriteStore.getState().spriteInstances.map(s => s.id).includes(spriteKey1)
-      && useSpriteStore.getState().spriteInstances.map(s => s.id).includes(spriteKey2)){
+      && useSpriteStore.getState().spriteInstances.map(s => s.id).includes(spriteKey2) && !isIsolated(block)){
     const spriteName1 = `scene.getSprite(${spriteKey1 === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey1 + '"'})`;
     const spriteName2 = `scene.getSprite(${spriteKey2 === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey2 + '"'})`;
     
