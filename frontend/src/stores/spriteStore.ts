@@ -218,11 +218,19 @@ export const useSpriteStore = create<State & Actions>()(
     if (!(phaserScene instanceof EditorScene)) throw new Error('Should not be able to update sprite from game scene.');
 
     phaserScene.updateSprite(spriteId, updates);
-    set((state) => ({
-      spriteInstances: state.spriteInstances.map((instance) =>
+    set((state) => {
+      const updatedInstances = state.spriteInstances.map((instance) =>
         instance.id === spriteId ? { ...instance, ...updates } : instance
-      ),
-    }));
+      );
+      const updatedSelectedSprite =
+        state.selectedSpriteId === spriteId && state.selectedSprite
+          ? { ...state.selectedSprite, ...updates }
+          : state.selectedSprite;
+      return {
+        spriteInstances: updatedInstances,
+        selectedSprite: updatedSelectedSprite,
+      };
+    });
   },
 
   registerTexture: (textureName: string, url: string, hasLoaded = true) => {

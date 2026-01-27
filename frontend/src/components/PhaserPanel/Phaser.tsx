@@ -1,14 +1,17 @@
+import { useState } from 'react';
 import { useEditorStore } from '@/stores/editorStore';
 import * as Blockly from 'blockly/core';
 import { PlayIcon, StopIcon } from '@/components/icons';
 import PhaserGame from './PhaserGame';
 import SpriteModal from '../SpriteModal/SpriteModal';
-import PhaserSpriteControls from './PhaserSpriteControls';
+import SpritePosition from './SpritePosition';
 import PhaserSpriteList from './PhaserSpriteList';
 import PhaserSceneList from './PhaserSceneList';
+import SpritePhysicsCurtain from './SpritePhysicsCurtain';
 
 const Phaser = () => {
   const { isEditorScene, toggleEditor } = useEditorStore();
+  const [isPhysicsPanelExpanded, setIsPhysicsPanelExpanded] = useState(false);
 
   return (
     <>
@@ -32,10 +35,16 @@ const Phaser = () => {
       </div>
 
       <section className="flex-1 rounded-lg bg-light-secondary p-3 text-sm shadow dark:bg-dark-secondary flex flex-col min-h-0 overflow-hidden">
-        <PhaserSpriteControls />
-        <div className="flex flex-1 gap-0 min-h-0 overflow-hidden">
-          <PhaserSpriteList />
-          <PhaserSceneList />
+        <SpritePosition />
+        <div className="relative flex-1 flex flex-col min-h-0 overflow-hidden">
+          <SpritePhysicsCurtain
+            isExpanded={isPhysicsPanelExpanded}
+            onToggle={() => setIsPhysicsPanelExpanded((prev) => !prev)}
+          />
+          <div className="flex flex-1 gap-0 min-h-0 overflow-hidden">
+            <PhaserSpriteList />
+            <PhaserSceneList />
+          </div>
         </div>
         <SpriteModal />
       </section>
