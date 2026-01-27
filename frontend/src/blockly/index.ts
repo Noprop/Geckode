@@ -74,6 +74,25 @@ export function isIsolated(block: Blockly.Block): boolean {
   return true;
 }
 
+const oldScrub = javascriptGenerator.scrub_;
+
+javascriptGenerator.scrub_ = function (block, code, thisOnly) {
+  // Allow event blocks themselves
+  if (
+    block.type === 'onUpdate' ||
+    block.type === 'onStart'
+  ) {
+    return oldScrub.call(this, block, code, thisOnly);
+  }
+
+  // Strip code if not inside an event
+  if (isIsolated(block)) {
+    return '';
+  }
+  
+  return oldScrub.call(this, block, code, thisOnly);
+};
+
 if (typeof window !== 'undefined') {
   const originalInit = javascriptGenerator.init;
 
