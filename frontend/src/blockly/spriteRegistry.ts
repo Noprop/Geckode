@@ -6,6 +6,14 @@ export type SpriteDefinition = {
   name: string;
 };
 
+export type SpritePhysics = {
+  enabled: boolean;
+  gravityY: number;
+  bounce: number;
+  drag: number;
+  collideWorldBounds: boolean;
+};
+
 export type SpriteInstance = SpriteDefinition & {
   x: number;
   y: number;
@@ -14,6 +22,7 @@ export type SpriteInstance = SpriteDefinition & {
   size?: number;
   direction?: number;
   snapToGrid?: boolean;
+  physics?: SpritePhysics;
 };
 
 export const getSpriteDropdownOptions = (): string[][] => {

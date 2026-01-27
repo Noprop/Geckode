@@ -7,7 +7,7 @@ import type { SpriteInstance } from "@/blockly/spriteRegistry";
 const CENTER_X = 240;
 const CENTER_Y = 180;
 
-const PhaserSpriteControls = () => {
+const SpritePosition = () => {
   const selectedSprite = useSpriteStore((state) => state.selectedSprite);
   const selectedSpriteId = useSpriteStore((state) => state.selectedSpriteId);
   const updateSprite = useSpriteStore((state) => state.updateSprite);
@@ -184,4 +184,4 @@ const PhaserSpriteControls = () => {
   );
 };
 
-export default PhaserSpriteControls;
+export default SpritePosition;

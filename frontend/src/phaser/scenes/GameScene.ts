@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { EventBus } from '@/phaser/EventBus';
-import type { SpriteInstance } from '@/blockly/spriteRegistry';
+import type { SpriteInstance, SpritePhysics } from '@/blockly/spriteRegistry';
 import { GAME_SCENE_KEY, EDITOR_SCENE_KEY } from '@/phaser/sceneKeys';
 
 type SandboxContext = {
@@ -73,7 +73,7 @@ export default class GameScene extends Phaser.Scene {
 
     for (const instance of data.spriteInstances) {
       const textureName = instance.textureName;
-      this.addGameSprite(textureName, instance.x, instance.y, instance.id);
+      this.addGameSprite(textureName, instance.x, instance.y, instance.id, instance.physics);
     }
 
     // Set up collisions between sprites and tilemap
@@ -212,31 +212,39 @@ export default class GameScene extends Phaser.Scene {
   //   }
   // };
 
-  public addGameSprite(texture: string, x: number, y: number, id: string) {
-    console.log('[GameScene] addGameSprite called', texture, x, y, id);
+  public addGameSprite(texture: string, x: number, y: number, id: string, physics?: SpritePhysics) {
+    console.log('[GameScene] addGameSprite called', texture, x, y, id, physics);
     const sprite = this.physics.add.sprite(x, y, texture);
     sprite.setName(id);
     sprite.setData('gameSpriteId', id);
     sprite.setDepth(GameScene.GAME_SPRITE_BASE_DEPTH);
-    sprite.setDamping(true);
-    sprite.setDrag(0.005);
 
     this.gameLayer.add(sprite);
     this.gameLayer.bringToTop(sprite);
     this.gameSprites.set(id, sprite);
 
-    // Add collision with ground if tilemap exists
-    if (this.groundLayer) {
-      this.physics.add.collider(sprite, this.groundLayer);
-      sprite.setCollideWorldBounds(true);
-    }
+    // Apply physics settings if enabled
+    if (physics?.enabled) {
+      sprite.setDamping(true);
+      sprite.setDrag(physics.drag);
+      sprite.setGravityY(physics.gravityY);
+      sprite.setBounce(physics.bounce);
+      sprite.setCollideWorldBounds(physics.collideWorldBounds);
 
-    // iterate over all sprites and add collider
-    for (const otherSprite of this.gameSprites.values()) {
-      if (otherSprite.getData('gameSpriteId') !== id) {
-        this.physics.add.collider(sprite, otherSprite);
-        otherSprite.setCollideWorldBounds(true);
+      // Add collision with ground if tilemap exists
+      if (this.groundLayer) {
+        this.physics.add.collider(sprite, this.groundLayer);
       }
+
+      // Add colliders with other sprites
+      for (const otherSprite of this.gameSprites.values()) {
+        if (otherSprite.getData('gameSpriteId') !== id) {
+          this.physics.add.collider(sprite, otherSprite);
+        }
+      }
+    } else {
+      // Disable physics body movement when physics is not enabled
+      sprite.body?.setAllowGravity(false);
     }
 
     return sprite;
