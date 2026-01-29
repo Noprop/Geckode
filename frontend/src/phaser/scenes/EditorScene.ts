@@ -36,7 +36,7 @@ export default class EditorScene extends Phaser.Scene {
   }
 
   async create() {
-    this.showGrid();
+    // this.showGrid();
 
     this.editorSprites.clear();
     this.gridGraphics = null; // Reset on scene restart
@@ -157,11 +157,11 @@ export default class EditorScene extends Phaser.Scene {
   }
 
   private pauseHandler = (isPaused: boolean) => {
-    if (isPaused) {
-      this.showGrid();
-    } else {
-      this.hideGrid();
-    }
+    // if (isPaused) {
+    //   this.showGrid();
+    // } else {
+    //   this.hideGrid();
+    // }
   };
 
   private setupGridListener(): void {
