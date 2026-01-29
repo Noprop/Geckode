@@ -193,6 +193,19 @@ export default class EditorScene extends Phaser.Scene {
     this.editorSprites.delete(id);
   }
 
+  public resetSprites(spriteInstances: { id: string; textureName: string; x: number; y: number }[]) {
+    // Remove all existing sprites
+    for (const [id, sprite] of this.editorSprites) {
+      sprite.destroy();
+    }
+    this.editorSprites.clear();
+
+    // Create new sprites from the provided instances
+    for (const instance of spriteInstances) {
+      this.createSprite(instance.textureName, instance.x, instance.y, instance.id);
+    }
+  }
+
   public updateSprite(
     id: string,
     updates: {
@@ -201,7 +214,7 @@ export default class EditorScene extends Phaser.Scene {
       visible?: boolean;
       size?: number;
       direction?: number;
-    }
+    },
   ) {
     const sprite = this.editorSprites.get(id);
     if (!sprite) return;
@@ -307,7 +320,7 @@ export default class EditorScene extends Phaser.Scene {
       'dragend',
       (pointer: Phaser.Input.Pointer, gameObject: Phaser.GameObjects.GameObject, _dragX: number, _dragY: number) => {
         this.finishActiveDrag(pointer.event as PointerEvent | undefined);
-      }
+      },
     );
   }
 

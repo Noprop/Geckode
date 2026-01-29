@@ -1,33 +1,70 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import type { SpriteAddPayload } from '@/stores/spriteStore';
+import { useState, useMemo, useCallback } from 'react';
+import { TrashIcon } from '@radix-ui/react-icons';
 import { useSpriteStore } from '@/stores/spriteStore';
+import type { SpriteDefinition } from '@/blockly/spriteRegistry';
 
-const SpriteLibrary = () => {
+interface SpriteLibraryProps {
+  onSwitchToEditor: () => void;
+}
+
+// Load image URL into pixel data
+const loadImageToPixels = (url: string): Promise<{ data: Uint8ClampedArray; width: number; height: number }> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('Could not get canvas context'));
+        return;
+      }
+      ctx.drawImage(img, 0, 0);
+      const imageData = ctx.getImageData(0, 0, img.width, img.height);
+      resolve({ data: new Uint8ClampedArray(imageData.data), width: img.width, height: img.height });
+    };
+    img.onerror = () => reject(new Error('Failed to load image'));
+    img.src = url;
+  });
+};
+
+const SpriteLibrary = ({ onSwitchToEditor }: SpriteLibraryProps) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const addSpriteToGame = useSpriteStore((state) => state.addSpriteToGame);
   const spriteLibrary = useSpriteStore((state) => state.spriteLibrary);
   const spriteTextures = useSpriteStore((state) => state.spriteTextures);
-  const setIsSpriteModalOpen = useSpriteStore((state) => state.setIsSpriteModalOpen);
+  const setEditingLibrarySprite = useSpriteStore((state) => state.setEditingLibrarySprite);
+  const removeFromSpriteLibrary = useSpriteStore((state) => state.removeFromSpriteLibrary);
+
+  const handleDeleteSprite = useCallback((e: React.MouseEvent, spriteId: string) => {
+    e.stopPropagation(); // Prevent triggering the card click
+    removeFromSpriteLibrary(spriteId);
+  }, [removeFromSpriteLibrary]);
 
   const filteredSprites = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     return spriteLibrary.filter((sprite) => {
       return !query || sprite.name.toLowerCase().includes(query);
     });
-  }, [searchQuery]);
+  }, [searchQuery, spriteLibrary]);
 
-  const handleSpriteClick = async (sprite: SpriteAddPayload) => {
-    const success = await addSpriteToGame({
-      name: sprite.name,
-      textureName: sprite.textureName,
-      textureUrl: sprite.textureUrl,
-      x: 240,
-      y: 180,
-    });
-    if (success) setIsSpriteModalOpen(false);
-  };
+  const handleSpriteClick = useCallback(async (sprite: SpriteDefinition) => {
+    const textureInfo = spriteTextures.get(sprite.textureName);
+    if (!textureInfo?.url) {
+      console.error('No texture URL found for sprite:', sprite.textureName);
+      return;
+    }
+
+    try {
+      const { data } = await loadImageToPixels(textureInfo.url);
+      setEditingLibrarySprite(sprite, data);
+      onSwitchToEditor();
+    } catch (error) {
+      console.error('Failed to load sprite image:', error);
+    }
+  }, [spriteTextures, setEditingLibrarySprite, onSwitchToEditor]);
 
   return (
     <>
@@ -83,18 +120,18 @@ const SpriteLibrary = () => {
             {filteredSprites.map((sprite) => (
               <div
                 key={sprite.textureName}
-                className="flex w-36 flex-col overflow-hidden rounded-xs border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:border-slate-700 dark:bg-dark-secondary cursor-pointer"
-                onClick={() =>
-                  handleSpriteClick({
-                    name: sprite.name,
-                    textureName: sprite.textureName,
-                    textureUrl: spriteTextures.get(sprite.textureName)?.url || '',
-                    x: 240,
-                    y: 180,
-                  })
-                }
-                title="Click to add to center of the game window"
+                className="group relative flex w-36 flex-col overflow-hidden rounded-xs border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:border-slate-700 dark:bg-dark-secondary cursor-pointer"
+                onClick={() => handleSpriteClick(sprite)}
+                title="Click to edit in sprite editor"
               >
+                <button
+                  type="button"
+                  onClick={(e) => handleDeleteSprite(e, sprite.id)}
+                  className="absolute right-1 top-1 z-10 rounded p-1 text-slate-400 opacity-0 transition hover:bg-red-100 hover:text-red-600 group-hover:opacity-100 dark:hover:bg-red-900/30 dark:hover:text-red-400"
+                  title="Delete sprite from library"
+                >
+                  <TrashIcon className="h-4 w-4" />
+                </button>
                 <div className="relative flex aspect-4/3 items-center justify-center bg-white dark:bg-slate-900">
                   <img
                     src={spriteTextures.get(sprite.textureName)?.url}
@@ -104,7 +141,7 @@ const SpriteLibrary = () => {
                   />
                 </div>
                 <div className="flex items-center justify-between px-3 py-2">
-                  <div className="text-sm font-semibold">{sprite.name}</div>
+                  <div className="text-sm font-semibold truncate">{sprite.name}</div>
                 </div>
               </div>
             ))}

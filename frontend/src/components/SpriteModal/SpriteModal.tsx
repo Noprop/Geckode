@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Cross2Icon, Pencil2Icon, ImageIcon } from '@radix-ui/react-icons';
 import SpriteLibrary from './SpriteLibrary';
 import SpriteEditor from './SpriteEditor';
@@ -10,27 +10,37 @@ const SpriteModal = () => {
   const [activeTab, setActiveTab] = useState<'library' | 'editor'>('editor');
   const setIsSpriteModalOpen = useSpriteStore((state) => state.setIsSpriteModalOpen);
   const isSpriteModalOpen = useSpriteStore((state) => state.isSpriteModalOpen);
+  const clearEditingLibrarySprite = useSpriteStore((state) => state.clearEditingLibrarySprite);
+
+  const handleClose = useCallback(() => {
+    clearEditingLibrarySprite();
+    setIsSpriteModalOpen(false);
+  }, [clearEditingLibrarySprite, setIsSpriteModalOpen]);
+
+  const handleSwitchToEditor = useCallback(() => {
+    setActiveTab('editor');
+  }, []);
 
   useEffect(() => {
     if (!isSpriteModalOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setIsSpriteModalOpen(false);
+      if (e.key === 'Escape') handleClose();
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isSpriteModalOpen, setIsSpriteModalOpen]);
+  }, [isSpriteModalOpen, handleClose]);
 
   if (!isSpriteModalOpen) return <></>;
 
   return (
     <div className="fixed inset-0 z-100 flex items-center justify-center px-4 py-8">
-      <div className="absolute inset-0 bg-slate-900/70" onClick={() => setIsSpriteModalOpen(false)} aria-hidden />
+      <div className="absolute inset-0 bg-slate-900/70" onClick={handleClose} aria-hidden />
       <div className="relative z-10 w-[min(1100px,80vw)] h-[82vh] overflow-hidden flex flex-col rounded-lg border border-slate-300 bg-white text-slate-900 shadow-2xl ring-4 ring-primary-green/10 dark:border-slate-700 dark:bg-dark-secondary dark:text-slate-100">
         <button
           type="button"
-          onClick={() => setIsSpriteModalOpen(false)}
+          onClick={handleClose}
           className="absolute right-3 top-3 z-10 rounded-full bg-black/5 p-2 text-slate-700 transition hover:bg-black/10 dark:bg-white/10 dark:text-slate-100 dark:hover:bg-white/20"
           title="Close asset picker"
         >
@@ -66,7 +76,7 @@ const SpriteModal = () => {
           </div>
         </div>
 
-        {activeTab === 'library' ? <SpriteLibrary /> : <SpriteEditor />}
+        {activeTab === 'library' ? <SpriteLibrary onSwitchToEditor={handleSwitchToEditor} /> : <SpriteEditor />}
       </div>
     </div>
   );

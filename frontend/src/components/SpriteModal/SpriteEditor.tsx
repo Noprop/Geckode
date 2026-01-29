@@ -78,6 +78,10 @@ const SpriteEditor = () => {
   const setIsSpriteModalOpen = useSpriteStore((state) => state.setIsSpriteModalOpen);
   const registerTexture = useSpriteStore((state) => state.registerTexture);
   const addToSpriteLibrary = useSpriteStore((state) => state.addToSpriteLibrary);
+  const editingLibrarySprite = useSpriteStore((state) => state.editingLibrarySprite);
+  const originalPixelData = useSpriteStore((state) => state.originalPixelData);
+  const spriteTextures = useSpriteStore((state) => state.spriteTextures);
+  const clearEditingLibrarySprite = useSpriteStore((state) => state.clearEditingLibrarySprite);
 
   const prevPosRef = useRef<{ x: number; y: number } | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -85,6 +89,7 @@ const SpriteEditor = () => {
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
   const activeButtonRef = useRef<number>(0); // 0 = left click, 2 = right click
   const rafIdRef = useRef<number>(0); // For requestAnimationFrame throttling
+  const originalPixelDataRef = useRef<Uint8ClampedArray | null>(null); // For comparing against library sprite
 
   // Calculate base zoom (pixels-per-cell that makes canvas fit the container)
   const baseZoom = useMemo(() => {
@@ -566,8 +571,39 @@ const SpriteEditor = () => {
     return false;
   }, [renderVersion]); // Re-check when render is triggered
 
+  // Compare two Uint8ClampedArrays for equality
+  const arraysEqual = (a: Uint8ClampedArray, b: Uint8ClampedArray): boolean => {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+      if (a[i] !== b[i]) return false;
+    }
+    return true;
+  };
+
   const saveToAssets = async () => {
     if (!hasPixels) return;
+
+    // Check if we're editing a library sprite and if it's been modified
+    const isEditingLibrary = editingLibrarySprite !== null;
+    const originalData = originalPixelDataRef.current;
+    const isModified = !originalData || !arraysEqual(layer1Ref.current, originalData);
+
+    // If editing a library sprite and NOT modified, just add the existing sprite to game
+    if (isEditingLibrary && !isModified) {
+      const textureInfo = spriteTextures.get(editingLibrarySprite.textureName);
+      const success = await addSpriteToGame({
+        name: editingLibrarySprite.name,
+        textureName: editingLibrarySprite.textureName,
+        textureUrl: textureInfo?.url || '',
+      });
+      if (success) {
+        clearEditingLibrarySprite();
+        setIsSpriteModalOpen(false);
+      }
+      return;
+    }
+
+    // Modified or new sprite: create new library entry
     const label = spriteName.trim() || 'Custom Sprite';
     const safeBase = label.toLowerCase().replace(/[^\w]/g, '') || 'customsprite';
     const texture = `${safeBase}-${Date.now()}`;
@@ -602,6 +638,7 @@ const SpriteEditor = () => {
       textureUrl: dataUrl,
     });
     if (success) {
+      clearEditingLibrarySprite();
       setIsSpriteModalOpen(false);
     }
   };
@@ -609,6 +646,45 @@ const SpriteEditor = () => {
   // Sync local grid inputs when actual state changes externally
   useEffect(() => { setLocalGridWidth(gridWidth); }, [gridWidth]);
   useEffect(() => { setLocalGridHeight(gridHeight); }, [gridHeight]);
+
+  // Load library sprite data when editingLibrarySprite changes
+  useEffect(() => {
+    if (!editingLibrarySprite || !originalPixelData) {
+      originalPixelDataRef.current = null;
+      return;
+    }
+
+    const textureInfo = spriteTextures.get(editingLibrarySprite.textureName);
+    if (!textureInfo?.url) return;
+
+    // Load image to get dimensions
+    const img = new Image();
+    img.onload = () => {
+      const width = img.width;
+      const height = img.height;
+
+      // Update grid dimensions
+      setGridWidth(width);
+      setGridHeight(height);
+      setLocalGridWidth(width);
+      setLocalGridHeight(height);
+
+      // Load pixel data into layer1
+      layer1Ref.current = new Uint8ClampedArray(originalPixelData);
+      layer2Ref.current = createPixelArray(width, height);
+      originalPixelDataRef.current = new Uint8ClampedArray(originalPixelData);
+
+      // Set sprite name
+      setSpriteName(editingLibrarySprite.name);
+
+      // Clear history since we're loading fresh
+      undoStackRef.current = [];
+      redoStackRef.current = [];
+
+      requestRender();
+    };
+    img.src = textureInfo.url;
+  }, [editingLibrarySprite, originalPixelData, spriteTextures, requestRender]);
 
   // Track container dimensions for relative zoom
   useEffect(() => {
