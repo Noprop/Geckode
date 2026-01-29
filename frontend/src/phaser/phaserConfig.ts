@@ -7,13 +7,14 @@ import * as Phaser from 'phaser';
 
 const config = {
   type: Phaser.AUTO,
-  width: 480,
-  height: 360,
+  width: 512,
+  height: 384,
   scale: {
-    mode: Phaser.Scale.NONE,
-    autoCenter: Phaser.Scale.NO_CENTER,
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
   },
   parent: 'phaser-container',
+  pixelArt: true,
   backgroundColor: '#707090',
   scene: [EditorScene, GameScene],
   physics: {

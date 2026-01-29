@@ -139,10 +139,10 @@ export default class GameScene extends Phaser.Scene {
 
   private createTilemap(): void {
     const tileSize = GameScene.TILE_SIZE;
-    const width = 480;
-    const height = 360;
-    const mapWidth = Math.ceil(width / tileSize); // 15 tiles
-    const mapHeight = Math.ceil(height / tileSize); // ~11 tiles
+    const width = this.scale.width;
+    const height = this.scale.height;
+    const mapWidth = Math.ceil(width / tileSize);
+    const mapHeight = Math.ceil(height / tileSize);
 
     // Create tilemap data - simple ground at bottom 2 rows
     const mapData: number[][] = [];

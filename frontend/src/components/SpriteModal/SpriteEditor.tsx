@@ -12,6 +12,48 @@ const MAX_HISTORY = 50;
 
 export type Tool = 'pen' | 'eraser' | 'bucket' | 'rectangle' | 'line' | 'oval' | 'rectangle-selection' | 'pan-tool' | 'color-picker';
 
+// Convert hex color to RGBA values (returns null for transparent/empty)
+const hexToRgba = (hex: string): { r: number; g: number; b: number; a: number } | null => {
+  if (!hex) return null;
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (!result) return null;
+  return {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16),
+    a: 255,
+  };
+};
+
+// Convert RGBA values at index to hex (returns '' for transparent)
+const rgbaToHex = (data: Uint8ClampedArray, idx: number): string => {
+  if (data[idx + 3] === 0) return '';
+  const r = data[idx].toString(16).padStart(2, '0');
+  const g = data[idx + 1].toString(16).padStart(2, '0');
+  const b = data[idx + 2].toString(16).padStart(2, '0');
+  return `#${r}${g}${b}`;
+};
+
+// Set pixel in RGBA array
+const setPixel = (data: Uint8ClampedArray, idx: number, color: { r: number; g: number; b: number; a: number } | null) => {
+  if (color) {
+    data[idx] = color.r;
+    data[idx + 1] = color.g;
+    data[idx + 2] = color.b;
+    data[idx + 3] = color.a;
+  } else {
+    data[idx] = 0;
+    data[idx + 1] = 0;
+    data[idx + 2] = 0;
+    data[idx + 3] = 0;
+  }
+};
+
+// Create empty RGBA array
+const createPixelArray = (width: number, height: number): Uint8ClampedArray => {
+  return new Uint8ClampedArray(width * height * 4);
+};
+
 const SpriteEditor = () => {
   const [spriteName, setSpriteName] = useState('Custom Sprite');
   const [brushSize, setBrushSize] = useState(1);
@@ -42,6 +84,7 @@ const SpriteEditor = () => {
   const previewRef = useRef<HTMLCanvasElement | null>(null);
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
   const activeButtonRef = useRef<number>(0); // 0 = left click, 2 = right click
+  const rafIdRef = useRef<number>(0); // For requestAnimationFrame throttling
 
   // Calculate base zoom (pixels-per-cell that makes canvas fit the container)
   const baseZoom = useMemo(() => {
@@ -63,14 +106,17 @@ const SpriteEditor = () => {
   };
 
   // Layer 1 is the main layer, layer 2 is for visual effects that aren't saved
-  const [layer1, setLayer1] = useState<string[]>(Array.from({ length: gridWidth * gridHeight }, () => ''));
-  const [layer2, setLayer2] = useState<string[]>(Array.from({ length: gridWidth * gridHeight }, () => ''));
+  // Using refs + Uint8ClampedArray for performance (no React state updates during drawing)
+  const layer1Ref = useRef<Uint8ClampedArray>(createPixelArray(gridWidth, gridHeight));
+  const layer2Ref = useRef<Uint8ClampedArray>(createPixelArray(gridWidth, gridHeight));
 
-  // Undo/Redo history
-  const undoStackRef = useRef<string[][]>([]);
-  const redoStackRef = useRef<string[][]>([]);
-  const layer1Ref = useRef(layer1);
-  layer1Ref.current = layer1;
+  // Track if canvas needs re-render (incremented to trigger useEffect)
+  const [renderVersion, setRenderVersion] = useState(0);
+  const requestRender = useCallback(() => setRenderVersion((v) => v + 1), []);
+
+  // Undo/Redo history (stores copies of the pixel data)
+  const undoStackRef = useRef<Uint8ClampedArray[]>([]);
+  const redoStackRef = useRef<Uint8ClampedArray[]>([]);
 
   const palette = [
     '#ffffff',
@@ -84,30 +130,32 @@ const SpriteEditor = () => {
   ];
 
   // Save current state to undo history
-  const saveToHistory = () => {
-    undoStackRef.current.push([...layer1Ref.current]);
+  const saveToHistory = useCallback(() => {
+    undoStackRef.current.push(new Uint8ClampedArray(layer1Ref.current));
     if (undoStackRef.current.length > MAX_HISTORY) {
       undoStackRef.current.shift();
     }
     // Clear redo stack when new action is performed
     redoStackRef.current = [];
-  };
+  }, []);
 
   // Undo function
-  const undo = () => {
+  const undo = useCallback(() => {
     if (undoStackRef.current.length === 0) return;
     const previousState = undoStackRef.current.pop()!;
-    redoStackRef.current.push([...layer1Ref.current]);
-    setLayer1(previousState);
-  };
+    redoStackRef.current.push(new Uint8ClampedArray(layer1Ref.current));
+    layer1Ref.current = previousState;
+    requestRender();
+  }, [requestRender]);
 
   // Redo function
-  const redo = () => {
+  const redo = useCallback(() => {
     if (redoStackRef.current.length === 0) return;
     const nextState = redoStackRef.current.pop()!;
-    undoStackRef.current.push([...layer1Ref.current]);
-    setLayer1(nextState);
-  };
+    undoStackRef.current.push(new Uint8ClampedArray(layer1Ref.current));
+    layer1Ref.current = nextState;
+    requestRender();
+  }, [requestRender]);
 
   const drawShadow = (x: number, y: number) => {
     // console.log('[SpriteEditor] drawShadow()');
@@ -119,20 +167,38 @@ const SpriteEditor = () => {
     // ctx.fillRect(x, y, 1, 1);
   }
 
-  const drawChecker = useCallback(
-    (ctx: CanvasRenderingContext2D, cellSize: number, width: number, height: number) => {
-      const light = '#9e9e9e';
-      const dark = '#6e6e6e';
-      for (let y = 0; y < height; y += 1) {
-        for (let x = 0; x < width; x += 1) {
-          const isDark = (x + y) % 2 === 0;
-          ctx.fillStyle = isDark ? light : dark;
-          ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
-        }
+  // Pre-rendered checker pattern canvas (cached)
+  const checkerCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const checkerSizeRef = useRef({ width: 0, height: 0, cellSize: 0 });
+
+  const getCheckerCanvas = useCallback((cellSize: number, width: number, height: number): HTMLCanvasElement => {
+    const cached = checkerCanvasRef.current;
+    const cachedSize = checkerSizeRef.current;
+
+    // Return cached if dimensions match
+    if (cached && cachedSize.width === width && cachedSize.height === height && cachedSize.cellSize === cellSize) {
+      return cached;
+    }
+
+    // Create new checker canvas
+    const checkerCanvas = document.createElement('canvas');
+    checkerCanvas.width = width * cellSize;
+    checkerCanvas.height = height * cellSize;
+    const ctx = checkerCanvas.getContext('2d')!;
+
+    const light = '#9e9e9e';
+    const dark = '#6e6e6e';
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        ctx.fillStyle = (x + y) % 2 === 0 ? light : dark;
+        ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
       }
-    },
-    []
-  );
+    }
+
+    checkerCanvasRef.current = checkerCanvas;
+    checkerSizeRef.current = { width, height, cellSize };
+    return checkerCanvas;
+  }, []);
 
   const renderCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -141,46 +207,55 @@ const SpriteEditor = () => {
     if (!ctx) return;
 
     const size = Math.round(cellSize);
-    canvas.width = gridWidth * size;
-    canvas.height = gridHeight * size;
+    const w = gridWidth;
+    const h = gridHeight;
+    canvas.width = w * size;
+    canvas.height = h * size;
     ctx.imageSmoothingEnabled = false;
 
-    drawChecker(ctx, size, gridWidth, gridHeight);
+    // Draw cached checker pattern
+    const checkerCanvas = getCheckerCanvas(size, w, h);
+    ctx.drawImage(checkerCanvas, 0, 0);
 
-    layer1.forEach((color, index) => {
-      if (!color) return;
-      const x = index % gridWidth;
-      const y = Math.floor(index / gridWidth);
-      ctx.fillStyle = color;
+    // Draw layer1 pixels
+    const layer1 = layer1Ref.current;
+    for (let i = 0; i < w * h; i++) {
+      const idx = i * 4;
+      if (layer1[idx + 3] === 0) continue; // Skip transparent
+      const x = i % w;
+      const y = Math.floor(i / w);
+      ctx.fillStyle = `rgba(${layer1[idx]},${layer1[idx + 1]},${layer1[idx + 2]},${layer1[idx + 3] / 255})`;
       ctx.fillRect(x * size, y * size, size, size);
-    });
+    }
 
-    // Render layer2 (preview layer) on top
-    layer2.forEach((color, index) => {
-      if (!color) return;
-      const x = index % gridWidth;
-      const y = Math.floor(index / gridWidth);
-      ctx.fillStyle = color;
+    // Draw layer2 (preview layer) on top
+    const layer2 = layer2Ref.current;
+    for (let i = 0; i < w * h; i++) {
+      const idx = i * 4;
+      if (layer2[idx + 3] === 0) continue; // Skip transparent
+      const x = i % w;
+      const y = Math.floor(i / w);
+      ctx.fillStyle = `rgba(${layer2[idx]},${layer2[idx + 1]},${layer2[idx + 2]},${layer2[idx + 3] / 255})`;
       ctx.fillRect(x * size, y * size, size, size);
-    });
+    }
 
     if (showGrid) {
       ctx.strokeStyle = 'rgba(15,23,42,0.15)';
       ctx.lineWidth = 0.5;
-      for (let i = 0; i <= gridWidth; i += 1) {
+      for (let i = 0; i <= w; i += 1) {
         ctx.beginPath();
         ctx.moveTo(i * size + 0.25, 0);
-        ctx.lineTo(i * size + 0.25, gridHeight * size);
+        ctx.lineTo(i * size + 0.25, h * size);
         ctx.stroke();
       }
-      for (let i = 0; i <= gridHeight; i += 1) {
+      for (let i = 0; i <= h; i += 1) {
         ctx.beginPath();
         ctx.moveTo(0, i * size + 0.25);
-        ctx.lineTo(gridWidth * size, i * size + 0.25);
+        ctx.lineTo(w * size, i * size + 0.25);
         ctx.stroke();
       }
     }
-  }, [cellSize, gridWidth, gridHeight, drawChecker, layer1, layer2, showGrid]);
+  }, [cellSize, gridWidth, gridHeight, getCheckerCanvas, showGrid]);
 
   const renderPreview = useCallback(() => {
     const preview = previewRef.current;
@@ -189,65 +264,92 @@ const SpriteEditor = () => {
     if (!ctx) return;
 
     const scale = 4;
-    preview.width = gridWidth * scale;
-    preview.height = gridHeight * scale;
+    const w = gridWidth;
+    const h = gridHeight;
+    preview.width = w * scale;
+    preview.height = h * scale;
     ctx.imageSmoothingEnabled = false;
 
-    drawChecker(ctx, scale, gridWidth, gridHeight);
+    // Draw checker pattern for preview
+    const checkerCanvas = getCheckerCanvas(scale, w, h);
+    ctx.drawImage(checkerCanvas, 0, 0);
 
-    layer1.forEach((color, index) => {
-      if (!color) return;
-      const x = index % gridWidth;
-      const y = Math.floor(index / gridWidth);
-      ctx.fillStyle = color;
+    // Draw layer1 pixels
+    const layer1 = layer1Ref.current;
+    for (let i = 0; i < w * h; i++) {
+      const idx = i * 4;
+      if (layer1[idx + 3] === 0) continue;
+      const x = i % w;
+      const y = Math.floor(i / w);
+      ctx.fillStyle = `rgba(${layer1[idx]},${layer1[idx + 1]},${layer1[idx + 2]},${layer1[idx + 3] / 255})`;
       ctx.fillRect(x * scale, y * scale, scale, scale);
-    });
-  }, [gridWidth, gridHeight, drawChecker, layer1]);
+    }
+  }, [gridWidth, gridHeight, getCheckerCanvas]);
 
   // Tools
   const paintAt = useCallback(
     (x: number, y: number, color: string) => {
-      setLayer1((prev) => {
-        const next = [...prev];
-        const offset = Math.floor(brushSize / 2);
-        for (let dy = 0; dy < brushSize; dy += 1) {
-          for (let dx = 0; dx < brushSize; dx += 1) {
-            const px = Math.max(0, Math.min(gridWidth - 1, x + dx - offset));
-            const py = Math.max(0, Math.min(gridHeight - 1, y + dy - offset));
-            next[py * gridWidth + px] = color;
-          }
+      const rgba = hexToRgba(color);
+      const offset = Math.floor(brushSize / 2);
+      const layer1 = layer1Ref.current;
+      const w = gridWidth;
+      const h = gridHeight;
+
+      for (let dy = 0; dy < brushSize; dy += 1) {
+        for (let dx = 0; dx < brushSize; dx += 1) {
+          const px = Math.max(0, Math.min(w - 1, x + dx - offset));
+          const py = Math.max(0, Math.min(h - 1, y + dy - offset));
+          const idx = (py * w + px) * 4;
+          setPixel(layer1, idx, rgba);
         }
-        return next;
-      });
+      }
+      requestRender();
     },
-    [gridWidth, gridHeight, brushSize]
+    [gridWidth, gridHeight, brushSize, requestRender]
   );
   const floodFill = useCallback(
     (startX: number, startY: number, fillColor: string) => {
-      setLayer1((prev) => {
-        const next = [...prev];
-        const targetColor = prev[startY * gridWidth + startX];
-        if (targetColor === fillColor) return prev;
+      const layer1 = layer1Ref.current;
+      const w = gridWidth;
+      const h = gridHeight;
+      const fillRgba = hexToRgba(fillColor);
 
-        const queue: [number, number][] = [[startX, startY]];
-        const visited = new Set<string>();
+      const startIdx = (startY * w + startX) * 4;
+      // Copy target color for comparison
+      const targetR = layer1[startIdx];
+      const targetG = layer1[startIdx + 1];
+      const targetB = layer1[startIdx + 2];
+      const targetA = layer1[startIdx + 3];
 
-        while (queue.length > 0) {
-          const [x, y] = queue.shift()!;
-          const key = `${x},${y}`;
-          if (visited.has(key)) continue;
-          if (x < 0 || x >= gridWidth || y < 0 || y >= gridHeight) continue;
-          if (next[y * gridWidth + x] !== targetColor) continue;
+      // Check if fill color matches target
+      if (fillRgba) {
+        if (targetR === fillRgba.r && targetG === fillRgba.g && targetB === fillRgba.b && targetA === fillRgba.a) return;
+      } else {
+        if (targetA === 0) return; // Already transparent
+      }
 
-          visited.add(key);
-          next[y * gridWidth + x] = fillColor;
+      const queue: [number, number][] = [[startX, startY]];
+      const visited = new Set<number>();
 
-          queue.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
-        }
-        return next;
-      });
+      while (queue.length > 0) {
+        const [x, y] = queue.shift()!;
+        const pixelIndex = y * w + x;
+        if (visited.has(pixelIndex)) continue;
+        if (x < 0 || x >= w || y < 0 || y >= h) continue;
+
+        const idx = pixelIndex * 4;
+        // Check if this pixel matches target color
+        if (layer1[idx] !== targetR || layer1[idx + 1] !== targetG ||
+          layer1[idx + 2] !== targetB || layer1[idx + 3] !== targetA) continue;
+
+        visited.add(pixelIndex);
+        setPixel(layer1, idx, fillRgba);
+
+        queue.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+      }
+      requestRender();
     },
-    [gridWidth, gridHeight]
+    [gridWidth, gridHeight, requestRender]
   );
   // Bresenham's line algorithm
   const getLinePixels = (x0: number, y0: number, x1: number, y1: number) => {
@@ -278,18 +380,23 @@ const SpriteEditor = () => {
     return pixels;
   };
 
-  // Apply brush size to a list of pixels
-  const applyBrush = useCallback((pixels: { x: number; y: number }[], color: string, layer: string[]) => {
+  // Apply brush size to a list of pixels (mutates the layer directly)
+  const applyBrush = useCallback((pixels: { x: number; y: number }[], color: string, layer: Uint8ClampedArray) => {
     const offset = Math.floor(brushSize / 2);
-    pixels.forEach(p => {
+    const rgba = hexToRgba(color);
+    const w = gridWidth;
+    const h = gridHeight;
+
+    for (const p of pixels) {
       for (let dy = 0; dy < brushSize; dy++) {
         for (let dx = 0; dx < brushSize; dx++) {
-          const px = Math.max(0, Math.min(gridWidth - 1, p.x + dx - offset));
-          const py = Math.max(0, Math.min(gridHeight - 1, p.y + dy - offset));
-          layer[py * gridWidth + px] = color;
+          const px = Math.max(0, Math.min(w - 1, p.x + dx - offset));
+          const py = Math.max(0, Math.min(h - 1, p.y + dy - offset));
+          const idx = (py * w + px) * 4;
+          setPixel(layer, idx, rgba);
         }
       }
-    });
+    }
   }, [brushSize, gridWidth, gridHeight]);
 
   // Get pixels for hollow rectangle outline
@@ -361,7 +468,8 @@ const SpriteEditor = () => {
       setOvalStart(position);
       setIsDrawing(true);
     } else if (activeTool === 'color-picker') {
-      const pickedColor = layer1[position.y * gridWidth + position.x];
+      const idx = (position.y * gridWidth + position.x) * 4;
+      const pickedColor = rgbaToHex(layer1Ref.current, idx);
       setPrimaryColor(pickedColor);
     }
   };
@@ -384,58 +492,79 @@ const SpriteEditor = () => {
     if (!position) return;
     if (!isDrawing) { drawShadow(position.x, position.y); return; }
 
-    const color = activeButtonRef.current === 2 ? secondaryColor : primaryColor;
+    // Throttle with requestAnimationFrame for smooth performance
+    if (rafIdRef.current) return;
+    rafIdRef.current = requestAnimationFrame(() => {
+      rafIdRef.current = 0;
+      const color = activeButtonRef.current === 2 ? secondaryColor : primaryColor;
 
-    if (activeTool === 'pen') {
-      const prev = prevPosRef.current;
-      if (prev && (Math.abs(position.x - prev.x) > 1 || Math.abs(position.y - prev.y) > 1)) {
-        getLinePixels(prev.x, prev.y, position.x, position.y).forEach(p => paintAt(p.x, p.y, color));
-      } else {
-        paintAt(position.x, position.y, color);
+      if (activeTool === 'pen') {
+        const prev = prevPosRef.current;
+        if (prev && (Math.abs(position.x - prev.x) > 1 || Math.abs(position.y - prev.y) > 1)) {
+          getLinePixels(prev.x, prev.y, position.x, position.y).forEach(p => paintAt(p.x, p.y, color));
+        } else {
+          paintAt(position.x, position.y, color);
+        }
+        prevPosRef.current = position;
+      } else if (activeTool === 'eraser') {
+        paintAt(position.x, position.y, '');
+      } else if (activeTool === 'line' && lineStart) {
+        const cp = clipToCanvas(lineStart, position);
+        const pixels = getLinePixels(lineStart.x, lineStart.y, cp.x, cp.y);
+        layer2Ref.current = createPixelArray(gridWidth, gridHeight);
+        applyBrush(pixels, color, layer2Ref.current);
+        requestRender();
+      } else if (activeTool === 'rectangle' && rectangleStart) {
+        const cp = clipToCanvas(rectangleStart, position);
+        const pixels = getRectanglePixels(rectangleStart.x, rectangleStart.y, cp.x, cp.y);
+        layer2Ref.current = createPixelArray(gridWidth, gridHeight);
+        applyBrush(pixels, color, layer2Ref.current);
+        requestRender();
+      } else if (activeTool === 'oval' && ovalStart) {
+        const cp = clipToCanvas(ovalStart, position);
+        const pixels = getOvalPixels(ovalStart.x, ovalStart.y, cp.x, cp.y);
+        layer2Ref.current = createPixelArray(gridWidth, gridHeight);
+        applyBrush(pixels, color, layer2Ref.current);
+        requestRender();
       }
-      prevPosRef.current = position;
-    } else if (activeTool === 'eraser') {
-      paintAt(position.x, position.y, '');
-    } else if (activeTool === 'line' && lineStart) {
-      const cp = clipToCanvas(lineStart, position);
-      const pixels = getLinePixels(lineStart.x, lineStart.y, cp.x, cp.y);
-      setLayer2(() => { const next = Array(gridWidth * gridHeight).fill(''); applyBrush(pixels, color, next); return next; });
-    } else if (activeTool === 'rectangle' && rectangleStart) {
-      const cp = clipToCanvas(rectangleStart, position);
-      const pixels = getRectanglePixels(rectangleStart.x, rectangleStart.y, cp.x, cp.y);
-      setLayer2(() => { const next = Array(gridWidth * gridHeight).fill(''); applyBrush(pixels, color, next); return next; });
-    } else if (activeTool === 'oval' && ovalStart) {
-      const cp = clipToCanvas(ovalStart, position);
-      const pixels = getOvalPixels(ovalStart.x, ovalStart.y, cp.x, cp.y);
-      setLayer2(() => { const next = Array(gridWidth * gridHeight).fill(''); applyBrush(pixels, color, next); return next; });
-    }
+    });
   };
   const handlePointerUp = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     const pos = getPointerPosition(event, true);
     if (!pos) return;
     const color = activeButtonRef.current === 2 ? secondaryColor : primaryColor;
-    const clearLayer2 = () => setLayer2(Array(gridWidth * gridHeight).fill(''));
+    const clearLayer2 = () => {
+      layer2Ref.current = createPixelArray(gridWidth, gridHeight);
+    };
 
-    const commitShape = (start: { x: number; y: number }, pixels: { x: number; y: number }[], resetStart: () => void) => {
-      setLayer1((prev) => { const next = [...prev]; applyBrush(pixels, color, next); return next; });
+    const commitShape = (pixels: { x: number; y: number }[], resetStart: () => void) => {
+      applyBrush(pixels, color, layer1Ref.current);
       resetStart();
       clearLayer2();
+      requestRender();
     };
 
     if (activeTool === 'rectangle' && rectangleStart && isDrawing) {
       const cp = clipToCanvas(rectangleStart, pos);
-      commitShape(rectangleStart, getRectanglePixels(rectangleStart.x, rectangleStart.y, cp.x, cp.y), () => setRectangleStart(null));
+      commitShape(getRectanglePixels(rectangleStart.x, rectangleStart.y, cp.x, cp.y), () => setRectangleStart(null));
     } else if (activeTool === 'line' && lineStart && isDrawing) {
       const cp = clipToCanvas(lineStart, pos);
-      commitShape(lineStart, getLinePixels(lineStart.x, lineStart.y, cp.x, cp.y), () => setLineStart(null));
+      commitShape(getLinePixels(lineStart.x, lineStart.y, cp.x, cp.y), () => setLineStart(null));
     } else if (activeTool === 'oval' && ovalStart && isDrawing) {
       const cp = clipToCanvas(ovalStart, pos);
-      commitShape(ovalStart, getOvalPixels(ovalStart.x, ovalStart.y, cp.x, cp.y), () => setOvalStart(null));
+      commitShape(getOvalPixels(ovalStart.x, ovalStart.y, cp.x, cp.y), () => setOvalStart(null));
     }
     setIsDrawing(false);
   };
 
-  const hasPixels = useMemo(() => layer1.some(Boolean), [layer1]);
+  // Check if canvas has any non-transparent pixels
+  const hasPixels = useMemo(() => {
+    const layer1 = layer1Ref.current;
+    for (let i = 3; i < layer1.length; i += 4) {
+      if (layer1[i] > 0) return true; // Check alpha channel
+    }
+    return false;
+  }, [renderVersion]); // Re-check when render is triggered
 
   const saveToAssets = async () => {
     if (!hasPixels) return;
@@ -450,14 +579,9 @@ const SpriteEditor = () => {
     const ctx = exportCanvas.getContext('2d');
     if (!ctx) return;
 
-    // Draw pixels to export canvas
-    layer1.forEach((color, index) => {
-      if (!color) return;
-      const x = index % gridWidth;
-      const y = Math.floor(index / gridWidth);
-      ctx.fillStyle = color;
-      ctx.fillRect(x, y, 1, 1);
-    });
+    // Create ImageData from layer1Ref and put it directly
+    const imageData = new ImageData(new Uint8ClampedArray(layer1Ref.current), gridWidth, gridHeight);
+    ctx.putImageData(imageData, 0, 0);
 
     // Convert to data URL
     const dataUrl = exportCanvas.toDataURL('image/png');
@@ -529,7 +653,9 @@ const SpriteEditor = () => {
       if (lineStart) { const cp = clipToCanvas(lineStart, pos); pixels = getLinePixels(lineStart.x, lineStart.y, cp.x, cp.y); }
       else if (rectangleStart) { const cp = clipToCanvas(rectangleStart, pos); pixels = getRectanglePixels(rectangleStart.x, rectangleStart.y, cp.x, cp.y); }
       else if (ovalStart) { const cp = clipToCanvas(ovalStart, pos); pixels = getOvalPixels(ovalStart.x, ovalStart.y, cp.x, cp.y); }
-      setLayer2(() => { const next = Array(gridWidth * gridHeight).fill(''); applyBrush(pixels, color, next); return next; });
+      layer2Ref.current = createPixelArray(gridWidth, gridHeight);
+      applyBrush(pixels, color, layer2Ref.current);
+      requestRender();
     };
     const handleWindowUp = (e: PointerEvent) => {
       const pos = getPointerPosition(e, true);
@@ -538,14 +664,15 @@ const SpriteEditor = () => {
       if (lineStart) { const cp = clipToCanvas(lineStart, pos); pixels = getLinePixels(lineStart.x, lineStart.y, cp.x, cp.y); setLineStart(null); }
       else if (rectangleStart) { const cp = clipToCanvas(rectangleStart, pos); pixels = getRectanglePixels(rectangleStart.x, rectangleStart.y, cp.x, cp.y); setRectangleStart(null); }
       else if (ovalStart) { const cp = clipToCanvas(ovalStart, pos); pixels = getOvalPixels(ovalStart.x, ovalStart.y, cp.x, cp.y); setOvalStart(null); }
-      setLayer1((prev) => { const next = [...prev]; applyBrush(pixels, color, next); return next; });
-      setLayer2(Array(gridWidth * gridHeight).fill(''));
+      applyBrush(pixels, color, layer1Ref.current);
+      layer2Ref.current = createPixelArray(gridWidth, gridHeight);
+      requestRender();
       setIsDrawing(false);
     };
     window.addEventListener('pointermove', handleWindowMove);
     window.addEventListener('pointerup', handleWindowUp);
     return () => { window.removeEventListener('pointermove', handleWindowMove); window.removeEventListener('pointerup', handleWindowUp); };
-  }, [isDrawing, lineStart, rectangleStart, ovalStart, primaryColor, secondaryColor, gridWidth, gridHeight, brushSize, getPointerPosition, clipToCanvas, getOvalPixels, applyBrush]);
+  }, [isDrawing, lineStart, rectangleStart, ovalStart, primaryColor, secondaryColor, gridWidth, gridHeight, brushSize, getPointerPosition, clipToCanvas, getOvalPixels, applyBrush, requestRender]);
 
   // Window-level pointer tracking for pen and eraser
   useEffect(() => {
@@ -583,7 +710,7 @@ const SpriteEditor = () => {
   useEffect(() => {
     renderCanvas();
     renderPreview();
-  }, [renderCanvas, renderPreview]);
+  }, [renderCanvas, renderPreview, renderVersion]);
 
   return (
     <div className="flex-1 min-h-0 flex border-t border-slate-200 bg-slate-800 dark:border-slate-700">
@@ -695,11 +822,14 @@ const SpriteEditor = () => {
                 setLocalGridWidth(originalGridWidth.current);
                 return;
               }
-              const val = Math.max(1, Math.min(160, parseInt(e.target.value, 10)));
+              const val = Math.max(1, Math.min(1024, parseInt(e.target.value, 10)));
               setGridWidth(val);
               setLocalGridWidth(val);
-              setLayer1(Array.from({ length: val * gridHeight }, () => ''));
-              setLayer2(Array.from({ length: val * gridHeight }, () => ''));
+              layer1Ref.current = createPixelArray(val, gridHeight);
+              layer2Ref.current = createPixelArray(val, gridHeight);
+              undoStackRef.current = [];
+              redoStackRef.current = [];
+              requestRender();
             }}
             min={1}
             max={160}
@@ -718,11 +848,14 @@ const SpriteEditor = () => {
                 setLocalGridHeight(originalGridHeight.current);
                 return;
               }
-              const val = Math.max(1, Math.min(128, parseInt(e.target.value, 10)));
+              const val = Math.max(1, Math.min(1024, parseInt(e.target.value, 10)));
               setGridHeight(val);
               setLocalGridHeight(val);
-              setLayer1(Array.from({ length: gridWidth * val }, () => ''));
-              setLayer2(Array.from({ length: gridWidth * val }, () => ''));
+              layer1Ref.current = createPixelArray(gridWidth, val);
+              layer2Ref.current = createPixelArray(gridWidth, val);
+              undoStackRef.current = [];
+              redoStackRef.current = [];
+              requestRender();
             }}
             min={1}
             max={128}
@@ -741,8 +874,10 @@ const SpriteEditor = () => {
           <button
             type="button"
             onClick={() => {
-              setLayer1(Array.from({ length: gridWidth * gridHeight }, () => ''));
-              setLayer2(Array.from({ length: gridWidth * gridHeight }, () => ''));
+              saveToHistory();
+              layer1Ref.current = createPixelArray(gridWidth, gridHeight);
+              layer2Ref.current = createPixelArray(gridWidth, gridHeight);
+              requestRender();
             }}
             className="absolute top-2 right-2 z-10 px-3 h-7 flex items-center justify-center rounded bg-red-600/80 hover:bg-red-600 text-white text-xs font-medium cursor-pointer transition"
             title="Clear canvas"

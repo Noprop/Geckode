@@ -178,7 +178,7 @@ const ProjectView = ({ projectId }: ProjectViewProps) => {
         )}
       </div>
 
-      <div className="flex flex-col pr-2 pt-2" style={{ width: "492px" }}>
+      <div className="flex flex-col pr-2 pt-2" style={{ width: "480px" }}>
         <Phaser />
       </div>
     </div>

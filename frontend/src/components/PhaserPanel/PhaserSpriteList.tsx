@@ -53,8 +53,6 @@ const PhaserSpriteList = () => {
           <div className="grid grid-cols-[repeat(auto-fill,minmax(75px,1fr))] gap-2 pr-1">
             {sprites.map((sprite) => {
               const isSelected = sprite.id === selectedSpriteId;
-              console.log('[PhaserSpriteList] isSelected: ', isSelected, 'selectedSpriteId: ', selectedSpriteId);
-
               return (
                 <div
                   key={sprite.id}

@@ -1,24 +1,26 @@
 import { useState, useEffect } from "react";
 import { useSpriteStore } from "@/stores/spriteStore";
+import { useEditorStore } from "@/stores/editorStore";
 import { EyeOpenIcon, EyeNoneIcon } from "@radix-ui/react-icons";
 import type { SpriteInstance } from "@/blockly/spriteRegistry";
-
-// todo, move to constant/global variable
-const CENTER_X = 240;
-const CENTER_Y = 180;
 
 const SpritePosition = () => {
   const selectedSprite = useSpriteStore((state) => state.selectedSprite);
   const selectedSpriteId = useSpriteStore((state) => state.selectedSpriteId);
   const updateSprite = useSpriteStore((state) => state.updateSprite);
+  const phaserGame = useEditorStore((state) => state.phaserGame);
+
+  // Get center from Phaser game dimensions
+  const centerX = phaserGame ? Math.round(phaserGame.scale.width / 2) : 80;
+  const centerY = phaserGame ? Math.round(phaserGame.scale.height / 2) : 64;
 
   const [values, setValues] = useState({ name: '', x: '', y: '', size: '', direction: '', snapToGrid: false, visible: true });
   useEffect(() => {
     if (selectedSprite) {
       setValues({
         name: selectedSprite.name,
-        x: String(selectedSprite.x ?? CENTER_X),
-        y: String(selectedSprite.y ?? CENTER_Y),
+        x: String(selectedSprite.x ?? centerX),
+        y: String(selectedSprite.y ?? centerY),
         size: String(selectedSprite.size ?? 100),
         direction: String(selectedSprite.direction ?? 90),
         snapToGrid: selectedSprite.snapToGrid ?? false,
@@ -27,7 +29,7 @@ const SpritePosition = () => {
     } else {
       setValues({ name: '', x: '', y: '', size: '', direction: '', snapToGrid: false, visible: true });
     }
-  }, [selectedSpriteId]);
+  }, [selectedSpriteId, selectedSprite, centerX, centerY]);
 
   const handleInputChange = (field: keyof typeof values, value: string) => {
     setValues((prev) => ({ ...prev, [field]: value }));
@@ -79,7 +81,7 @@ const SpritePosition = () => {
             type="number"
             value={values.x}
             onChange={(e) => handleInputChange('x', e.target.value)}
-            onBlur={() => handleBlur('x', CENTER_X)}
+            onBlur={() => handleBlur('x', centerX)}
             disabled={!selectedSprite}
             className="w-14 rounded-full border border-slate-300 bg-white px-2 py-1.5 text-xs text-center outline-none transition focus:border-primary-green focus:ring-2 focus:ring-primary-green/20 disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-600 dark:bg-dark-hover dark:text-slate-100 dark:disabled:bg-dark-tertiary dark:disabled:text-slate-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
@@ -93,7 +95,7 @@ const SpritePosition = () => {
             type="number"
             value={values.y}
             onChange={(e) => handleInputChange('y', e.target.value)}
-            onBlur={() => handleBlur('y', CENTER_Y)}
+            onBlur={() => handleBlur('y', centerY)}
             disabled={!selectedSprite}
             className="w-14 rounded-full border border-slate-300 bg-white px-2 py-1.5 text-xs text-center outline-none transition focus:border-primary-green focus:ring-2 focus:ring-primary-green/20 disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-600 dark:bg-dark-hover dark:text-slate-100 dark:disabled:bg-dark-tertiary dark:disabled:text-slate-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
@@ -153,8 +155,7 @@ const SpritePosition = () => {
           <label className="font-semibold text-slate-600 dark:text-slate-400">Size</label>
           <input
             type="number"
-            // value={'size' in editingValues ? editingValues.size : selectedSprite?.size ?? 100}
-            // onFocus={() => handleFocus('size', selectedSprite?.size ?? 100)}
+            value={values.size}
             onChange={(e) => handleInputChange('size', e.target.value)}
             onBlur={() => handleBlur('size', 100)}
             disabled={!selectedSprite}
@@ -169,10 +170,9 @@ const SpritePosition = () => {
           <label className="font-semibold text-slate-600 dark:text-slate-400">Direction</label>
           <input
             type="number"
-            // value={'direction' in editingValues ? editingValues.direction : selectedSprite?.direction ?? 90}
-            // onFocus={() => handleFocus('direction', selectedSprite?.direction ?? 90)}
+            value={values.direction}
             onChange={(e) => handleInputChange('direction', e.target.value)}
-            onBlur={() => handleBlur('direction', 0)}
+            onBlur={() => handleBlur('direction', 90)}
             disabled={!selectedSprite}
             min="-180"
             max="180"

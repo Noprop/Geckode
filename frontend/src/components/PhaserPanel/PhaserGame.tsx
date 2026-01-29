@@ -61,13 +61,13 @@ const PhaserGame = () => {
   }, []);
 
   return (
-    <div className="relative">
+    <div className="relative flex justify-center">
       <div
         id="game-container"
         tabIndex={0}
         className="rounded-md outline-none border-2 border-transparent focus:border-primary-green transition-all duration-200"
         style={{
-          width: '484px',
+          width: '450px',
           height: '360px',
           overflow: 'hidden',
         }}

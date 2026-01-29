@@ -44,7 +44,7 @@ export default class EditorScene extends Phaser.Scene {
     this.groundLayer = null;
 
     // Create the tilemap (sits below sprites)
-    this.createTilemap();
+    // this.createTilemap();
 
     // Dedicated layer to keep editor sprites above all game objects.
     this.editorLayer = this.add.layer();
@@ -115,10 +115,10 @@ export default class EditorScene extends Phaser.Scene {
 
   private createTilemap(): void {
     const tileSize = EditorScene.TILE_SIZE;
-    const width = 480;
-    const height = 360;
-    const mapWidth = Math.ceil(width / tileSize); // 15 tiles
-    const mapHeight = Math.ceil(height / tileSize); // ~11 tiles
+    const width = this.scale.width;
+    const height = this.scale.height;
+    const mapWidth = Math.ceil(width / tileSize);
+    const mapHeight = Math.ceil(height / tileSize);
 
     // Create tilemap data - simple ground at bottom 2 rows
     const mapData: number[][] = [];
@@ -227,60 +227,41 @@ export default class EditorScene extends Phaser.Scene {
   }
 
   private drawGrid(): void {
-    const width = 480;
-    const height = 360;
-    const gridSpacing = 50;
-    const centerX = 240;
-    const centerY = 180;
+    const width = this.scale.width;
+    const height = this.scale.height;
+    const gridSpacing = 32;
 
     if (!this.gridGraphics) {
       this.gridGraphics = this.add.graphics();
-      this.gridGraphics.setDepth(EditorScene.EDITOR_SPRITE_BASE_DEPTH - 1);
+      this.gridGraphics.setDepth(0);
     }
 
     this.gridGraphics.clear();
+    this.gridGraphics.lineStyle(2, 0xffffff, 0.2);
 
-    // Thin grid lines radiating from center
-    this.gridGraphics.lineStyle(1, 0xffffff, 0.3);
-
-    // Vertical lines from center outward
-    for (let x = centerX - gridSpacing; x >= 0; x -= gridSpacing) {
+    for (let x = gridSpacing; x < width; x += gridSpacing) {
       this.gridGraphics.beginPath();
       this.gridGraphics.moveTo(x, 0);
       this.gridGraphics.lineTo(x, height);
       this.gridGraphics.strokePath();
     }
-    for (let x = centerX + gridSpacing; x <= width; x += gridSpacing) {
-      this.gridGraphics.beginPath();
-      this.gridGraphics.moveTo(x, 0);
-      this.gridGraphics.lineTo(x, height);
-      this.gridGraphics.strokePath();
-    }
-
-    // Horizontal lines from center outward
-    for (let y = centerY - gridSpacing; y >= 0; y -= gridSpacing) {
-      this.gridGraphics.beginPath();
-      this.gridGraphics.moveTo(0, y);
-      this.gridGraphics.lineTo(width, y);
-      this.gridGraphics.strokePath();
-    }
-    for (let y = centerY + gridSpacing; y <= height; y += gridSpacing) {
+    for (let y = gridSpacing; y < height; y += gridSpacing) {
       this.gridGraphics.beginPath();
       this.gridGraphics.moveTo(0, y);
       this.gridGraphics.lineTo(width, y);
       this.gridGraphics.strokePath();
     }
 
-    // Thick center axes
-    this.gridGraphics.lineStyle(2, 0xffffff, 0.8);
-    this.gridGraphics.beginPath();
-    this.gridGraphics.moveTo(centerX, 0);
-    this.gridGraphics.lineTo(centerX, height);
-    this.gridGraphics.strokePath();
-    this.gridGraphics.beginPath();
-    this.gridGraphics.moveTo(0, centerY);
-    this.gridGraphics.lineTo(width, centerY);
-    this.gridGraphics.strokePath();
+    // Thick center axes: TODO
+    //   this.gridGraphics.lineStyle(2, 0xffffff, 0.8);
+    //   this.gridGraphics.beginPath();
+    //   this.gridGraphics.moveTo(centerX, 0);
+    //   this.gridGraphics.lineTo(centerX, height);
+    //   this.gridGraphics.strokePath();
+    //   this.gridGraphics.beginPath();
+    //   this.gridGraphics.moveTo(0, centerY);
+    //   this.gridGraphics.lineTo(width, centerY);
+    //   this.gridGraphics.strokePath();
   }
 
   public showGrid(): void {
