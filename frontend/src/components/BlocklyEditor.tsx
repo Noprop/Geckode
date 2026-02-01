@@ -196,11 +196,14 @@ const BlocklyEditor = () => {
             useSpriteStore.setState({
               spriteInstances: [{
                 id: spriteId,
-                instanceId: spriteId,
                 textureName: 'hero-walk-front',
                 name: 'herowalkfront1',
                 x: 200,
                 y: 150,
+                visible: true,
+                size: 1,
+                direction: 0,
+                snapToGrid: true,
               }],
             });
           }

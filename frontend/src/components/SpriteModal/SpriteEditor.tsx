@@ -5,25 +5,13 @@ import type { PointerEvent as ReactPointerEvent } from 'react';
 import { Button } from '../ui/Button';
 import { useSpriteStore } from '@/stores/spriteStore';
 import EditorTools from './EditorTools';
+import { Display } from 'phaser';
 
 const MIN_ZOOM_PERCENT = 25;
 const MAX_ZOOM_PERCENT = 800;
 const MAX_HISTORY = 50;
 
 export type Tool = 'pen' | 'eraser' | 'bucket' | 'rectangle' | 'line' | 'oval' | 'rectangle-selection' | 'pan-tool' | 'color-picker';
-
-// Convert hex color to RGBA values (returns null for transparent/empty)
-const hexToRgba = (hex: string): { r: number; g: number; b: number; a: number } | null => {
-  if (!hex) return null;
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  if (!result) return null;
-  return {
-    r: parseInt(result[1], 16),
-    g: parseInt(result[2], 16),
-    b: parseInt(result[3], 16),
-    a: 255,
-  };
-};
 
 // Convert RGBA values at index to hex (returns '' for transparent)
 const rgbaToHex = (data: Uint8ClampedArray, idx: number): string => {
@@ -48,6 +36,16 @@ const setPixel = (data: Uint8ClampedArray, idx: number, color: { r: number; g: n
     data[idx + 3] = 0;
   }
 };
+const palette = [
+  '#ffffff',
+  '#ef4444',
+  '#10b981',
+  '#3b82f6',
+  '#f97316',
+  '#000000',
+  '#8b5cf6',
+  '#fbbf24',
+];
 
 // Create empty RGBA array
 const createPixelArray = (width: number, height: number): Uint8ClampedArray => {
@@ -55,33 +53,29 @@ const createPixelArray = (width: number, height: number): Uint8ClampedArray => {
 };
 
 const SpriteEditor = () => {
-  const [spriteName, setSpriteName] = useState('Custom Sprite');
+  const [spriteName, setSpriteName] = useState('mySprite');
   const [brushSize, setBrushSize] = useState(1);
   const [primaryColor, setPrimaryColor] = useState('#10b981');
   const [secondaryColor, setSecondaryColor] = useState('#3b82f6');
   const [activeTool, setActiveTool] = useState<Tool>('pen');
-  const [showGrid, setShowGrid] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
-  const [rectangleStart, setRectangleStart] = useState<{ x: number; y: number } | null>(null);
-  const [lineStart, setLineStart] = useState<{ x: number; y: number } | null>(null);
-  const [ovalStart, setOvalStart] = useState<{ x: number; y: number } | null>(null);
+  const [shapeStart, setShapeStart] = useState<{ x: number; y: number } | null>(null);
   const [zoomPercent, setZoomPercent] = useState(100);
   const [gridWidth, setGridWidth] = useState(16);
   const [gridHeight, setGridHeight] = useState(16);
-  const [localGridWidth, setLocalGridWidth] = useState(gridWidth);
-  const [localGridHeight, setLocalGridHeight] = useState(gridHeight);
+  const [inputWidth, setInputWidth] = useState(gridWidth);
+  const [inputHeight, setInputHeight] = useState(gridHeight);
   const originalGridWidth = useRef(gridWidth);
   const originalGridHeight = useRef(gridHeight);
   const [isEditingZoom, setIsEditingZoom] = useState(false);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+  const [renderCount, setRenderCount] = useState(0);
   const addSpriteToGame = useSpriteStore((state) => state.addSpriteToGame);
   const setIsSpriteModalOpen = useSpriteStore((state) => state.setIsSpriteModalOpen);
   const registerTexture = useSpriteStore((state) => state.registerTexture);
   const addToSpriteLibrary = useSpriteStore((state) => state.addToSpriteLibrary);
-  const editingLibrarySprite = useSpriteStore((state) => state.editingLibrarySprite);
   const originalPixelData = useSpriteStore((state) => state.originalPixelData);
   const spriteTextures = useSpriteStore((state) => state.spriteTextures);
-  const clearEditingLibrarySprite = useSpriteStore((state) => state.clearEditingLibrarySprite);
 
   const prevPosRef = useRef<{ x: number; y: number } | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -90,6 +84,104 @@ const SpriteEditor = () => {
   const activeButtonRef = useRef<number>(0); // 0 = left click, 2 = right click
   const rafIdRef = useRef<number>(0); // For requestAnimationFrame throttling
   const originalPixelDataRef = useRef<Uint8ClampedArray | null>(null); // For comparing against library sprite
+
+  // Ref to hold state values for window event handlers (avoids stale closures)
+  const stateRef = useRef({
+    isDrawing: false,
+    shapeStart: null as { x: number; y: number } | null,
+    activeTool: 'pen' as Tool,
+    primaryColor: '#10b981',
+    secondaryColor: '#3b82f6',
+    gridWidth: 16,
+    gridHeight: 16,
+    brushSize: 1,
+  });
+
+  // Layer 1 is the main layer, layer 2 is for visual effects that aren't saved
+  // Using refs + Uint8ClampedArray for performance (no React state updates during drawing)
+  const layer1Ref = useRef<Uint8ClampedArray>(createPixelArray(gridWidth, gridHeight));
+  const layer2Ref = useRef<Uint8ClampedArray>(createPixelArray(gridWidth, gridHeight));
+
+  // Undo/Redo history (stores copies of the pixel data)
+  const undoStackRef = useRef<Uint8ClampedArray[]>([]);
+  const redoStackRef = useRef<Uint8ClampedArray[]>([]);
+
+  // Cached 2x2 checker tile for pattern rendering
+  const checkerTileRef = useRef<HTMLCanvasElement | null>(null);
+  const checkerTileCellSizeRef = useRef<number>(0);
+
+  // sync the state
+  useEffect(() => {
+    stateRef.current = {
+      isDrawing,
+      shapeStart,
+      activeTool,
+      primaryColor,
+      secondaryColor,
+      gridWidth,
+      gridHeight,
+      brushSize,
+    };
+  }, [isDrawing, shapeStart, activeTool, primaryColor, secondaryColor, gridWidth, gridHeight, brushSize]);
+
+  useEffect(() => {
+    const container = canvasContainerRef.current;
+    if (!container) throw new Error('Canvas container should exist.');
+
+    // zoom in and out
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      if (e.ctrlKey || e.metaKey) setZoom(e.deltaY > 0 ? -5 : 5);
+    };
+
+    // track the container size for relative zoom
+    const observer = new ResizeObserver((entries) => {
+      setContainerSize({ width: entries[0].contentRect.width, height: entries[0].contentRect.height });
+    });
+
+    // undo/redo detection
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === 'z' && !event.shiftKey) {
+        event.preventDefault();
+        undo();
+      } else if (
+        ((event.metaKey || event.ctrlKey) && event.key === 'y') ||
+        ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key === 'z')
+      ) {
+        event.preventDefault();
+        redo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    observer.observe(container);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      container.removeEventListener('wheel', handleWheel);
+      observer.disconnect();
+    }
+  }, []);
+
+  const setZoom = (z: number) => {
+    if (z < MIN_ZOOM_PERCENT) { setZoomPercent(MIN_ZOOM_PERCENT); return; }
+    if (z > MAX_ZOOM_PERCENT) { setZoomPercent(MAX_ZOOM_PERCENT); return; }
+    setZoomPercent(z);
+  };
+
+  useEffect(() => {
+    if (!isDrawing) return;
+    if (activeTool !== 'pen' && activeTool !== 'eraser') return;
+
+    const handleWindowUp = () => {
+      setIsDrawing(false);
+      prevPosRef.current = null;
+    };
+
+    window.addEventListener('pointerup', handleWindowUp);
+    return () => window.removeEventListener('pointerup', handleWindowUp);
+  }, [isDrawing, activeTool]);
 
   // Calculate base zoom (pixels-per-cell that makes canvas fit the container)
   const baseZoom = useMemo(() => {
@@ -110,157 +202,94 @@ const SpriteEditor = () => {
     setSecondaryColor(primaryColor);
   };
 
-  // Layer 1 is the main layer, layer 2 is for visual effects that aren't saved
-  // Using refs + Uint8ClampedArray for performance (no React state updates during drawing)
-  const layer1Ref = useRef<Uint8ClampedArray>(createPixelArray(gridWidth, gridHeight));
-  const layer2Ref = useRef<Uint8ClampedArray>(createPixelArray(gridWidth, gridHeight));
-
-  // Track if canvas needs re-render (incremented to trigger useEffect)
-  const [renderVersion, setRenderVersion] = useState(0);
-  const requestRender = useCallback(() => setRenderVersion((v) => v + 1), []);
-
-  // Undo/Redo history (stores copies of the pixel data)
-  const undoStackRef = useRef<Uint8ClampedArray[]>([]);
-  const redoStackRef = useRef<Uint8ClampedArray[]>([]);
-
-  const palette = [
-    '#ffffff',
-    '#ef4444',
-    '#10b981',
-    '#3b82f6',
-    '#f97316',
-    '#000000',
-    '#8b5cf6',
-    '#fbbf24',
-  ];
-
-  // Save current state to undo history
-  const saveToHistory = useCallback(() => {
+  const requestRender = () => setRenderCount((prev) => prev + 1);
+  const saveToHistory = () => {
     undoStackRef.current.push(new Uint8ClampedArray(layer1Ref.current));
-    if (undoStackRef.current.length > MAX_HISTORY) {
-      undoStackRef.current.shift();
-    }
-    // Clear redo stack when new action is performed
+    if (undoStackRef.current.length > MAX_HISTORY) undoStackRef.current.shift();
     redoStackRef.current = [];
-  }, []);
-
-  // Undo function
-  const undo = useCallback(() => {
+  };
+  const undo = () => {
     if (undoStackRef.current.length === 0) return;
     const previousState = undoStackRef.current.pop()!;
     redoStackRef.current.push(new Uint8ClampedArray(layer1Ref.current));
     layer1Ref.current = previousState;
     requestRender();
-  }, [requestRender]);
-
-  // Redo function
-  const redo = useCallback(() => {
+  };
+  const redo = () => {
     if (redoStackRef.current.length === 0) return;
     const nextState = redoStackRef.current.pop()!;
     undoStackRef.current.push(new Uint8ClampedArray(layer1Ref.current));
     layer1Ref.current = nextState;
     requestRender();
-  }, [requestRender]);
+  };
 
-  const drawShadow = (x: number, y: number) => {
-    // console.log('[SpriteEditor] drawShadow()');
-    // const canvas = canvasRef.current;
-    // if (!canvas) return;
-    // const ctx = canvas.getContext('2d');
-    // if (!ctx) return;
-    // ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-    // ctx.fillRect(x, y, 1, 1);
-  }
+  const getCheckerPattern = (ctx: CanvasRenderingContext2D, cellSize: number): CanvasPattern => {
+    if (!checkerTileRef.current || checkerTileCellSizeRef.current !== cellSize) {
+      const tile = document.createElement('canvas');
+      tile.width = cellSize * 2;
+      tile.height = cellSize * 2;
+      const tileCtx = tile.getContext('2d')!;
 
-  // Pre-rendered checker pattern canvas (cached)
-  const checkerCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const checkerSizeRef = useRef({ width: 0, height: 0, cellSize: 0 });
+      tileCtx.fillStyle = '#9e9e9e';
+      tileCtx.fillRect(0, 0, cellSize, cellSize);
+      tileCtx.fillRect(cellSize, cellSize, cellSize, cellSize);
+      tileCtx.fillStyle = '#6e6e6e';
+      tileCtx.fillRect(cellSize, 0, cellSize, cellSize);
+      tileCtx.fillRect(0, cellSize, cellSize, cellSize);
 
-  const getCheckerCanvas = useCallback((cellSize: number, width: number, height: number): HTMLCanvasElement => {
-    const cached = checkerCanvasRef.current;
-    const cachedSize = checkerSizeRef.current;
-
-    // Return cached if dimensions match
-    if (cached && cachedSize.width === width && cachedSize.height === height && cachedSize.cellSize === cellSize) {
-      return cached;
+      checkerTileRef.current = tile;
+      checkerTileCellSizeRef.current = cellSize;
     }
+    return ctx.createPattern(checkerTileRef.current, 'repeat')!;
+  };
 
-    // Create new checker canvas
-    const checkerCanvas = document.createElement('canvas');
-    checkerCanvas.width = width * cellSize;
-    checkerCanvas.height = height * cellSize;
-    const ctx = checkerCanvas.getContext('2d')!;
-
-    const light = '#9e9e9e';
-    const dark = '#6e6e6e';
-    for (let y = 0; y < height; y += 1) {
-      for (let x = 0; x < width; x += 1) {
-        ctx.fillStyle = (x + y) % 2 === 0 ? light : dark;
-        ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
-      }
-    }
-
-    checkerCanvasRef.current = checkerCanvas;
-    checkerSizeRef.current = { width, height, cellSize };
-    return checkerCanvas;
-  }, []);
-
-  const renderCanvas = useCallback(() => {
+  const renderCanvas = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const size = Math.round(cellSize);
+    const size = Math.max(1, Math.round(cellSize));
     const w = gridWidth;
     const h = gridHeight;
     canvas.width = w * size;
     canvas.height = h * size;
     ctx.imageSmoothingEnabled = false;
 
-    // Draw cached checker pattern
-    const checkerCanvas = getCheckerCanvas(size, w, h);
-    ctx.drawImage(checkerCanvas, 0, 0);
-
-    // Draw layer1 pixels
+    // Create scaled ImageData for pixels (single putImageData instead of per-pixel fillRect)
+    const imageData = ctx.createImageData(canvas.width, canvas.height);
+    const data = imageData.data;
     const layer1 = layer1Ref.current;
-    for (let i = 0; i < w * h; i++) {
-      const idx = i * 4;
-      if (layer1[idx + 3] === 0) continue; // Skip transparent
-      const x = i % w;
-      const y = Math.floor(i / w);
-      ctx.fillStyle = `rgba(${layer1[idx]},${layer1[idx + 1]},${layer1[idx + 2]},${layer1[idx + 3] / 255})`;
-      ctx.fillRect(x * size, y * size, size, size);
-    }
-
-    // Draw layer2 (preview layer) on top
     const layer2 = layer2Ref.current;
-    for (let i = 0; i < w * h; i++) {
-      const idx = i * 4;
-      if (layer2[idx + 3] === 0) continue; // Skip transparent
-      const x = i % w;
-      const y = Math.floor(i / w);
-      ctx.fillStyle = `rgba(${layer2[idx]},${layer2[idx + 1]},${layer2[idx + 2]},${layer2[idx + 3] / 255})`;
-      ctx.fillRect(x * size, y * size, size, size);
+
+    for (let py = 0; py < h; py++) {
+      for (let px = 0; px < w; px++) {
+        const srcIdx = (py * w + px) * 4;
+        // Check layer2 first (preview), then layer1
+        const layer = layer2[srcIdx + 3] > 0 ? layer2 : layer1;
+        if (layer[srcIdx + 3] === 0) continue;
+
+        // Fill the scaled cell
+        for (let dy = 0; dy < size; dy++) {
+          for (let dx = 0; dx < size; dx++) {
+            const dstIdx = ((py * size + dy) * canvas.width + (px * size + dx)) * 4;
+            data[dstIdx] = layer[srcIdx];
+            data[dstIdx + 1] = layer[srcIdx + 1];
+            data[dstIdx + 2] = layer[srcIdx + 2];
+            data[dstIdx + 3] = layer[srcIdx + 3];
+          }
+        }
+      }
     }
 
-    if (showGrid) {
-      ctx.strokeStyle = 'rgba(15,23,42,0.15)';
-      ctx.lineWidth = 0.5;
-      for (let i = 0; i <= w; i += 1) {
-        ctx.beginPath();
-        ctx.moveTo(i * size + 0.25, 0);
-        ctx.lineTo(i * size + 0.25, h * size);
-        ctx.stroke();
-      }
-      for (let i = 0; i <= h; i += 1) {
-        ctx.beginPath();
-        ctx.moveTo(0, i * size + 0.25);
-        ctx.lineTo(w * size, i * size + 0.25);
-        ctx.stroke();
-      }
-    }
-  }, [cellSize, gridWidth, gridHeight, getCheckerCanvas, showGrid]);
+    // Draw pixels first, then checker pattern behind using destination-over
+    // (putImageData replaces content entirely, so we must draw checker after)
+    ctx.putImageData(imageData, 0, 0);
+    ctx.globalCompositeOperation = 'destination-over';
+    ctx.fillStyle = getCheckerPattern(ctx, size);
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.globalCompositeOperation = 'source-over';
+  };
 
   const renderPreview = useCallback(() => {
     const preview = previewRef.current;
@@ -275,87 +304,94 @@ const SpriteEditor = () => {
     preview.height = h * scale;
     ctx.imageSmoothingEnabled = false;
 
-    // Draw checker pattern for preview
-    const checkerCanvas = getCheckerCanvas(scale, w, h);
-    ctx.drawImage(checkerCanvas, 0, 0);
-
-    // Draw layer1 pixels
+    // Create scaled ImageData for pixels
+    const imageData = ctx.createImageData(preview.width, preview.height);
+    const data = imageData.data;
     const layer1 = layer1Ref.current;
-    for (let i = 0; i < w * h; i++) {
-      const idx = i * 4;
-      if (layer1[idx + 3] === 0) continue;
-      const x = i % w;
-      const y = Math.floor(i / w);
-      ctx.fillStyle = `rgba(${layer1[idx]},${layer1[idx + 1]},${layer1[idx + 2]},${layer1[idx + 3] / 255})`;
-      ctx.fillRect(x * scale, y * scale, scale, scale);
-    }
-  }, [gridWidth, gridHeight, getCheckerCanvas]);
 
-  // Tools
-  const paintAt = useCallback(
-    (x: number, y: number, color: string) => {
-      const rgba = hexToRgba(color);
-      const offset = Math.floor(brushSize / 2);
-      const layer1 = layer1Ref.current;
-      const w = gridWidth;
-      const h = gridHeight;
+    for (let py = 0; py < h; py++) {
+      for (let px = 0; px < w; px++) {
+        const srcIdx = (py * w + px) * 4;
+        if (layer1[srcIdx + 3] === 0) continue;
 
-      for (let dy = 0; dy < brushSize; dy += 1) {
-        for (let dx = 0; dx < brushSize; dx += 1) {
-          const px = Math.max(0, Math.min(w - 1, x + dx - offset));
-          const py = Math.max(0, Math.min(h - 1, y + dy - offset));
-          const idx = (py * w + px) * 4;
-          setPixel(layer1, idx, rgba);
+        // Fill the scaled cell
+        for (let dy = 0; dy < scale; dy++) {
+          for (let dx = 0; dx < scale; dx++) {
+            const dstIdx = ((py * scale + dy) * preview.width + (px * scale + dx)) * 4;
+            data[dstIdx] = layer1[srcIdx];
+            data[dstIdx + 1] = layer1[srcIdx + 1];
+            data[dstIdx + 2] = layer1[srcIdx + 2];
+            data[dstIdx + 3] = layer1[srcIdx + 3];
+          }
         }
       }
-      requestRender();
-    },
-    [gridWidth, gridHeight, brushSize, requestRender]
-  );
-  const floodFill = useCallback(
-    (startX: number, startY: number, fillColor: string) => {
-      const layer1 = layer1Ref.current;
-      const w = gridWidth;
-      const h = gridHeight;
-      const fillRgba = hexToRgba(fillColor);
+    }
 
-      const startIdx = (startY * w + startX) * 4;
-      // Copy target color for comparison
-      const targetR = layer1[startIdx];
-      const targetG = layer1[startIdx + 1];
-      const targetB = layer1[startIdx + 2];
-      const targetA = layer1[startIdx + 3];
+    // Draw pixels first, then checker pattern behind using destination-over
+    ctx.putImageData(imageData, 0, 0);
+    ctx.globalCompositeOperation = 'destination-over';
+    ctx.fillStyle = getCheckerPattern(ctx, scale);
+    ctx.fillRect(0, 0, preview.width, preview.height);
+    ctx.globalCompositeOperation = 'source-over';
+  }, [gridWidth, gridHeight]); 
 
-      // Check if fill color matches target
-      if (fillRgba) {
-        if (targetR === fillRgba.r && targetG === fillRgba.g && targetB === fillRgba.b && targetA === fillRgba.a) return;
-      } else {
-        if (targetA === 0) return; // Already transparent
+  // Tools
+  const paintAt = (x: number, y: number, color: string) => {
+    const { gridWidth: w, gridHeight: h, brushSize: size } = stateRef.current;
+    const rgba = Display.Color.HexStringToColor(color);
+    const offset = Math.floor(size / 2);
+    const layer1 = layer1Ref.current;
+
+    for (let dy = 0; dy < size; dy += 1) {
+      for (let dx = 0; dx < size; dx += 1) {
+        const px = Math.max(0, Math.min(w - 1, x + dx - offset));
+        const py = Math.max(0, Math.min(h - 1, y + dy - offset));
+        const idx = (py * w + px) * 4;
+        setPixel(layer1, idx, { r: rgba.red, g: rgba.green, b: rgba.blue, a: rgba.alpha });
       }
+    }
+    requestRender();
+  };
+  const floodFill = (startX: number, startY: number, fillColor: string) => {
+    const { gridWidth: w, gridHeight: h } = stateRef.current;
+    const layer1 = layer1Ref.current;
+    const fillRgba = Display.Color.HexStringToColor(fillColor);
 
-      const queue: [number, number][] = [[startX, startY]];
-      const visited = new Set<number>();
+    const startIdx = (startY * w + startX) * 4;
+    // Copy target color for comparison
+    const targetR = layer1[startIdx];
+    const targetG = layer1[startIdx + 1];
+    const targetB = layer1[startIdx + 2];
+    const targetA = layer1[startIdx + 3];
 
-      while (queue.length > 0) {
-        const [x, y] = queue.shift()!;
-        const pixelIndex = y * w + x;
-        if (visited.has(pixelIndex)) continue;
-        if (x < 0 || x >= w || y < 0 || y >= h) continue;
+    // Check if fill color matches target
+    if (fillRgba) {
+      if (targetR === fillRgba.red && targetG === fillRgba.green && targetB === fillRgba.blue && targetA === fillRgba.alpha) return;
+    } else {
+      if (targetA === 0) return; // Already transparent
+    }
 
-        const idx = pixelIndex * 4;
-        // Check if this pixel matches target color
-        if (layer1[idx] !== targetR || layer1[idx + 1] !== targetG ||
-          layer1[idx + 2] !== targetB || layer1[idx + 3] !== targetA) continue;
+    const queue: [number, number][] = [[startX, startY]];
+    const visited = new Set<number>();
 
-        visited.add(pixelIndex);
-        setPixel(layer1, idx, fillRgba);
+    while (queue.length > 0) {
+      const [x, y] = queue.shift()!;
+      const pixelIndex = y * w + x;
+      if (visited.has(pixelIndex)) continue;
+      if (x < 0 || x >= w || y < 0 || y >= h) continue;
 
-        queue.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
-      }
-      requestRender();
-    },
-    [gridWidth, gridHeight, requestRender]
-  );
+      const idx = pixelIndex * 4;
+      // Check if this pixel matches target color
+      if (layer1[idx] !== targetR || layer1[idx + 1] !== targetG ||
+        layer1[idx + 2] !== targetB || layer1[idx + 3] !== targetA) continue;
+
+      visited.add(pixelIndex);
+      setPixel(layer1, idx, { r: fillRgba.red, g: fillRgba.green, b: fillRgba.blue, a: fillRgba.alpha });
+
+      queue.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+    }
+    requestRender();
+  };
   // Bresenham's line algorithm
   const getLinePixels = (x0: number, y0: number, x1: number, y1: number) => {
     const pixels: { x: number; y: number }[] = [];
@@ -386,23 +422,22 @@ const SpriteEditor = () => {
   };
 
   // Apply brush size to a list of pixels (mutates the layer directly)
-  const applyBrush = useCallback((pixels: { x: number; y: number }[], color: string, layer: Uint8ClampedArray) => {
-    const offset = Math.floor(brushSize / 2);
-    const rgba = hexToRgba(color);
-    const w = gridWidth;
-    const h = gridHeight;
+  const applyBrush = (pixels: { x: number; y: number }[], color: string, layer: Uint8ClampedArray) => {
+    const { brushSize: size, gridWidth: w, gridHeight: h } = stateRef.current;
+    const offset = Math.floor(size / 2);
+    const rgba = Display.Color.HexStringToColor(color);
 
     for (const p of pixels) {
-      for (let dy = 0; dy < brushSize; dy++) {
-        for (let dx = 0; dx < brushSize; dx++) {
+      for (let dy = 0; dy < size; dy++) {
+        for (let dx = 0; dx < size; dx++) {
           const px = Math.max(0, Math.min(w - 1, p.x + dx - offset));
           const py = Math.max(0, Math.min(h - 1, p.y + dy - offset));
           const idx = (py * w + px) * 4;
-          setPixel(layer, idx, rgba);
+          setPixel(layer, idx, { r: rgba.red, g: rgba.green, b: rgba.blue, a: rgba.alpha });
         }
       }
     }
-  }, [brushSize, gridWidth, gridHeight]);
+  };
 
   // Get pixels for hollow rectangle outline
   const getRectanglePixels = (x1: number, y1: number, x2: number, y2: number) => {
@@ -414,8 +449,9 @@ const SpriteEditor = () => {
     return pixels;
   };
 
-  // Get pixels for hollow oval outline
-  const getOvalPixels = useCallback((x1: number, y1: number, x2: number, y2: number) => {
+  // Get pixels for hollow oval outline 
+  const getOvalPixels = (x1: number, y1: number, x2: number, y2: number) => {
+    const { gridWidth: w, gridHeight: h } = stateRef.current;
     const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
     const rx = Math.abs(x2 - x1) / 2, ry = Math.abs(y2 - y1) / 2;
     if (rx === 0 || ry === 0) return [];
@@ -425,188 +461,164 @@ const SpriteEditor = () => {
       const angle = (2 * Math.PI * i) / steps;
       const x = Math.round(cx + rx * Math.cos(angle));
       const y = Math.round(cy + ry * Math.sin(angle));
-      if (x >= 0 && x < gridWidth && y >= 0 && y < gridHeight) pixels.push({ x, y });
+      if (x >= 0 && x < w && y >= 0 && y < h) pixels.push({ x, y });
     }
     return pixels;
-  }, [gridWidth, gridHeight]);
+  };
 
   // Pointer events
-  const getPointerPosition = useCallback((event: { clientX: number; clientY: number }, allowOutside = false) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return null;
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = rect.width / gridWidth;
-    const scaleY = rect.height / gridHeight;
-    const x = Math.floor((event.clientX - rect.left) / scaleX);
-    const y = Math.floor((event.clientY - rect.top) / scaleY);
-    if (!allowOutside && (x < 0 || y < 0 || x >= gridWidth || y >= gridHeight)) return null;
-    return { x, y };
-  }, [gridWidth, gridHeight]);
-  const handlePointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
-    event.preventDefault();
-    const position = getPointerPosition(event);
-    if (!position) return;
+  const getPointerPosition = (event: { clientX: number; clientY: number }) => {
+    const { gridWidth: w, gridHeight: h } = stateRef.current;
+    const rect = canvasRef.current!.getBoundingClientRect();
+    return {
+      x: Math.floor((event.clientX - rect.left) / (rect.width / w)),
+      y: Math.floor((event.clientY - rect.top) / (rect.height / h))
+    };
+  };
 
-    // Track which button was pressed (0 = left, 2 = right)
-    activeButtonRef.current = event.button;
-    const color = event.button === 2 ? secondaryColor : primaryColor;
+  const canvasPointerDown = (e: ReactPointerEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    const position = getPointerPosition(e);
+    prevPosRef.current = position;
 
-    // Save state before drawing for undo
+    // left or right click
+    activeButtonRef.current = e.button;
+    const color = e.button === 2 ? secondaryColor : primaryColor;
+
     saveToHistory();
 
-    if (activeTool === 'pen') {
-      setIsDrawing(true);
-      prevPosRef.current = position;
+    if (['pen', 'eraser'].includes(activeTool)) {
       paintAt(position.x, position.y, color);
-    } else if (activeTool === 'eraser') {
+      prevPosRef.current = position;
       setIsDrawing(true);
-      paintAt(position.x, position.y, '');
-    } else if (activeTool === 'bucket') {
+    } else if (['rectangle', 'line', 'oval'].includes(activeTool)) {
+      setShapeStart(position);
+      setIsDrawing(true);
+    } if (activeTool === 'bucket') {
       floodFill(position.x, position.y, color);
-    } else if (activeTool === 'rectangle') {
-      setRectangleStart(position);
-      setIsDrawing(true);
-    } else if (activeTool === 'line') {
-      setLineStart(position);
-      setIsDrawing(true);
-    } else if (activeTool === 'oval') {
-      setOvalStart(position);
-      setIsDrawing(true);
     } else if (activeTool === 'color-picker') {
       const idx = (position.y * gridWidth + position.x) * 4;
       const pickedColor = rgbaToHex(layer1Ref.current, idx);
       setPrimaryColor(pickedColor);
     }
   };
-  // Clip line endpoint to canvas boundary while preserving direction
-  const clipToCanvas = useCallback((start: { x: number; y: number }, end: { x: number; y: number }) => {
-    let { x, y } = end;
-    const dx = x - start.x, dy = y - start.y;
-    let t = 1;
-    if (x < 0) t = Math.min(t, -start.x / dx);
-    if (x >= gridWidth) t = Math.min(t, (gridWidth - 1 - start.x) / dx);
-    if (y < 0) t = Math.min(t, -start.y / dy);
-    if (y >= gridHeight) t = Math.min(t, (gridHeight - 1 - start.y) / dy);
-    if (t < 1) { x = Math.round(start.x + dx * t); y = Math.round(start.y + dy * t); }
-    return { x: Math.max(0, Math.min(gridWidth - 1, x)), y: Math.max(0, Math.min(gridHeight - 1, y)) };
-  }, [gridWidth, gridHeight]);
-
-  const handlePointerMove = (event: ReactPointerEvent<HTMLCanvasElement>) => {
-    const isShapeTool = ['line', 'rectangle', 'oval'].includes(activeTool);
-    const position = getPointerPosition(event, isDrawing && isShapeTool);
-    if (!position) return;
-    if (!isDrawing) { drawShadow(position.x, position.y); return; }
-
-    // Throttle with requestAnimationFrame for smooth performance
-    if (rafIdRef.current) return;
-    rafIdRef.current = requestAnimationFrame(() => {
-      rafIdRef.current = 0;
-      const color = activeButtonRef.current === 2 ? secondaryColor : primaryColor;
-
-      if (activeTool === 'pen') {
-        const prev = prevPosRef.current;
-        if (prev && (Math.abs(position.x - prev.x) > 1 || Math.abs(position.y - prev.y) > 1)) {
-          getLinePixels(prev.x, prev.y, position.x, position.y).forEach(p => paintAt(p.x, p.y, color));
-        } else {
-          paintAt(position.x, position.y, color);
-        }
-        prevPosRef.current = position;
-      } else if (activeTool === 'eraser') {
-        paintAt(position.x, position.y, '');
-      } else if (activeTool === 'line' && lineStart) {
-        const cp = clipToCanvas(lineStart, position);
-        const pixels = getLinePixels(lineStart.x, lineStart.y, cp.x, cp.y);
-        layer2Ref.current = createPixelArray(gridWidth, gridHeight);
-        applyBrush(pixels, color, layer2Ref.current);
-        requestRender();
-      } else if (activeTool === 'rectangle' && rectangleStart) {
-        const cp = clipToCanvas(rectangleStart, position);
-        const pixels = getRectanglePixels(rectangleStart.x, rectangleStart.y, cp.x, cp.y);
-        layer2Ref.current = createPixelArray(gridWidth, gridHeight);
-        applyBrush(pixels, color, layer2Ref.current);
-        requestRender();
-      } else if (activeTool === 'oval' && ovalStart) {
-        const cp = clipToCanvas(ovalStart, position);
-        const pixels = getOvalPixels(ovalStart.x, ovalStart.y, cp.x, cp.y);
-        layer2Ref.current = createPixelArray(gridWidth, gridHeight);
-        applyBrush(pixels, color, layer2Ref.current);
-        requestRender();
-      }
-    });
+  // Convert pointer to canvas coords
+  const clipToCanvas = (start: { x: number; y: number }, end: { x: number; y: number }) => {
+    const { gridWidth: w, gridHeight: h } = stateRef.current;
+    const dx = end.x - start.x, dy = end.y - start.y;
+    const t = Math.min(1,
+      end.x < 0 ? -start.x / dx : end.x >= w ? (w - 1 - start.x) / dx : 1,
+      end.y < 0 ? -start.y / dy : end.y >= h ? (h - 1 - start.y) / dy : 1
+    );
+    return {
+      x: Math.max(0, Math.min(w - 1, Math.round(start.x + dx * t))),
+      y: Math.max(0, Math.min(h - 1, Math.round(start.y + dy * t)))
+    };
   };
-  const handlePointerUp = (event: ReactPointerEvent<HTMLCanvasElement>) => {
-    const pos = getPointerPosition(event, true);
-    if (!pos) return;
-    const color = activeButtonRef.current === 2 ? secondaryColor : primaryColor;
-    const clearLayer2 = () => {
-      layer2Ref.current = createPixelArray(gridWidth, gridHeight);
-    };
 
-    const commitShape = (pixels: { x: number; y: number }[], resetStart: () => void) => {
-      applyBrush(pixels, color, layer1Ref.current);
-      resetStart();
-      clearLayer2();
-      requestRender();
-    };
+  const handlePointerUp = (event: PointerEvent) => {
+    prevPosRef.current = null;
+    const { isDrawing: drawing, shapeStart: start, activeTool: tool, primaryColor: primary, secondaryColor: secondary, gridWidth: w, gridHeight: h } = stateRef.current;
+    if (!start || !drawing) return;
+    const pos = getPointerPosition(event);
+    const cp = clipToCanvas(start, pos);
+    const color = activeButtonRef.current === 2 ? secondary : primary;
 
-    if (activeTool === 'rectangle' && rectangleStart && isDrawing) {
-      const cp = clipToCanvas(rectangleStart, pos);
-      commitShape(getRectanglePixels(rectangleStart.x, rectangleStart.y, cp.x, cp.y), () => setRectangleStart(null));
-    } else if (activeTool === 'line' && lineStart && isDrawing) {
-      const cp = clipToCanvas(lineStart, pos);
-      commitShape(getLinePixels(lineStart.x, lineStart.y, cp.x, cp.y), () => setLineStart(null));
-    } else if (activeTool === 'oval' && ovalStart && isDrawing) {
-      const cp = clipToCanvas(ovalStart, pos);
-      commitShape(getOvalPixels(ovalStart.x, ovalStart.y, cp.x, cp.y), () => setOvalStart(null));
-    }
+    let pixels: { x: number; y: number }[] = [];
+    if (tool === 'line') { pixels = getLinePixels(start.x, start.y, cp.x, cp.y); }
+    else if (tool === 'rectangle') { pixels = getRectanglePixels(start.x, start.y, cp.x, cp.y); }
+    else if (tool === 'oval') { pixels = getOvalPixels(start.x, start.y, cp.x, cp.y); }
+
+    applyBrush(pixels, color, layer1Ref.current);
+    layer2Ref.current = createPixelArray(w, h);
+    setShapeStart(null);
     setIsDrawing(false);
   };
 
-  // Check if canvas has any non-transparent pixels
-  const hasPixels = useMemo(() => {
-    const layer1 = layer1Ref.current;
-    for (let i = 3; i < layer1.length; i += 4) {
-      if (layer1[i] > 0) return true; // Check alpha channel
-    }
-    return false;
-  }, [renderVersion]); // Re-check when render is triggered
+  const handlePointerMove = (e: PointerEvent | ReactPointerEvent<HTMLCanvasElement>) => {
+    const { isDrawing: drawing, shapeStart: start, activeTool: tool, primaryColor: primary, secondaryColor: secondary, gridWidth: w, gridHeight: h } = stateRef.current;
+    if (!drawing) return;
+    const isShapeTool = ['line', 'rectangle', 'oval'].includes(tool);
 
-  // Compare two Uint8ClampedArrays for equality
-  const arraysEqual = (a: Uint8ClampedArray, b: Uint8ClampedArray): boolean => {
-    if (a.length !== b.length) return false;
-    for (let i = 0; i < a.length; i++) {
-      if (a[i] !== b[i]) return false;
-    }
-    return true;
-  };
+    const position = getPointerPosition(e);
+    const prev = prevPosRef.current;
+    if (prev && prev.x === position.x && prev.y === position.y) return;
+    const color = activeButtonRef.current === 2 ? secondary : primary;
+    prevPosRef.current = position;
 
-  const saveToAssets = async () => {
-    if (!hasPixels) return;
+    // show shadow for shape tools, don't paint
+    if (isShapeTool && start) {
+      const cp = clipToCanvas(start, position);
 
-    // Check if we're editing a library sprite and if it's been modified
-    const isEditingLibrary = editingLibrarySprite !== null;
-    const originalData = originalPixelDataRef.current;
-    const isModified = !originalData || !arraysEqual(layer1Ref.current, originalData);
-
-    // If editing a library sprite and NOT modified, just add the existing sprite to game
-    if (isEditingLibrary && !isModified) {
-      const textureInfo = spriteTextures.get(editingLibrarySprite.textureName);
-      const success = await addSpriteToGame({
-        name: editingLibrarySprite.name,
-        textureName: editingLibrarySprite.textureName,
-        textureUrl: textureInfo?.url || '',
-      });
-      if (success) {
-        clearEditingLibrarySprite();
-        setIsSpriteModalOpen(false);
+      let pixels: { x: number; y: number }[] = [];
+      if (tool === 'line') {
+        pixels = getLinePixels(start.x, start.y, cp.x, cp.y);
+      } else if (tool === 'rectangle') {
+        pixels = getRectanglePixels(start.x, start.y, cp.x, cp.y);
+      } else if (tool === 'oval') {
+        pixels = getOvalPixels(start.x, start.y, cp.x, cp.y);
       }
+      // TODO: this should be optimized; instead of creating a new array, we
+      // revert the previous display pixels and only update the new pixels
+      layer2Ref.current = createPixelArray(w, h);
+      applyBrush(pixels, color, layer2Ref.current);
+      requestRender();
       return;
     }
 
+    // paint to layer1 for pen and eraser
+    if (tool === 'pen') {
+      if (prev && (Math.abs(position.x - prev.x) > 1 || Math.abs(position.y - prev.y) > 1)) {
+        getLinePixels(prev.x, prev.y, position.x, position.y).forEach(p => paintAt(p.x, p.y, color));
+      } else {
+        paintAt(position.x, position.y, color);
+      }
+    } else if (tool === 'eraser') {
+      paintAt(position.x, position.y, '');
+    }
+  };
+
+  // Window-level pointer tracking for shape tools
+  useEffect(() => {
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
+  }, []);
+
+
+  const saveToAssets = async () => {
+    const originalData = originalPixelDataRef.current;
+
+    // compare arrays
+    // if (a.length !== b.length) return false;
+    // for (let i = 0; i < a.length; i++) {
+    //   if (a[i] !== b[i]) return false;
+    // }
+    // const isModified = !originalData || !arraysEqual(layer1Ref.current, originalData);
+
+    // either adds to assets, or updates a slot in assets
+    // // If editing a library sprite and NOT modified, just add the existing sprite to game
+    // if (isEditingLibrary && !isModified) {
+    //   const textureInfo = spriteTextures.get(editingLibrarySprite.textureName);
+    //   const success = await addSpriteToGame({
+    //     name: editingLibrarySprite.name,
+    //     textureName: editingLibrarySprite.textureName,
+    //     textureUrl: textureInfo?.url || '',
+    //   });
+    //   if (success) {
+    //     clearEditingLibrarySprite();
+    //     setIsSpriteModalOpen(false);
+    //   }
+    //   return;
+    // }
+
     // Modified or new sprite: create new library entry
-    const label = spriteName.trim() || 'Custom Sprite';
+    const label = spriteName.trim() || 'mySprite';
     const safeBase = label.toLowerCase().replace(/[^\w]/g, '') || 'customsprite';
-    const texture = `${safeBase}-${Date.now()}`;
+    const texture = `${safeBase}}`;
 
     // Create a clean canvas with just the sprite pixels (no grid)
     const exportCanvas = document.createElement('canvas');
@@ -638,159 +650,60 @@ const SpriteEditor = () => {
       textureUrl: dataUrl,
     });
     if (success) {
-      clearEditingLibrarySprite();
+      // clearEditingLibrarySprite();
       setIsSpriteModalOpen(false);
     }
   };
 
-  // Sync local grid inputs when actual state changes externally
-  useEffect(() => { setLocalGridWidth(gridWidth); }, [gridWidth]);
-  useEffect(() => { setLocalGridHeight(gridHeight); }, [gridHeight]);
-
   // Load library sprite data when editingLibrarySprite changes
-  useEffect(() => {
-    if (!editingLibrarySprite || !originalPixelData) {
-      originalPixelDataRef.current = null;
-      return;
-    }
+  // useEffect(() => {
+  //   if (!editingLibrarySprite || !originalPixelData) {
+  //     originalPixelDataRef.current = null;
+  //     return;
+  //   }
 
-    const textureInfo = spriteTextures.get(editingLibrarySprite.textureName);
-    if (!textureInfo?.url) return;
+  //   const textureInfo = spriteTextures[editingLibrarySprite.textureName];
+  //   if (!textureInfo?.url) return;
 
-    // Load image to get dimensions
-    const img = new Image();
-    img.onload = () => {
-      const width = img.width;
-      const height = img.height;
+  //   // Load image to get dimensions
+  //   const img = new Image();
+  //   img.onload = () => {
+  //     const width = img.width;
+  //     const height = img.height;
 
-      // Update grid dimensions
-      setGridWidth(width);
-      setGridHeight(height);
-      setLocalGridWidth(width);
-      setLocalGridHeight(height);
+  //     // Update grid dimensions
+  //     setGridWidth(width);
+  //     setGridHeight(height);
+  //     setLocalGridWidth(width);
+  //     setLocalGridHeight(height);
 
-      // Load pixel data into layer1
-      layer1Ref.current = new Uint8ClampedArray(originalPixelData);
-      layer2Ref.current = createPixelArray(width, height);
-      originalPixelDataRef.current = new Uint8ClampedArray(originalPixelData);
+  //     // Load pixel data into layer1
+  //     layer1Ref.current = new Uint8ClampedArray(originalPixelData);
+  //     layer2Ref.current = createPixelArray(width, height);
+  //     originalPixelDataRef.current = new Uint8ClampedArray(originalPixelData);
 
-      // Set sprite name
-      setSpriteName(editingLibrarySprite.name);
+  //     // Set sprite name
+  //     setSpriteName(editingLibrarySprite.name);
 
-      // Clear history since we're loading fresh
-      undoStackRef.current = [];
-      redoStackRef.current = [];
+  //     // Clear history since we're loading fresh
+  //     undoStackRef.current = [];
+  //     redoStackRef.current = [];
 
-      requestRender();
-    };
-    img.src = textureInfo.url;
-  }, [editingLibrarySprite, originalPixelData, spriteTextures, requestRender]);
+  //     requestRender();
+  //   };
+  //   img.src = textureInfo.url;
+  // }, [editingLibrarySprite, originalPixelData, spriteTextures, requestRender]);
 
-  // Track container dimensions for relative zoom
-  useEffect(() => {
-    const container = canvasContainerRef.current;
-    if (!container) return;
-
-    const observer = new ResizeObserver((entries) => {
-      const { width, height } = entries[0].contentRect;
-      // Account for padding (p-4 = 16px on each side)
-      setContainerSize({ width: width - 32, height: height - 32 });
-    });
-
-    observer.observe(container);
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    const handleWheel = (event: WheelEvent) => {
-      if (event.ctrlKey || event.metaKey) {
-        event.preventDefault();
-        const delta = event.deltaY > 0 ? -10 : 10;
-        setZoomPercent((z) => Math.max(MIN_ZOOM_PERCENT, Math.min(MAX_ZOOM_PERCENT, z + delta)));
-      }
-    };
-    const container = canvasContainerRef.current;
-    if (!container) throw new Error('Canvas container should exist.');
-    container.addEventListener('wheel', handleWheel, { passive: false });
-    return () => container.removeEventListener('wheel', handleWheel);
-  }, []);
-
-  // Window-level pointer tracking for shape tools
-  useEffect(() => {
-    if (!isDrawing) return;
-    const isShapeTool = lineStart || rectangleStart || ovalStart;
-    if (!isShapeTool) return;
-
-    const color = activeButtonRef.current === 2 ? secondaryColor : primaryColor;
-    const handleWindowMove = (e: PointerEvent) => {
-      const pos = getPointerPosition(e, true);
-      if (!pos) return;
-      let pixels: { x: number; y: number }[] = [];
-      if (lineStart) { const cp = clipToCanvas(lineStart, pos); pixels = getLinePixels(lineStart.x, lineStart.y, cp.x, cp.y); }
-      else if (rectangleStart) { const cp = clipToCanvas(rectangleStart, pos); pixels = getRectanglePixels(rectangleStart.x, rectangleStart.y, cp.x, cp.y); }
-      else if (ovalStart) { const cp = clipToCanvas(ovalStart, pos); pixels = getOvalPixels(ovalStart.x, ovalStart.y, cp.x, cp.y); }
-      layer2Ref.current = createPixelArray(gridWidth, gridHeight);
-      applyBrush(pixels, color, layer2Ref.current);
-      requestRender();
-    };
-    const handleWindowUp = (e: PointerEvent) => {
-      const pos = getPointerPosition(e, true);
-      if (!pos) { setIsDrawing(false); return; }
-      let pixels: { x: number; y: number }[] = [];
-      if (lineStart) { const cp = clipToCanvas(lineStart, pos); pixels = getLinePixels(lineStart.x, lineStart.y, cp.x, cp.y); setLineStart(null); }
-      else if (rectangleStart) { const cp = clipToCanvas(rectangleStart, pos); pixels = getRectanglePixels(rectangleStart.x, rectangleStart.y, cp.x, cp.y); setRectangleStart(null); }
-      else if (ovalStart) { const cp = clipToCanvas(ovalStart, pos); pixels = getOvalPixels(ovalStart.x, ovalStart.y, cp.x, cp.y); setOvalStart(null); }
-      applyBrush(pixels, color, layer1Ref.current);
-      layer2Ref.current = createPixelArray(gridWidth, gridHeight);
-      requestRender();
-      setIsDrawing(false);
-    };
-    window.addEventListener('pointermove', handleWindowMove);
-    window.addEventListener('pointerup', handleWindowUp);
-    return () => { window.removeEventListener('pointermove', handleWindowMove); window.removeEventListener('pointerup', handleWindowUp); };
-  }, [isDrawing, lineStart, rectangleStart, ovalStart, primaryColor, secondaryColor, gridWidth, gridHeight, brushSize, getPointerPosition, clipToCanvas, getOvalPixels, applyBrush, requestRender]);
-
-  // Window-level pointer tracking for pen and eraser
-  useEffect(() => {
-    if (!isDrawing) return;
-    if (activeTool !== 'pen' && activeTool !== 'eraser') return;
-
-    const handleWindowUp = () => {
-      setIsDrawing(false);
-      prevPosRef.current = null;
-    };
-
-    window.addEventListener('pointerup', handleWindowUp);
-    return () => window.removeEventListener('pointerup', handleWindowUp);
-  }, [isDrawing, activeTool]);
-
-  // Keyboard shortcuts for undo/redo
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key === 'z' && !event.shiftKey) {
-        event.preventDefault();
-        undo();
-      } else if (
-        ((event.metaKey || event.ctrlKey) && event.key === 'y') ||
-        ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key === 'z')
-      ) {
-        event.preventDefault();
-        redo();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
+  // Render canvas when state changes
   useEffect(() => {
     renderCanvas();
     renderPreview();
-  }, [renderCanvas, renderPreview, renderVersion]);
+  }, [renderCount, cellSize, gridWidth, gridHeight, renderPreview]);
 
   return (
     <div className="flex-1 min-h-0 flex border-t border-slate-200 bg-slate-800 dark:border-slate-700">
       <div className="w-30 flex flex-col gap-3 p-2 bg-slate-700 dark:bg-slate-800 border-r border-slate-600">
+        {/* brush size */}
         <div className="grid grid-cols-3 rounded overflow-hidden">
           {[1, 2, 3].map((size) => (
             <button
@@ -810,7 +723,7 @@ const SpriteEditor = () => {
 
         <EditorTools activeTool={activeTool} setActiveTool={setActiveTool} />
 
-        {/* Dual color indicator */}
+        {/* dual color indicator */}
         <div className="relative w-full h-12 mx-auto mt-2.5 mb-1">
           <button
             type="button"
@@ -842,7 +755,7 @@ const SpriteEditor = () => {
           />
         </div>
 
-        {/* Color palette section */}
+        {/* color palette */}
         <div className="flex flex-col gap-2 pt-2">
           <div className="grid grid-cols-3 w-full gap-1.5">
             <button
@@ -886,29 +799,24 @@ const SpriteEditor = () => {
 
         <div className="flex-1" />
 
-        {/* Grid size controls */}
+        {/* grid size */}
         <div className="flex items-center gap-1">
           <input
             type="number"
-            value={localGridWidth}
+            value={inputWidth}
             onFocus={() => { originalGridWidth.current = gridWidth; }}
-            onChange={(e) => setLocalGridWidth(e.target.value === '' ? '' as unknown as number : parseInt(e.target.value, 10))}
+            onChange={(e) => setInputWidth(e.target.value === '' ? '' as unknown as number : parseInt(e.target.value, 10))}
             onBlur={(e) => {
-              if (e.target.value === '') {
-                setLocalGridWidth(originalGridWidth.current);
-                return;
-              }
-              const val = Math.max(1, Math.min(1024, parseInt(e.target.value, 10)));
-              setGridWidth(val);
-              setLocalGridWidth(val);
-              layer1Ref.current = createPixelArray(val, gridHeight);
-              layer2Ref.current = createPixelArray(val, gridHeight);
+              if (e.target.value === '') { setInputWidth(originalGridWidth.current); return; }
+              const newWidth = Math.max(1, Math.min(1024, parseInt(e.target.value, 10)));
+              layer1Ref.current = createPixelArray(newWidth, gridHeight);
+              layer2Ref.current = createPixelArray(newWidth, gridHeight);
               undoStackRef.current = [];
               redoStackRef.current = [];
-              requestRender();
+              setGridWidth(newWidth);
             }}
             min={1}
-            max={160}
+            max={1024}
             className="w-12 h-8 px-1 text-xs text-slate-300 text-center bg-slate-600 border border-slate-500 rounded outline-none focus:border-primary-green [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             title="Grid width"
             name="gridWidth"
@@ -916,25 +824,20 @@ const SpriteEditor = () => {
           <span className="text-slate-400 text-xs">x</span>
           <input
             type="number"
-            value={localGridHeight}
+            value={inputHeight}
             onFocus={() => { originalGridHeight.current = gridHeight; }}
-            onChange={(e) => setLocalGridHeight(e.target.value === '' ? '' as unknown as number : parseInt(e.target.value, 10))}
+            onChange={(e) => setInputHeight(e.target.value === '' ? '' as unknown as number : parseInt(e.target.value, 10))}
             onBlur={(e) => {
-              if (e.target.value === '') {
-                setLocalGridHeight(originalGridHeight.current);
-                return;
-              }
-              const val = Math.max(1, Math.min(1024, parseInt(e.target.value, 10)));
-              setGridHeight(val);
-              setLocalGridHeight(val);
-              layer1Ref.current = createPixelArray(gridWidth, val);
-              layer2Ref.current = createPixelArray(gridWidth, val);
+              if (e.target.value === '') { setInputHeight(originalGridHeight.current); return; }
+              const newHeight = Math.max(1, Math.min(1024, parseInt(e.target.value, 10)));
+              layer1Ref.current = createPixelArray(gridWidth, newHeight);
+              layer2Ref.current = createPixelArray(gridWidth, newHeight);
               undoStackRef.current = [];
               redoStackRef.current = [];
-              requestRender();
+              setGridHeight(newHeight);
             }}
             min={1}
-            max={128}
+            max={1024}
             className="w-12 h-8 px-1 text-xs text-slate-300 text-center bg-slate-600 border border-slate-500 rounded outline-none focus:border-primary-green [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             title="Grid height"
             name="gridHeight"
@@ -943,6 +846,7 @@ const SpriteEditor = () => {
       </div>
 
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        {/* the canvas, clear button */}
         <div
           ref={canvasContainerRef}
           className="relative flex-1 flex items-center justify-center bg-slate-600 p-4 overflow-auto min-h-0"
@@ -969,18 +873,17 @@ const SpriteEditor = () => {
                 height: gridHeight * cellSize,
                 imageRendering: 'pixelated',
               }}
-              onPointerDown={handlePointerDown}
-              onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerUp}
+              onPointerDown={canvasPointerDown}
               onContextMenu={(e) => e.preventDefault()}
             />
           </div>
         </div>
 
+        {/* zoom controls */}
         <div className="h-10 flex items-center justify-center gap-2 bg-slate-700 border-t border-slate-600 shrink-0">
           <button
             type="button"
-            onClick={() => setZoomPercent((z) => Math.max(MIN_ZOOM_PERCENT, z - 25))}
+            onClick={() => setZoom(zoomPercent - 25)}
             disabled={zoomPercent <= MIN_ZOOM_PERCENT}
             className="w-8 h-8 flex items-center justify-center rounded bg-slate-600 hover:bg-slate-500 disabled:opacity-40 disabled:cursor-not-allowed text-white cursor-pointer transition"
             title="Zoom out"
@@ -995,8 +898,7 @@ const SpriteEditor = () => {
               type="number"
               defaultValue={Math.round(zoomPercent)}
               onBlur={(e) => {
-                const percent = parseInt(e.target.value, 10);
-                if (!isNaN(percent)) setZoomPercent(Math.max(MIN_ZOOM_PERCENT, Math.min(MAX_ZOOM_PERCENT, percent)));
+                setZoom(parseInt(e.target.value, 10));
                 setIsEditingZoom(false);
               }}
               onKeyDown={(e) => e.key === 'Enter' ? e.currentTarget.blur() : e.key === 'Escape' && setIsEditingZoom(false)}
@@ -1016,7 +918,7 @@ const SpriteEditor = () => {
           )}
           <button
             type="button"
-            onClick={() => setZoomPercent((z) => Math.min(MAX_ZOOM_PERCENT, z + 25))}
+            onClick={() => setZoom(zoomPercent + 25)}
             disabled={zoomPercent >= MAX_ZOOM_PERCENT}
             className="w-8 h-8 flex items-center justify-center rounded bg-slate-600 hover:bg-slate-500 disabled:opacity-40 disabled:cursor-not-allowed text-white cursor-pointer transition"
             title="Zoom in"
@@ -1028,6 +930,7 @@ const SpriteEditor = () => {
           </button>
         </div>
 
+        {/* Bottom row; preview, name, and add to game */}
         <div className="h-16 flex items-center gap-3 px-4 bg-slate-700 dark:bg-slate-800 border-t border-slate-600 shrink-0">
           <canvas
             ref={previewRef}
@@ -1041,18 +944,8 @@ const SpriteEditor = () => {
             placeholder="Sprite name"
             className="flex-1 h-9 px-3 rounded bg-slate-600 border border-slate-500 text-sm text-white placeholder:text-slate-400 outline-none focus:border-primary-green"
           />
-          <label className="flex items-center gap-2 text-slate-300 text-xs cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={showGrid}
-              onChange={() => setShowGrid((prev) => !prev)}
-              className="accent-primary-green"
-            />
-            Grid
-          </label>
           <Button
             className="btn-confirm h-9 px-4"
-            disabled={!hasPixels}
             onClick={saveToAssets}
             title="Save resource to assets"
           >

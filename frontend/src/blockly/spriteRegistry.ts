@@ -2,8 +2,18 @@ import { useSpriteStore } from '@/stores/spriteStore';
 
 export type SpriteDefinition = {
   id: string;
-  textureName: string;
   name: string;
+  textureName: string;
+};
+
+export type SpriteInstance = SpriteDefinition & {
+  x: number;
+  y: number;
+  visible: boolean;
+  size: number;
+  direction: number;
+  snapToGrid: boolean;
+  physics?: SpritePhysics;
 };
 
 export type SpritePhysics = {
@@ -12,17 +22,6 @@ export type SpritePhysics = {
   bounce: number;
   drag: number;
   collideWorldBounds: boolean;
-};
-
-export type SpriteInstance = SpriteDefinition & {
-  x: number;
-  y: number;
-  instanceId: string;
-  visible?: boolean;
-  size?: number;
-  direction?: number;
-  snapToGrid?: boolean;
-  physics?: SpritePhysics;
 };
 
 export const getSpriteDropdownOptions = (): string[][] => {

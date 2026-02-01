@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useSpriteStore } from "@/stores/spriteStore";
 import { useEditorStore } from "@/stores/editorStore";
+import { EventBus } from "@/phaser/EventBus";
 import { EyeOpenIcon, EyeNoneIcon } from "@radix-ui/react-icons";
 import type { SpriteInstance } from "@/blockly/spriteRegistry";
 
@@ -8,6 +9,9 @@ const SpritePosition = () => {
   const selectedSprite = useSpriteStore((state) => state.selectedSprite);
   const selectedSpriteId = useSpriteStore((state) => state.selectedSpriteId);
   const updateSprite = useSpriteStore((state) => state.updateSprite);
+  const setSelectedSpriteId = useSpriteStore((state) => state.setSelectedSpriteId);
+  const setSelectedSprite = useSpriteStore((state) => state.setSelectedSprite);
+  const spriteInstances = useSpriteStore((state) => state.spriteInstances);
   const phaserGame = useEditorStore((state) => state.phaserGame);
 
   // Get center from Phaser game dimensions
@@ -30,6 +34,30 @@ const SpritePosition = () => {
       setValues({ name: '', x: '', y: '', size: '', direction: '', snapToGrid: false, visible: true });
     }
   }, [selectedSpriteId, selectedSprite, centerX, centerY]);
+
+  // Listen for drag events from Phaser
+  useEffect(() => {
+    const handleDragStart = ({ id }: { id: string }) => {
+      const sprite = spriteInstances.find((s) => s.id === id);
+      if (sprite) {
+        setSelectedSpriteId(id);
+        setSelectedSprite(sprite);
+      }
+    };
+
+    const handleDragging = ({ id, x, y }: { id: string; x: number; y: number }) => {
+      if (id === selectedSpriteId) {
+        setValues((prev) => ({ ...prev, x: String(Math.round(x)), y: String(Math.round(y)) }));
+      }
+    };
+
+    EventBus.on('editor-sprite-drag-start', handleDragStart);
+    EventBus.on('editor-sprite-dragging', handleDragging);
+    return () => {
+      EventBus.off('editor-sprite-drag-start', handleDragStart);
+      EventBus.off('editor-sprite-dragging', handleDragging);
+    };
+  }, [spriteInstances, selectedSpriteId, setSelectedSpriteId, setSelectedSprite]);
 
   const handleInputChange = (field: keyof typeof values, value: string) => {
     setValues((prev) => ({ ...prev, [field]: value }));

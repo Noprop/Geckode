@@ -1,8 +1,7 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useEffect } from "react";
 import BlocklyEditor from "@/components/BlocklyEditor";
-import * as Blockly from "blockly/core";
 import EditorScene from "@/phaser/scenes/EditorScene";
 import { useWorkspaceView } from "@/contexts/WorkspaceViewContext";
 import { EventBus } from "@/phaser/EventBus";
@@ -10,8 +9,10 @@ import { useEditorStore } from "@/stores/editorStore";
 import { useSpriteStore } from "@/stores/spriteStore";
 import Phaser from "./PhaserPanel/Phaser";
 import type { SpriteInstance } from "@/blockly/spriteRegistry";
-import { useBlockSync } from "@/hooks/yjs/useBlockSync";
-import { useVariableSync } from "@/hooks/yjs/useVariableSync";
+
+// disable for now
+// import { useBlockSync } from "@/hooks/yjs/useBlockSync";
+// import { useVariableSync } from "@/hooks/yjs/useVariableSync";
 
 const GRID_SIZE = 50;
 const CENTER_X = 240;
@@ -19,10 +20,8 @@ const CENTER_Y = 180;
 
 const snapToGrid = (x: number, y: number): { x: number; y: number } => {
   // Snap to grid lines that radiate from center
-  const snappedX =
-    CENTER_X + Math.round((x - CENTER_X) / GRID_SIZE) * GRID_SIZE;
-  const snappedY =
-    CENTER_Y + Math.round((y - CENTER_Y) / GRID_SIZE) * GRID_SIZE;
+  const snappedX = CENTER_X + Math.round((x - CENTER_X) / GRID_SIZE) * GRID_SIZE;
+  const snappedY = CENTER_Y + Math.round((y - CENTER_Y) / GRID_SIZE) * GRID_SIZE;
   return { x: snappedX, y: snappedY };
 };
 
@@ -36,6 +35,7 @@ const ProjectView = ({ projectId }: ProjectViewProps) => {
   const { setSpriteInstances } = useSpriteStore();
   const { undoWorkspace, redoWorkspace, canUndo, canRedo } = useEditorStore();
 
+  // disable for now 
   // useBlockSync(documentName);
   // useVariableSync(documentName);
 
@@ -47,39 +47,34 @@ const ProjectView = ({ projectId }: ProjectViewProps) => {
   }, []);
 
   useEffect(() => {
-    const handleSpriteMove = ({
-      id,
-      x,
-      y,
-    }: {
-      id: string;
-      x: number;
-      y: number;
-    }) => {
+    const handleSpriteMove = ({ id, x, y }: { id: string; x: number; y: number }) => {
       const phaserScene = useEditorStore.getState().phaserScene;
       if (!(phaserScene instanceof EditorScene)) return;
 
-      setSpriteInstances((state) => {
-        const sprite = state.find((s: SpriteInstance) => s.id === id);
-        if (!sprite) return state;
+      const { updateSprite } = useSpriteStore.getState();
+      updateSprite(id, { x, y });
 
-        let finalX = x;
-        let finalY = y;
+      // setSpriteInstances((state) => {
+      //   const sprite = state.find((s: SpriteInstance) => s.id === id);
+      //   if (!sprite) return state;
 
-        if (sprite.snapToGrid) {
-          const snapped = snapToGrid(x, y);
-          finalX = snapped.x;
-          finalY = snapped.y;
-          phaserScene.updateSprite(id, {
-            x: finalX,
-            y: finalY,
-          });
-        }
+      //   let finalX = x;
+      //   let finalY = y;
 
-        return state.map((s: SpriteInstance) =>
-          s.id === id ? { ...s, x: finalX, y: finalY } : s,
-        );
-      });
+      //   if (sprite.snapToGrid) {
+      //     const snapped = snapToGrid(x, y);
+      //     finalX = snapped.x;
+      //     finalY = snapped.y;
+      //     phaserScene.updateSprite(id, {
+      //       x: finalX,
+      //       y: finalY,
+      //     });
+      //   }
+
+      //   return state.map((s: SpriteInstance) =>
+      //     s.id === id ? { ...s, x: finalX, y: finalY } : s,
+      //   );
+      // });
     };
 
     EventBus.on("editor-sprite-moved", handleSpriteMove);

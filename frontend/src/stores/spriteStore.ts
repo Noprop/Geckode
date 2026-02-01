@@ -22,11 +22,15 @@ export interface Tilemap {
   width: number;
   height: number;
 }
+export interface Texture {
+  url: string;
+  hasLoaded: boolean;
+}
 
 interface State {
   spriteLibrary: SpriteDefinition[];
   spriteInstances: SpriteInstance[];
-  spriteTextures: Map<string, { url: string; hasLoaded: boolean }>;
+  spriteTextures: Record<string, Texture>;
 
   isSpriteModalOpen: boolean;
   selectedSpriteId: string | null;
@@ -38,7 +42,7 @@ interface State {
 }
 
 interface Actions {
-  setSpriteInstances: (update: SpriteInstance[] | ((state: SpriteInstance[]) => SpriteInstance[])) => void;
+  setSpriteInstances: (instances: SpriteInstance[]) => void;
   addSpriteToGame: (payload: SpriteAddPayload) => Promise<boolean>;
   removeSpriteFromGame: (spriteId: string) => void;
   updateSprite: (spriteId: string, updates: Partial<SpriteInstance>) => void;
@@ -49,14 +53,8 @@ interface Actions {
   addToSpriteLibrary: (sprite: SpriteDefinition) => void;
   removeFromSpriteLibrary: (spriteId: string) => void;
 
-  // Library sprite editing actions
-  setEditingLibrarySprite: (sprite: SpriteDefinition | null, pixelData?: Uint8ClampedArray) => void;
-  clearEditingLibrarySprite: () => void;
-
   // Reset action
   resetSpriteStore: () => void;
-
-  // sceneList: Scene[];
 }
 
 export const useSpriteStore = create<State & Actions>()(
@@ -77,18 +75,21 @@ export const useSpriteStore = create<State & Actions>()(
       // TODO: handle default sprite instances for a default project
       spriteInstances: [
         {
-          id: 'id_' + Date.now().toString() + '_' + Math.round(Math.random() * 10000),
-          textureName: 'hero-walk-front',
           name: 'herowalkfront1',
-          instanceId: 'id_' + Date.now().toString() + '_' + Math.round(Math.random() * 10000),
+          id: 'id_' + Date.now().toString(),
+          textureName: 'hero-walk-front',
           x: 200,
           y: 150,
+          visible: true,
+          size: 1,
+          direction: 0,
+          snapToGrid: true,
         },
       ],
-      spriteTextures: new Map<string, { url: string; hasLoaded: boolean }>([
-        ['hero-walk-front', { url: '/heroWalkFront1.png', hasLoaded: false }],
-        ['hero-walk-back', { url: '/heroWalkBack1.png', hasLoaded: false }],
-      ]),
+      spriteTextures: {
+        'hero-walk-front': { url: '/heroWalkFront1.png', hasLoaded: false },
+        'hero-walk-back': { url: '/heroWalkBack1.png', hasLoaded: false },
+      },
       selectedSpriteId: null,
       selectedSprite: null,
       isSpriteModalOpen: false,
@@ -99,30 +100,18 @@ export const useSpriteStore = create<State & Actions>()(
       setSelectedSpriteId: (spriteId: string) => set({ selectedSpriteId: spriteId }),
       setSelectedSprite: (sprite: SpriteInstance) => set({ selectedSprite: sprite }),
 
-      setSpriteInstances: (update) =>
-        set((state) => ({
-          spriteInstances: typeof update === 'function' ? update(state.spriteInstances) : update,
-        })),
-      addSpriteToGame: async (payload: SpriteAddPayload, position?: { x: number; y: number }) => {
-        const { phaserGame, phaserScene, blocklyWorkspace } = useEditorStore.getState();
+      setSpriteInstances: (instances: SpriteInstance[]) => set({ spriteInstances: instances }),
+      addSpriteToGame: async (payload: SpriteAddPayload) => {
+        const { phaserScene } = useEditorStore.getState();
         const { spriteInstances, spriteTextures } = get();
 
-        if (!phaserGame || !phaserScene || !blocklyWorkspace) {
-          // showSnackbar('Game is not ready yet. Try again in a moment.', 'error');
-          console.error('[editorStore] addSpriteToGame() - Game is not ready yet. Try again in a moment.');
-          return false;
-        }
         if (!(phaserScene instanceof EditorScene)) {
           console.error('[editorStore] addSpriteToGame() - Phaser scene is not an EditorScene.');
           return false;
         }
 
         const ensureTexture = async () => {
-          if (phaserScene.textures.exists(payload.textureName)) return true;
-
-          const texture = spriteTextures.get(payload.textureName);
-          if (!texture) return false;
-          const { url, hasLoaded } = texture;
+          const { url, hasLoaded } = spriteTextures[payload.textureName];
 
           if (hasLoaded) {
             const textureReady = new Promise<void>((resolve, reject) => {
@@ -160,60 +149,29 @@ export const useSpriteStore = create<State & Actions>()(
           return false;
         };
 
-        try {
-          await ensureTexture();
-        } catch (error) {
-          // showSnackbar('Could not load that sprite image. Please try again.', 'error');
-          console.error('[editorStore] addSpriteToGame() - Could not load that sprite image. Please try again.');
-          return false;
-        }
-
         if (!phaserScene.textures.exists(payload.textureName)) {
-          // showSnackbar('Upload a sprite image before adding it to the game.', 'error');
-          console.error('[editorStore] addSpriteToGame() - Upload a sprite image before adding it to the game.');
-          return false;
+          await ensureTexture();
         }
-
-        const width = phaserGame.scale?.width || phaserGame.canvas?.width;
-        const height = phaserGame.scale?.height || phaserGame.canvas?.height;
-        if (!width || !height) {
-          // showSnackbar('Could not determine game size. Try again.', 'error');
-          console.error('[editorStore] addSpriteToGame() - Could not determine game size. Try again.');
-          return false;
-        }
-
-        const worldX = position?.x ?? Math.round(width / 2);
-        const worldY = position?.y ?? Math.round(height / 2);
 
         const safeBase = payload.textureName.replace(/[^\w]/g, '') || 'sprite';
         const duplicateCount = spriteInstances.filter((instance) => instance.name === payload.textureName).length;
         const name = `${safeBase}${duplicateCount + 1}`;
-        const spriteId = `id_${Date.now()}_${Math.round(Math.random() * 1e4)}`;
-        phaserScene.createSprite(payload.textureName, worldX, worldY, spriteId);
+        const spriteId = `id_${Date.now()}}`;
+        phaserScene.createSprite(spriteId, payload.x ?? 0, payload.y ?? 0, payload.textureName);
 
-        set((state) => ({
-          spriteInstances: [
-            ...spriteInstances,
-            {
-              id: spriteId,
-              instanceId: spriteId,
-              textureName: payload.textureName,
-              name: name,
-              x: worldX,
-              y: worldY,
-            },
-          ],
-          selectedSpriteId: spriteId,
-          selectedSprite: {
-            id: spriteId,
-            instanceId: spriteId,
-            textureName: payload.textureName,
-            name: name,
-            x: worldX,
-            y: worldY,
-          },
-        }));
+        const newSprite: SpriteInstance = {
+          id: spriteId,
+          textureName: payload.textureName,
+          name: name,
+          x: 0,
+          y: 0,
+          visible: true,
+          size: 1,
+          direction: 0,
+          snapToGrid: true,
+        };
 
+        set({ spriteInstances: [...spriteInstances, newSprite], selectedSpriteId: spriteId, selectedSprite: newSprite });
         return true;
       },
 
@@ -261,12 +219,13 @@ export const useSpriteStore = create<State & Actions>()(
         });
       },
 
-      registerTexture: (textureName: string, url: string, hasLoaded = true) => {
-        set((state) => {
-          const newTextures = new Map(state.spriteTextures);
-          newTextures.set(textureName, { url, hasLoaded });
-          return { spriteTextures: newTextures };
-        });
+      registerTexture: (textureName: string, url: string, hasLoaded = false) => {
+        set({ spriteTextures: { ...get().spriteTextures, [textureName]: { url, hasLoaded } } });
+        // set((state) => {
+        //   const newTextures = new Map(state.spriteTextures);
+        //   newTextures.set(textureName, { url, hasLoaded });
+        //   return { spriteTextures: newTextures };
+        // });
       },
 
       addToSpriteLibrary: (sprite: SpriteDefinition) => {
@@ -281,23 +240,8 @@ export const useSpriteStore = create<State & Actions>()(
         }));
       },
 
-      setEditingLibrarySprite: (sprite: SpriteDefinition | null, pixelData?: Uint8ClampedArray) => {
-        set({
-          editingLibrarySprite: sprite,
-          originalPixelData: pixelData ? new Uint8ClampedArray(pixelData) : null,
-        });
-      },
-
-      clearEditingLibrarySprite: () => {
-        set({
-          editingLibrarySprite: null,
-          originalPixelData: null,
-        });
-      },
-
       resetSpriteStore: () => {
         const defaultSpriteId = `id_${Date.now()}_${Math.round(Math.random() * 10000)}`;
-        const defaultInstanceId = `id_${Date.now()}_${Math.round(Math.random() * 10000)}`;
 
         set({
           spriteLibrary: [
@@ -317,15 +261,18 @@ export const useSpriteStore = create<State & Actions>()(
               id: defaultSpriteId,
               textureName: 'hero-walk-front',
               name: 'herowalkfront1',
-              instanceId: defaultInstanceId,
               x: 200,
               y: 150,
+              visible: true,
+              size: 1,
+              direction: 0,
+              snapToGrid: true,
             },
           ],
-          spriteTextures: new Map<string, { url: string; hasLoaded: boolean }>([
-            ['hero-walk-front', { url: '/heroWalkFront1.png', hasLoaded: false }],
-            ['hero-walk-back', { url: '/heroWalkBack1.png', hasLoaded: false }],
-          ]),
+          spriteTextures: {
+            'hero-walk-front': { url: '/heroWalkFront1.png', hasLoaded: false },
+            'hero-walk-back': { url: '/heroWalkBack1.png', hasLoaded: false },
+          },
           selectedSpriteId: null,
           selectedSprite: null,
           editingLibrarySprite: null,
@@ -338,7 +285,7 @@ export const useSpriteStore = create<State & Actions>()(
       partialize: (state) => ({
         spriteInstances: state.spriteInstances,
         spriteLibrary: state.spriteLibrary,
-        spriteTextures: [...state.spriteTextures.entries()],
+        spriteTextures: state.spriteTextures,
       }),
       merge: (persisted: any, current) => ({
         ...current,

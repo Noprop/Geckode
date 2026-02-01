@@ -275,6 +275,7 @@ export const useEditorStore = create<State & Actions>()(
         }
       },
 
+      // todo; make this better
       resetProject: () => {
         const { blocklyWorkspace, phaserScene } = get();
 
@@ -293,7 +294,7 @@ export const useEditorStore = create<State & Actions>()(
 
         // Reset Phaser scene sprites if in editor mode
         if (phaserScene instanceof EditorScene) {
-          phaserScene.resetSprites(spriteInstances);
+          phaserScene.removeSprites();
         }
 
         // Clear workspace maps and set the new sprite ID
