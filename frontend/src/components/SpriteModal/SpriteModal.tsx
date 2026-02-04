@@ -10,16 +10,12 @@ const SpriteModal = () => {
   const [activeTab, setActiveTab] = useState<'library' | 'editor'>('editor');
   const setIsSpriteModalOpen = useSpriteStore((state) => state.setIsSpriteModalOpen);
   const isSpriteModalOpen = useSpriteStore((state) => state.isSpriteModalOpen);
-  const clearEditingLibrarySprite = useSpriteStore((state) => state.clearEditingLibrarySprite);
+  const setEditingLibrarySprite = useSpriteStore((state) => state.setEditingLibrarySprite);
 
-  const handleClose = useCallback(() => {
-    clearEditingLibrarySprite();
+  const handleClose = () => {
+    setEditingLibrarySprite(null);
     setIsSpriteModalOpen(false);
-  }, [clearEditingLibrarySprite, setIsSpriteModalOpen]);
-
-  const handleSwitchToEditor = useCallback(() => {
-    setActiveTab('editor');
-  }, []);
+  };
 
   useEffect(() => {
     if (!isSpriteModalOpen) return;
@@ -76,7 +72,7 @@ const SpriteModal = () => {
           </div>
         </div>
 
-        {activeTab === 'library' ? <SpriteLibrary onSwitchToEditor={handleSwitchToEditor} /> : <SpriteEditor />}
+        {activeTab === 'library' ? <SpriteLibrary setActiveTab={setActiveTab} /> : <SpriteEditor />}
       </div>
     </div>
   );

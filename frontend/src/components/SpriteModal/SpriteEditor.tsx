@@ -6,6 +6,8 @@ import { Button } from '../ui/Button';
 import { useSpriteStore } from '@/stores/spriteStore';
 import EditorTools from './EditorTools';
 import { Display } from 'phaser';
+import { useEditorStore } from '@/stores/editorStore';
+import EditorScene from '@/phaser/scenes/EditorScene';
 
 const MIN_ZOOM_PERCENT = 25;
 const MAX_ZOOM_PERCENT = 800;
@@ -70,20 +72,22 @@ const SpriteEditor = () => {
   const [isEditingZoom, setIsEditingZoom] = useState(false);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const [renderCount, setRenderCount] = useState(0);
-  const addSpriteToGame = useSpriteStore((state) => state.addSpriteToGame);
+  const spriteLibrary = useSpriteStore((state) => state.spriteLibrary);
   const setIsSpriteModalOpen = useSpriteStore((state) => state.setIsSpriteModalOpen);
-  const registerTexture = useSpriteStore((state) => state.registerTexture);
+  const addStoreTexture = useSpriteStore((state) => state.addStoreTexture);
+  const updateStoreTexture = useSpriteStore((state) => state.updateStoreTexture);
   const addToSpriteLibrary = useSpriteStore((state) => state.addToSpriteLibrary);
-  const originalPixelData = useSpriteStore((state) => state.originalPixelData);
+  const editingLibrarySpriteIdx = useSpriteStore((state) => state.editingLibrarySpriteIdx);
+  const setEditingLibrarySprite = useSpriteStore((state) => state.setEditingLibrarySprite);
   const spriteTextures = useSpriteStore((state) => state.spriteTextures);
+  const phaserScene = useEditorStore((state) => state.phaserScene);
+  const addSpriteToGame = useSpriteStore((state) => state.addSpriteToGame);
 
   const prevPosRef = useRef<{ x: number; y: number } | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const previewRef = useRef<HTMLCanvasElement | null>(null);
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
   const activeButtonRef = useRef<number>(0); // 0 = left click, 2 = right click
-  const rafIdRef = useRef<number>(0); // For requestAnimationFrame throttling
-  const originalPixelDataRef = useRef<Uint8ClampedArray | null>(null); // For comparing against library sprite
 
   // Ref to hold state values for window event handlers (avoids stale closures)
   const stateRef = useRef({
@@ -590,109 +594,94 @@ const SpriteEditor = () => {
 
 
   const saveToAssets = async () => {
-    const originalData = originalPixelDataRef.current;
+    if (!(phaserScene instanceof EditorScene)) throw new Error('Phaser scene is not an EditorScene.');
 
-    // compare arrays
-    // if (a.length !== b.length) return false;
-    // for (let i = 0; i < a.length; i++) {
-    //   if (a[i] !== b[i]) return false;
-    // }
-    // const isModified = !originalData || !arraysEqual(layer1Ref.current, originalData);
-
-    // either adds to assets, or updates a slot in assets
-    // // If editing a library sprite and NOT modified, just add the existing sprite to game
-    // if (isEditingLibrary && !isModified) {
-    //   const textureInfo = spriteTextures.get(editingLibrarySprite.textureName);
-    //   const success = await addSpriteToGame({
-    //     name: editingLibrarySprite.name,
-    //     textureName: editingLibrarySprite.textureName,
-    //     textureUrl: textureInfo?.url || '',
-    //   });
-    //   if (success) {
-    //     clearEditingLibrarySprite();
-    //     setIsSpriteModalOpen(false);
-    //   }
-    //   return;
-    // }
-
-    // Modified or new sprite: create new library entry
-    const label = spriteName.trim() || 'mySprite';
-    const safeBase = label.toLowerCase().replace(/[^\w]/g, '') || 'customsprite';
-    const texture = `${safeBase}}`;
-
-    // Create a clean canvas with just the sprite pixels (no grid)
-    const exportCanvas = document.createElement('canvas');
-    exportCanvas.width = gridWidth;
-    exportCanvas.height = gridHeight;
-    const ctx = exportCanvas.getContext('2d');
-    if (!ctx) return;
-
-    // Create ImageData from layer1Ref and put it directly
-    const imageData = new ImageData(new Uint8ClampedArray(layer1Ref.current), gridWidth, gridHeight);
-    ctx.putImageData(imageData, 0, 0);
-
-    // Convert to data URL
-    const dataUrl = exportCanvas.toDataURL('image/png');
-
-    // Register the texture before adding sprite
-    registerTexture(texture, dataUrl, true);
-
-    const spriteId = `id_${Date.now()}_${Math.round(Math.random() * 1e4)}`;
-    addToSpriteLibrary({
-      id: spriteId,
-      textureName: texture,
-      name: label,
-    });
-
-    const success = await addSpriteToGame({
-      name: label,
-      textureName: texture,
-      textureUrl: dataUrl,
-    });
-    if (success) {
-      // clearEditingLibrarySprite();
-      setIsSpriteModalOpen(false);
+    // Export at 1:1 pixel size (grid dimensions), not the zoomed display canvas,
+    // so a 16x16 sprite stays small instead of e.g. 512x512 (~11KB+ base64).
+    const w = gridWidth;
+    const h = gridHeight;
+    const offscreen = document.createElement('canvas');
+    offscreen.width = w;
+    offscreen.height = h;
+    const ctx = offscreen.getContext('2d')!;
+    const imageData = ctx.createImageData(w, h);
+    const layer1 = layer1Ref.current;
+    const layer2 = layer2Ref.current;
+    const data = imageData.data;
+    for (let i = 0; i < w * h * 4; i += 4) {
+      const useLayer2 = layer2[i + 3] > 0;
+      const src = useLayer2 ? layer2 : layer1;
+      data[i] = src[i];
+      data[i + 1] = src[i + 1];
+      data[i + 2] = src[i + 2];
+      data[i + 3] = src[i + 3];
     }
+    ctx.putImageData(imageData, 0, 0);
+    const base64Image = offscreen.toDataURL('image/png');
+
+    if (editingLibrarySpriteIdx !== null) {
+      const libSprite = spriteLibrary[editingLibrarySpriteIdx];
+      if (phaserScene.textures.exists(libSprite.textureName)) {
+        phaserScene.deloadTexture(libSprite.textureName);
+        updateStoreTexture(libSprite.textureName, base64Image);
+      } else {
+        addStoreTexture(libSprite.textureName, base64Image);
+      }
+      phaserScene.load.image(libSprite.textureName, base64Image);
+
+    } else {
+      phaserScene.load.image(spriteName, base64Image);
+      addStoreTexture(spriteName, base64Image);
+
+      addToSpriteLibrary({
+        id: `id_${Date.now()}`,
+        textureName: spriteName,
+        name: spriteName,
+      });
+    }
+
+    addSpriteToGame({
+      textureName: spriteName,
+      name: spriteName,
+      base64Image: base64Image,
+    });
+    setEditingLibrarySprite(null);
+    setIsSpriteModalOpen(false);
   };
 
-  // Load library sprite data when editingLibrarySprite changes
-  // useEffect(() => {
-  //   if (!editingLibrarySprite || !originalPixelData) {
-  //     originalPixelDataRef.current = null;
-  //     return;
-  //   }
+  // Load library sprite data when editing a library sprite
+  useEffect(() => {
+    if (editingLibrarySpriteIdx === null || !canvasRef.current) return;
 
-  //   const textureInfo = spriteTextures[editingLibrarySprite.textureName];
-  //   if (!textureInfo?.url) return;
+    const libSprite = spriteLibrary[editingLibrarySpriteIdx];
+    const textureInfo = spriteTextures[libSprite.textureName];
+    if (!textureInfo) return;
 
-  //   // Load image to get dimensions
-  //   const img = new Image();
-  //   img.onload = () => {
-  //     const width = img.width;
-  //     const height = img.height;
+    const img = new Image();
+    img.onload = () => {
+      const width = img.width;
+      const height = img.height;
 
-  //     // Update grid dimensions
-  //     setGridWidth(width);
-  //     setGridHeight(height);
-  //     setLocalGridWidth(width);
-  //     setLocalGridHeight(height);
+      setGridWidth(width);
+      setGridHeight(height);
+      setInputWidth(width);
+      setInputHeight(height);
 
-  //     // Load pixel data into layer1
-  //     layer1Ref.current = new Uint8ClampedArray(originalPixelData);
-  //     layer2Ref.current = createPixelArray(width, height);
-  //     originalPixelDataRef.current = new Uint8ClampedArray(originalPixelData);
+      const ctx = canvasRef.current!.getContext('2d')!;
+      ctx.drawImage(img, 0, 0);
 
-  //     // Set sprite name
-  //     setSpriteName(editingLibrarySprite.name);
+      const imageData = ctx.getImageData(0, 0, width, height);
+      const pixelData = imageData.data;
 
-  //     // Clear history since we're loading fresh
-  //     undoStackRef.current = [];
-  //     redoStackRef.current = [];
+      layer1Ref.current = new Uint8ClampedArray(pixelData);
+      layer2Ref.current = createPixelArray(width, height);
 
-  //     requestRender();
-  //   };
-  //   img.src = textureInfo.url;
-  // }, [editingLibrarySprite, originalPixelData, spriteTextures, requestRender]);
+      undoStackRef.current = [];
+      redoStackRef.current = [];
+      setSpriteName(libSprite.name);
+    };
+    img.src = textureInfo;
+  }, [editingLibrarySpriteIdx]);
 
   // Render canvas when state changes
   useEffect(() => {

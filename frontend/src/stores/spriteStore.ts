@@ -3,11 +3,12 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { useEditorStore } from './editorStore';
 import EditorScene from '@/phaser/scenes/EditorScene';
+import { heroWalkFront1, heroWalkBack1, gavin } from './sprites';
 
 export interface SpriteAddPayload {
   name: string;
   textureName: string;
-  textureUrl: string;
+  base64Image: string;
   x?: number;
   y?: number;
 }
@@ -22,23 +23,18 @@ export interface Tilemap {
   width: number;
   height: number;
 }
-export interface Texture {
-  url: string;
-  hasLoaded: boolean;
-}
 
 interface State {
   spriteLibrary: SpriteDefinition[];
   spriteInstances: SpriteInstance[];
-  spriteTextures: Record<string, Texture>;
+  spriteTextures: Record<string, string>;
 
   isSpriteModalOpen: boolean;
   selectedSpriteId: string | null;
   selectedSprite: SpriteInstance | null;
 
   // Library sprite editing state
-  editingLibrarySprite: SpriteDefinition | null;
-  originalPixelData: Uint8ClampedArray | null;
+  editingLibrarySpriteIdx: number | null;
 }
 
 interface Actions {
@@ -49,9 +45,13 @@ interface Actions {
   setIsSpriteModalOpen: (isOpen: boolean) => void;
   setSelectedSpriteId: (spriteId: string) => void;
   setSelectedSprite: (sprite: SpriteInstance) => void;
-  registerTexture: (textureName: string, textureUrl: string, hasLoaded?: boolean) => void;
+  addStoreTexture: (textureName: string, base64Image: string) => void;
+  updateStoreTexture: (textureName: string, base64Image: string) => void;
   addToSpriteLibrary: (sprite: SpriteDefinition) => void;
   removeFromSpriteLibrary: (spriteId: string) => void;
+
+  // Library sprite editing
+  setEditingLibrarySprite: (spriteIdx: number | null) => void;
 
   // Reset action
   resetSpriteStore: () => void;
@@ -87,14 +87,14 @@ export const useSpriteStore = create<State & Actions>()(
         },
       ],
       spriteTextures: {
-        'hero-walk-front': { url: '/heroWalkFront1.png', hasLoaded: false },
-        'hero-walk-back': { url: '/heroWalkBack1.png', hasLoaded: false },
+        'hero-walk-front': heroWalkFront1,
+        'hero-walk-back': heroWalkBack1,
+        gavin: gavin,
       },
       selectedSpriteId: null,
       selectedSprite: null,
       isSpriteModalOpen: false,
-      editingLibrarySprite: null,
-      originalPixelData: null,
+      editingLibrarySpriteIdx: null,
 
       setIsSpriteModalOpen: (isOpen: boolean) => set({ isSpriteModalOpen: isOpen }),
       setSelectedSpriteId: (spriteId: string) => set({ selectedSpriteId: spriteId }),
@@ -110,48 +110,11 @@ export const useSpriteStore = create<State & Actions>()(
           return false;
         }
 
-        const ensureTexture = async () => {
-          const { url, hasLoaded } = spriteTextures[payload.textureName];
-
-          if (hasLoaded) {
-            const textureReady = new Promise<void>((resolve, reject) => {
-              const img = new window.Image();
-              img.onload = () => {
-                try {
-                  phaserScene.textures.addImage(payload.textureName, img);
-                  resolve();
-                } catch (err) {
-                  reject(err);
-                }
-              };
-              img.onerror = () => reject(new Error('Failed to load base64 texture data.'));
-              img.src = url;
-            });
-            await textureReady;
-            return true;
-          }
-
-          await new Promise<void>((resolve, reject) => {
-            const handleComplete = () => {
-              phaserScene.load.off('loaderror', handleError);
-              resolve();
-            };
-            const handleError = () => {
-              phaserScene.load.off('complete', handleComplete);
-              reject(new Error('Failed to load texture from URL.'));
-            };
-            phaserScene.load.once('complete', handleComplete);
-            phaserScene.load.once('loaderror', handleError);
-            console.log('loading image', payload.textureName, url);
-            phaserScene.load.image(payload.textureName, url);
-            phaserScene.load.start();
-          });
-          return false;
-        };
-
-        if (!phaserScene.textures.exists(payload.textureName)) {
-          await ensureTexture();
-        }
+        // if (!phaserScene.textures.exists(payload.textureName)) {
+        //   const img = new window.Image();
+        //   img.src = payload.base64Image;
+        //   phaserScene.textures.addImage(payload.textureName, img);
+        // }
 
         const safeBase = payload.textureName.replace(/[^\w]/g, '') || 'sprite';
         const duplicateCount = spriteInstances.filter((instance) => instance.name === payload.textureName).length;
@@ -206,7 +169,7 @@ export const useSpriteStore = create<State & Actions>()(
         phaserScene.updateSprite(spriteId, updates);
         set((state) => {
           const updatedInstances = state.spriteInstances.map((instance) =>
-            instance.id === spriteId ? { ...instance, ...updates } : instance,
+            instance.id === spriteId ? { ...instance, ...updates } : instance
           );
           const updatedSelectedSprite =
             state.selectedSpriteId === spriteId && state.selectedSprite
@@ -218,14 +181,11 @@ export const useSpriteStore = create<State & Actions>()(
           };
         });
       },
-
-      registerTexture: (textureName: string, url: string, hasLoaded = false) => {
-        set({ spriteTextures: { ...get().spriteTextures, [textureName]: { url, hasLoaded } } });
-        // set((state) => {
-        //   const newTextures = new Map(state.spriteTextures);
-        //   newTextures.set(textureName, { url, hasLoaded });
-        //   return { spriteTextures: newTextures };
-        // });
+      addStoreTexture: (textureName: string, base64Image: string) => {
+        get().updateStoreTexture(textureName, base64Image);
+      },
+      updateStoreTexture: (textureName: string, base64Image: string) => {
+        set({ spriteTextures: { ...get().spriteTextures, [textureName]: base64Image } });
       },
 
       addToSpriteLibrary: (sprite: SpriteDefinition) => {
@@ -239,6 +199,8 @@ export const useSpriteStore = create<State & Actions>()(
           spriteLibrary: state.spriteLibrary.filter((sprite) => sprite.id !== spriteId),
         }));
       },
+
+      setEditingLibrarySprite: (spriteIdx: number | null) => set({ editingLibrarySpriteIdx: spriteIdx }),
 
       resetSpriteStore: () => {
         const defaultSpriteId = `id_${Date.now()}_${Math.round(Math.random() * 10000)}`;
@@ -270,13 +232,12 @@ export const useSpriteStore = create<State & Actions>()(
             },
           ],
           spriteTextures: {
-            'hero-walk-front': { url: '/heroWalkFront1.png', hasLoaded: false },
-            'hero-walk-back': { url: '/heroWalkBack1.png', hasLoaded: false },
+            'hero-walk-front': heroWalkFront1,
+            'hero-walk-back': heroWalkBack1,
           },
           selectedSpriteId: null,
           selectedSprite: null,
-          editingLibrarySprite: null,
-          originalPixelData: null,
+          editingLibrarySpriteIdx: null,
         });
       },
     }),
@@ -292,6 +253,6 @@ export const useSpriteStore = create<State & Actions>()(
         ...(persisted || {}),
         spriteTextures: persisted?.spriteTextures ? new Map(persisted.spriteTextures) : current.spriteTextures,
       }),
-    },
-  ),
+    }
+  )
 );

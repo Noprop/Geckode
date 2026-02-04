@@ -28,11 +28,16 @@ export default class EditorScene extends Phaser.Scene {
   // -- Phaser methods -- //
   preload() {
     for (const textureName in useSpriteStore.getState().spriteTextures) {
-      const { url } = useSpriteStore.getState().spriteTextures[textureName];
+      const base64Image = useSpriteStore.getState().spriteTextures[textureName];
       if (this.textures.exists(textureName)) continue;
-      this.load.image(textureName, url);
+      this.load.image(textureName, base64Image);
     }
   }
+
+  public deloadTexture(name: string) {
+    this.textures.remove(name);
+  }
+
   async create() {
     // this.showGrid();
     this.spriteLayer = null;

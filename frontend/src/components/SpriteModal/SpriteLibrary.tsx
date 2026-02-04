@@ -3,40 +3,38 @@
 import { useState, useMemo, useCallback } from 'react';
 import { TrashIcon } from '@radix-ui/react-icons';
 import { useSpriteStore } from '@/stores/spriteStore';
-import type { SpriteDefinition } from '@/blockly/spriteRegistry';
 
 interface SpriteLibraryProps {
-  onSwitchToEditor: () => void;
+  setActiveTab: (tab: 'library' | 'editor') => void;
 }
 
-// Load image URL into pixel data
-const loadImageToPixels = (url: string): Promise<{ data: Uint8ClampedArray; width: number; height: number }> => {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        reject(new Error('Could not get canvas context'));
-        return;
-      }
-      ctx.drawImage(img, 0, 0);
-      const imageData = ctx.getImageData(0, 0, img.width, img.height);
-      resolve({ data: new Uint8ClampedArray(imageData.data), width: img.width, height: img.height });
-    };
-    img.onerror = () => reject(new Error('Failed to load image'));
-    img.src = url;
-  });
-};
-
-const SpriteLibrary = ({ onSwitchToEditor }: SpriteLibraryProps) => {
+const SpriteLibrary = ({ setActiveTab }: SpriteLibraryProps) => {
   const [searchQuery, setSearchQuery] = useState('');
   const spriteLibrary = useSpriteStore((state) => state.spriteLibrary);
   const spriteTextures = useSpriteStore((state) => state.spriteTextures);
   const setEditingLibrarySprite = useSpriteStore((state) => state.setEditingLibrarySprite);
   const removeFromSpriteLibrary = useSpriteStore((state) => state.removeFromSpriteLibrary);
+
+  // convert our texture into a pixel array
+  // const loadImageToPixels = (url: string): Promise<Uint8ClampedArray> => {
+  //   return new Promise((resolve, reject) => {
+  //     const img = new Image();
+  //     img.onload = () => {
+  //       const canvas = document.createElement('canvas');
+  //       canvas.width = img.width;
+  //       canvas.height = img.height;
+  //       const ctx = canvas.getContext('2d');
+  //       if (!ctx) {
+  //         reject(new Error('Could not get canvas context.'));
+  //         return;
+  //       }
+  //       ctx.drawImage(img, 0, 0);
+  //       resolve(ctx.getImageData(0, 0, img.width, img.height).data);
+  //     };
+  //     img.onerror = () => reject(new Error('Failed to load image.'));
+  //     img.src = url; // this triggers onload()
+  //   });
+  // };
 
   const handleDeleteSprite = useCallback((e: React.MouseEvent, spriteId: string) => {
     e.stopPropagation(); // Prevent triggering the card click
@@ -50,21 +48,15 @@ const SpriteLibrary = ({ onSwitchToEditor }: SpriteLibraryProps) => {
     });
   }, [searchQuery, spriteLibrary]);
 
-  const handleSpriteClick = useCallback(async (sprite: SpriteDefinition) => {
-    const textureInfo = spriteTextures.get(sprite.textureName);
-    if (!textureInfo?.url) {
-      console.error('No texture URL found for sprite:', sprite.textureName);
-      return;
-    }
+  const handleSpriteClick = (spriteIdx: number) => {
+    setEditingLibrarySprite(spriteIdx);
+    setActiveTab('editor');
+  }
 
-    try {
-      const { data } = await loadImageToPixels(textureInfo.url);
-      setEditingLibrarySprite(sprite, data);
-      onSwitchToEditor();
-    } catch (error) {
-      console.error('Failed to load sprite image:', error);
-    }
-  }, [spriteTextures, setEditingLibrarySprite, onSwitchToEditor]);
+  // const handleSpriteClick = useCallback(async (sprite: SpriteDefinition) => {
+  //   setEditingLibrarySprite(sprite,);
+  //   onSwitchToEditor();
+  // }, [spriteTextures, setEditingLibrarySprite, onSwitchToEditor]);
 
   return (
     <>
@@ -117,11 +109,11 @@ const SpriteLibrary = ({ onSwitchToEditor }: SpriteLibraryProps) => {
           </div>
         ) : (
           <div className="flex flex-wrap gap-4">
-            {filteredSprites.map((sprite) => (
+              {filteredSprites.map((sprite, idx) => (
               <div
                 key={sprite.textureName}
                 className="group relative flex w-36 flex-col overflow-hidden rounded-xs border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:border-slate-700 dark:bg-dark-secondary cursor-pointer"
-                onClick={() => handleSpriteClick(sprite)}
+                  onClick={() => handleSpriteClick(idx)}
                 title="Click to edit in sprite editor"
               >
                 <button
@@ -134,7 +126,7 @@ const SpriteLibrary = ({ onSwitchToEditor }: SpriteLibraryProps) => {
                 </button>
                 <div className="relative flex aspect-4/3 items-center justify-center bg-white dark:bg-slate-900">
                   <img
-                    src={spriteTextures.get(sprite.textureName)?.url}
+                      src={spriteTextures[sprite.textureName]}
                     alt={sprite.name}
                     className="h-17 object-contain drop-shadow-sm"
                     style={{ imageRendering: 'pixelated' }}

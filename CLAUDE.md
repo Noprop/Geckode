@@ -69,12 +69,16 @@ npm run typecheck         # TypeScript check
 ### Key Frontend Files
 | File | Purpose |
 |------|---------|
-| `stores/editorStore.ts` | Central Zustand store - project state, refs to Blockly/Phaser, auto-compile logic |
+| `stores/editorStore.ts` | Editor state - Blockly/Phaser refs, workspace maps, code generation |
+| `stores/spriteStore.ts` | Sprite state - library, instances, textures, modal state |
 | `components/ProjectView.tsx` | Main editor layout, coordinates Blockly and Phaser |
 | `components/BlocklyEditor.tsx` | Blockly workspace wrapper, change listeners |
 | `components/PhaserContainer.tsx` | Phaser game wrapper with loading/pause overlays |
-| `phaser/scenes/MainMenu.ts` | Primary game scene, `runScript()` execution |
+| `components/SpriteModal/` | Pixel art editor and sprite library modal |
+| `phaser/scenes/EditorScene.ts` | Sprite placement/drag mode, preloads textures |
+| `phaser/scenes/GameScene.ts` | Runs generated code, game execution mode |
 | `phaser/EventBus.ts` | React-Phaser event bridge |
+| `blockly/spriteRegistry.ts` | SpriteDefinition/SpriteInstance types, dropdown helpers |
 | `blockly/blocks/*.ts` | Custom block definitions + JavaScript generators |
 | `lib/api/base.ts` | API factory pattern for backend calls |
 
@@ -97,3 +101,39 @@ npm run typecheck         # TypeScript check
 1. Create types in `lib/types/api/<resource>/`
 2. Create handler in `lib/api/handlers/<resource>.ts`
 3. Use `createBaseApi` factory for standard CRUD operations
+
+### Sprite System Architecture
+
+**Three-tier sprite model:**
+- `SpriteDefinition` - Template in library (id, name, textureName)
+- `SpriteInstance` - Placed in game (extends Definition + x, y, visible, size, direction, physics)
+- `spriteTextures` - URL/loading state for each texture (`Record<string, Texture>`)
+
+**Sprite flow:**
+1. User creates/edits sprite in SpriteModal → saves to `spriteLibrary` + `spriteTextures`
+2. User adds sprite to game → creates `SpriteInstance` in `spriteInstances`
+3. EditorScene preloads textures and creates Phaser sprites from instances
+4. GameScene receives instances + textures when toggling to play mode
+
+### Zustand Store Patterns
+
+**Cross-store access:** Use `useSpriteStore.getState()` from editorStore (not hooks)
+
+**Persistence:** Both stores use `persist` middleware with `partialize` to save only essential state
+
+**Common gotcha:** `spriteTextures` is a `Record<string, Texture>`, not a Map. Use bracket notation:
+```ts
+// Correct
+spriteTextures[textureName]
+
+// Wrong - will crash
+spriteTextures.get(textureName)
+```
+
+### React-Phaser Integration
+
+**EventBus pattern:** Use `phaser/EventBus.ts` for React↔Phaser communication
+- Phaser emits: `current-scene-ready`, `editor-sprite-drag-start`, `editor-sprite-dragging`
+- React listens via `EventBus.on()` in useEffect with cleanup
+
+**Scene switching:** `toggleEditor()` in editorStore switches between EditorScene and GameScene, passing sprite data
