@@ -9,7 +9,8 @@ import { Display } from 'phaser';
 import EditorScene from '@/phaser/scenes/EditorScene';
 import { useCanvasZoom } from '@/hooks/useCanvasZoom';
 import { usePixelCanvas, createPixelArray } from '@/hooks/usePixelCanvas';
-
+import { createUniqueSpriteName, createUniqueTextureName } from '@/stores/slices/spriteSlice';
+import type { SpriteInstance } from '@/blockly/spriteRegistry';
 export type Tool = 'pen' | 'eraser' | 'bucket' | 'rectangle' | 'line' | 'oval' | 'rectangle-selection' | 'pan-tool' | 'color-picker';
 
 // Convert RGBA values at index to hex (returns '' for transparent)
@@ -58,21 +59,21 @@ const SpriteEditor = () => {
   const [gridHeight, setGridHeight] = useState(16);
 
   // --- Zustand selectors ---
-  const setIsSpriteModalOpen = useGeckodeStore((state) => state.setIsSpriteModalOpen);
-  const addAssetTexture = useGeckodeStore((state) => state.addAssetTexture);
-  const updateAssetTexture = useGeckodeStore((state) => state.updateAssetTexture);
-  const editingSpriteIdx = useGeckodeStore((state) => state.editingSpriteIdx);
-  const setEditingSpriteIdx = useGeckodeStore((state) => state.setEditingSpriteIdx);
-  const assetTextures = useGeckodeStore((state) => state.assetTextures);
-  const phaserScene = useGeckodeStore((state) => state.phaserScene);
-  const addSpriteInstance = useGeckodeStore((state) => state.addSpriteInstance);
-  const spriteInstances = useGeckodeStore((state) => state.spriteInstances);
+  const setIsSpriteModalOpen = useGeckodeStore((s) => s.setIsSpriteModalOpen);
+  const clearEditingSprite = useGeckodeStore((s) => s.clearEditingSprite);
+  const saveSprite = useGeckodeStore((s) => s.saveSprite);
+  const libraryTextures = useGeckodeStore((s) => s.libraryTextures);
+  const assetTextures = useGeckodeStore((s) => s.assetTextures);
+  const editingSource = useGeckodeStore((s) => s.editingSource);
+  const editingTextureName = useGeckodeStore((s) => s.editingTextureName);
+  const phaserScene = useGeckodeStore((s) => s.phaserScene);
+  const spriteInstances = useGeckodeStore((s) => s.spriteInstances);
 
   // --- Custom hooks ---
   const { cellSize, zoomPercent, setZoom, isEditingZoom, setIsEditingZoom, canvasContainerRef, MIN_ZOOM_PERCENT, MAX_ZOOM_PERCENT } = useCanvasZoom(gridWidth, gridHeight);
   const { canvasRef, previewRef, outputPixelsRef, previewPixelsRef, requestRender, saveToHistory, clearCanvas, resetPixelArrays } = usePixelCanvas(gridWidth, gridHeight, cellSize);
 
-  // --- Consolidated transient drawing state (single ref, no re-renders) ---
+  // --- Drawing state (single ref, no re-renders) ---
   const drawStateRef = useRef({
     isDrawing: false,
     shapeStart: null as { x: number; y: number } | null,
@@ -345,7 +346,7 @@ const SpriteEditor = () => {
   }, []);
 
   // --- Save / Load ---
-  const saveToAssets = async () => {
+  const addSpriteToGame = async () => {
     if (!(phaserScene instanceof EditorScene)) throw new Error('Phaser scene is not an EditorScene.');
 
     const w = gridWidth;
@@ -355,44 +356,42 @@ const SpriteEditor = () => {
     offscreen.height = h;
     const ctx = offscreen.getContext('2d')!;
     const imageData = ctx.createImageData(w, h);
-    const layer1 = outputPixelsRef.current;
-    const layer2 = previewPixelsRef.current;
-    const data = imageData.data;
-    for (let i = 0; i < w * h * 4; i += 4) {
-      const useLayer2 = layer2[i + 3] > 0;
-      const src = useLayer2 ? layer2 : layer1;
-      data[i] = src[i];
-      data[i + 1] = src[i + 1];
-      data[i + 2] = src[i + 2];
-      data[i + 3] = src[i + 3];
-    }
+    imageData.data.set(outputPixelsRef.current);
     ctx.putImageData(imageData, 0, 0);
     const base64Image = offscreen.toDataURL('image/png');
 
-    if (editingSpriteIdx !== null) {
-      const sprite = spriteInstances[editingSpriteIdx];
-      if (phaserScene.textures.exists(sprite.textureName)) {
-        phaserScene.deloadTexture(sprite.textureName);
-        updateAssetTexture(sprite.textureName, base64Image);
-      } else {
-        addAssetTexture(sprite.textureName, base64Image);
-      }
-      phaserScene.load.image(sprite.textureName, base64Image);
-      addSpriteInstance({
-        textureName: sprite.textureName,
-        name: sprite.name,
-      });
+    const newSpriteName = createUniqueSpriteName(spriteName, spriteInstances);
+    const newTextureName = editingSource === 'asset' ? editingTextureName! : createUniqueTextureName(spriteName, assetTextures);
+    const newSprite = useGeckodeStore.getState().addSpriteInstance({
+      name: newSpriteName,
+      textureName: newTextureName,
+    });
+
+    if (editingSource === 'new' || editingSource === 'library') {
+      useGeckodeStore.getState().addAssetTexture(newTextureName, base64Image);
+      await phaserScene.loadTextureAsync(newTextureName, base64Image);
+    } else if (editingSource === 'asset') {
+      useGeckodeStore.getState().updateAssetTexture(editingTextureName!, base64Image);
+      await phaserScene.updateTextureAsync(newTextureName, base64Image);
     }
-    setEditingSpriteIdx(null);
+    phaserScene.createSprite(newSprite.id, newSprite.x, newSprite.y, newSprite.textureName);
+    clearEditingSprite();
     setIsSpriteModalOpen(false);
   };
 
-  // Load existing sprite data when editing
+  // Load existing texture when editing from library or asset (use offscreen canvas to avoid checkerboard in pixel data)
   useEffect(() => {
-    if (editingSpriteIdx === null || !canvasRef.current) return;
+    if (
+      editingSource === null ||
+      editingTextureName === null ||
+      !canvasRef.current
+    )
+      return;
 
-    const sprite = spriteInstances[editingSpriteIdx];
-    const textureInfo = assetTextures[sprite.textureName];
+    const textureInfo =
+      editingSource === "library"
+        ? libraryTextures[editingTextureName]
+        : assetTextures[editingTextureName];
     if (!textureInfo) return;
 
     const img = new Image();
@@ -403,17 +402,20 @@ const SpriteEditor = () => {
       setGridWidth(width);
       setGridHeight(height);
 
-      const ctx = canvasRef.current!.getContext('2d')!;
-      ctx.drawImage(img, 0, 0);
+      const offscreen = document.createElement("canvas");
+      offscreen.width = width;
+      offscreen.height = height;
+      const offCtx = offscreen.getContext("2d")!;
+      offCtx.drawImage(img, 0, 0);
+      const imageData = offCtx.getImageData(0, 0, width, height);
 
-      const imageData = ctx.getImageData(0, 0, width, height);
       resetPixelArrays(width, height);
       outputPixelsRef.current = new Uint8ClampedArray(imageData.data);
-      setSpriteName(sprite.name);
+      setSpriteName(editingTextureName);
       requestRender();
     };
     img.src = textureInfo;
-  }, [editingSpriteIdx]);
+  }, [editingSource, editingTextureName, libraryTextures, assetTextures]);
 
   // --- Grid resize handler (used by uncontrolled inputs) ---
   const handleGridResize = (dimension: 'width' | 'height', value: string, fallback: number) => {
@@ -652,8 +654,8 @@ const SpriteEditor = () => {
           />
           <Button
             className="btn-confirm h-9 px-4"
-            onClick={saveToAssets}
-            title="Save resource to assets"
+            onClick={addSpriteToGame}
+            title="Add to game"
           >
             Add to Game
           </Button>

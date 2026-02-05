@@ -33,16 +33,17 @@ export interface Tilemap {
 
 // ── Sprite Slice ──
 
+export type EditingSource = 'new' | 'library' | 'asset';
+
 export interface SpriteState {
-  spriteAssets: SpriteDefinition[];
-  spriteLibrary: SpriteDefinition[];
   spriteInstances: SpriteInstance[];
   assetTextures: Record<string, string>;
   libraryTextures: Record<string, string>;
 
   isSpriteModalOpen: boolean;
   selectedSpriteIdx: number | null;
-  editingSpriteIdx: number | null;
+  editingSource: EditingSource | null;
+  editingTextureName: string | null;
 }
 
 export interface SpriteActions {
@@ -54,19 +55,14 @@ export interface SpriteActions {
   updateAssetTexture: (textureName: string, base64Image: string) => void;
   removeAssetTexture: (textureName: string) => void;
 
-  addLibraryTexture: (textureName: string, base64Image: string) => void;
-  updateLibraryTexture: (textureName: string, base64Image: string) => void;
-  removeLibraryTexture: (textureName: string) => void;
-
-  addSpriteInstance: (sprite: Omit<SpriteDefinition, 'id'>) => void;
+  addSpriteInstance: (sprite: Omit<SpriteDefinition, 'id'>) => SpriteInstance;
   removeSpriteInstance: (spriteIdx: number) => void;
-  updateSpriteInstance: (
-    spriteIdx: number,
-    updates: Partial<SpriteInstance>,
-  ) => void;
+  updateSpriteInstance: (spriteIdx: number, updates: Partial<SpriteInstance>) => void;
 
   setSelectedSpriteIdx: (spriteIdx: number) => void;
-  setEditingSpriteIdx: (spriteIdx: number | null) => void;
+  setEditingSprite: (source: EditingSource, textureName: string | null) => void;
+  clearEditingSprite: () => void;
+  saveSprite: (params: { spriteName: string; base64Image: string }) => string;
 
   resetSpriteStore: () => void;
 }

@@ -48,7 +48,7 @@ export default class GameScene extends Phaser.Scene {
     this.generateTilesetTexture();
   }
 
-  create(data: { spriteInstances: SpriteInstance[]; textures: Map<string, { name: string; file: string }>; code: string }) {
+  create(data: { spriteInstances: SpriteInstance[]; assetTextures: Record<string, string>; code: string }) {
     console.log('[GameScene] create called', data);
 
     // Reset tilemap state

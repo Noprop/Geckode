@@ -14,23 +14,18 @@ vi.mock("phaser", () => ({
 }));
 
 import type { SpriteDefinition } from "@/blockly/spriteRegistry";
+import { createUniqueTextureName } from '../slices/spriteSlice';
 import { useGeckodeStore } from "../geckodeStore";
 
 const getState = () => useGeckodeStore.getState();
 
 beforeEach(() => {
-  // Reset store to initial state
   useGeckodeStore.setState({
-    spriteAssets: [],
-    spriteLibrary: [
-      { id: "lib1", textureName: "hero-walk-front", name: "herowalkfront1" },
-      { id: "lib2", textureName: "hero-walk-back", name: "herowalkback1" },
-    ],
     spriteInstances: [
       {
-        id: "inst1",
-        textureName: "hero-walk-front",
-        name: "herowalkfront1",
+        id: 'inst1',
+        textureName: 'hero-walk-front',
+        name: 'herowalkfront1',
         x: 200,
         y: 150,
         visible: true,
@@ -39,48 +34,67 @@ beforeEach(() => {
         snapToGrid: true,
       },
     ],
-    assetTextures: {},
+    assetTextures: { 'hero-walk-front': 'base64-front' },
     libraryTextures: {
-      "hero-walk-front": "base64-front",
-      "hero-walk-back": "base64-back",
-      gavin: "base64-gavin",
+      'hero-walk-front': 'base64-front',
+      'hero-walk-back': 'base64-back',
+      gavin: 'base64-gavin',
     },
     isSpriteModalOpen: false,
     selectedSpriteIdx: null,
-    editingSpriteIdx: null,
+    editingSource: null,
+    editingTextureName: null,
   });
 });
 
-describe("spriteSlice", () => {
-  describe("initialization", () => {
-    it("initializes with default sprite library", () => {
-      expect(getState().spriteLibrary).toHaveLength(2);
-      expect(getState().spriteLibrary[0].textureName).toBe("hero-walk-front");
-      expect(getState().spriteLibrary[1].textureName).toBe("hero-walk-back");
-    });
+describe('createUniqueTextureName', () => {
+  it('returns name as-is when no collision exists', () => {
+    const assetTextures: Record<string, string> = { foo: 'x' };
+    expect(createUniqueTextureName('mySprite', assetTextures)).toBe('mySprite');
+  });
 
-    it("initializes with one default sprite instance", () => {
+  it('appends 2 when name collides', () => {
+    const assetTextures: Record<string, string> = { mySprite: 'x' };
+    expect(createUniqueTextureName('mySprite', assetTextures)).toBe('mySprite2');
+  });
+
+  it('increments trailing digit on collision', () => {
+    const assetTextures: Record<string, string> = { mySprite2: 'x' };
+    expect(createUniqueTextureName('mySprite2', assetTextures)).toBe('mySprite3');
+  });
+
+  it('handles multiple collisions', () => {
+    const assetTextures: Record<string, string> = {
+      mySprite: 'a',
+      mySprite2: 'b',
+    };
+    expect(createUniqueTextureName('mySprite', assetTextures)).toBe('mySprite3');
+  });
+});
+
+describe('spriteSlice', () => {
+  describe('initialization', () => {
+    it('initializes with one default sprite instance', () => {
       expect(getState().spriteInstances).toHaveLength(1);
-      expect(getState().spriteInstances[0].textureName).toBe("hero-walk-front");
+      expect(getState().spriteInstances[0].textureName).toBe('hero-walk-front');
       expect(getState().spriteInstances[0].x).toBe(200);
       expect(getState().spriteInstances[0].y).toBe(150);
     });
   });
 
-  describe("addSpriteInstance", () => {
-    it("creates instance with correct defaults", () => {
-      const sprite: SpriteDefinition = {
-        id: "new-sprite",
-        textureName: "test-tex",
-        name: "testSprite",
-      };
-      getState().addSpriteInstance(sprite);
+  describe('addSpriteInstance', () => {
+    it('creates instance with correct defaults', () => {
+      getState().addSpriteInstance({
+        textureName: 'test-tex',
+        name: 'testSprite',
+      });
 
       const instances = getState().spriteInstances;
       expect(instances).toHaveLength(2);
       const newInstance = instances[1];
-      expect(newInstance.id).toBe("new-sprite");
-      expect(newInstance.textureName).toBe("test-tex");
+      expect(newInstance.id).toMatch(/^id_\d+$/);
+      expect(newInstance.textureName).toBe('test-tex');
+      expect(newInstance.name).toBe('testSprite');
       expect(newInstance.x).toBe(0);
       expect(newInstance.y).toBe(0);
       expect(newInstance.visible).toBe(true);
@@ -90,41 +104,38 @@ describe("spriteSlice", () => {
     });
   });
 
-  describe("removeSpriteInstance", () => {
-    it("removes by index correctly", () => {
-      // Add a second instance
+  describe('removeSpriteInstance', () => {
+    it('removes by index correctly', () => {
       getState().addSpriteInstance({
-        id: "second",
-        textureName: "tex2",
-        name: "sprite2",
+        textureName: 'tex2',
+        name: 'sprite2',
       });
       expect(getState().spriteInstances).toHaveLength(2);
 
       getState().removeSpriteInstance(0);
       expect(getState().spriteInstances).toHaveLength(1);
-      expect(getState().spriteInstances[0].id).toBe("second");
+      expect(getState().spriteInstances[0].name).toBe('sprite2');
     });
   });
 
-  describe("updateInstanceOrder", () => {
-    it("reorders correctly", () => {
-      getState().addSpriteInstance({ id: "a", textureName: "ta", name: "a" });
-      getState().addSpriteInstance({ id: "b", textureName: "tb", name: "b" });
-      // Instances: [inst1, a, b]
+  describe('updateInstanceOrder', () => {
+    it('reorders correctly', () => {
+      getState().addSpriteInstance({ textureName: 'ta', name: 'a' });
+      getState().addSpriteInstance({ textureName: 'tb', name: 'b' });
 
       getState().updateInstanceOrder(2, 0);
-      const ids = getState().spriteInstances.map((s) => s.id);
-      expect(ids).toEqual(["b", "inst1", "a"]);
+      const names = getState().spriteInstances.map((s) => s.name);
+      expect(names).toEqual(['b', 'herowalkfront1', 'a']);
     });
   });
 
-  describe("setSpriteInstances", () => {
-    it("replaces all instances", () => {
+  describe('setSpriteInstances', () => {
+    it('replaces all instances', () => {
       getState().setSpriteInstances([
         {
-          id: "x",
-          textureName: "tx",
-          name: "x",
+          id: 'x',
+          textureName: 'tx',
+          name: 'x',
           x: 10,
           y: 20,
           visible: false,
@@ -134,53 +145,43 @@ describe("spriteSlice", () => {
         },
       ]);
       expect(getState().spriteInstances).toHaveLength(1);
-      expect(getState().spriteInstances[0].id).toBe("x");
+      expect(getState().spriteInstances[0].id).toBe('x');
       expect(getState().spriteInstances[0].visible).toBe(false);
     });
   });
 
-  describe("addAssetTexture / removeAssetTexture", () => {
-    it("adds and removes asset textures", () => {
-      getState().addAssetTexture("newTex", "data:image/png;base64,...");
-      expect(getState().assetTextures["newTex"]).toBe(
-        "data:image/png;base64,...",
-      );
+  describe('addAssetTexture / removeAssetTexture', () => {
+    it('adds and removes asset textures', () => {
+      getState().addAssetTexture('newTex', 'data:image/png;base64,...');
+      expect(getState().assetTextures['newTex']).toBe('data:image/png;base64,...');
 
-      getState().removeAssetTexture("newTex");
-      expect(getState().assetTextures["newTex"]).toBeUndefined();
+      getState().removeAssetTexture('newTex');
+      expect(getState().assetTextures['newTex']).toBeUndefined();
     });
   });
 
-  describe("addLibraryTexture / removeLibraryTexture", () => {
-    it("adds and removes library textures", () => {
-      getState().addLibraryTexture("libTex", "base64-lib");
-      expect(getState().libraryTextures["libTex"]).toBe("base64-lib");
-
-      getState().removeLibraryTexture("libTex");
-      expect(getState().libraryTextures["libTex"]).toBeUndefined();
-    });
-  });
-
-  describe("setSelectedSpriteIdx / setEditingSpriteIdx", () => {
-    it("updates selection", () => {
+  describe('setSelectedSpriteIdx / setEditingSprite / clearEditingSprite', () => {
+    it('updates selection', () => {
       getState().setSelectedSpriteIdx(1);
       expect(getState().selectedSpriteIdx).toBe(1);
     });
 
-    it("updates editing index", () => {
-      getState().setEditingSpriteIdx(2);
-      expect(getState().editingSpriteIdx).toBe(2);
+    it('setEditingSprite sets source and texture name', () => {
+      getState().setEditingSprite('library', 'hero-walk-back');
+      expect(getState().editingSource).toBe('library');
+      expect(getState().editingTextureName).toBe('hero-walk-back');
     });
 
-    it("clears editing index", () => {
-      getState().setEditingSpriteIdx(1);
-      getState().setEditingSpriteIdx(null);
-      expect(getState().editingSpriteIdx).toBeNull();
+    it('clearEditingSprite clears editing state', () => {
+      getState().setEditingSprite('asset', 'myTex');
+      getState().clearEditingSprite();
+      expect(getState().editingSource).toBeNull();
+      expect(getState().editingTextureName).toBeNull();
     });
   });
 
-  describe("setIsSpriteModalOpen", () => {
-    it("toggles modal", () => {
+  describe('setIsSpriteModalOpen', () => {
+    it('toggles modal', () => {
       expect(getState().isSpriteModalOpen).toBe(false);
       getState().setIsSpriteModalOpen(true);
       expect(getState().isSpriteModalOpen).toBe(true);
@@ -189,28 +190,88 @@ describe("spriteSlice", () => {
     });
   });
 
-  describe("resetSpriteStore", () => {
-    it("restores defaults with new IDs", () => {
-      // Mutate state
-      getState().addSpriteInstance({
-        id: "extra",
-        textureName: "tex",
-        name: "extra",
+  describe('saveSprite', () => {
+    it("from 'new' source creates new asset texture and sprite instance", () => {
+      getState().setEditingSprite('new', null);
+      const tex = getState().saveSprite({
+        spriteName: 'mySprite',
+        base64Image: 'data:image/png;base64,abc',
       });
-      getState().addAssetTexture("custom", "data");
+
+      expect(tex).toBe('mySprite');
+      expect(getState().assetTextures['mySprite']).toBe('data:image/png;base64,abc');
+      expect(getState().spriteInstances).toHaveLength(2);
+      expect(getState().spriteInstances[1].textureName).toBe('mySprite');
+      expect(getState().spriteInstances[1].name).toBe('mySprite');
+      expect(getState().libraryTextures).toEqual({
+        'hero-walk-front': 'base64-front',
+        'hero-walk-back': 'base64-back',
+        gavin: 'base64-gavin',
+      });
+    });
+
+    it("from 'library' source creates new asset texture and sprite instance", () => {
+      getState().setEditingSprite('library', 'gavin');
+      const tex = getState().saveSprite({
+        spriteName: 'gavinCopy',
+        base64Image: 'data:image/png;base64,xyz',
+      });
+
+      expect(tex).toBe('gavinCopy');
+      expect(getState().assetTextures['gavinCopy']).toBe('data:image/png;base64,xyz');
+      expect(getState().spriteInstances).toHaveLength(2);
+      expect(getState().libraryTextures['gavin']).toBe('base64-gavin');
+    });
+
+    it("from 'asset' source updates existing texture and adds instance", () => {
+      getState().setEditingSprite('asset', 'hero-walk-front');
+      const tex = getState().saveSprite({
+        spriteName: 'herowalkfront1',
+        base64Image: 'data:image/png;base64,updated',
+      });
+
+      expect(tex).toBe('hero-walk-front');
+      expect(getState().assetTextures['hero-walk-front']).toBe('data:image/png;base64,updated');
+      expect(getState().spriteInstances).toHaveLength(2);
+      expect(Object.keys(getState().assetTextures)).toHaveLength(1);
+    });
+
+    it('deduplicates texture name when saving from library/new', () => {
+      getState().addAssetTexture('mySprite', 'existing');
+      getState().setEditingSprite('new', null);
+      const tex = getState().saveSprite({
+        spriteName: 'mySprite',
+        base64Image: 'data:image/png;base64,new',
+      });
+
+      expect(tex).toBe('mySprite2');
+      expect(getState().assetTextures['mySprite']).toBe('existing');
+      expect(getState().assetTextures['mySprite2']).toBe('data:image/png;base64,new');
+    });
+  });
+
+  describe('resetSpriteStore', () => {
+    it('restores defaults with default asset texture', () => {
+      getState().addSpriteInstance({
+        textureName: 'tex',
+        name: 'extra',
+      });
+      getState().addAssetTexture('custom', 'data');
       getState().setSelectedSpriteIdx(1);
+      getState().setEditingSprite('asset', 'custom');
 
       getState().resetSpriteStore();
 
       expect(getState().spriteInstances).toHaveLength(1);
-      expect(getState().spriteInstances[0].textureName).toBe("hero-walk-front");
-      expect(getState().spriteLibrary).toHaveLength(2);
-      expect(getState().assetTextures).toEqual({});
-      expect(getState().libraryTextures).toHaveProperty("hero-walk-front");
-      expect(getState().libraryTextures).toHaveProperty("hero-walk-back");
-      expect(getState().libraryTextures).toHaveProperty("gavin");
+      expect(getState().spriteInstances[0].textureName).toBe('hero-walk-front');
+      expect(getState().assetTextures).toHaveProperty('hero-walk-front');
+      expect(Object.keys(getState().assetTextures)).toHaveLength(1);
+      expect(getState().libraryTextures).toHaveProperty('hero-walk-front');
+      expect(getState().libraryTextures).toHaveProperty('hero-walk-back');
+      expect(getState().libraryTextures).toHaveProperty('gavin');
       expect(getState().selectedSpriteIdx).toBeNull();
-      expect(getState().editingSpriteIdx).toBeNull();
+      expect(getState().editingSource).toBeNull();
+      expect(getState().editingTextureName).toBeNull();
     });
   });
 });

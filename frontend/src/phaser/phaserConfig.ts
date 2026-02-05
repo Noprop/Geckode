@@ -7,8 +7,8 @@ import * as Phaser from 'phaser';
 
 const config = {
   type: Phaser.AUTO,
-  width: 512,
-  height: 384,
+  width: 256,
+  height: 192,
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,

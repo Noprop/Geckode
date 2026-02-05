@@ -27,17 +27,53 @@ export default class EditorScene extends Phaser.Scene {
 
   // -- Phaser methods -- //
   preload() {
-    for (const instance of useGeckodeStore.getState().spriteInstances) {
-      console.log('preloading texture, instance: ', instance);
-      const base64Image = useGeckodeStore.getState().libraryTextures[instance.textureName];
-      console.log('base64Image: ', base64Image);
-      if (this.textures.exists(instance.textureName)) continue;
+    const { spriteInstances, assetTextures } = useGeckodeStore.getState();
+    for (const instance of spriteInstances) {
+      const base64Image = assetTextures[instance.textureName];
+      if (!base64Image || this.textures.exists(instance.textureName)) continue;
       this.load.image(instance.textureName, base64Image);
     }
   }
 
-  public deloadTexture(name: string) {
+  /** Queue a texture load and return a promise that resolves once it's in the cache. */
+  public loadTextureAsync(name: string, base64Image: string): Promise<void> {
+    if (this.textures.exists(name)) return Promise.resolve();
+    return new Promise<void>((resolve) => {
+      this.load.once('complete', () => resolve());
+      this.load.image(name, base64Image);
+      this.load.start();
+    });
+  }
+
+  /**
+   * Safely replace an existing texture without crashing sprites that reference it.
+   * Hides affected sprites, removes the old texture, loads the new one,
+   * then re-binds and reveals them. Falls back to loadTextureAsync if the
+   * texture doesn't exist yet.
+   */
+  public async updateTextureAsync(name: string, base64Image: string): Promise<void> {
+    if (!this.textures.exists(name)) {
+      return this.loadTextureAsync(name, base64Image);
+    }
+
+    // Collect every sprite using this texture and hide it so Phaser
+    // won't try to render a destroyed GL texture between frames.
+    const affected: Phaser.Physics.Arcade.Sprite[] = [];
+    for (const sprite of this.editorSprites.values()) {
+      if (sprite.texture.key === name) {
+        sprite.setVisible(false);
+        affected.push(sprite);
+      }
+    }
+
     this.textures.remove(name);
+    await this.loadTextureAsync(name, base64Image);
+
+    // Re-bind the freshly loaded texture and show the sprites again.
+    for (const sprite of affected) {
+      sprite.setTexture(name);
+      sprite.setVisible(true);
+    }
   }
 
   async create() {
