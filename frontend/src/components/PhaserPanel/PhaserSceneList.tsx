@@ -1,7 +1,7 @@
-import { useSpriteStore } from '@/stores/spriteStore';
+import { useGeckodeStore } from '@/stores/geckodeStore';
 
 const PhaserSceneList = () => {
-  const setIsSpriteModalOpen = useSpriteStore((state) => state.setIsSpriteModalOpen);
+  const setIsSpriteModalOpen = useGeckodeStore((state) => state.setIsSpriteModalOpen);
 
   const handleSceneClick = () => {
     setIsSpriteModalOpen(true);

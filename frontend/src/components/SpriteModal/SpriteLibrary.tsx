@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback } from 'react';
 import { TrashIcon } from '@radix-ui/react-icons';
-import { useSpriteStore } from '@/stores/spriteStore';
+import { useGeckodeStore } from '@/stores/geckodeStore';
 
 interface SpriteLibraryProps {
   setActiveTab: (tab: 'library' | 'editor') => void;
@@ -10,10 +10,10 @@ interface SpriteLibraryProps {
 
 const SpriteLibrary = ({ setActiveTab }: SpriteLibraryProps) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const spriteLibrary = useSpriteStore((state) => state.spriteLibrary);
-  const spriteTextures = useSpriteStore((state) => state.spriteTextures);
-  const setEditingLibrarySprite = useSpriteStore((state) => state.setEditingLibrarySprite);
-  const removeFromSpriteLibrary = useSpriteStore((state) => state.removeFromSpriteLibrary);
+  const spriteLibrary = useGeckodeStore((state) => state.spriteLibrary);
+  const spriteTextures = useGeckodeStore((s) => s.libraryTextures);
+  const setEditingLibrarySprite = useGeckodeStore((s) => s.setEditingSpriteIdx);
+  const removeFromSpriteLibrary = useGeckodeStore((s) => s.removeSpriteInstance);
 
   // convert our texture into a pixel array
   // const loadImageToPixels = (url: string): Promise<Uint8ClampedArray> => {
@@ -36,10 +36,10 @@ const SpriteLibrary = ({ setActiveTab }: SpriteLibraryProps) => {
   //   });
   // };
 
-  const handleDeleteSprite = useCallback((e: React.MouseEvent, spriteId: string) => {
+  const handleDeleteSprite = useCallback((e: React.MouseEvent, spriteIdx: number) => {
     e.stopPropagation(); // Prevent triggering the card click
-    removeFromSpriteLibrary(spriteId);
-  }, [removeFromSpriteLibrary]);
+    removeFromSpriteLibrary(spriteIdx);
+  }, []);
 
   const filteredSprites = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -118,7 +118,7 @@ const SpriteLibrary = ({ setActiveTab }: SpriteLibraryProps) => {
               >
                 <button
                   type="button"
-                  onClick={(e) => handleDeleteSprite(e, sprite.id)}
+                    onClick={(e) => handleDeleteSprite(e, idx)}
                   className="absolute right-1 top-1 z-10 rounded p-1 text-slate-400 opacity-0 transition hover:bg-red-100 hover:text-red-600 group-hover:opacity-100 dark:hover:bg-red-900/30 dark:hover:text-red-400"
                   title="Delete sprite from library"
                 >

@@ -1,4 +1,4 @@
-import { useSpriteStore } from '@/stores/spriteStore';
+import { useGeckodeStore } from '@/stores/geckodeStore';
 
 export type SpriteDefinition = {
   id: string;
@@ -25,7 +25,7 @@ export type SpritePhysics = {
 };
 
 export const getSpriteDropdownOptions = (): string[][] => {
-  const { spriteInstances } = useSpriteStore.getState();
+  const { spriteInstances } = useGeckodeStore.getState();
   const options: string[][] = [];
 
   if (spriteInstances.length == 0) options.push([' ', '__hero__']);
@@ -35,7 +35,7 @@ export const getSpriteDropdownOptions = (): string[][] => {
 };
 
 export const createSpriteName = (name: string): string => {
-  const { spriteInstances } = useSpriteStore.getState();
+  const { spriteInstances } = useGeckodeStore.getState();
   const count = spriteInstances.filter((sprite) => sprite.name === name).length;
 
   if (count === 0) return name;

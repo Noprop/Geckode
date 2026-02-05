@@ -1,84 +1,80 @@
 import { javascriptGenerator } from "blockly/javascript";
-import { useEditorStore } from '@/stores/editorStore';
+import { useGeckodeStore } from '@/stores/geckodeStore';
 import { getUpdateRegistry, getStartRegistry } from 'blockly/index';
 
 const onUpdate = {
-  type: "onUpdate",
-  tooltip: "Runs code once per frame",
-  helpUrl: "",
-  message0: "on update %1 %2",
+  type: 'onUpdate',
+  tooltip: 'Runs code once per frame',
+  helpUrl: '',
+  message0: 'on update %1 %2',
   args0: [
     {
-      type: "input_dummy",
-      name: "LABEL"
+      type: 'input_dummy',
+      name: 'LABEL',
     },
     {
-      type: "input_statement",
-      name: "INNER"
-    }
+      type: 'input_statement',
+      name: 'INNER',
+    },
   ],
-  colour: "%{BKY_EVENTS_HUE}"
-}
+  colour: '%{BKY_EVENTS_HUE}',
+};
 
 javascriptGenerator.forBlock['onUpdate'] = function (block, generator) {
   const inner = generator.statementToCode(block, 'INNER');
-  const spriteId = useEditorStore.getState().spriteId;
+  const spriteId = useGeckodeStore.getState().getCurrentSpriteId() ?? '';
   const updateId = block.id;
 
-  console.log("updateId: " + updateId);
+  console.log('updateId: ' + updateId);
 
-  const spriteFunction = generator.provideFunction_(`${spriteId}_update_${updateId}`,
-    [
-      `function ${generator.FUNCTION_NAME_PLACEHOLDER_}(thisSprite) {`,
-      `${inner}`,
-      `}`
-    ]
-  )
+  const spriteFunction = generator.provideFunction_(`${spriteId}_update_${updateId}`, [
+    `function ${generator.FUNCTION_NAME_PLACEHOLDER_}(thisSprite) {`,
+    `${inner}`,
+    `}`,
+  ]);
 
   getUpdateRegistry(generator).push({
     spriteId: `${spriteId}`,
-    functionName: spriteFunction
+    functionName: spriteFunction,
   });
 
   return '';
 };
 
 const onStart = {
-  type: "onStart",
-  tooltip: "Runs code once when the game starts",
-  helpUrl: "",
-  message0: "on start %1 %2",
+  type: 'onStart',
+  tooltip: 'Runs code once when the game starts',
+  helpUrl: '',
+  message0: 'on start %1 %2',
   args0: [
     {
-      type: "input_dummy",
-      name: "LABEL"
+      type: 'input_dummy',
+      name: 'LABEL',
     },
     {
-      type: "input_statement",
-      name: "INNER"
-    }
+      type: 'input_statement',
+      name: 'INNER',
+    },
   ],
-  colour: "%{BKY_EVENTS_HUE}"
-}
+  colour: '%{BKY_EVENTS_HUE}',
+};
 
 javascriptGenerator.forBlock['onStart'] = function (block, generator) {
   const inner = generator.statementToCode(block, 'INNER');
-  const spriteId = useEditorStore.getState().spriteId;
+  const spriteId = useGeckodeStore.getState().getCurrentSpriteId() ?? '';
   const startId = block.id;
 
-  console.log("startId: " + startId);
+  console.log('startId: ' + startId);
 
-  const spriteFunction = generator.provideFunction_(`${spriteId}_start_${startId}`,
-    [
-      `function ${generator.FUNCTION_NAME_PLACEHOLDER_}(thisSprite) {`,
-      `${inner}`,
-      `}`
-    ]
-  )
+  const spriteFunction = generator.provideFunction_(`${spriteId}_start_${startId}`, [
+    `function ${generator.FUNCTION_NAME_PLACEHOLDER_}(thisSprite) {`,
+    `${inner}`,
+    `}`,
+  ]);
 
   getStartRegistry(generator).push({
     spriteId: `${spriteId}`,
-    functionName: spriteFunction
+    functionName: spriteFunction,
   });
 
   return '';
@@ -87,7 +83,4 @@ javascriptGenerator.forBlock['onStart'] = function (block, generator) {
   // return `scene.start = () => {\n${inner}}\n`;
 };
 
-export const eventBlocks = [
-  onUpdate,
-  onStart,
-];
+export const eventBlocks = [onUpdate, onStart];

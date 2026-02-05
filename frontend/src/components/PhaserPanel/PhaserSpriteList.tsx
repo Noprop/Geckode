@@ -1,31 +1,27 @@
 import { useEffect } from 'react';
-import { useSpriteStore } from '@/stores/spriteStore';
+import { useGeckodeStore } from '@/stores/geckodeStore';
 import { Button } from '../ui/Button';
-import { useEditorStore } from '@/stores/editorStore';
 import { Cross2Icon } from '@radix-ui/react-icons';
 
 const PhaserSpriteList = () => {
-  const sprites = useSpriteStore((state) => state.spriteInstances);
-  const setIsSpriteModalOpen = useSpriteStore((state) => state.setIsSpriteModalOpen);
-  const selectedSpriteId = useSpriteStore((state) => state.selectedSpriteId);
-  const setSelectedSpriteId = useSpriteStore((state) => state.setSelectedSpriteId);
-  const setSelectedSprite = useSpriteStore((state) => state.setSelectedSprite);
-  const removeSpriteFromGame = useSpriteStore((state) => state.removeSpriteFromGame);
+  const sprites = useGeckodeStore((state) => state.spriteInstances);
+  const setIsSpriteModalOpen = useGeckodeStore((state) => state.setIsSpriteModalOpen);
+  const selectedSpriteIdx = useGeckodeStore((state) => state.selectedSpriteIdx);
+  const setSelectedSpriteIdx = useGeckodeStore((state) => state.setSelectedSpriteIdx);
+  const removeSpriteInstance = useGeckodeStore((state) => state.removeSpriteInstance);
+  const loadWorkspace = useGeckodeStore((state) => state.loadWorkspace);
 
-  const handleSpriteSelect = (spriteId: string) => {
-    useEditorStore.getState().loadWorkspace(spriteId);
-    setSelectedSpriteId(spriteId);
-    setSelectedSprite(sprites.find((sprite) => sprite.id === spriteId)!);
+  const handleSpriteSelect = (spriteIdx: number) => {
+    loadWorkspace(sprites[spriteIdx].id);
+    setSelectedSpriteIdx(spriteIdx);
   };
 
-  // TODO: ensure this works. the idea is that if we load a project with sprites,
-  // then it needs to auto select the first. there should in theory be a manual
-  // way to do this. get rid of this useEffect code if there is.
   useEffect(() => {
-    if (selectedSpriteId || sprites.length === 0) return;
-    setSelectedSpriteId(sprites[0].id);
-    setSelectedSprite(sprites[0]);
-    useEditorStore.getState().loadWorkspace(sprites[0].id);
+    if (sprites.length === 0) return;
+    if (selectedSpriteIdx === null) {
+      setSelectedSpriteIdx(0);
+      loadWorkspace(sprites[0].id);
+    }
   }, []);
 
   return (
@@ -51,12 +47,12 @@ const PhaserSpriteList = () => {
           </div>
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(75px,1fr))] gap-2 pr-1">
-            {sprites.map((sprite) => {
-              const isSelected = sprite.id === selectedSpriteId;
+              {sprites.map((sprite, idx) => {
+                const isSelected = idx === selectedSpriteIdx;
               return (
                 <div
                   key={sprite.id}
-                  onClick={() => handleSpriteSelect(sprite.id)}
+                  onClick={() => handleSpriteSelect(idx)}
                   className={`relative aspect-square rounded-lg border-2 cursor-pointer transition-all overflow-hidden ${
                     isSelected
                       ? 'border-primary-green bg-primary-green/10 shadow-md ring-2 ring-primary-green/30'
@@ -81,7 +77,7 @@ const PhaserSpriteList = () => {
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        removeSpriteFromGame(sprite.id)
+                        removeSpriteInstance(idx)
                       }}
                       className="absolute top-1 right-1 rounded-full bg-slate-700/80 hover:bg-red-500 text-white p-0.5 transition shadow"
                       title="Delete sprite"

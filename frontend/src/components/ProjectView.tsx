@@ -5,8 +5,7 @@ import BlocklyEditor from "@/components/BlocklyEditor";
 import EditorScene from "@/phaser/scenes/EditorScene";
 import { useWorkspaceView } from "@/contexts/WorkspaceViewContext";
 import { EventBus } from "@/phaser/EventBus";
-import { useEditorStore } from "@/stores/editorStore";
-import { useSpriteStore } from "@/stores/spriteStore";
+import { useGeckodeStore } from "@/stores/geckodeStore";
 import Phaser from "./PhaserPanel/Phaser";
 import type { SpriteInstance } from "@/blockly/spriteRegistry";
 
@@ -32,8 +31,8 @@ interface ProjectViewProps {
 const ProjectView = ({ projectId }: ProjectViewProps) => {
   const documentName = String(projectId ?? 0);
   const { view } = useWorkspaceView();
-  const { setSpriteInstances } = useSpriteStore();
-  const { undoWorkspace, redoWorkspace, canUndo, canRedo } = useEditorStore();
+  const { setSpriteInstances } = useGeckodeStore();
+  const { undoWorkspace, redoWorkspace, canUndo, canRedo } = useGeckodeStore();
 
   // disable for now 
   // useBlockSync(documentName);
@@ -42,16 +41,16 @@ const ProjectView = ({ projectId }: ProjectViewProps) => {
   useEffect(() => {
     return () => {
       // Cancel any pending auto-convert on unmount
-      useEditorStore.getState().cancelScheduledConvert();
+      useGeckodeStore.getState().cancelScheduledConvert();
     };
   }, []);
 
   useEffect(() => {
     const handleSpriteMove = ({ id, x, y }: { id: string; x: number; y: number }) => {
-      const phaserScene = useEditorStore.getState().phaserScene;
+      const phaserScene = useGeckodeStore.getState().phaserScene;
       if (!(phaserScene instanceof EditorScene)) return;
 
-      const { updateSprite } = useSpriteStore.getState();
+      const { updateSprite } = useGeckodeStore.getState();
       updateSprite(id, { x, y });
 
       // setSpriteInstances((state) => {

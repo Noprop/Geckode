@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ChevronDownIcon } from '@radix-ui/react-icons';
-import { useSpriteStore } from '@/stores/spriteStore';
+import { useGeckodeStore } from '@/stores/geckodeStore';
 import type { SpritePhysics } from '@/blockly/spriteRegistry';
 
 interface SpritePhysicsCurtainProps {
@@ -17,9 +17,9 @@ const DEFAULT_PHYSICS: SpritePhysics = {
 };
 
 const SpritePhysicsCurtain = ({ isExpanded, onToggle }: SpritePhysicsCurtainProps) => {
-  const selectedSprite = useSpriteStore((state) => state.selectedSprite);
-  const selectedSpriteId = useSpriteStore((state) => state.selectedSpriteId);
-  const updateSprite = useSpriteStore((state) => state.updateSprite);
+  const selectedSprite = useGeckodeStore((state) => state.selectedSprite);
+  const selectedSpriteId = useGeckodeStore((state) => state.selectedSpriteId);
+  const updateSprite = useGeckodeStore((state) => state.updateSprite);
 
   const [values, setValues] = useState<SpritePhysics>(DEFAULT_PHYSICS);
 

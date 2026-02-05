@@ -4,13 +4,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { Cross2Icon, Pencil2Icon, ImageIcon } from '@radix-ui/react-icons';
 import SpriteLibrary from './SpriteLibrary';
 import SpriteEditor from './SpriteEditor';
-import { useSpriteStore } from '@/stores/spriteStore';
+import { useGeckodeStore } from '@/stores/geckodeStore';
 
 const SpriteModal = () => {
   const [activeTab, setActiveTab] = useState<'library' | 'editor'>('editor');
-  const setIsSpriteModalOpen = useSpriteStore((state) => state.setIsSpriteModalOpen);
-  const isSpriteModalOpen = useSpriteStore((state) => state.isSpriteModalOpen);
-  const setEditingLibrarySprite = useSpriteStore((state) => state.setEditingLibrarySprite);
+  const setIsSpriteModalOpen = useGeckodeStore((state) => state.setIsSpriteModalOpen);
+  const isSpriteModalOpen = useGeckodeStore((state) => state.isSpriteModalOpen);
+  const setEditingLibrarySprite = useGeckodeStore((state) => state.setEditingLibrarySprite);
 
   const handleClose = () => {
     setEditingLibrarySprite(null);

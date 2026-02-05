@@ -2,13 +2,13 @@
 
 import { useState } from 'react';
 import { GitHubLogoIcon, DownloadIcon, ResetIcon } from '@radix-ui/react-icons';
-import { useEditorStore } from '@/stores/editorStore';
+import { useGeckodeStore } from '@/stores/geckodeStore';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { Modal } from '@/components/ui/modals/Modal';
 
 export default function ProjectControls() {
   const showSnackbar = useSnackbar();
-  const { projectName, setProjectName, saveProject, resetProject } = useEditorStore();
+  const { projectName, setProjectName, saveProject, resetProject } = useGeckodeStore();
   const [showResetModal, setShowResetModal] = useState(false);
 
   const handleSave = () => {

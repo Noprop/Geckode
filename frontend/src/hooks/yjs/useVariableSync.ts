@@ -4,12 +4,12 @@ import { useYjs } from "./useYjs";
 import { Block } from "@/lib/types/yjs/blocks";
 import { Transaction, YMapEvent } from "yjs";
 import { Variable } from "@/lib/types/yjs/variables";
-import { useEditorStore } from "@/stores/editorStore";
+import { useGeckodeStore } from "@/stores/geckodeStore";
 
 export const useVariableSync = (
   documentName: string,
 ) => {
-  const { blocklyWorkspace } = useEditorStore();
+  const { blocklyWorkspace } = useGeckodeStore();
   const { doc } = useYjs(documentName);
   const variablesMap = doc.getMap<Variable>('variables');
   const blocksMap = doc.getMap<Block>('blocks');

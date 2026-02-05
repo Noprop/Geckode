@@ -1,7 +1,7 @@
 import * as Phaser from 'phaser';
 import { EventBus } from '@/phaser/EventBus';
 import { EDITOR_SCENE_KEY } from '@/phaser/sceneKeys';
-import { useSpriteStore } from '@/stores/spriteStore';
+import { useGeckodeStore } from '@/stores/geckodeStore';
 import { SpriteInstance } from '@/blockly/spriteRegistry';
 
 export default class EditorScene extends Phaser.Scene {
@@ -27,10 +27,12 @@ export default class EditorScene extends Phaser.Scene {
 
   // -- Phaser methods -- //
   preload() {
-    for (const textureName in useSpriteStore.getState().spriteTextures) {
-      const base64Image = useSpriteStore.getState().spriteTextures[textureName];
-      if (this.textures.exists(textureName)) continue;
-      this.load.image(textureName, base64Image);
+    for (const instance of useGeckodeStore.getState().spriteInstances) {
+      console.log('preloading texture, instance: ', instance);
+      const base64Image = useGeckodeStore.getState().libraryTextures[instance.textureName];
+      console.log('base64Image: ', base64Image);
+      if (this.textures.exists(instance.textureName)) continue;
+      this.load.image(instance.textureName, base64Image);
     }
   }
 
@@ -51,7 +53,7 @@ export default class EditorScene extends Phaser.Scene {
     this.initEventListeners();
 
     // create sprites
-    for (const sprite of useSpriteStore.getState().spriteInstances) {
+    for (const sprite of useGeckodeStore.getState().spriteInstances) {
       this.createSprite(sprite.id, sprite.x, sprite.y, sprite.textureName);
     }
 
