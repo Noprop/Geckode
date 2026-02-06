@@ -87,6 +87,7 @@ export default class GameScene extends Phaser.Scene {
     // Tell React which scene is active (will trigger pause state sync)
     EventBus.emit('current-scene-ready', this);
 
+    this.cameras.main.centerOn(0, 0);
     this.startHook();
   }
 

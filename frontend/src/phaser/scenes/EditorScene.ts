@@ -102,7 +102,7 @@ export default class EditorScene extends Phaser.Scene {
   public createSprite(id: string, x: number, y: number, textureName: string) {
     if (!this.spriteLayer) return;
     const sprite = this.physics.add.sprite(x, y, textureName);
-    sprite.setName(id);
+    sprite.setData('spriteId', id);
     sprite.setDepth(this.SPRITE_DEPTH);
     this.spriteLayer.add(sprite);
     this.spriteLayer.bringToTop(sprite);
@@ -124,6 +124,7 @@ export default class EditorScene extends Phaser.Scene {
     const sprite = this.editorSprites.get(id);
     if (!sprite) return;
 
+    console.log('setting sprite position: ', updates.x, updates.y);
     sprite.setPosition(updates.x ?? sprite.x, updates.y ?? sprite.y);
 
     if (updates.visible !== undefined) sprite.setVisible(updates.visible);
@@ -186,7 +187,7 @@ export default class EditorScene extends Phaser.Scene {
         currentPos: { x: sprite.x, y: sprite.y },
       };
       if (this.spriteLayer) this.spriteLayer.bringToTop(sprite);
-      EventBus.emit('editor-sprite-drag-start', { id: sprite.name });
+      EventBus.emit('editor-sprite-drag-start', { id: sprite.getData('spriteId') });
     });
 
     this.input.on('drag', (pointer: Phaser.Input.Pointer, sprite: Phaser.Physics.Arcade.Sprite) => {
@@ -194,7 +195,15 @@ export default class EditorScene extends Phaser.Scene {
       if (!this.activeDrag) return;
       this.activeDrag.currentPos = { x: pointer.worldX, y: pointer.worldY };
       EventBus.emit('editor-sprite-dragging', {
-        id: this.activeDrag.sprite.name,
+        id: this.activeDrag.sprite.getData('spriteId'),
+        x: pointer.worldX,
+        y: pointer.worldY,
+      });
+    });
+
+    this.input.on('dragend', (pointer: Phaser.Input.Pointer, sprite: Phaser.Physics.Arcade.Sprite) => {
+      EventBus.emit('editor-sprite-drag-end', {
+        id: sprite.getData('spriteId'),
         x: pointer.worldX,
         y: pointer.worldY,
       });

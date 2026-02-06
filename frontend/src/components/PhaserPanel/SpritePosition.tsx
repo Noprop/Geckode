@@ -90,19 +90,11 @@ const SpritePosition = () => {
 
   useEffect(() => {
     const handleDragStart = ({ id }: { id: string }) => {
-      const idx = spriteInstances.findIndex((s) => s.id === id);
+      const idx = useGeckodeStore.getState().spriteInstances.findIndex((s) => s.id === id);
       if (idx !== -1) setSelectedSpriteIdx(idx);
     };
 
-    const handleDragging = ({
-      id,
-      x,
-      y,
-    }: {
-      id: string;
-      x: number;
-      y: number;
-    }) => {
+    const handleDragging = ({ id, x, y, }: { id: string; x: number; y: number; }) => {
       if (selectedSpriteIdx === null) return;
       if (spriteInstances[selectedSpriteIdx]?.id !== id) return;
       setValues((prev) => ({
@@ -112,13 +104,26 @@ const SpritePosition = () => {
       }));
     };
 
+    const handleDragEnd = ({ id, x, y }: { id: string; x: number; y: number; }) => {
+      if (selectedSpriteIdx === null) return;
+      if (spriteInstances[selectedSpriteIdx]?.id !== id) return;
+      setValues((prev) => ({
+        ...prev,
+        x: String(Math.round(x)),
+        y: String(Math.round(y)),
+      }));
+      updateSpriteInstance(selectedSpriteIdx, { x: Math.round(x), y: Math.round(y) });
+    };
+
     EventBus.on("editor-sprite-drag-start", handleDragStart);
     EventBus.on("editor-sprite-dragging", handleDragging);
+    EventBus.on("editor-sprite-drag-end", handleDragEnd);
     return () => {
       EventBus.off("editor-sprite-drag-start", handleDragStart);
       EventBus.off("editor-sprite-dragging", handleDragging);
+      EventBus.off("editor-sprite-drag-end", handleDragEnd);
     };
-  }, [spriteInstances, selectedSpriteIdx, setSelectedSpriteIdx]);
+  }, []);
 
   const handleInputChange = useCallback(
     (field: keyof SpriteFormValues, value: string) => {
@@ -127,35 +132,14 @@ const SpritePosition = () => {
     [],
   );
 
-  const handleBlurX = useCallback(() => {
-    if (selectedSpriteIdx === null || !selectedSprite) return;
-    const rawValue = values.x;
-    const finalValue = resolveBlurValue(rawValue, "x", centerX);
-    if (selectedSprite.x !== finalValue) {
-      updateSpriteInstance(selectedSpriteIdx, { x: finalValue as number });
-    }
-  }, [
-    selectedSpriteIdx,
-    selectedSprite,
-    values.x,
-    centerX,
-    updateSpriteInstance,
-  ]);
-
-  const handleBlurY = useCallback(() => {
+  const handleBlurY = () => {
     if (selectedSpriteIdx === null || !selectedSprite) return;
     const rawValue = values.y;
     const finalValue = resolveBlurValue(rawValue, "y", centerY);
     if (selectedSprite.y !== finalValue) {
       updateSpriteInstance(selectedSpriteIdx, { y: finalValue as number });
     }
-  }, [
-    selectedSpriteIdx,
-    selectedSprite,
-    values.y,
-    centerY,
-    updateSpriteInstance,
-  ]);
+  };
 
   const handleBlurName = useCallback(() => {
     if (selectedSpriteIdx === null || !selectedSprite) return;
@@ -243,7 +227,12 @@ const SpritePosition = () => {
           value={values.x}
           disabled={disabled}
           onChange={(v) => handleInputChange("x", v)}
-          onBlur={handleBlurX}
+          onBlur={() => {
+            const rawValue = values.x;
+            const finalValue = resolveBlurValue(rawValue, "x", centerX);
+            if (selectedSprite!.x !== finalValue)
+              updateSpriteInstance(selectedSpriteIdx!, { x: finalValue as number });
+          }}
         />
         <NumericField
           label="y"
