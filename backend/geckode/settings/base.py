@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'accounts',
     'organizations',
     'projects',
+    'sprite_libraries',
 ]
 
 MIDDLEWARE = [

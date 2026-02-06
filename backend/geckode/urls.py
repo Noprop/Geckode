@@ -25,4 +25,5 @@ urlpatterns : list[URLPattern | URLResolver]= [
     path('api/', include('accounts.urls')),
     path('api/', include('organizations.urls')),
     path('api/', include('projects.urls')),
+    path('api/', include('sprite_libraries.urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
