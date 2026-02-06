@@ -85,7 +85,7 @@ export function createBaseApi<
 
     const methods = {
       list: (filters?: Partial<TFilters>, config?: AxiosRequestConfig) => unwrap<PaginatedResponse<TData>>(api.get(baseUrl, {...{ params: filters }, ...config})),
-      create: (data: TPayload | FormData, config?: AxiosRequestConfig) => unwrap<Required<TData>>(api.post(baseUrl, data, config)),
+      create: (data: Partial<TPayload> | FormData, config?: AxiosRequestConfig) => unwrap<Required<TData>>(api.post(baseUrl, data, config)),
     };
 
     const subApiObjects = Object.entries(subApis).reduce(

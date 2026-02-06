@@ -56,4 +56,14 @@ const api = {
   delete: <T = any>(url: string, config?: AxiosRequestConfig) => request<T>('delete', url, undefined, config),
 };
 
+// pass Axios error and return serverside error message
+export const extractAxiosErrMsg = (err : AxiosError, placeholderMsg: string = ""): string => {
+  const data : Object = (err.response?.data as Object);
+
+  var msg : string = Object.entries(data)[0][1];
+
+  return msg === "" ? placeholderMsg : msg;
+
+}
+
 export default api;

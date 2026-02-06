@@ -2,15 +2,12 @@ import DragAndDrop, { DragAndDropRef } from "@/components/DragAndDrop";
 import { InputBox, InputBoxRef } from "@/components/ui/inputs/InputBox";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import projectsApi from "@/lib/api/handlers/projects";
-import {
-  Project,
-  ProjectPayload,
-  projectPermissions,
-} from "@/lib/types/api/projects";
+import { Project, ProjectPayload, projectPermissions } from "@/lib/types/api/projects";
 import { User } from "@/lib/types/api/users";
 import { useEffect, useRef, useState } from "react";
 import { ProjectPermissions } from "@/lib/types/api/projects";
 import { Button } from "@/components/ui/Button";
+import { extractAxiosErrMsg } from "@/lib/api/axios";
 
 interface Props {
   prj: Project;
@@ -25,19 +22,15 @@ export const AboutProject = ({ prj, setPrj, user }: Props) => {
   const permissionDropdownView = useRef<HTMLSelectElement | null>(null);
   const dropboxRef = useRef<DragAndDropRef>(null);
 
-  const [slug, setSlug] = useState<string>("");
-
   useEffect(() => {}, []);
 
   // submit changes
   const updatePrj = () => {
     // fill out update information if filled out
     const payload: Partial<ProjectPayload> = {};
-    if (prjNameRef.current?.inputValue !== "")
-      payload.name = prjNameRef.current?.inputValue;
+    if (prjNameRef.current?.inputValue !== "") payload.name = prjNameRef.current?.inputValue;
 
-    if (prjDescRef.current?.inputValue !== "")
-      payload.description = prjDescRef.current?.inputValue;
+    if (prjDescRef.current?.inputValue !== "") payload.description = prjDescRef.current?.inputValue;
 
     // TODO: make collaboration permissions
     /*if (permissionDropdownView.current)
@@ -49,8 +42,8 @@ export const AboutProject = ({ prj, setPrj, user }: Props) => {
         .then(() => {
           snackbar("Updated Project!", "success");
         })
-        .catch(() => {
-          snackbar("Failed to update project!");
+        .catch((err) => {
+          snackbar(extractAxiosErrMsg(err, "Failed to update project!"), "error");
         });
   };
 
@@ -63,11 +56,7 @@ export const AboutProject = ({ prj, setPrj, user }: Props) => {
   return (
     <div className="w-full flex-col">
       <h1>Project Title:</h1>
-      <InputBox
-        ref={prjNameRef}
-        placeholder={prj?.name ?? ""}
-        className="bg-white text-black mb-3 border-0 w-full"
-      />
+      <InputBox ref={prjNameRef} placeholder={prj?.name ?? ""} className="bg-white text-black mb-3 border-0 w-full" />
       <h1>Project Description:</h1>
       <InputBox
         ref={prjDescRef}
@@ -93,10 +82,7 @@ export const AboutProject = ({ prj, setPrj, user }: Props) => {
         <Button className="bg-primary-green" onClick={updatePrj}>
           Save Changes
         </Button>
-        <Button
-          className="bg-light-tertiary dark:bg-dark-tertiary ml-3"
-          onClick={resetPage}
-        >
+        <Button className="bg-light-tertiary dark:bg-dark-tertiary ml-3" onClick={resetPage}>
           Cancel
         </Button>
       </div>

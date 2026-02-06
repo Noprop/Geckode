@@ -8,10 +8,13 @@ import { authApi } from "@/lib/api/auth";
 import { User } from "@/lib/types/api/users";
 import { AboutProject } from "./AboutProject";
 import { ManageCollaborators } from "./ManageCollaborators";
+import { useSnackbar } from "@/hooks/useSnackbar";
+import { extractAxiosErrMsg } from "@/lib/api/axios";
 
 const ProjectSettingsPage = () => {
   const prjID = Number(useParams().projectID);
   const [prj, setPrj] = useState<Project>();
+  const showSnackbar = useSnackbar();
 
   const [user, setUser] = useState<User | null>(null);
 
@@ -19,11 +22,15 @@ const ProjectSettingsPage = () => {
     // fetch api for prj name
     projectsApi(prjID)
       .get()
-      .then((prj) => setPrj(prj));
+      .then((prj) => setPrj(prj))
+      .catch((err) => showSnackbar(extractAxiosErrMsg(err, "Failed to get project information"), "error"));
 
-    authApi.getUserDetails().then((user) => {
-      setUser(user);
-    });
+    authApi
+      .getUserDetails()
+      .then((user) => {
+        setUser(user);
+      })
+      .catch((err) => showSnackbar(extractAxiosErrMsg(err, "Failed to get user details."), "error"));
   }, []);
 
   return (
@@ -38,9 +45,7 @@ const ProjectSettingsPage = () => {
           },
           {
             title: "Manage Collaborators",
-            element: (
-              <ManageCollaborators prj={prj!} setPrj={setPrj} user={user!} />
-            ),
+            element: <ManageCollaborators prj={prj!} setPrj={setPrj} user={user!} />,
           },
         ]}
       ></TabSystem>

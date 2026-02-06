@@ -20,6 +20,7 @@ import { User } from "@/lib/types/api/users";
 import { FilePlusIcon, TrashIcon } from "@radix-ui/react-icons";
 import { ReactElement, useEffect, useRef, useState } from "react";
 import UserSelect, { ListUserStatus, UserSelectRef } from "./UserSelect";
+import { extractAxiosErrMsg } from "@/lib/api/axios";
 
 interface Props {
   org: Organization;
@@ -29,10 +30,7 @@ interface Props {
 export const ManageMembers = ({ org, setOrg, user }: Props) => {
   const snackbar = useSnackbar();
   const orgMemberApi = organizationsApi(org?.id).members;
-  const tableRef = useRef<TableRef<
-    OrganizationMember,
-    OrganizationMemberFilters
-  > | null>(null);
+  const tableRef = useRef<TableRef<OrganizationMember, OrganizationMemberFilters> | null>(null);
 
   // inviting members
   const [orgInvites, setOrgInvites] = useState<OrganizationInvitation[]>([]);
@@ -45,7 +43,8 @@ export const ManageMembers = ({ org, setOrg, user }: Props) => {
   const getCurrentInvites = () => {
     organizationsApi(org.id)
       .invitationsApi.list()
-      .then((res) => setOrgInvites(res.results));
+      .then((res) => setOrgInvites(res.results))
+      .catch((err) => snackbar(extractAxiosErrMsg(err, "Failed to grab Organization Invites"), "error"));
   };
 
   const determineUserStatus = (user: User): ListUserStatus => {
@@ -92,10 +91,7 @@ export const ManageMembers = ({ org, setOrg, user }: Props) => {
     <>
       <h1 className="header-1">Owner</h1>
       <div className="flex my-3">
-        <img
-          className="size-10 mr-5 rounded-full"
-          src={org.owner.avatar ?? "/user-icon.png"}
-        />
+        <img className="size-10 mr-5 rounded-full" src={org.owner.avatar ?? "/user-icon.png"} />
         <span className="my-auto">{org.owner.username}</span>
       </div>
       <h1 className="header-1 mt-10">Members</h1>
@@ -170,16 +166,10 @@ export const ManageMembers = ({ org, setOrg, user }: Props) => {
         >
           <p>Username:</p>
           <div className="flex flex-col w-90">
-            <UserSelect
-              ref={userInviteRef}
-              determineUserStatus={determineUserStatus}
-            />
+            <UserSelect ref={userInviteRef} determineUserStatus={determineUserStatus} />
 
             <p>Permission:</p>
-            <select
-              ref={permissionDropdownView}
-              className="bg-white text-black mb-3 p-2 rounded-md"
-            >
+            <select ref={permissionDropdownView} className="bg-white text-black mb-3 p-2 rounded-md">
               {Object.entries(projectPermissions).map(([key, label]) => (
                 <option key={key} value={key}>
                   {label}

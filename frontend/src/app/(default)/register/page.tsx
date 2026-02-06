@@ -2,10 +2,14 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import usersApi from "@/lib/api/handlers/users";
-import { InputBox,InputBoxRef } from "@/components/ui/inputs/InputBox";
+import { InputBox, InputBoxRef } from "@/components/ui/inputs/InputBox";
 import { Button } from "@/components/ui/Button";
 import Link from "next/link";
 import { useSnackbar } from "@/hooks/useSnackbar";
+import { Modal } from "@/components/ui/modals/Modal";
+import { Pencil2Icon } from "@radix-ui/react-icons";
+import { AxiosError } from "axios";
+import { extractAxiosErrMsg } from "@/lib/api/axios";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -19,12 +23,12 @@ export default function RegisterPage() {
   const password2Ref = useRef<InputBoxRef | null>(null);
 
   const refs = [emailRef, usernameRef, firstNameRef, lastNameRef, passwordRef, password2Ref];
-  const labels = ['Email', 'Username', 'First Name', 'Last Name', 'Password', 'Re-typed Password'];
+  const labels = ["Email", "Username", "First Name", "Last Name", "Password", "Re-typed Password"];
 
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    if (refs.some(ref => !ref.current)) return;
+    if (refs.some((ref) => !ref.current)) return;
 
     e.preventDefault();
     setLoading(true);
@@ -41,50 +45,39 @@ export default function RegisterPage() {
       console.log("Successfully created user:", response);
       router.push("/login");
     } catch (err: any) {
-      showSnackbar("Register failed. Please try again.", "error");
+      showSnackbar(extractAxiosErrMsg(err, "Register failed. Please try again."), "error");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="mx-auto mt-20 p-6 border rounded">
-      <h1 className="text-xl font-bold mb-4">Register</h1>
-
+    <Modal
+      title="Register"
+      subtitle="Create a new Geckode account"
+      icon={Pencil2Icon}
+      asOverlay={false}
+      actions={
+        <>
+          <Button onClick={(e) => handleSubmit(e)} disabled={loading} className="btn-confirm">
+            {loading ? "Creating account..." : "Register"}
+          </Button>
+        </>
+      }
+    >
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-        {...Array.from({ length: refs.length / 2 }, ((_, i) => (
-          <div className="flex gap-4">
-            {...Array.from({ length: 2 }, (_, j) => {
-              const index = i * 2 + j;
-              return (
-                <InputBox
-                  ref={refs[index]}
-                  className="flex-1 w-80"
-                  type={[passwordRef, password2Ref].includes(refs[index]) ? "password" : "input"}
-                  placeholder={labels[index]}
-                  required={true}
-                />
-              );
-            })}
-          </div>
-        )))}
-
-        <Button
-          type="submit"
-          disabled={loading}
-          className="btn-alt2"
-        >
-          {loading ? "Registering..." : "Register"}
-        </Button>
+        {...Array.from({ length: refs.length }, (_, i) => {
+          return (
+            <InputBox
+              ref={refs[i]}
+              className="flex-1 w-80"
+              type={[passwordRef, password2Ref].includes(refs[i]) ? "password" : "input"}
+              placeholder={labels[i]}
+              required={true}
+            />
+          );
+        })}
       </form>
-
-      <div className="flex justify-center mt-5">
-        <Link href='/login'>
-          <div className="hover:text-blue-500">
-            Already have an account?
-          </div>
-        </Link>
-      </div>
-    </div>
+    </Modal>
   );
 }

@@ -6,6 +6,9 @@ import { InputBox, InputBoxRef } from "@/components/ui/inputs/InputBox";
 import { Button } from "@/components/ui/Button";
 import Link from "next/link";
 import { useSnackbar } from "@/hooks/useSnackbar";
+import { Modal } from "@/components/ui/modals/Modal";
+import { EnterIcon } from "@radix-ui/react-icons";
+import { extractAxiosErrMsg } from "@/lib/api/axios";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -30,34 +33,36 @@ export default function LoginPage() {
       console.log("Logged in:", response);
       window.location.href = "/projects";
     } catch (err: any) {
-      showSnackbar("Login failed. Please try again.", "error");
+      showSnackbar(extractAxiosErrMsg(err), "error");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="w-sm mx-auto mt-20 p-6 border rounded">
-      <h1 className="text-xl font-bold mb-4">Login</h1>
-
-      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+    <Modal
+      title="Login"
+      subtitle="Log into your Geckode account"
+      icon={EnterIcon}
+      asOverlay={false}
+      actions={
+        <>
+          <Button onClick={(e) => handleSubmit(e)} disabled={loading} className="btn-confirm">
+            {loading ? "Logging in..." : "Login"}
+          </Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-3">
         <InputBox ref={usernameRef} placeholder="Username" required={true} />
-        <InputBox
-          ref={passwordRef}
-          type="password"
-          placeholder="Password"
-          required={true}
-        />
-        <Button type="submit" disabled={loading} className="btn-alt2">
-          {loading ? "Logging in..." : "Login"}
-        </Button>
-      </form>
-
-      <div className="flex justify-center mt-5">
-        <Link href="/register">
-          <div className="hover:text-blue-500">Don't have an account yet?</div>
-        </Link>
+        <InputBox ref={passwordRef} type="password" placeholder="Password" required={true} />
       </div>
-    </div>
+
+      <form className="flex justify-center mt-5">
+        <Link href="/register">
+          <div className="hover:text-blue-500">Don't have an account yet? Register Here!</div>
+        </Link>
+      </form>
+    </Modal>
   );
 }

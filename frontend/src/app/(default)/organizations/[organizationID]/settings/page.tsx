@@ -8,10 +8,13 @@ import { authApi } from "@/lib/api/auth";
 import { User } from "@/lib/types/api/users";
 import { AboutOrganization } from "./AboutOrganization";
 import { ManageMembers } from "./ManageMembers";
+import { useSnackbar } from "@/hooks/useSnackbar";
+import { extractAxiosErrMsg } from "@/lib/api/axios";
 
 const OrganizationSettingsPage = () => {
   const orgID = Number(useParams().organizationID);
   const [org, setOrg] = useState<Organization>();
+  const snackbar = useSnackbar();
 
   const [user, setUser] = useState<User | null>(null);
 
@@ -19,11 +22,15 @@ const OrganizationSettingsPage = () => {
     // fetch api for org name
     organizationsApi(orgID)
       .get()
-      .then((org) => setOrg(org));
+      .then((org) => setOrg(org))
+      .catch((err) => snackbar(extractAxiosErrMsg(err, "Failed to get organization details"), "error"));
 
-    authApi.getUserDetails().then((user) => {
-      setUser(user);
-    });
+    authApi
+      .getUserDetails()
+      .then((user) => {
+        setUser(user);
+      })
+      .catch((err) => snackbar(extractAxiosErrMsg(err, "Failed to get user details"), "error"));
   }, []);
 
   return (
@@ -34,9 +41,7 @@ const OrganizationSettingsPage = () => {
         tabs={[
           {
             title: "About Organization",
-            element: (
-              <AboutOrganization org={org!} setOrg={setOrg} user={user!} />
-            ),
+            element: <AboutOrganization org={org!} setOrg={setOrg} user={user!} />,
           },
           {
             title: "Manage Members",

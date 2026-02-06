@@ -1,13 +1,13 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { Cross2Icon, Pencil2Icon, ImageIcon } from '@radix-ui/react-icons';
-import SpriteLibrary from './SpriteLibrary';
-import SpriteEditor from './SpriteEditor';
-import { useSpriteStore } from '@/stores/spriteStore';
+import { useEffect, useState } from "react";
+import { Cross2Icon, Pencil2Icon, ImageIcon } from "@radix-ui/react-icons";
+import SpriteEditor from "./SpriteEditor";
+import { useSpriteStore } from "@/stores/spriteStore";
+import SpriteLibraryPanel from "./SpriteLibraryPanel";
 
 const SpriteModal = () => {
-  const [activeTab, setActiveTab] = useState<'library' | 'editor'>('editor');
+  const [activeTab, setActiveTab] = useState<"library" | "editor">("editor");
   const setIsSpriteModalOpen = useSpriteStore((state) => state.setIsSpriteModalOpen);
   const isSpriteModalOpen = useSpriteStore((state) => state.isSpriteModalOpen);
 
@@ -15,11 +15,11 @@ const SpriteModal = () => {
     if (!isSpriteModalOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setIsSpriteModalOpen(false);
+      if (e.key === "Escape") setIsSpriteModalOpen(false);
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isSpriteModalOpen, setIsSpriteModalOpen]);
 
   if (!isSpriteModalOpen) return <></>;
@@ -41,11 +41,11 @@ const SpriteModal = () => {
           <div className="inline-flex rounded-md border border-slate-200 bg-light-tertiary p-1 text-xs font-semibold dark:border-slate-700 dark:bg-dark-tertiary">
             <button
               type="button"
-              onClick={() => setActiveTab('library')}
+              onClick={() => setActiveTab("library")}
               className={`cursor-pointer flex items-center gap-2 rounded-md px-4 py-2 transition ${
-                activeTab === 'library'
-                  ? 'bg-white text-primary-green shadow-sm ring-1 ring-primary-green/30 dark:bg-slate-900'
-                  : 'text-slate-600 hover:text-primary-green dark:text-slate-300'
+                activeTab === "library"
+                  ? "bg-white text-primary-green shadow-sm ring-1 ring-primary-green/30 dark:bg-slate-900"
+                  : "text-slate-600 hover:text-primary-green dark:text-slate-300"
               }`}
             >
               <ImageIcon className="h-4 w-4" />
@@ -53,11 +53,11 @@ const SpriteModal = () => {
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab('editor')}
+              onClick={() => setActiveTab("editor")}
               className={`cursor-pointer flex items-center gap-2 rounded-md px-4 py-2 transition ${
-                activeTab === 'editor'
-                  ? 'bg-white text-primary-green shadow-sm ring-1 ring-primary-green/30 dark:bg-slate-900'
-                  : 'text-slate-600 hover:text-primary-green dark:text-slate-300'
+                activeTab === "editor"
+                  ? "bg-white text-primary-green shadow-sm ring-1 ring-primary-green/30 dark:bg-slate-900"
+                  : "text-slate-600 hover:text-primary-green dark:text-slate-300"
               }`}
             >
               <Pencil2Icon className="h-4 w-4" />
@@ -66,7 +66,7 @@ const SpriteModal = () => {
           </div>
         </div>
 
-        {activeTab === 'library' ? <SpriteLibrary /> : <SpriteEditor />}
+        {activeTab === "library" ? <SpriteLibraryPanel /> : <SpriteEditor />}
       </div>
     </div>
   );

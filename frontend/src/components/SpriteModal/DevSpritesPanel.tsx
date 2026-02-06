@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { useState, useMemo } from 'react';
-import type { SpriteAddPayload } from '@/stores/spriteStore';
-import { useSpriteStore } from '@/stores/spriteStore';
+import { useState, useMemo } from "react";
+import type { SpriteAddPayload } from "@/stores/spriteStore";
+import { useSpriteStore } from "@/stores/spriteStore";
 
-const SpriteLibrary = () => {
-  const [searchQuery, setSearchQuery] = useState('');
+const DevSpritesPanel = () => {
+  const [searchQuery, setSearchQuery] = useState("");
   const addSpriteToGame = useSpriteStore((state) => state.addSpriteToGame);
   const spriteLibrary = useSpriteStore((state) => state.spriteLibrary);
   const spriteTextures = useSpriteStore((state) => state.spriteTextures);
@@ -70,49 +70,47 @@ const SpriteLibrary = () => {
               </div>
             </div> */}
 
-      <div className="flex-1 min-h-0 overflow-y-auto border-t border-slate-200 bg-light-tertiary px-6 py-4 dark:border-slate-700 dark:bg-dark-tertiary">
-        {filteredSprites.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center text-sm text-slate-600 shadow-sm dark:border-slate-700 dark:bg-dark-secondary dark:text-slate-300">
-            <p>No sprites match your search yet.</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Once sprites are uploaded, they will appear here for you.
-            </p>
-          </div>
-        ) : (
-          <div className="flex flex-wrap gap-4">
-            {filteredSprites.map((sprite) => (
-              <div
-                key={sprite.textureName}
-                className="flex w-36 flex-col overflow-hidden rounded-xs border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:border-slate-700 dark:bg-dark-secondary cursor-pointer"
-                onClick={() =>
-                  handleSpriteClick({
-                    name: sprite.name,
-                    textureName: sprite.textureName,
-                    textureUrl: spriteTextures.get(sprite.textureName)?.url || '',
-                    x: 240,
-                    y: 180,
-                  })
-                }
-                title="Click to add to center of the game window"
-              >
-                <div className="relative flex aspect-4/3 items-center justify-center bg-white dark:bg-slate-900">
-                  <img
-                    src={spriteTextures.get(sprite.textureName)?.url}
-                    alt={sprite.name}
-                    className="h-17 object-contain drop-shadow-sm"
-                    style={{ imageRendering: 'pixelated' }}
-                  />
-                </div>
-                <div className="flex items-center justify-between px-3 py-2">
-                  <div className="text-sm font-semibold">{sprite.name}</div>
-                </div>
+      {filteredSprites.length === 0 ? (
+        <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center text-sm text-slate-600 shadow-sm dark:border-slate-700 dark:bg-dark-secondary dark:text-slate-300">
+          <p>No sprites match your search yet.</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Once sprites are uploaded, they will appear here for you.
+          </p>
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-4">
+          {filteredSprites.map((sprite) => (
+            <div
+              key={sprite.textureName}
+              className="flex w-36 flex-col overflow-hidden rounded-xs border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:border-slate-700 dark:bg-dark-secondary cursor-pointer"
+              onClick={() =>
+                handleSpriteClick({
+                  name: sprite.name,
+                  textureName: sprite.textureName,
+                  textureUrl: spriteTextures.get(sprite.textureName)?.url || "",
+                  x: 240,
+                  y: 180,
+                })
+              }
+              title="Click to add to center of the game window"
+            >
+              <div className="relative flex aspect-4/3 items-center justify-center bg-white dark:bg-slate-900">
+                <img
+                  src={spriteTextures.get(sprite.textureName)?.url}
+                  alt={sprite.name}
+                  className="h-17 object-contain drop-shadow-sm"
+                  style={{ imageRendering: "pixelated" }}
+                />
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+              <div className="flex items-center justify-between px-3 py-2">
+                <div className="text-sm font-semibold">{sprite.name}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </>
   );
 };
 
-export default SpriteLibrary;
+export default DevSpritesPanel;

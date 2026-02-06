@@ -3,11 +3,7 @@ import { Modal } from "@/components/ui/modals/Modal";
 import { Table, TableRef } from "@/components/ui/Table";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import projectsApi from "@/lib/api/handlers/projects";
-import {
-  Project,
-  ProjectPermissions,
-  projectPermissions,
-} from "@/lib/types/api/projects";
+import { Project, ProjectPermissions, projectPermissions } from "@/lib/types/api/projects";
 import { ProjectInvitation } from "@/lib/types/api/projects/invitations";
 import {
   ProjectCollaborator,
@@ -23,6 +19,7 @@ import UserSelect, {
   ListUserStatus,
   UserSelectRef,
 } from "@/app/(default)/organizations/[organizationID]/settings/UserSelect";
+import { extractAxiosErrMsg } from "@/lib/api/axios";
 
 interface Props {
   prj: Project;
@@ -32,10 +29,7 @@ interface Props {
 export const ManageCollaborators = ({ prj, setPrj, user }: Props) => {
   const snackbar = useSnackbar();
   const prjCollaboratorApi = projectsApi(prj?.id).collaborators;
-  const tableRef = useRef<TableRef<
-    ProjectCollaborator,
-    ProjectCollaboratorFilters
-  > | null>(null);
+  const tableRef = useRef<TableRef<ProjectCollaborator, ProjectCollaboratorFilters> | null>(null);
 
   // inviting members
   const [prjInvites, setPrjInvites] = useState<ProjectInvitation[]>([]);
@@ -49,7 +43,8 @@ export const ManageCollaborators = ({ prj, setPrj, user }: Props) => {
   const getCurrentInvites = () => {
     projectsApi(prj.id)
       .invitationsApi.list()
-      .then((res) => setPrjInvites(res.results));
+      .then((res) => setPrjInvites(res.results))
+      .catch((err) => snackbar(extractAxiosErrMsg(err, "Failed to grab project invites"), "error"));
   };
 
   const determineUserStatus = (user: User): ListUserStatus => {
@@ -96,10 +91,7 @@ export const ManageCollaborators = ({ prj, setPrj, user }: Props) => {
     <>
       <h1 className="header-1">Owner</h1>
       <div className="flex my-3">
-        <img
-          className="size-10 mr-5 rounded-full"
-          src={prj.owner.avatar ?? "/user-icon.png"}
-        />
+        <img className="size-10 mr-5 rounded-full" src={prj.owner.avatar ?? "/user-icon.png"} />
         <span className="my-auto">{prj.owner.username}</span>
       </div>
       <h1 className="header-1 mt-10">Members</h1>
@@ -174,16 +166,10 @@ export const ManageCollaborators = ({ prj, setPrj, user }: Props) => {
         >
           <p>Username:</p>
           <div className="flex flex-col w-90">
-            <UserSelect
-              ref={userInviteRef}
-              determineUserStatus={determineUserStatus}
-            />
+            <UserSelect ref={userInviteRef} determineUserStatus={determineUserStatus} />
 
             <p>Permission:</p>
-            <select
-              ref={permissionDropdownView}
-              className="bg-white text-black mb-3 p-2 rounded-md"
-            >
+            <select ref={permissionDropdownView} className="bg-white text-black mb-3 p-2 rounded-md">
               {Object.entries(projectPermissions).map(([key, label]) => (
                 <option key={key} value={key}>
                   {label}
