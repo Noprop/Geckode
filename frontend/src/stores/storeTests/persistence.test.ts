@@ -71,7 +71,7 @@ describe("persistence", () => {
             x: 0,
             y: 0,
             visible: true,
-            size: 1,
+            scaleX: 1, scaleY: 1,
             direction: 0,
             snapToGrid: true,
           },

@@ -5,7 +5,8 @@ export interface SpriteFormValues {
   name: string;
   x: string;
   y: string;
-  size: string;
+  scaleX: string;
+  scaleY: string;
   direction: string;
   snapToGrid: boolean;
   visible: boolean;
@@ -15,7 +16,8 @@ export interface SpriteFormValues {
 export const FIELD_DEFAULTS = {
   x: (centerX: number) => centerX,
   y: (centerY: number) => centerY,
-  size: 100,
+  scaleX: 1,
+  scaleY: 1,
   direction: 90,
   name: "Sprite",
 } as const;
@@ -24,7 +26,8 @@ const EMPTY_FORM_VALUES: SpriteFormValues = {
   name: "",
   x: "",
   y: "",
-  size: "",
+  scaleX: "",
+  scaleY: "",
   direction: "",
   snapToGrid: false,
   visible: true,
@@ -54,7 +57,8 @@ export function buildFormValues(
     name: sprite.name,
     x: String(sprite.x ?? centerX),
     y: String(sprite.y ?? centerY),
-    size: String(sprite.size ?? 100),
+    scaleX: String(sprite.scaleX ?? 1),
+    scaleY: String(sprite.scaleY ?? 1),
     direction: String(sprite.direction ?? 90),
     snapToGrid: sprite.snapToGrid ?? false,
     visible: sprite.visible ?? true,

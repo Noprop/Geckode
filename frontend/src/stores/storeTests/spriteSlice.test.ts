@@ -29,7 +29,8 @@ beforeEach(() => {
         x: 200,
         y: 150,
         visible: true,
-        size: 1,
+        scaleX: 1,
+        scaleY: 1,
         direction: 0,
         snapToGrid: true,
       },
@@ -98,7 +99,8 @@ describe('spriteSlice', () => {
       expect(newInstance.x).toBe(0);
       expect(newInstance.y).toBe(0);
       expect(newInstance.visible).toBe(true);
-      expect(newInstance.size).toBe(1);
+      expect(newInstance.scaleX).toBe(1);
+      expect(newInstance.scaleY).toBe(1);
       expect(newInstance.direction).toBe(0);
       expect(newInstance.snapToGrid).toBe(true);
     });
@@ -139,7 +141,8 @@ describe('spriteSlice', () => {
           x: 10,
           y: 20,
           visible: false,
-          size: 2,
+          scaleX: 2,
+          scaleY: 2,
           direction: 90,
           snapToGrid: false,
         },

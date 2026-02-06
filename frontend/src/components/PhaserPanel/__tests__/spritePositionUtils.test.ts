@@ -10,12 +10,12 @@ describe("resolveBlurValue", () => {
   it("returns parsed number for valid numeric input", () => {
     expect(resolveBlurValue("150", "x", 80)).toBe(150);
     expect(resolveBlurValue("-45", "direction", 90)).toBe(-45);
-    expect(resolveBlurValue("1.5", "size", 100)).toBe(1.5);
+    expect(resolveBlurValue("1.5", "scaleX", 1)).toBe(1.5);
   });
 
   it("returns default for empty string", () => {
     expect(resolveBlurValue("", "x", 80)).toBe(80);
-    expect(resolveBlurValue("", "size", 100)).toBe(100);
+    expect(resolveBlurValue("", "scaleX", 1)).toBe(1);
   });
 
   it("returns default for NaN input", () => {
@@ -47,7 +47,8 @@ describe("buildFormValues", () => {
       x: 200,
       y: 150,
       visible: true,
-      size: 50,
+      scaleX: 2,
+      scaleY: 0.5,
       direction: 180,
       snapToGrid: true,
     };
@@ -55,7 +56,8 @@ describe("buildFormValues", () => {
     expect(result.name).toBe("hero");
     expect(result.x).toBe("200");
     expect(result.y).toBe("150");
-    expect(result.size).toBe("50");
+    expect(result.scaleX).toBe("2");
+    expect(result.scaleY).toBe("0.5");
     expect(result.direction).toBe("180");
     expect(result.snapToGrid).toBe(true);
     expect(result.visible).toBe(true);
@@ -66,7 +68,8 @@ describe("buildFormValues", () => {
     expect(result.name).toBe("");
     expect(result.x).toBe("");
     expect(result.y).toBe("");
-    expect(result.size).toBe("");
+    expect(result.scaleX).toBe("");
+    expect(result.scaleY).toBe("");
     expect(result.direction).toBe("");
     expect(result.snapToGrid).toBe(false);
     expect(result.visible).toBe(true);
@@ -80,7 +83,8 @@ describe("buildFormValues", () => {
       x: undefined as unknown as number,
       y: undefined as unknown as number,
       visible: true,
-      size: 100,
+      scaleX: 1,
+      scaleY: 1,
       direction: 90,
       snapToGrid: false,
     };
@@ -97,12 +101,14 @@ describe("buildFormValues", () => {
       x: 0,
       y: 0,
       visible: false,
-      size: undefined as unknown as number,
+      scaleX: undefined as unknown as number,
+      scaleY: undefined as unknown as number,
       direction: undefined as unknown as number,
       snapToGrid: true,
     };
     const result = buildFormValues(sprite, centerX, centerY);
-    expect(result.size).toBe("100");
+    expect(result.scaleX).toBe("1");
+    expect(result.scaleY).toBe("1");
     expect(result.direction).toBe("90");
   });
 });
@@ -110,7 +116,8 @@ describe("buildFormValues", () => {
 describe("FIELD_DEFAULTS", () => {
   it("exposes expected default values", () => {
     expect(FIELD_DEFAULTS.name).toBe("Sprite");
-    expect(FIELD_DEFAULTS.size).toBe(100);
+    expect(FIELD_DEFAULTS.scaleX).toBe(1);
+    expect(FIELD_DEFAULTS.scaleY).toBe(1);
     expect(FIELD_DEFAULTS.direction).toBe(90);
     expect(FIELD_DEFAULTS.x(80)).toBe(80);
     expect(FIELD_DEFAULTS.y(64)).toBe(64);

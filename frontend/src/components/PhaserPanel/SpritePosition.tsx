@@ -153,17 +153,29 @@ const SpritePosition = () => {
     }
   }, [selectedSpriteIdx, selectedSprite, values.name, updateSpriteInstance]);
 
-  const handleBlurSize = useCallback(() => {
+  const handleBlurScaleX = useCallback(() => {
     if (selectedSpriteIdx === null || !selectedSprite) return;
     const finalValue = resolveBlurValue(
-      values.size,
-      "size",
-      FIELD_DEFAULTS.size,
+      values.scaleX,
+      "scaleX",
+      FIELD_DEFAULTS.scaleX,
     );
-    if (selectedSprite.size !== finalValue) {
-      updateSpriteInstance(selectedSpriteIdx, { size: finalValue as number });
+    if (selectedSprite.scaleX !== finalValue) {
+      updateSpriteInstance(selectedSpriteIdx, { scaleX: finalValue as number });
     }
-  }, [selectedSpriteIdx, selectedSprite, values.size, updateSpriteInstance]);
+  }, [selectedSpriteIdx, selectedSprite, values.scaleX, updateSpriteInstance]);
+
+  const handleBlurScaleY = useCallback(() => {
+    if (selectedSpriteIdx === null || !selectedSprite) return;
+    const finalValue = resolveBlurValue(
+      values.scaleY,
+      "scaleY",
+      FIELD_DEFAULTS.scaleY,
+    );
+    if (selectedSprite.scaleY !== finalValue) {
+      updateSpriteInstance(selectedSpriteIdx, { scaleY: finalValue as number });
+    }
+  }, [selectedSpriteIdx, selectedSprite, values.scaleY, updateSpriteInstance]);
 
   const handleBlurDirection = useCallback(() => {
     if (selectedSpriteIdx === null || !selectedSprite) return;
@@ -290,13 +302,22 @@ const SpritePosition = () => {
         </fieldset>
 
         <NumericField
-          label="Size"
-          value={values.size}
+          label="Scale X"
+          value={values.scaleX}
           disabled={disabled}
-          min="1"
-          max="1000"
-          onChange={(v) => handleInputChange("size", v)}
-          onBlur={handleBlurSize}
+          min="-200"
+          max="200"
+          onChange={(v) => handleInputChange("scaleX", v)}
+          onBlur={handleBlurScaleX}
+        />
+        <NumericField
+          label="Scale Y"
+          value={values.scaleY}
+          disabled={disabled}
+          min="-200"
+          max="200"
+          onChange={(v) => handleInputChange("scaleY", v)}
+          onBlur={handleBlurScaleY}
         />
         <NumericField
           label="Direction"

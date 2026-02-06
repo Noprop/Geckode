@@ -10,7 +10,8 @@ export type SpriteInstance = SpriteDefinition & {
   x: number;
   y: number;
   visible: boolean;
-  size: number;
+  scaleX: number;
+  scaleY: number;
   direction: number;
   snapToGrid: boolean;
   physics?: SpritePhysics;

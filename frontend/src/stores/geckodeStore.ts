@@ -68,7 +68,7 @@ export const useGeckodeStore = create<GeckodeStore>()(
       ...createEditorSlice(...a),
     }),
     {
-      name: "geckode-store",
+      name: 'geckode-store',
       partialize: (state) => ({
         spriteInstances: state.spriteInstances,
         assetTextures: state.assetTextures,
@@ -77,13 +77,24 @@ export const useGeckodeStore = create<GeckodeStore>()(
         spriteWorkspaces: [...state.spriteWorkspaces.entries()],
         projectName: state.projectName,
       }),
-      merge: (persisted: any, current) => ({
-        ...current,
-        ...(persisted || {}),
-        spriteWorkspaces: persisted?.spriteWorkspaces
-          ? new Map(persisted.spriteWorkspaces)
-          : current.spriteWorkspaces,
-      }),
-    },
-  ),
+      merge: (persisted: any, current) => {
+        if (persisted?.spriteInstances) {
+          for (const inst of persisted.spriteInstances) {
+            if (inst.scaleX === undefined || inst.scaleY === undefined) {
+              inst.scaleX = 1;
+              inst.scaleY = 1;
+              delete inst.size;
+            }
+          }
+        }
+        return {
+          ...current,
+          ...(persisted || {}),
+          spriteWorkspaces: persisted?.spriteWorkspaces
+            ? new Map(persisted.spriteWorkspaces)
+            : current.spriteWorkspaces,
+        };
+      },
+    }
+  )
 );

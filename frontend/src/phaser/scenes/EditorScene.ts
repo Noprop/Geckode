@@ -128,7 +128,9 @@ export default class EditorScene extends Phaser.Scene {
     sprite.setPosition(updates.x ?? sprite.x, updates.y ?? sprite.y);
 
     if (updates.visible !== undefined) sprite.setVisible(updates.visible);
-    if (updates.size !== undefined) sprite.setScale(updates.size / 100);
+    if (updates.scaleX !== undefined || updates.scaleY !== undefined) {
+      sprite.setScale(updates.scaleX ?? sprite.scaleX, updates.scaleY ?? sprite.scaleY);
+    }
     if (updates.direction !== undefined) sprite.setAngle(updates.direction - 90);
   }
 
@@ -178,6 +180,10 @@ export default class EditorScene extends Phaser.Scene {
     if (this.gridGraphics) this.gridGraphics.setVisible(false);
   }
 
+  private isPointerInBounds(pointer: Phaser.Input.Pointer): boolean {
+    return pointer.x >= 0 && pointer.x <= this.scale.width && pointer.y >= 0 && pointer.y <= this.scale.height;
+  }
+
   private initEventListeners() {
     // may have to adjust this down the line for tilemaps
     this.input.on('dragstart', (_pointer: Phaser.Input.Pointer, sprite: Phaser.Physics.Arcade.Sprite) => {
@@ -191,8 +197,9 @@ export default class EditorScene extends Phaser.Scene {
     });
 
     this.input.on('drag', (pointer: Phaser.Input.Pointer, sprite: Phaser.Physics.Arcade.Sprite) => {
-      sprite.setPosition(pointer.worldX, pointer.worldY);
+      console.log('dragging');
       if (!this.activeDrag) return;
+      sprite.setPosition(pointer.worldX, pointer.worldY);
       this.activeDrag.currentPos = { x: pointer.worldX, y: pointer.worldY };
       EventBus.emit('editor-sprite-dragging', {
         id: this.activeDrag.sprite.getData('spriteId'),
@@ -201,58 +208,48 @@ export default class EditorScene extends Phaser.Scene {
       });
     });
 
-    this.input.on('dragend', (pointer: Phaser.Input.Pointer, sprite: Phaser.Physics.Arcade.Sprite) => {
-      EventBus.emit('editor-sprite-drag-end', {
-        id: sprite.getData('spriteId'),
-        x: pointer.worldX,
-        y: pointer.worldY,
+    this.input.on('gameout', (_time: number, event: MouseEvent) => {
+      if (!this.activeDrag || !this.game.canvas) return;
+
+      const rect = this.game.canvas.getBoundingClientRect();
+
+      // event.clientX/clientY are the actual exit coordinates (not stale)
+      const clampedX = Phaser.Math.Clamp(event.clientX - rect.left, 0, rect.width);
+      const clampedY = Phaser.Math.Clamp(event.clientY - rect.top, 0, rect.height);
+
+      // Scale from DOM pixel space to game viewport space
+      const gameX = (clampedX / rect.width) * this.scale.width;
+      const gameY = (clampedY / rect.height) * this.scale.height;
+
+      // Convert canvas coordinates to game coordinates
+      const worldPoint = this.cameras.main.getWorldPoint(gameX, gameY);
+
+      this.activeDrag.sprite.setPosition(worldPoint.x, worldPoint.y);
+      this.activeDrag.currentPos = { x: worldPoint.x, y: worldPoint.y };
+      EventBus.emit('editor-sprite-dragging', {
+        id: this.activeDrag.sprite.getData('spriteId'),
+        x: worldPoint.x,
+        y: worldPoint.y,
       });
     });
 
-    // this.input.on(
-    //   'dragend',
-    //   (pointer: Phaser.Input.Pointer, gameObject: Phaser.GameObjects.GameObject, _dragX: number, _dragY: number) => {
-    //     this.finishActiveDrag(pointer.event as PointerEvent | undefined);
-    //   },
-    // );
-
-    // if (typeof window === 'undefined') return;
-    // window.addEventListener('pointermove', this.updateDragPositionFromEvent, {
-    //   capture: true,
-    // });
-    // window.addEventListener('pointerup', this.finishActiveDrag, {
-    //   capture: true,
-    // });
+    this.input.on('dragend', (pointer: Phaser.Input.Pointer, sprite: Phaser.Physics.Arcade.Sprite) => {
+      if (!this.activeDrag) return;
+      if (this.isPointerInBounds(pointer)) {
+        EventBus.emit('editor-sprite-drag-end', {
+          id: sprite.getData('spriteId'),
+          x: pointer.worldX,
+          y: pointer.worldY,
+        });
+      } else {
+        sprite.setPosition(this.activeDrag.startPos.x, this.activeDrag.startPos.y);
+        EventBus.emit('editor-sprite-drag-end', {
+          id: sprite.getData('spriteId'),
+          x: this.activeDrag.startPos.x,
+          y: this.activeDrag.startPos.y,
+        });
+      }
+      this.activeDrag = null;
+    });
   }
-
-  // private finishActiveDrag(event?: PointerEvent) {
-  //   if (!this.activeDrag) return;
-  //   // Ensure we have latest position before deciding.
-  //   this.updateDragPositionFromEvent(event);
-
-  //   const { sprite, start, lastWorld } = this.activeDrag;
-  //   const withinX = lastWorld.x >= 0 && lastWorld.x <= this.scale.width;
-  //   const withinY = lastWorld.y >= 0 && lastWorld.y <= this.scale.height;
-
-  //   if (!withinX || !withinY) {
-  //     sprite.setPosition(start.x, start.y);
-  //   } else {
-  //     const finalX = Phaser.Math.Clamp(lastWorld.x, 0, this.scale.width);
-  //     const finalY = Phaser.Math.Clamp(lastWorld.y, 0, this.scale.height);
-  //     const snappedX = Math.round(finalX);
-  //     const snappedY = Math.round(finalY);
-  //     sprite.setPosition(snappedX, snappedY);
-  //     this.editorLayer.bringToTop(sprite);
-
-  //     EventBus.emit('editor-sprite-moved', {
-  //       id: sprite.getData('editorSpriteId'),
-  //       x: snappedX,
-  //       y: snappedY,
-  //     });
-  //   }
-
-  //   sprite.setDepth(EditorScene.EDITOR_SPRITE_BASE_DEPTH);
-  //   this.activeDrag = null;
-  //   this.detachGlobalDragListeners();
-  // }
 }
