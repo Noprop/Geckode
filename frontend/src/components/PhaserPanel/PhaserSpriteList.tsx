@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useGeckodeStore } from '@/stores/geckodeStore';
 import { Button } from '../ui/Button';
 import { Cross2Icon } from '@radix-ui/react-icons';
@@ -9,6 +9,9 @@ const PhaserSpriteList = () => {
   const selectedSpriteIdx = useGeckodeStore((state) => state.selectedSpriteIdx);
   const setSelectedSpriteIdx = useGeckodeStore((state) => state.setSelectedSpriteIdx);
   const removeSpriteInstance = useGeckodeStore((state) => state.removeSpriteInstance);
+  const assetTextures = useGeckodeStore((state) => state.assetTextures);
+  const libraryTextures = useGeckodeStore((state) => state.libraryTextures);
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
   useEffect(() => {
     if (sprites.length === 0) return;
@@ -41,21 +44,34 @@ const PhaserSpriteList = () => {
           <div className="grid grid-cols-[repeat(auto-fill,minmax(75px,1fr))] gap-2 pr-1">
               {sprites.map((sprite, idx) => {
                 const isSelected = idx === selectedSpriteIdx;
+                const isHovered = idx === hoveredIdx;
+                const textureUrl = assetTextures[sprite.textureName] ?? libraryTextures[sprite.textureName];
               return (
                 <div
                   key={sprite.id}
                   onClick={() => setSelectedSpriteIdx(idx)}
+                  onMouseEnter={() => setHoveredIdx(idx)}
+                  onMouseLeave={() => setHoveredIdx(null)}
                   className={`relative aspect-square rounded-lg border-2 cursor-pointer transition-all overflow-hidden ${
                     isSelected
                       ? 'border-primary-green bg-primary-green/10 shadow-md ring-2 ring-primary-green/30'
                       : 'border-slate-200 bg-slate-50 hover:border-primary-green/50 dark:border-slate-600 dark:bg-dark-hover dark:hover:border-primary-green/50'
                   }`}
                 >
-                  {/* Sprite Thumbnail Placeholder */}
                   <div className="w-full h-full flex items-center justify-center">
-                    <div className="w-10 h-10 rounded-md bg-slate-200 dark:bg-slate-600 flex items-center justify-center text-lg font-bold text-slate-400 dark:text-slate-400">
-                      {sprite.name.charAt(0).toUpperCase()}
-                    </div>
+                    {textureUrl ? (
+                      <img
+                        src={textureUrl}
+                        alt={sprite.name}
+                        className="w-10 h-10 object-contain"
+                        style={{ imageRendering: 'pixelated' }}
+                        draggable={false}
+                      />
+                    ) : (
+                        <div className="w-10 h-10 rounded-md bg-slate-200 dark:bg-slate-600 flex items-center justify-center text-lg font-bold text-slate-400 dark:text-slate-400">
+                          {sprite.name.charAt(0).toUpperCase()}
+                        </div>
+                    )}
                   </div>
 
                   {/* Sprite Name Label */}
@@ -63,8 +79,7 @@ const PhaserSpriteList = () => {
                     <p className="text-[9px] text-white truncate text-center font-medium">{sprite.name}</p>
                   </div>
 
-                  {/* Delete Button - Only on Selected */}
-                  {isSelected && (
+                  {(isSelected || isHovered) && (
                     <button
                       type="button"
                       onClick={(e) => {
