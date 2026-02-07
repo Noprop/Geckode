@@ -229,8 +229,8 @@ function loadLocalWorkspace(workspace: Blockly.WorkspaceSvg) {
             id: spriteId,
             textureName: "hero-walk-front",
             name: "herowalkfront1",
-            x: 200,
-            y: 150,
+            x: 50,
+            y: 50,
             visible: true,
             scaleX: 1,
             scaleY: 1,
@@ -242,10 +242,12 @@ function loadLocalWorkspace(workspace: Blockly.WorkspaceSvg) {
     }
 
     const persisted = spriteWorkspaces.get(spriteId);
-    Blockly.serialization.workspaces.load(
-      persisted ?? starterWorkspace,
-      workspace,
-    );
+    const hasContent = persisted && Object.keys(persisted).length > 0;
+    const workspaceToLoad = hasContent ? persisted : starterWorkspace;
+
+    // Load the workspace and save it to the map so setSelectedSpriteIdx finds it
+    Blockly.serialization.workspaces.load(workspaceToLoad, workspace);
+    spriteWorkspaces.set(spriteId, workspaceToLoad as Blockly.serialization.workspaceComments.State);
 
     // Select the first sprite
     setSelectedSpriteIdx(0);

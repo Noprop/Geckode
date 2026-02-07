@@ -197,12 +197,10 @@ export default class EditorScene extends Phaser.Scene {
     });
 
     this.input.on('drag', (pointer: Phaser.Input.Pointer, sprite: Phaser.Physics.Arcade.Sprite) => {
-      console.log('dragging');
       if (!this.activeDrag) return;
       sprite.setPosition(pointer.worldX, pointer.worldY);
       this.activeDrag.currentPos = { x: pointer.worldX, y: pointer.worldY };
       EventBus.emit('editor-sprite-dragging', {
-        id: this.activeDrag.sprite.getData('spriteId'),
         x: pointer.worldX,
         y: pointer.worldY,
       });

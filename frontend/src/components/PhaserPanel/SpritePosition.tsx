@@ -94,9 +94,7 @@ const SpritePosition = () => {
       if (idx !== -1) setSelectedSpriteIdx(idx);
     };
 
-    const handleDragging = ({ id, x, y, }: { id: string; x: number; y: number; }) => {
-      if (selectedSpriteIdx === null) return;
-      if (spriteInstances[selectedSpriteIdx]?.id !== id) return;
+    const handleDragging = ({ x, y, }: { x: number; y: number; }) => {
       setValues((prev) => ({
         ...prev,
         x: String(Math.round(x)),

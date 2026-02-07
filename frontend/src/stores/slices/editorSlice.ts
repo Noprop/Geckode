@@ -175,22 +175,6 @@ export const createEditorSlice: StateCreator<
     setTimeout(updateUndoRedoState, 10);
   },
 
-  loadWorkspace: (spriteId: string) => {
-    const { blocklyWorkspace, spriteWorkspaces, selectedSpriteIdx, spriteInstances } = get();
-    if (!blocklyWorkspace || selectedSpriteIdx === null || spriteInstances.length === 0) return;
-    if (spriteId === spriteInstances[selectedSpriteIdx].id) return;
-    set({ selectedSpriteIdx: spriteInstances.findIndex((s) => s.id === spriteId) });
-
-    if (!blocklyWorkspace) return;
-    blocklyWorkspace.clear();
-
-    const state = spriteWorkspaces.get(spriteId);
-    if (!state) return;
-
-    Blockly.serialization.workspaces.load(state, blocklyWorkspace);
-    console.log(`sprite ${spriteId} workspace loaded`);
-  },
-
   toggleEditor: () => {
     const { isEditorScene, phaserScene, spriteInstances, spriteOutputs } =
       get();

@@ -120,13 +120,10 @@ export interface EditorActions {
   generateCode: () => void;
   scheduleConvert: () => void;
   cancelScheduledConvert: () => void;
-  saveProject: (
-    showSnackbar: (msg: string, type: "success" | "error") => void,
-  ) => Promise<void>;
+  saveProject: (showSnackbar: (msg: string, type: 'success' | 'error') => void) => Promise<void>;
   exportWorkspaceState: () => void;
   undoWorkspace: () => void;
   redoWorkspace: () => void;
-  loadWorkspace: (id: string) => void;
   toggleEditor: () => void;
   resetProject: () => void;
 }

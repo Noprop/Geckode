@@ -9,19 +9,11 @@ const PhaserSpriteList = () => {
   const selectedSpriteIdx = useGeckodeStore((state) => state.selectedSpriteIdx);
   const setSelectedSpriteIdx = useGeckodeStore((state) => state.setSelectedSpriteIdx);
   const removeSpriteInstance = useGeckodeStore((state) => state.removeSpriteInstance);
-  const loadWorkspace = useGeckodeStore((state) => state.loadWorkspace);
-
-  const handleSpriteSelect = (spriteIdx: number) => {
-    loadWorkspace(sprites[spriteIdx].id);
-    setSelectedSpriteIdx(spriteIdx);
-  };
 
   useEffect(() => {
     if (sprites.length === 0) return;
-    if (selectedSpriteIdx === null) {
+    if (selectedSpriteIdx === null)
       setSelectedSpriteIdx(0);
-      loadWorkspace(sprites[0].id);
-    }
   }, []);
 
   return (
@@ -52,7 +44,7 @@ const PhaserSpriteList = () => {
               return (
                 <div
                   key={sprite.id}
-                  onClick={() => handleSpriteSelect(idx)}
+                  onClick={() => setSelectedSpriteIdx(idx)}
                   className={`relative aspect-square rounded-lg border-2 cursor-pointer transition-all overflow-hidden ${
                     isSelected
                       ? 'border-primary-green bg-primary-green/10 shadow-md ring-2 ring-primary-green/30'

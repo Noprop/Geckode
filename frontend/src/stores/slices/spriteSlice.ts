@@ -1,48 +1,35 @@
-import type { StateCreator } from "zustand";
-import type { SpriteInstance, SpriteDefinition } from "@/blockly/spriteRegistry";
-import EditorScene from "@/phaser/scenes/EditorScene";
-import { gavin, heroWalkBack1, heroWalkFront1 } from "../sprites";
-import type { GeckodeStore, SpriteSlice } from "./types";
+import * as Blockly from 'blockly/core';
+import type { StateCreator } from 'zustand';
+import type { SpriteInstance, SpriteDefinition } from '@/blockly/spriteRegistry';
+import EditorScene from '@/phaser/scenes/EditorScene';
+import { gavin, heroWalkBack1, heroWalkFront1 } from '../sprites';
+import type { GeckodeStore, SpriteSlice } from './types';
 
 /** deduplicate texture name */
-export const createUniqueTextureName = (
-  name: string,
-  assetTextures: Record<string, string>,
-): string => {
+export const createUniqueTextureName = (name: string, assetTextures: Record<string, string>): string => {
   if (!(name in assetTextures)) return name;
-  if (Number.isNaN(Number(name[name.length - 1])))
-    return createUniqueTextureName(`${name}2`, assetTextures);
+  if (Number.isNaN(Number(name[name.length - 1]))) return createUniqueTextureName(`${name}2`, assetTextures);
   const lastDigit = Number(name[name.length - 1]);
-  return createUniqueTextureName(
-    `${name.slice(0, -1)}${lastDigit + 1}`,
-    assetTextures,
-  );
+  return createUniqueTextureName(`${name.slice(0, -1)}${lastDigit + 1}`, assetTextures);
 };
 
 /** deduplicate sprite instance name */
-export const createUniqueSpriteName = (
-  name: string,
-  instances: { name: string }[],
-): string => {
+export const createUniqueSpriteName = (name: string, instances: { name: string }[]): string => {
   const count = instances.filter((s) => s.name === name).length;
   if (count === 0) return name;
-  if (Number.isNaN(Number(name[name.length - 1])))
-    return createUniqueSpriteName(`${name}2`, instances);
+  if (Number.isNaN(Number(name[name.length - 1]))) return createUniqueSpriteName(`${name}2`, instances);
   const lastDigit = Number(name[name.length - 1]);
-  return createUniqueSpriteName(
-    `${name.slice(0, -1)}${lastDigit + 1}`,
-    instances,
-  );
+  return createUniqueSpriteName(`${name.slice(0, -1)}${lastDigit + 1}`, instances);
 };
 
 export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> = (set, get) => ({
   spriteInstances: [
     {
-      name: 'herowalkfront1',
+      name: 'gavin',
       id: `id_${Date.now()}`,
-      textureName: 'hero-walk-front',
-      x: 200,
-      y: 150,
+      textureName: 'gavin',
+      x: 50,
+      y: 50,
       visible: true,
       scaleX: 1,
       scaleY: 1,
@@ -51,7 +38,7 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
     },
   ],
   assetTextures: {
-    'hero-walk-front': heroWalkFront1,
+    gavin: gavin,
   },
   libraryTextures: {
     'hero-walk-front': heroWalkFront1,
@@ -98,7 +85,7 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
       direction: 0,
       snapToGrid: true,
     };
-    set({ spriteInstances: [...get().spriteInstances, instance] });
+    set({ spriteInstances: [...get().spriteInstances, instance], selectedSpriteIdx: get().spriteInstances.length });
     return instance;
   },
   removeSpriteInstance: (spriteIdx: number) => {
@@ -114,12 +101,28 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
 
     set((state) => ({
       spriteInstances: state.spriteInstances.map((instance, index) =>
-        index === spriteIdx ? { ...instance, ...updates } : instance
+        index === spriteIdx ? { ...instance, ...updates } : instance,
       ),
     }));
   },
   setSelectedSpriteIdx: (spriteIdx: number) => {
+    const { blocklyWorkspace, spriteWorkspaces, spriteInstances, selectedSpriteIdx: currentIdx } = get();
+    if (!blocklyWorkspace || spriteInstances.length === 0) return;
+
+    if (currentIdx !== null && spriteInstances[currentIdx]) {
+      const currentState = Blockly.serialization.workspaces.save(blocklyWorkspace);
+      spriteWorkspaces.set(spriteInstances[currentIdx].id, currentState);
+    }
+
+    blocklyWorkspace.clear();
+    const state = spriteWorkspaces.get(spriteInstances[spriteIdx].id);
+
+    if (state && Object.keys(state).length > 0) {
+      Blockly.serialization.workspaces.load(state, blocklyWorkspace);
+    }
+
     set({ selectedSpriteIdx: spriteIdx });
+    console.log(`sprite ${spriteIdx} workspace loaded`);
   },
   setEditingSprite: (source: 'new' | 'library' | 'asset', textureName: string | null) => {
     set({ editingSource: source, editingTextureName: textureName });
