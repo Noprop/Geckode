@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { Cross2Icon, Pencil2Icon, ImageIcon } from "@radix-ui/react-icons";
+import SpriteLibrary from "./SpriteLibrary";
 import SpriteEditor from "./SpriteEditor";
 import { useSpriteStore } from "@/stores/spriteStore";
-import SpriteLibraryPanel from "./SpriteLibraryPanel";
 
 const SpriteModal = () => {
   const [activeTab, setActiveTab] = useState<"library" | "editor">("editor");
@@ -66,7 +66,7 @@ const SpriteModal = () => {
           </div>
         </div>
 
-        {activeTab === "library" ? <SpriteLibraryPanel /> : <SpriteEditor />}
+        {activeTab === "library" ? <SpriteLibrary /> : <SpriteEditor />}
       </div>
     </div>
   );

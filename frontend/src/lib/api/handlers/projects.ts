@@ -4,8 +4,7 @@ import { ProjectGroup, ProjectGroupFilters, ProjectGroupPayload } from "@/lib/ty
 import { ProjectCollaborator, ProjectCollaboratorFilters, ProjectCollaboratorPayload } from "@/lib/types/api/projects/collaborators";
 import { ProjectOrganization, ProjectOrganizationFilters, ProjectOrganizationPayload } from "@/lib/types/api/projects/organizations";
 import { ProjectInvitation, ProjectInvitationFilters, ProjectInvitationPayload } from "@/lib/types/api/projects/invitations";
-import { SpriteLibrary, SpriteLibraryFilters, SpriteLibraryPayload } from "@/lib/types/api/sprite-libraries";
-import { Sprite, SpriteFilters, SpritePayload } from "@/lib/types/api/sprite-libraries/sprites";
+import { Sprite, SpriteFilters, SpritePayload } from "@/lib/types/api/sprites/index";
 
 export const PROJECTS_API_URL = 'projects/';
 export const PROJECT_GROUPS_API_URL = 'project-groups/';
@@ -13,7 +12,7 @@ export const projectCollaboratorsApiUrl = (id: number | string) => `${PROJECTS_A
 export const projectOrganizationsApiUrl = (id: number | string) => `${PROJECTS_API_URL}${id}/organizations/`;
 export const projectInvitationsApiUrl = (id: number | string) => `${PROJECTS_API_URL}${id}/invitations/`;
 export const spriteLibrariesApiUrl = (id: number | string) => `${PROJECTS_API_URL}${id}/sprite_libraries/`;
-export const spritesApiUrl = (prjID: number | string, slID: number | string) => `${PROJECTS_API_URL}${prjID}/sprite_libraries/${slID}/sprites/`;
+export const spritesApiUrl = (id: number | string) => `${PROJECTS_API_URL}${id}/sprites/`;
 
 const projectsApi = createBaseApi<Project, ProjectPayload, ProjectFilters>({
   baseUrl: PROJECTS_API_URL
@@ -30,13 +29,9 @@ const projectsApi = createBaseApi<Project, ProjectPayload, ProjectFilters>({
   invitationsApi: (id: number | string) => createBaseApi<ProjectInvitation, ProjectInvitationPayload, ProjectInvitationFilters>({
     baseUrl: projectInvitationsApiUrl(id),
   })(),
-  spriteLibrariesApi: (id: number | string) => createBaseApi<SpriteLibrary, SpriteLibraryPayload, SpriteLibraryFilters> ({
-    baseUrl: spriteLibrariesApiUrl(id)
-  })({
-    spritesApi: (sID: number | string) => createBaseApi<Sprite, SpritePayload, SpriteFilters >({
-      baseUrl: spritesApiUrl(id, sID)
-  })()
-  }),
+  spritesApi: (id: number | string) => createBaseApi<Sprite, SpritePayload, SpriteFilters>({
+      baseUrl: spritesApiUrl(id)
+  })(),
 });
 
 export default projectsApi;

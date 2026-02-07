@@ -60,7 +60,7 @@ const api = {
 export const extractAxiosErrMsg = (err : AxiosError, placeholderMsg: string = ""): string => {
   const data : Object = (err.response?.data as Object);
 
-  var msg : string = Object.entries(data)[0][1];
+  var msg : string = Object.entries(data).length > 0 ? Object.entries(data)[0][1]: "";
 
   return msg === "" ? placeholderMsg : msg;
 

@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import type { SpriteAddPayload } from "@/stores/spriteStore";
 import { useSpriteStore } from "@/stores/spriteStore";
 
-const DevSpritesPanel = () => {
+const SpriteLibrary = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const addSpriteToGame = useSpriteStore((state) => state.addSpriteToGame);
   const spriteLibrary = useSpriteStore((state) => state.spriteLibrary);
@@ -113,4 +113,4 @@ const DevSpritesPanel = () => {
   );
 };
 
-export default DevSpritesPanel;
+export default SpriteLibrary;

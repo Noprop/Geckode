@@ -11,6 +11,12 @@ def project_thumbnail_path(_instance, filename):
     file_ext = filename.split('.')[-1]
     return f"proj-thumbnails/{random_string}.{file_ext}"
 
+def sprite_texture_path(_instance, filename : str):
+    characters = string.ascii_letters + string.digits
+    random_string = ''.join(random.choices(characters, k=20))
+    file_ext = filename.split('.')[-1]
+    return f"sprites/{random_string}.{file_ext}"
+
 class ProjectGroup(Model):
     owner = ForeignKey(User, related_name='project_groups', on_delete=CASCADE)
     created_at = DateTimeField(auto_now_add=True)
@@ -120,4 +126,17 @@ class ProjectInvitation(Model):
         unique_together = ('project', 'invitee', 'inviter')
 
     def has_permission(self, user, required_permission):
+        return self.project.has_permission(user, required_permission)
+
+class Sprite(Model):
+    project = ForeignKey(Project, on_delete=CASCADE, related_name="projects", null=True)
+    name = CharField(max_length=200, blank=False)
+    texture = ImageField(upload_to=sprite_texture_path, blank=False, null=False)
+
+    def has_permission(self, user: User, required_permission) -> bool:
+        # always allow access if it's a global library
+        if (self.project == None):
+            return True
+        
+        # otherwise, anyone who is a member has access to this library
         return self.project.has_permission(user, required_permission)

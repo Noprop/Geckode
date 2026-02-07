@@ -1,23 +1,32 @@
-'use client';
+"use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { PointerEvent as ReactPointerEvent } from 'react';
-import { Button } from '../ui/Button';
-import { useSpriteStore } from '@/stores/spriteStore';
-import EditorTools from './EditorTools';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
+import { Button } from "../ui/Button";
+import { useSpriteStore } from "@/stores/spriteStore";
+import EditorTools from "./EditorTools";
 
 const MIN_ZOOM_PERCENT = 25;
 const MAX_ZOOM_PERCENT = 800;
 const MAX_HISTORY = 50;
 
-export type Tool = 'pen' | 'eraser' | 'bucket' | 'rectangle' | 'line' | 'oval' | 'rectangle-selection' | 'pan-tool' | 'color-picker';
+export type Tool =
+  | "pen"
+  | "eraser"
+  | "bucket"
+  | "rectangle"
+  | "line"
+  | "oval"
+  | "rectangle-selection"
+  | "pan-tool"
+  | "color-picker";
 
 const SpriteEditor = () => {
-  const [spriteName, setSpriteName] = useState('Custom Sprite');
+  const [spriteName, setSpriteName] = useState("Custom Sprite");
   const [brushSize, setBrushSize] = useState(1);
-  const [primaryColor, setPrimaryColor] = useState('#10b981');
-  const [secondaryColor, setSecondaryColor] = useState('#3b82f6');
-  const [activeTool, setActiveTool] = useState<Tool>('pen');
+  const [primaryColor, setPrimaryColor] = useState("#10b981");
+  const [secondaryColor, setSecondaryColor] = useState("#3b82f6");
+  const [activeTool, setActiveTool] = useState<Tool>("pen");
   const [showGrid, setShowGrid] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
   const [rectangleStart, setRectangleStart] = useState<{ x: number; y: number } | null>(null);
@@ -63,8 +72,8 @@ const SpriteEditor = () => {
   };
 
   // Layer 1 is the main layer, layer 2 is for visual effects that aren't saved
-  const [layer1, setLayer1] = useState<string[]>(Array.from({ length: gridWidth * gridHeight }, () => ''));
-  const [layer2, setLayer2] = useState<string[]>(Array.from({ length: gridWidth * gridHeight }, () => ''));
+  const [layer1, setLayer1] = useState<string[]>(Array.from({ length: gridWidth * gridHeight }, () => ""));
+  const [layer2, setLayer2] = useState<string[]>(Array.from({ length: gridWidth * gridHeight }, () => ""));
 
   // Undo/Redo history
   const undoStackRef = useRef<string[][]>([]);
@@ -72,16 +81,7 @@ const SpriteEditor = () => {
   const layer1Ref = useRef(layer1);
   layer1Ref.current = layer1;
 
-  const palette = [
-    '#ffffff',
-    '#ef4444',
-    '#10b981',
-    '#3b82f6',
-    '#f97316',
-    '#000000',
-    '#8b5cf6',
-    '#fbbf24',
-  ];
+  const palette = ["#ffffff", "#ef4444", "#10b981", "#3b82f6", "#f97316", "#000000", "#8b5cf6", "#fbbf24"];
 
   // Save current state to undo history
   const saveToHistory = () => {
@@ -117,27 +117,24 @@ const SpriteEditor = () => {
     // if (!ctx) return;
     // ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
     // ctx.fillRect(x, y, 1, 1);
-  }
+  };
 
-  const drawChecker = useCallback(
-    (ctx: CanvasRenderingContext2D, cellSize: number, width: number, height: number) => {
-      const light = '#9e9e9e';
-      const dark = '#6e6e6e';
-      for (let y = 0; y < height; y += 1) {
-        for (let x = 0; x < width; x += 1) {
-          const isDark = (x + y) % 2 === 0;
-          ctx.fillStyle = isDark ? light : dark;
-          ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
-        }
+  const drawChecker = useCallback((ctx: CanvasRenderingContext2D, cellSize: number, width: number, height: number) => {
+    const light = "#9e9e9e";
+    const dark = "#6e6e6e";
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const isDark = (x + y) % 2 === 0;
+        ctx.fillStyle = isDark ? light : dark;
+        ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
       }
-    },
-    []
-  );
+    }
+  }, []);
 
   const renderCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
     const size = Math.round(cellSize);
@@ -165,7 +162,7 @@ const SpriteEditor = () => {
     });
 
     if (showGrid) {
-      ctx.strokeStyle = 'rgba(15,23,42,0.15)';
+      ctx.strokeStyle = "rgba(15,23,42,0.15)";
       ctx.lineWidth = 0.5;
       for (let i = 0; i <= gridWidth; i += 1) {
         ctx.beginPath();
@@ -185,7 +182,7 @@ const SpriteEditor = () => {
   const renderPreview = useCallback(() => {
     const preview = previewRef.current;
     if (!preview) return;
-    const ctx = preview.getContext('2d');
+    const ctx = preview.getContext("2d");
     if (!ctx) return;
 
     const scale = 4;
@@ -220,7 +217,7 @@ const SpriteEditor = () => {
         return next;
       });
     },
-    [gridWidth, gridHeight, brushSize]
+    [gridWidth, gridHeight, brushSize],
   );
   const floodFill = useCallback(
     (startX: number, startY: number, fillColor: string) => {
@@ -247,7 +244,7 @@ const SpriteEditor = () => {
         return next;
       });
     },
-    [gridWidth, gridHeight]
+    [gridWidth, gridHeight],
   );
   // Bresenham's line algorithm
   const getLinePixels = (x0: number, y0: number, x1: number, y1: number) => {
@@ -279,57 +276,74 @@ const SpriteEditor = () => {
   };
 
   // Apply brush size to a list of pixels
-  const applyBrush = useCallback((pixels: { x: number; y: number }[], color: string, layer: string[]) => {
-    const offset = Math.floor(brushSize / 2);
-    pixels.forEach(p => {
-      for (let dy = 0; dy < brushSize; dy++) {
-        for (let dx = 0; dx < brushSize; dx++) {
-          const px = Math.max(0, Math.min(gridWidth - 1, p.x + dx - offset));
-          const py = Math.max(0, Math.min(gridHeight - 1, p.y + dy - offset));
-          layer[py * gridWidth + px] = color;
+  const applyBrush = useCallback(
+    (pixels: { x: number; y: number }[], color: string, layer: string[]) => {
+      const offset = Math.floor(brushSize / 2);
+      pixels.forEach((p) => {
+        for (let dy = 0; dy < brushSize; dy++) {
+          for (let dx = 0; dx < brushSize; dx++) {
+            const px = Math.max(0, Math.min(gridWidth - 1, p.x + dx - offset));
+            const py = Math.max(0, Math.min(gridHeight - 1, p.y + dy - offset));
+            layer[py * gridWidth + px] = color;
+          }
         }
-      }
-    });
-  }, [brushSize, gridWidth, gridHeight]);
+      });
+    },
+    [brushSize, gridWidth, gridHeight],
+  );
 
   // Get pixels for hollow rectangle outline
   const getRectanglePixels = (x1: number, y1: number, x2: number, y2: number) => {
-    const minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
-    const minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
+    const minX = Math.min(x1, x2),
+      maxX = Math.max(x1, x2);
+    const minY = Math.min(y1, y2),
+      maxY = Math.max(y1, y2);
     const pixels: { x: number; y: number }[] = [];
-    for (let x = minX; x <= maxX; x++) { pixels.push({ x, y: minY }, { x, y: maxY }); }
-    for (let y = minY + 1; y < maxY; y++) { pixels.push({ x: minX, y }, { x: maxX, y }); }
+    for (let x = minX; x <= maxX; x++) {
+      pixels.push({ x, y: minY }, { x, y: maxY });
+    }
+    for (let y = minY + 1; y < maxY; y++) {
+      pixels.push({ x: minX, y }, { x: maxX, y });
+    }
     return pixels;
   };
 
   // Get pixels for hollow oval outline
-  const getOvalPixels = useCallback((x1: number, y1: number, x2: number, y2: number) => {
-    const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
-    const rx = Math.abs(x2 - x1) / 2, ry = Math.abs(y2 - y1) / 2;
-    if (rx === 0 || ry === 0) return [];
-    const pixels: { x: number; y: number }[] = [];
-    const steps = Math.max(Math.ceil(2 * Math.PI * Math.max(rx, ry)), 32);
-    for (let i = 0; i < steps; i++) {
-      const angle = (2 * Math.PI * i) / steps;
-      const x = Math.round(cx + rx * Math.cos(angle));
-      const y = Math.round(cy + ry * Math.sin(angle));
-      if (x >= 0 && x < gridWidth && y >= 0 && y < gridHeight) pixels.push({ x, y });
-    }
-    return pixels;
-  }, [gridWidth, gridHeight]);
+  const getOvalPixels = useCallback(
+    (x1: number, y1: number, x2: number, y2: number) => {
+      const cx = (x1 + x2) / 2,
+        cy = (y1 + y2) / 2;
+      const rx = Math.abs(x2 - x1) / 2,
+        ry = Math.abs(y2 - y1) / 2;
+      if (rx === 0 || ry === 0) return [];
+      const pixels: { x: number; y: number }[] = [];
+      const steps = Math.max(Math.ceil(2 * Math.PI * Math.max(rx, ry)), 32);
+      for (let i = 0; i < steps; i++) {
+        const angle = (2 * Math.PI * i) / steps;
+        const x = Math.round(cx + rx * Math.cos(angle));
+        const y = Math.round(cy + ry * Math.sin(angle));
+        if (x >= 0 && x < gridWidth && y >= 0 && y < gridHeight) pixels.push({ x, y });
+      }
+      return pixels;
+    },
+    [gridWidth, gridHeight],
+  );
 
   // Pointer events
-  const getPointerPosition = useCallback((event: { clientX: number; clientY: number }, allowOutside = false) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return null;
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = rect.width / gridWidth;
-    const scaleY = rect.height / gridHeight;
-    const x = Math.floor((event.clientX - rect.left) / scaleX);
-    const y = Math.floor((event.clientY - rect.top) / scaleY);
-    if (!allowOutside && (x < 0 || y < 0 || x >= gridWidth || y >= gridHeight)) return null;
-    return { x, y };
-  }, [gridWidth, gridHeight]);
+  const getPointerPosition = useCallback(
+    (event: { clientX: number; clientY: number }, allowOutside = false) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return null;
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = rect.width / gridWidth;
+      const scaleY = rect.height / gridHeight;
+      const x = Math.floor((event.clientX - rect.left) / scaleX);
+      const y = Math.floor((event.clientY - rect.top) / scaleY);
+      if (!allowOutside && (x < 0 || y < 0 || x >= gridWidth || y >= gridHeight)) return null;
+      return { x, y };
+    },
+    [gridWidth, gridHeight],
+  );
   const handlePointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     event.preventDefault();
     const position = getPointerPosition(event);
@@ -342,93 +356,125 @@ const SpriteEditor = () => {
     // Save state before drawing for undo
     saveToHistory();
 
-    if (activeTool === 'pen') {
+    if (activeTool === "pen") {
       setIsDrawing(true);
       prevPosRef.current = position;
       paintAt(position.x, position.y, color);
-    } else if (activeTool === 'eraser') {
+    } else if (activeTool === "eraser") {
       setIsDrawing(true);
-      paintAt(position.x, position.y, '');
-    } else if (activeTool === 'bucket') {
+      paintAt(position.x, position.y, "");
+    } else if (activeTool === "bucket") {
       floodFill(position.x, position.y, color);
-    } else if (activeTool === 'rectangle') {
+    } else if (activeTool === "rectangle") {
       setRectangleStart(position);
       setIsDrawing(true);
-    } else if (activeTool === 'line') {
+    } else if (activeTool === "line") {
       setLineStart(position);
       setIsDrawing(true);
-    } else if (activeTool === 'oval') {
+    } else if (activeTool === "oval") {
       setOvalStart(position);
       setIsDrawing(true);
-    } else if (activeTool === 'color-picker') {
+    } else if (activeTool === "color-picker") {
       const pickedColor = layer1[position.y * gridWidth + position.x];
       setPrimaryColor(pickedColor);
     }
   };
   // Clip line endpoint to canvas boundary while preserving direction
-  const clipToCanvas = useCallback((start: { x: number; y: number }, end: { x: number; y: number }) => {
-    let { x, y } = end;
-    const dx = x - start.x, dy = y - start.y;
-    let t = 1;
-    if (x < 0) t = Math.min(t, -start.x / dx);
-    if (x >= gridWidth) t = Math.min(t, (gridWidth - 1 - start.x) / dx);
-    if (y < 0) t = Math.min(t, -start.y / dy);
-    if (y >= gridHeight) t = Math.min(t, (gridHeight - 1 - start.y) / dy);
-    if (t < 1) { x = Math.round(start.x + dx * t); y = Math.round(start.y + dy * t); }
-    return { x: Math.max(0, Math.min(gridWidth - 1, x)), y: Math.max(0, Math.min(gridHeight - 1, y)) };
-  }, [gridWidth, gridHeight]);
+  const clipToCanvas = useCallback(
+    (start: { x: number; y: number }, end: { x: number; y: number }) => {
+      let { x, y } = end;
+      const dx = x - start.x,
+        dy = y - start.y;
+      let t = 1;
+      if (x < 0) t = Math.min(t, -start.x / dx);
+      if (x >= gridWidth) t = Math.min(t, (gridWidth - 1 - start.x) / dx);
+      if (y < 0) t = Math.min(t, -start.y / dy);
+      if (y >= gridHeight) t = Math.min(t, (gridHeight - 1 - start.y) / dy);
+      if (t < 1) {
+        x = Math.round(start.x + dx * t);
+        y = Math.round(start.y + dy * t);
+      }
+      return { x: Math.max(0, Math.min(gridWidth - 1, x)), y: Math.max(0, Math.min(gridHeight - 1, y)) };
+    },
+    [gridWidth, gridHeight],
+  );
 
   const handlePointerMove = (event: ReactPointerEvent<HTMLCanvasElement>) => {
-    const isShapeTool = ['line', 'rectangle', 'oval'].includes(activeTool);
+    const isShapeTool = ["line", "rectangle", "oval"].includes(activeTool);
     const position = getPointerPosition(event, isDrawing && isShapeTool);
     if (!position) return;
-    if (!isDrawing) { drawShadow(position.x, position.y); return; }
+    if (!isDrawing) {
+      drawShadow(position.x, position.y);
+      return;
+    }
 
     const color = activeButtonRef.current === 2 ? secondaryColor : primaryColor;
 
-    if (activeTool === 'pen') {
+    if (activeTool === "pen") {
       const prev = prevPosRef.current;
       if (prev && (Math.abs(position.x - prev.x) > 1 || Math.abs(position.y - prev.y) > 1)) {
-        getLinePixels(prev.x, prev.y, position.x, position.y).forEach(p => paintAt(p.x, p.y, color));
+        getLinePixels(prev.x, prev.y, position.x, position.y).forEach((p) => paintAt(p.x, p.y, color));
       } else {
         paintAt(position.x, position.y, color);
       }
       prevPosRef.current = position;
-    } else if (activeTool === 'eraser') {
-      paintAt(position.x, position.y, '');
-    } else if (activeTool === 'line' && lineStart) {
+    } else if (activeTool === "eraser") {
+      paintAt(position.x, position.y, "");
+    } else if (activeTool === "line" && lineStart) {
       const cp = clipToCanvas(lineStart, position);
       const pixels = getLinePixels(lineStart.x, lineStart.y, cp.x, cp.y);
-      setLayer2(() => { const next = Array(gridWidth * gridHeight).fill(''); applyBrush(pixels, color, next); return next; });
-    } else if (activeTool === 'rectangle' && rectangleStart) {
+      setLayer2(() => {
+        const next = Array(gridWidth * gridHeight).fill("");
+        applyBrush(pixels, color, next);
+        return next;
+      });
+    } else if (activeTool === "rectangle" && rectangleStart) {
       const cp = clipToCanvas(rectangleStart, position);
       const pixels = getRectanglePixels(rectangleStart.x, rectangleStart.y, cp.x, cp.y);
-      setLayer2(() => { const next = Array(gridWidth * gridHeight).fill(''); applyBrush(pixels, color, next); return next; });
-    } else if (activeTool === 'oval' && ovalStart) {
+      setLayer2(() => {
+        const next = Array(gridWidth * gridHeight).fill("");
+        applyBrush(pixels, color, next);
+        return next;
+      });
+    } else if (activeTool === "oval" && ovalStart) {
       const cp = clipToCanvas(ovalStart, position);
       const pixels = getOvalPixels(ovalStart.x, ovalStart.y, cp.x, cp.y);
-      setLayer2(() => { const next = Array(gridWidth * gridHeight).fill(''); applyBrush(pixels, color, next); return next; });
+      setLayer2(() => {
+        const next = Array(gridWidth * gridHeight).fill("");
+        applyBrush(pixels, color, next);
+        return next;
+      });
     }
   };
   const handlePointerUp = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     const pos = getPointerPosition(event, true);
     if (!pos) return;
     const color = activeButtonRef.current === 2 ? secondaryColor : primaryColor;
-    const clearLayer2 = () => setLayer2(Array(gridWidth * gridHeight).fill(''));
+    const clearLayer2 = () => setLayer2(Array(gridWidth * gridHeight).fill(""));
 
-    const commitShape = (start: { x: number; y: number }, pixels: { x: number; y: number }[], resetStart: () => void) => {
-      setLayer1((prev) => { const next = [...prev]; applyBrush(pixels, color, next); return next; });
+    const commitShape = (
+      start: { x: number; y: number },
+      pixels: { x: number; y: number }[],
+      resetStart: () => void,
+    ) => {
+      setLayer1((prev) => {
+        const next = [...prev];
+        applyBrush(pixels, color, next);
+        return next;
+      });
       resetStart();
       clearLayer2();
     };
 
-    if (activeTool === 'rectangle' && rectangleStart && isDrawing) {
+    if (activeTool === "rectangle" && rectangleStart && isDrawing) {
       const cp = clipToCanvas(rectangleStart, pos);
-      commitShape(rectangleStart, getRectanglePixels(rectangleStart.x, rectangleStart.y, cp.x, cp.y), () => setRectangleStart(null));
-    } else if (activeTool === 'line' && lineStart && isDrawing) {
+      commitShape(rectangleStart, getRectanglePixels(rectangleStart.x, rectangleStart.y, cp.x, cp.y), () =>
+        setRectangleStart(null),
+      );
+    } else if (activeTool === "line" && lineStart && isDrawing) {
       const cp = clipToCanvas(lineStart, pos);
       commitShape(lineStart, getLinePixels(lineStart.x, lineStart.y, cp.x, cp.y), () => setLineStart(null));
-    } else if (activeTool === 'oval' && ovalStart && isDrawing) {
+    } else if (activeTool === "oval" && ovalStart && isDrawing) {
       const cp = clipToCanvas(ovalStart, pos);
       commitShape(ovalStart, getOvalPixels(ovalStart.x, ovalStart.y, cp.x, cp.y), () => setOvalStart(null));
     }
@@ -439,15 +485,15 @@ const SpriteEditor = () => {
 
   const saveToAssets = async () => {
     if (!hasPixels) return;
-    const label = spriteName.trim() || 'Custom Sprite';
-    const safeBase = label.toLowerCase().replace(/[^\w]/g, '') || 'customsprite';
+    const label = spriteName.trim() || "Custom Sprite";
+    const safeBase = label.toLowerCase().replace(/[^\w]/g, "") || "customsprite";
     const texture = `${safeBase}-${Date.now()}`;
 
     // Create a clean canvas with just the sprite pixels (no grid)
-    const exportCanvas = document.createElement('canvas');
+    const exportCanvas = document.createElement("canvas");
     exportCanvas.width = gridWidth;
     exportCanvas.height = gridHeight;
-    const ctx = exportCanvas.getContext('2d');
+    const ctx = exportCanvas.getContext("2d");
     if (!ctx) return;
 
     // Draw pixels to export canvas
@@ -460,7 +506,7 @@ const SpriteEditor = () => {
     });
 
     // Convert to data URL
-    const dataUrl = exportCanvas.toDataURL('image/png');
+    const dataUrl = exportCanvas.toDataURL("image/png");
 
     // Register the texture before adding sprite
     registerTexture(texture, dataUrl, true);
@@ -483,8 +529,12 @@ const SpriteEditor = () => {
   };
 
   // Sync local grid inputs when actual state changes externally
-  useEffect(() => { setLocalGridWidth(gridWidth); }, [gridWidth]);
-  useEffect(() => { setLocalGridHeight(gridHeight); }, [gridHeight]);
+  useEffect(() => {
+    setLocalGridWidth(gridWidth);
+  }, [gridWidth]);
+  useEffect(() => {
+    setLocalGridHeight(gridHeight);
+  }, [gridHeight]);
 
   // Track container dimensions for relative zoom
   useEffect(() => {
@@ -510,9 +560,9 @@ const SpriteEditor = () => {
       }
     };
     const container = canvasContainerRef.current;
-    if (!container) throw new Error('Canvas container should exist.');
-    container.addEventListener('wheel', handleWheel, { passive: false });
-    return () => container.removeEventListener('wheel', handleWheel);
+    if (!container) throw new Error("Canvas container should exist.");
+    container.addEventListener("wheel", handleWheel, { passive: false });
+    return () => container.removeEventListener("wheel", handleWheel);
   }, []);
 
   // Window-level pointer tracking for shape tools
@@ -526,58 +576,103 @@ const SpriteEditor = () => {
       const pos = getPointerPosition(e, true);
       if (!pos) return;
       let pixels: { x: number; y: number }[] = [];
-      if (lineStart) { const cp = clipToCanvas(lineStart, pos); pixels = getLinePixels(lineStart.x, lineStart.y, cp.x, cp.y); }
-      else if (rectangleStart) { const cp = clipToCanvas(rectangleStart, pos); pixels = getRectanglePixels(rectangleStart.x, rectangleStart.y, cp.x, cp.y); }
-      else if (ovalStart) { const cp = clipToCanvas(ovalStart, pos); pixels = getOvalPixels(ovalStart.x, ovalStart.y, cp.x, cp.y); }
-      setLayer2(() => { const next = Array(gridWidth * gridHeight).fill(''); applyBrush(pixels, color, next); return next; });
+      if (lineStart) {
+        const cp = clipToCanvas(lineStart, pos);
+        pixels = getLinePixels(lineStart.x, lineStart.y, cp.x, cp.y);
+      } else if (rectangleStart) {
+        const cp = clipToCanvas(rectangleStart, pos);
+        pixels = getRectanglePixels(rectangleStart.x, rectangleStart.y, cp.x, cp.y);
+      } else if (ovalStart) {
+        const cp = clipToCanvas(ovalStart, pos);
+        pixels = getOvalPixels(ovalStart.x, ovalStart.y, cp.x, cp.y);
+      }
+      setLayer2(() => {
+        const next = Array(gridWidth * gridHeight).fill("");
+        applyBrush(pixels, color, next);
+        return next;
+      });
     };
     const handleWindowUp = (e: PointerEvent) => {
       const pos = getPointerPosition(e, true);
-      if (!pos) { setIsDrawing(false); return; }
+      if (!pos) {
+        setIsDrawing(false);
+        return;
+      }
       let pixels: { x: number; y: number }[] = [];
-      if (lineStart) { const cp = clipToCanvas(lineStart, pos); pixels = getLinePixels(lineStart.x, lineStart.y, cp.x, cp.y); setLineStart(null); }
-      else if (rectangleStart) { const cp = clipToCanvas(rectangleStart, pos); pixels = getRectanglePixels(rectangleStart.x, rectangleStart.y, cp.x, cp.y); setRectangleStart(null); }
-      else if (ovalStart) { const cp = clipToCanvas(ovalStart, pos); pixels = getOvalPixels(ovalStart.x, ovalStart.y, cp.x, cp.y); setOvalStart(null); }
-      setLayer1((prev) => { const next = [...prev]; applyBrush(pixels, color, next); return next; });
-      setLayer2(Array(gridWidth * gridHeight).fill(''));
+      if (lineStart) {
+        const cp = clipToCanvas(lineStart, pos);
+        pixels = getLinePixels(lineStart.x, lineStart.y, cp.x, cp.y);
+        setLineStart(null);
+      } else if (rectangleStart) {
+        const cp = clipToCanvas(rectangleStart, pos);
+        pixels = getRectanglePixels(rectangleStart.x, rectangleStart.y, cp.x, cp.y);
+        setRectangleStart(null);
+      } else if (ovalStart) {
+        const cp = clipToCanvas(ovalStart, pos);
+        pixels = getOvalPixels(ovalStart.x, ovalStart.y, cp.x, cp.y);
+        setOvalStart(null);
+      }
+      setLayer1((prev) => {
+        const next = [...prev];
+        applyBrush(pixels, color, next);
+        return next;
+      });
+      setLayer2(Array(gridWidth * gridHeight).fill(""));
       setIsDrawing(false);
     };
-    window.addEventListener('pointermove', handleWindowMove);
-    window.addEventListener('pointerup', handleWindowUp);
-    return () => { window.removeEventListener('pointermove', handleWindowMove); window.removeEventListener('pointerup', handleWindowUp); };
-  }, [isDrawing, lineStart, rectangleStart, ovalStart, primaryColor, secondaryColor, gridWidth, gridHeight, brushSize, getPointerPosition, clipToCanvas, getOvalPixels, applyBrush]);
+    window.addEventListener("pointermove", handleWindowMove);
+    window.addEventListener("pointerup", handleWindowUp);
+    return () => {
+      window.removeEventListener("pointermove", handleWindowMove);
+      window.removeEventListener("pointerup", handleWindowUp);
+    };
+  }, [
+    isDrawing,
+    lineStart,
+    rectangleStart,
+    ovalStart,
+    primaryColor,
+    secondaryColor,
+    gridWidth,
+    gridHeight,
+    brushSize,
+    getPointerPosition,
+    clipToCanvas,
+    getOvalPixels,
+    applyBrush,
+  ]);
 
   // Window-level pointer tracking for pen and eraser
   useEffect(() => {
     if (!isDrawing) return;
-    if (activeTool !== 'pen' && activeTool !== 'eraser') return;
+    if (activeTool !== "pen" && activeTool !== "eraser") return;
 
     const handleWindowUp = () => {
       setIsDrawing(false);
       prevPosRef.current = null;
     };
 
-    window.addEventListener('pointerup', handleWindowUp);
-    return () => window.removeEventListener('pointerup', handleWindowUp);
+    window.addEventListener("pointerup", handleWindowUp);
+    return () => window.removeEventListener("pointerup", handleWindowUp);
   }, [isDrawing, activeTool]);
 
   // Keyboard shortcuts for undo/redo
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key === 'z' && !event.shiftKey) {
+      if ((event.metaKey || event.ctrlKey) && event.key === "z" && !event.shiftKey) {
         event.preventDefault();
         undo();
       } else if (
-        ((event.metaKey || event.ctrlKey) && event.key === 'y') ||
-        ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key === 'z')
+        ((event.metaKey || event.ctrlKey) && event.key === "y") ||
+        ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key === "z")
       ) {
         event.preventDefault();
         redo();
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
   useEffect(() => {
@@ -594,10 +689,9 @@ const SpriteEditor = () => {
               key={size}
               type="button"
               onClick={() => setBrushSize(size)}
-              className={`h-9 flex items-center justify-center cursor-pointer transition ${brushSize === size
-                ? 'bg-primary-green'
-                : 'bg-slate-600 hover:bg-slate-500'
-                }`}
+              className={`h-9 flex items-center justify-center cursor-pointer transition ${
+                brushSize === size ? "bg-primary-green" : "bg-slate-600 hover:bg-slate-500"
+              }`}
               title={`${size}x${size} brush`}
             >
               <div className="bg-white" style={{ width: size * 3 + 2, height: size * 3 + 2 }} />
@@ -614,12 +708,12 @@ const SpriteEditor = () => {
             onClick={swapColors}
             className="absolute right-1.5 bottom-0 w-18 h-8 rounded-xs cursor-pointer transition-shadow"
             style={{
-              backgroundColor: secondaryColor || '#9e9e9e',
+              backgroundColor: secondaryColor || "#9e9e9e",
               backgroundImage: !secondaryColor
-                ? 'linear-gradient(45deg, #6e6e6e 25%, transparent 25%), linear-gradient(-45deg, #6e6e6e 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #6e6e6e 75%), linear-gradient(-45deg, transparent 75%, #6e6e6e 75%)'
+                ? "linear-gradient(45deg, #6e6e6e 25%, transparent 25%), linear-gradient(-45deg, #6e6e6e 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #6e6e6e 75%), linear-gradient(-45deg, transparent 75%, #6e6e6e 75%)"
                 : undefined,
-              backgroundSize: '8px 8px',
-              backgroundPosition: '0 0, 0 4px, 4px -4px, -4px 0px',
+              backgroundSize: "8px 8px",
+              backgroundPosition: "0 0, 0 4px, 4px -4px, -4px 0px",
             }}
             title="Secondary color (right-click) - Click to swap"
           />
@@ -628,12 +722,12 @@ const SpriteEditor = () => {
             onClick={swapColors}
             className="absolute left-1.5 top-0 w-18 h-8 rounded-xs cursor-pointer transition-shadow"
             style={{
-              backgroundColor: primaryColor || '#9e9e9e',
+              backgroundColor: primaryColor || "#9e9e9e",
               backgroundImage: !primaryColor
-                ? 'linear-gradient(45deg, #6e6e6e 25%, transparent 25%), linear-gradient(-45deg, #6e6e6e 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #6e6e6e 75%), linear-gradient(-45deg, transparent 75%, #6e6e6e 75%)'
+                ? "linear-gradient(45deg, #6e6e6e 25%, transparent 25%), linear-gradient(-45deg, #6e6e6e 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #6e6e6e 75%), linear-gradient(-45deg, transparent 75%, #6e6e6e 75%)"
                 : undefined,
-              backgroundSize: '8px 8px',
-              backgroundPosition: '0 0, 0 4px, 4px -4px, -4px 0px',
+              backgroundSize: "8px 8px",
+              backgroundPosition: "0 0, 0 4px, 4px -4px, -4px 0px",
             }}
             title="Primary color (left-click) - Click to swap"
           />
@@ -644,13 +738,14 @@ const SpriteEditor = () => {
           <div className="grid grid-cols-3 w-full gap-1.5">
             <button
               type="button"
-              onClick={() => setPrimaryColor('')}
+              onClick={() => setPrimaryColor("")}
               className="rounded-xs cursor-pointer transition aspect-square hover:ring-2 hover:ring-white/40"
               style={{
-                backgroundImage: 'linear-gradient(45deg, #6e6e6e 25%, transparent 25%), linear-gradient(-45deg, #6e6e6e 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #6e6e6e 75%), linear-gradient(-45deg, transparent 75%, #6e6e6e 75%)',
-                backgroundSize: '8px 8px',
-                backgroundPosition: '0 0, 0 4px, 4px -4px, -4px 0px',
-                backgroundColor: '#9e9e9e',
+                backgroundImage:
+                  "linear-gradient(45deg, #6e6e6e 25%, transparent 25%), linear-gradient(-45deg, #6e6e6e 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #6e6e6e 75%), linear-gradient(-45deg, transparent 75%, #6e6e6e 75%)",
+                backgroundSize: "8px 8px",
+                backgroundPosition: "0 0, 0 4px, 4px -4px, -4px 0px",
+                backgroundColor: "#9e9e9e",
               }}
               title="Transparent"
             />
@@ -674,7 +769,7 @@ const SpriteEditor = () => {
             <span className="text-xs text-slate-300">Custom</span>
             <input
               type="color"
-              value={primaryColor || '#000000'}
+              value={primaryColor || "#000000"}
               onChange={(e) => setPrimaryColor(e.target.value)}
               className="hidden"
             />
@@ -688,18 +783,22 @@ const SpriteEditor = () => {
           <input
             type="number"
             value={localGridWidth}
-            onFocus={() => { originalGridWidth.current = gridWidth; }}
-            onChange={(e) => setLocalGridWidth(e.target.value === '' ? '' as unknown as number : parseInt(e.target.value, 10))}
+            onFocus={() => {
+              originalGridWidth.current = gridWidth;
+            }}
+            onChange={(e) =>
+              setLocalGridWidth(e.target.value === "" ? ("" as unknown as number) : parseInt(e.target.value, 10))
+            }
             onBlur={(e) => {
-              if (e.target.value === '') {
+              if (e.target.value === "") {
                 setLocalGridWidth(originalGridWidth.current);
                 return;
               }
               const val = Math.max(1, Math.min(160, parseInt(e.target.value, 10)));
               setGridWidth(val);
               setLocalGridWidth(val);
-              setLayer1(Array.from({ length: val * gridHeight }, () => ''));
-              setLayer2(Array.from({ length: val * gridHeight }, () => ''));
+              setLayer1(Array.from({ length: val * gridHeight }, () => ""));
+              setLayer2(Array.from({ length: val * gridHeight }, () => ""));
             }}
             min={1}
             max={160}
@@ -711,18 +810,22 @@ const SpriteEditor = () => {
           <input
             type="number"
             value={localGridHeight}
-            onFocus={() => { originalGridHeight.current = gridHeight; }}
-            onChange={(e) => setLocalGridHeight(e.target.value === '' ? '' as unknown as number : parseInt(e.target.value, 10))}
+            onFocus={() => {
+              originalGridHeight.current = gridHeight;
+            }}
+            onChange={(e) =>
+              setLocalGridHeight(e.target.value === "" ? ("" as unknown as number) : parseInt(e.target.value, 10))
+            }
             onBlur={(e) => {
-              if (e.target.value === '') {
+              if (e.target.value === "") {
                 setLocalGridHeight(originalGridHeight.current);
                 return;
               }
               const val = Math.max(1, Math.min(128, parseInt(e.target.value, 10)));
               setGridHeight(val);
               setLocalGridHeight(val);
-              setLayer1(Array.from({ length: gridWidth * val }, () => ''));
-              setLayer2(Array.from({ length: gridWidth * val }, () => ''));
+              setLayer1(Array.from({ length: gridWidth * val }, () => ""));
+              setLayer2(Array.from({ length: gridWidth * val }, () => ""));
             }}
             min={1}
             max={128}
@@ -741,8 +844,8 @@ const SpriteEditor = () => {
           <button
             type="button"
             onClick={() => {
-              setLayer1(Array.from({ length: gridWidth * gridHeight }, () => ''));
-              setLayer2(Array.from({ length: gridWidth * gridHeight }, () => ''));
+              setLayer1(Array.from({ length: gridWidth * gridHeight }, () => ""));
+              setLayer2(Array.from({ length: gridWidth * gridHeight }, () => ""));
             }}
             className="absolute top-2 right-2 z-10 px-3 h-7 flex items-center justify-center rounded bg-red-600/80 hover:bg-red-600 text-white text-xs font-medium cursor-pointer transition"
             title="Clear canvas"
@@ -756,7 +859,7 @@ const SpriteEditor = () => {
               style={{
                 width: gridWidth * cellSize,
                 height: gridHeight * cellSize,
-                imageRendering: 'pixelated',
+                imageRendering: "pixelated",
               }}
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
@@ -788,7 +891,9 @@ const SpriteEditor = () => {
                 if (!isNaN(percent)) setZoomPercent(Math.max(MIN_ZOOM_PERCENT, Math.min(MAX_ZOOM_PERCENT, percent)));
                 setIsEditingZoom(false);
               }}
-              onKeyDown={(e) => e.key === 'Enter' ? e.currentTarget.blur() : e.key === 'Escape' && setIsEditingZoom(false)}
+              onKeyDown={(e) =>
+                e.key === "Enter" ? e.currentTarget.blur() : e.key === "Escape" && setIsEditingZoom(false)
+              }
               className="w-14 h-6 px-1 text-xs text-slate-300 text-center bg-slate-600 border border-slate-500 rounded outline-none focus:border-primary-green [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               autoFocus
               onFocus={(e) => e.target.select()}
@@ -798,9 +903,9 @@ const SpriteEditor = () => {
               type="button"
               onClick={() => setIsEditingZoom(true)}
               className="w-14 h-6 text-xs text-slate-300 text-center hover:bg-slate-600 rounded cursor-pointer transition"
-                title="Click to edit zoom (100% = fit to container)"
+              title="Click to edit zoom (100% = fit to container)"
             >
-                {Math.round(zoomPercent)}%
+              {Math.round(zoomPercent)}%
             </button>
           )}
           <button
@@ -821,7 +926,7 @@ const SpriteEditor = () => {
           <canvas
             ref={previewRef}
             className="w-10 h-10 rounded border border-slate-500"
-            style={{ imageRendering: 'pixelated' }}
+            style={{ imageRendering: "pixelated" }}
           />
           <input
             type="text"

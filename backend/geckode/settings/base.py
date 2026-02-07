@@ -48,8 +48,7 @@ INSTALLED_APPS = [
     'channels',
     'accounts',
     'organizations',
-    'projects',
-    'sprite_libraries',
+    'projects'
 ]
 
 MIDDLEWARE = [

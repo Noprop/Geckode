@@ -1,7 +1,7 @@
 from rest_framework.serializers import ModelSerializer, PrimaryKeyRelatedField, BooleanField, SerializerMethodField, ValidationError
 from accounts.serializers import PublicUserSerializer
 from django.utils import timezone
-from .models import ProjectGroup, Project, ProjectCollaborator, OrganizationProject, ProjectInvitation
+from .models import ProjectGroup, Project, ProjectCollaborator, OrganizationProject, ProjectInvitation, Sprite
 from accounts.models import User
 from organizations.serializers import PublicOrganizationSerializer
 
@@ -42,11 +42,14 @@ class ProjectSerializer(ModelSerializer):
     class Meta:
         model = Project
         fields = ['id', 'owner', 'created_at', 'updated_at', 'name', 'description', 'published_at',
-                    'is_published', 'fork_count', 'blocks', 'game_state', 'thumbnail', 'sprites', 'permission']
+                    'is_published', 'fork_count', 'sprite_count', 'blocks', 'game_state', 'thumbnail', 'sprites', 'permission']
         read_only_fields = ['created_at', 'updated_at', 'published_at']
 
     def get_fork_count(self, instance):
         return instance.forked_by.count()
+    
+    def get_sprite_count(self, instance : Project) -> int:
+        return Sprite.objects.filter(sprite_library=instance).count()
 
     def get_permission(self, instance):
         return instance.get_permission(self.context['request'].user)
@@ -156,6 +159,33 @@ class ProjectInvitationSerializer(ModelSerializer):
                     if not project.has_permission(user, attrs['permission']):
                         raise ValidationError('Cannot give an invited member a higher permission class.')
         except Project.DoesNotExist:
+            pass
+
+        return attrs
+
+class SpriteSerializer(ModelSerializer):
+
+    class Meta:
+        model = Sprite
+        fields = ["id", "name", "texture"]
+
+    def get_permission(self, instance):
+        return instance.get_permission(self.context['request'].user)
+    
+    
+    def validate(self, attrs):
+        try:
+            if 'view' in self.context and hasattr(self.context['view'], 'kwargs'):
+                if 'request' in self.context:
+                    user = self.context['request'].user
+                    sprite = Sprite.objects.get(id=self.context['view'].kwargs.get('pk'))
+
+                    if (sprite.project == None):
+                        raise ValidationError({'permission': 'Cannot modify public sprites!'})
+                    
+                    if not sprite.has_permission(user, 'code'):
+                        raise ValidationError({'permission': 'You do not have permission to perform this action'})
+        except Sprite.DoesNotExist:
             pass
 
         return attrs

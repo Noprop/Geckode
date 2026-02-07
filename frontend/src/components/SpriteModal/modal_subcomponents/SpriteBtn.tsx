@@ -1,5 +1,5 @@
 import { BaseApiInnerReturn, createBaseApi } from "@/lib/api/base";
-import { Sprite, SpriteFilters, SpritePayload } from "@/lib/types/api/sprite-libraries/sprites";
+import { Sprite, SpriteFilters, SpritePayload } from "@/lib/types/api/sprites/sprites";
 import React from "react";
 
 interface Props {
