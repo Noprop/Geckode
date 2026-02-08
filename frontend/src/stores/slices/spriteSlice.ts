@@ -1,6 +1,6 @@
 import * as Blockly from 'blockly/core';
 import type { StateCreator } from 'zustand';
-import type { SpriteInstance, SpriteDefinition } from '@/blockly/spriteRegistry';
+import type { SpriteInstance } from '@/blockly/spriteRegistry';
 import EditorScene from '@/phaser/scenes/EditorScene';
 import { gavin, heroWalkBack1, heroWalkFront1 } from '../sprites';
 import type { GeckodeStore, SpriteSlice } from './types';
@@ -46,7 +46,7 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
     gavin: gavin,
   },
   isSpriteModalOpen: false,
-  selectedSpriteIdx: null,
+  selectedSpriteIdx: 0,
   editingSource: null,
   editingTextureName: null,
 
@@ -91,17 +91,16 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
   },
   setSelectedSpriteIdx: (newIdx: number) => {
     const { blocklyWorkspace, spriteWorkspaces, spriteInstances, selectedSpriteIdx: prevIdx } = get();
-
     if (newIdx === prevIdx) return;
     if (!blocklyWorkspace || spriteInstances.length === 0) return;
 
-    if (prevIdx !== null && spriteInstances[prevIdx]) {
-      const currentState = Blockly.serialization.workspaces.save(blocklyWorkspace);
-      spriteWorkspaces.set(spriteInstances[prevIdx].id, currentState);
-    }
+    set({ 
+      spriteWorkspaces: { 
+        ...get().spriteWorkspaces, [spriteInstances[prevIdx].id]: Blockly.serialization.workspaces.save(blocklyWorkspace)
+      }
+    });
 
-    // blocklyWorkspace.clear();
-    const state = spriteWorkspaces.get(spriteInstances[newIdx].id);
+    const state = get().spriteWorkspaces[spriteInstances[newIdx].id];
     if (!state) {
       Blockly.serialization.workspaces.load({}, blocklyWorkspace);
     } else {
@@ -126,10 +125,7 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
     } else {
       textureName = createUniqueTextureName(spriteName, assetTextures);
     }
-
-    set({
-      assetTextures: { ...get().assetTextures, [textureName]: base64Image },
-    });
+    set({ assetTextures: { ...get().assetTextures, [textureName]: base64Image } });
 
     const instance: SpriteInstance = {
       name: createUniqueSpriteName(spriteName, get().spriteInstances),
@@ -148,12 +144,11 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
   },
 
   resetSpriteStore: () => {
-    const defaultSpriteId = `id_${Date.now()}_${Math.round(Math.random() * 10000)}`;
-
+    console.log('resetting sprite store');
     set({
       spriteInstances: [
         {
-          id: defaultSpriteId,
+          id: `id_${Date.now()}`,
           textureName: 'hero-walk-front',
           name: 'herowalkfront1',
           x: 200,
@@ -173,7 +168,7 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
         'hero-walk-back': heroWalkBack1,
         gavin: gavin,
       },
-      selectedSpriteIdx: null,
+      selectedSpriteIdx: 0,
       editingSource: null,
       editingTextureName: null,
     });

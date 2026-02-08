@@ -41,7 +41,7 @@ export interface SpriteState {
   libraryTextures: Record<string, string>;
 
   isSpriteModalOpen: boolean;
-  selectedSpriteIdx: number | null;
+  selectedSpriteIdx: number;
   editingSource: EditingSource | null;
   editingTextureName: string | null;
 }
@@ -98,13 +98,13 @@ export interface EditorState {
   convertTimeoutId: ReturnType<typeof setTimeout> | null;
 
   // Workspace state
-  spriteWorkspaces: Map<string, Blockly.serialization.workspaceComments.State>;
-  spriteOutputs: Map<string, WorkspaceOutputType>;
+  spriteWorkspaces: Record<string, Blockly.serialization.workspaceComments.State>;
+  spriteOutputs: Record<string, WorkspaceOutputType>;
 }
 
 export interface EditorActions {
   // Registration Actions
-  setBlocklyWorkspace: (blocklyWorkspace: Blockly.WorkspaceSvg) => void;
+  setBlocklyWorkspaceRef: (blocklyWorkspace: Blockly.WorkspaceSvg) => void;
   setPhaserScene: (phaserScene: EditorScene | GameScene) => void;
   setPhaserGame: (phaserGame: Phaser.Game) => void;
   setProjectId: (id: number) => void;

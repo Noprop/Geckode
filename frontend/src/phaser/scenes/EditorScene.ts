@@ -29,6 +29,7 @@ export default class EditorScene extends Phaser.Scene {
   preload() {
     const { spriteInstances, assetTextures } = useGeckodeStore.getState();
     for (const instance of spriteInstances) {
+      console.log('preloading texture: ', instance.textureName);
       const base64Image = assetTextures[instance.textureName];
       if (!base64Image || this.textures.exists(instance.textureName)) continue;
       this.load.image(instance.textureName, base64Image);

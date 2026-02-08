@@ -16,51 +16,6 @@ export type {
   Tilemap,
 } from "./slices/types";
 
-/**
- * Migrate old localStorage keys (`geckode-sprites`, `geckode-workspaces`)
- * into the new unified `geckode-store` key, then delete the old keys.
- */
-function migrateOldStorage() {
-  if (typeof window === "undefined") return;
-
-  const NEW_KEY = "geckode-store";
-
-  // Skip if new key already has data
-  if (localStorage.getItem(NEW_KEY)) return;
-
-  const oldSprites = localStorage.getItem("geckode-sprites");
-  const oldWorkspaces = localStorage.getItem("geckode-workspaces");
-
-  if (!oldSprites && !oldWorkspaces) return;
-
-  try {
-    const spritesData = oldSprites ? JSON.parse(oldSprites) : {};
-    const workspacesData = oldWorkspaces ? JSON.parse(oldWorkspaces) : {};
-
-    const mergedState = {
-      ...(spritesData.state || {}),
-      ...(workspacesData.state || {}),
-    };
-
-    localStorage.setItem(
-      NEW_KEY,
-      JSON.stringify({
-        state: mergedState,
-        version: 0,
-      }),
-    );
-
-    // Clean up old keys
-    localStorage.removeItem("geckode-sprites");
-    localStorage.removeItem("geckode-workspaces");
-  } catch (e) {
-    console.warn("[geckodeStore] Failed to migrate old storage:", e);
-  }
-}
-
-// Run migration on module load (client-side only)
-migrateOldStorage();
-
 export const useGeckodeStore = create<GeckodeStore>()(
   persist(
     (...a) => ({
@@ -69,12 +24,15 @@ export const useGeckodeStore = create<GeckodeStore>()(
     }),
     {
       name: 'geckode-store',
-      partialize: (state) => ({
+      partialize: (state) => (
+        console.log('partializing state(), workspaces: ', state.spriteWorkspaces),
+        console.log('partializing state() instances: ', state.spriteInstances),
+        {
         spriteInstances: state.spriteInstances,
         assetTextures: state.assetTextures,
         libraryTextures: state.libraryTextures,
         selectedSpriteIdx: state.selectedSpriteIdx,
-        spriteWorkspaces: [...state.spriteWorkspaces.entries()],
+        spriteWorkspaces: state.spriteWorkspaces,
         projectName: state.projectName,
       }),
       merge: (persisted: any, current) => {
@@ -90,9 +48,6 @@ export const useGeckodeStore = create<GeckodeStore>()(
         return {
           ...current,
           ...(persisted || {}),
-          spriteWorkspaces: persisted?.spriteWorkspaces
-            ? new Map(persisted.spriteWorkspaces)
-            : current.spriteWorkspaces,
         };
       },
     }

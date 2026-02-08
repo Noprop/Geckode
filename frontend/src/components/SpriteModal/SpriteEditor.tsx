@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import * as Blockly from 'blockly/core';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { Button } from '../ui/Button';
 import { useGeckodeStore } from '@/stores/geckodeStore';
@@ -376,12 +377,7 @@ const SpriteEditor = () => {
       snapToGrid: true,
     };
 
-    // TOOD: manually add sprite instead of doing this:
-    // const newSprite = useGeckodeStore.getState().addSpriteInstance({
-    //   name: newSpriteName,
-    //   textureName: newTextureName,
-    // });
-
+    // add texture to state, and phaser
     if (editingSource === 'new' || editingSource === 'library') {
       useGeckodeStore.getState().addAssetTexture(newTextureName, base64Image);
       await phaserScene.loadTextureAsync(newTextureName, base64Image);
@@ -390,8 +386,19 @@ const SpriteEditor = () => {
       await phaserScene.updateTextureAsync(newTextureName, base64Image);
     }
     phaserScene.createSprite(newSprite.id, newSprite.x, newSprite.y, newSprite.textureName);
-    useGeckodeStore.setState({ spriteInstances: [...spriteInstances, newSprite] });
-    useGeckodeStore.getState().setSelectedSpriteIdx(spriteInstances.length);
+
+    // add sprite to state, save workspace for current sprite, and switch to new sprite
+    useGeckodeStore.setState({
+      spriteInstances: [...spriteInstances, newSprite],
+      selectedSpriteIdx: spriteInstances.length,
+      spriteWorkspaces: {
+        ...useGeckodeStore.getState().spriteWorkspaces,
+        [newSprite.id]: {},
+        [spriteInstances[useGeckodeStore.getState().selectedSpriteIdx].id]: Blockly.serialization.workspaces.save(useGeckodeStore.getState().blocklyWorkspace!),
+      },
+    });
+    Blockly.serialization.workspaces.load({}, useGeckodeStore.getState().blocklyWorkspace!);
+
     clearEditingSprite();
     setIsSpriteModalOpen(false);
   };

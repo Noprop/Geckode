@@ -32,8 +32,8 @@ export const createEditorSlice: StateCreator<
   convertTimeoutId: null,
 
   // Workspace state
-  spriteWorkspaces: new Map(),
-  spriteOutputs: new Map(),
+  spriteWorkspaces: {},
+  spriteOutputs: {},
 
   getCurrentSpriteId: () => {
     const { selectedSpriteIdx, spriteInstances } = get();
@@ -41,7 +41,7 @@ export const createEditorSlice: StateCreator<
     return spriteInstances[selectedSpriteIdx].id;
   },
 
-  setBlocklyWorkspace: (blocklyWorkspace) => set({ blocklyWorkspace }),
+  setBlocklyWorkspaceRef: (blocklyWorkspace) => set({ blocklyWorkspace }),
   setPhaserScene: (phaserScene) => set({ phaserScene }),
   setPhaserGame: (phaserGame) => set({ phaserGame }),
   setProjectId: (projectId) => set({ projectId }),
@@ -76,14 +76,14 @@ export const createEditorSlice: StateCreator<
       startHandlers: (javascriptGenerator as any).startHandlers ?? [],
     };
 
-    spriteOutputs.set(spriteId, output);
+    set({ spriteOutputs: { ...get().spriteOutputs, [spriteId]: output } });
     console.log('generateCode spriteId: ', spriteId);
     console.log('generateCode spriteOutputs: ', JSON.stringify(spriteOutputs, null, 2));
     console.log('generateCode workspace code: \n', code);
 
     // save workspace state
     const state = Blockly.serialization.workspaces.save(blocklyWorkspace);
-    spriteWorkspaces.set(spriteId, state);
+    set({ spriteWorkspaces: { ...get().spriteWorkspaces, [spriteId]: state } });
   },
 
   scheduleConvert: () => {
@@ -179,7 +179,7 @@ export const createEditorSlice: StateCreator<
       throw new Error("toggleEditor() - Phaser scene is not set.");
 
     if (isEditorScene) {
-      const outputs = spriteInstances.map((s) => spriteOutputs.get(s.id));
+      const outputs = spriteInstances.map((s) => get().spriteOutputs[s.id]);
       const allUpdateHandlers = outputs
         .flatMap((o) => o?.updateHandlers)
         .filter(Boolean);
@@ -252,9 +252,9 @@ export const createEditorSlice: StateCreator<
 
     // Clear workspace maps and set the new sprite ID
     set({
-      spriteWorkspaces: new Map(),
-      spriteOutputs: new Map(),
-      selectedSpriteIdx: defaultSprite ? spriteInstances.findIndex((s) => s.id === defaultSprite.id) : null,
+      spriteWorkspaces: {},
+      spriteOutputs: {},
+      selectedSpriteIdx: 0,
       canUndo: false,
       canRedo: false,
     });

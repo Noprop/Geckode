@@ -12,6 +12,7 @@ import { useParams } from "next/navigation";
 import projectsApi from "@/lib/api/handlers/projects";
 import starterWorkspace from "@/blockly/workspaces/starter";
 import starterWorkspaceNewProject from "@/blockly/workspaces/starterNewProject";
+import EditorScene from "@/phaser/scenes/EditorScene";
 
 registerBlockly();
 
@@ -90,7 +91,7 @@ const BlocklyEditor = () => {
   // Reactive selectors – values that affect rendering / effects
   const currentSpriteId = useGeckodeStore((s) => s.getCurrentSpriteId());
 
-  const setBlocklyWorkspace = useGeckodeStore((s) => s.setBlocklyWorkspace);
+  const setBlocklyWorkspaceRef = useGeckodeStore((s) => s.setBlocklyWorkspaceRef);
   const updateUndoRedoState = useGeckodeStore((s) => s.updateUndoRedoState);
 
   const [showVariableModal, setShowVariableModal] = useState(false);
@@ -176,7 +177,7 @@ const BlocklyEditor = () => {
     });
 
     // Register workspace & initial undo/redo (actions are stable refs)
-    setBlocklyWorkspace(workspaceRef.current);
+    setBlocklyWorkspaceRef(workspaceRef.current);
     updateUndoRedoState();
 
     // ── Workspace loading ──
@@ -216,41 +217,15 @@ const BlocklyEditor = () => {
 
 function loadLocalWorkspace(workspace: Blockly.WorkspaceSvg) {
   const doLoad = () => {
-    const { spriteInstances, spriteWorkspaces, setSelectedSpriteIdx, scheduleConvert } = useGeckodeStore.getState();
-
-    let spriteId = spriteInstances[0]?.id;
-
-    // No sprites -> create a default front-facing sprite
-    if (!spriteId) {
-      spriteId = `id_${Date.now()}_${Math.round(Math.random() * 1e4)}`;
-      useGeckodeStore.setState({
-        spriteInstances: [
-          {
-            id: spriteId,
-            textureName: "hero-walk-front",
-            name: "herowalkfront1",
-            x: 50,
-            y: 50,
-            visible: true,
-            scaleX: 1,
-            scaleY: 1,
-            direction: 0,
-            snapToGrid: true,
-          },
-        ],
-      });
+    // if spriteInstances.length === 1, and spriteWorkspaces is {} (default), then we need to
+    // load the start workspace. otherwise, just load the workspace for the selected sprite.
+    const { spriteInstances, spriteWorkspaces, selectedSpriteIdx, scheduleConvert } = useGeckodeStore.getState();
+    if (spriteInstances.length === 1 && Object.keys(spriteWorkspaces).length === 0) {
+      Blockly.serialization.workspaces.load(starterWorkspace, workspace);
+      useGeckodeStore.setState({ spriteWorkspaces: { [spriteInstances[0].id]: Blockly.serialization.workspaces.save(workspace) } });
+    } else {
+      Blockly.serialization.workspaces.load(spriteWorkspaces[spriteInstances[selectedSpriteIdx].id], workspace);
     }
-
-    const persisted = spriteWorkspaces.get(spriteId);
-    const hasContent = persisted && Object.keys(persisted).length > 0;
-    const workspaceToLoad = hasContent ? persisted : starterWorkspace;
-
-    // Load the workspace and save it to the map so setSelectedSpriteIdx finds it
-    Blockly.serialization.workspaces.load(workspaceToLoad, workspace);
-    spriteWorkspaces.set(spriteId, workspaceToLoad as Blockly.serialization.workspaceComments.State);
-
-    // Select the first sprite
-    setSelectedSpriteIdx(0);
     scheduleConvert();
   };
 
