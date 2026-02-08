@@ -30,7 +30,7 @@ const starterWorkspace = {
                     "type": "math_number",
                     "id": "+U9G~{QL^GpTe[y`7E{}",
                     "fields": {
-                      "NUM": 240
+                      "NUM": 10
                     }
                   }
                 }
@@ -57,7 +57,7 @@ const starterWorkspace = {
                         "type": "math_number",
                         "id": "Z}%{-%:[5=cicv*g=z*=",
                         "fields": {
-                          "NUM": 180
+                          "NUM": 10
                         }
                       }
                     }

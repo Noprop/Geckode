@@ -224,7 +224,7 @@ export default class GameScene extends Phaser.Scene {
     sprite.setDepth(GameScene.GAME_SPRITE_BASE_DEPTH);
     sprite.setScale(scaleX, scaleY);
     sprite.setVisible(visible);
-    sprite.setAngle(direction - 90);
+    sprite.setAngle(direction);
     sprite.setCollideWorldBounds(false);
 
     this.gameLayer.add(sprite);
