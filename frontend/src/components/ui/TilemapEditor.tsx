@@ -374,7 +374,7 @@ const SpriteEditor = () => {
       useGeckodeStore.getState().updateAssetTexture(editingTextureName!, base64Image);
       await phaserScene.updateTextureAsync(newTextureName, base64Image);
     }
-    phaserScene.createSprite(newSprite.id, newSprite.x, newSprite.y, newSprite.textureName);
+    phaserScene.createSprite(newSprite);
     clearEditingSprite();
     setIsSpriteModalOpen(false);
   };

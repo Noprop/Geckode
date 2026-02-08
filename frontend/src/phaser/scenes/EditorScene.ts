@@ -90,8 +90,8 @@ export default class EditorScene extends Phaser.Scene {
     this.initEventListeners();
 
     // create sprites
-    for (const sprite of useGeckodeStore.getState().spriteInstances) {
-      this.createSprite(sprite.id, sprite.x, sprite.y, sprite.textureName);
+    for (const instance of useGeckodeStore.getState().spriteInstances) {
+      this.createSprite(instance);
     }
 
     this.cameras.main.centerOn(0, 0);
@@ -100,14 +100,17 @@ export default class EditorScene extends Phaser.Scene {
   update() {}
 
   // -- Sprite management -- //
-  public createSprite(id: string, x: number, y: number, textureName: string) {
+  public createSprite(instance: SpriteInstance) {
     if (!this.spriteLayer) return;
-    const sprite = this.physics.add.sprite(x, y, textureName);
-    sprite.setData('spriteId', id);
+    const sprite = this.physics.add.sprite(instance.x, instance.y, instance.textureName);
+    sprite.setData('spriteId', instance.id);
     sprite.setDepth(this.SPRITE_DEPTH);
+    sprite.setScale(instance.scaleX, instance.scaleY);
+    sprite.setVisible(instance.visible);
+    sprite.setAngle(instance.direction);
     this.spriteLayer.add(sprite);
     this.spriteLayer.bringToTop(sprite);
-    this.editorSprites.set(id, sprite);
+    this.editorSprites.set(instance.id, sprite);
     sprite.setInteractive({ cursor: 'grab' });
     this.input.setDraggable(sprite);
   }

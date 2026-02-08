@@ -1,7 +1,8 @@
 import * as Phaser from 'phaser';
 import { EventBus } from '@/phaser/EventBus';
-import type { SpriteInstance, SpritePhysics } from '@/blockly/spriteRegistry';
+import type { SpriteInstance } from '@/blockly/spriteRegistry';
 import { GAME_SCENE_KEY, EDITOR_SCENE_KEY } from '@/phaser/sceneKeys';
+import { useGeckodeStore } from '@/stores/geckodeStore';
 
 type SandboxContext = {
   scene: GameScene;
@@ -55,9 +56,10 @@ export default class GameScene extends Phaser.Scene {
     this.tilemap = null;
     this.groundLayer = null;
     this.gameSprites.clear();
+    this.physics.world.setBounds(-128, -96, 256, 192);
 
     // Create the tilemap first (sits below everything)
-    this.createTilemap();
+    // this.createTilemap();
 
     this.cursors = this.input.keyboard?.createCursorKeys()!;
     this.wasd = this.input.keyboard?.addKeys({
@@ -71,13 +73,13 @@ export default class GameScene extends Phaser.Scene {
     this.gameLayer = this.add.layer();
     this.gameLayer.setDepth(GameScene.GAME_SPRITE_BASE_DEPTH);
 
-    for (const instance of data.spriteInstances) {
-      const textureName = instance.textureName;
-      this.addGameSprite(textureName, instance.x, instance.y, instance.id, instance.physics);
+    for (const instance of useGeckodeStore.getState().spriteInstances) {
+      console.log('[GameScene] creating sprite: ', instance.id, instance.textureName, instance.x, instance.y);
+      this.addGameSprite(instance);
     }
 
     // Set up collisions between sprites and tilemap
-    this.setupTilemapCollisions();
+    // this.setupTilemapCollisions();
 
     // Execute the Blockly-generated code
     if (data.code) {
@@ -213,12 +215,17 @@ export default class GameScene extends Phaser.Scene {
   //   }
   // };
 
-  public addGameSprite(texture: string, x: number, y: number, id: string, physics?: SpritePhysics) {
-    console.log('[GameScene] addGameSprite called', texture, x, y, id, physics);
-    const sprite = this.physics.add.sprite(x, y, texture);
+  public addGameSprite(instance: SpriteInstance) {
+    const { id, x, y, textureName, scaleX, scaleY, visible, direction, physics } = instance;
+    console.log('[GameScene] addGameSprite called', textureName, x, y, id, physics);
+    const sprite = this.physics.add.sprite(x, y, textureName);
     sprite.setName(id);
     sprite.setData('gameSpriteId', id);
     sprite.setDepth(GameScene.GAME_SPRITE_BASE_DEPTH);
+    sprite.setScale(scaleX, scaleY);
+    sprite.setVisible(visible);
+    sprite.setAngle(direction - 90);
+    sprite.setCollideWorldBounds(false);
 
     this.gameLayer.add(sprite);
     this.gameLayer.bringToTop(sprite);

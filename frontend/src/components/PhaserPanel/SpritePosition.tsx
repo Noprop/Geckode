@@ -254,7 +254,8 @@ const SpritePosition = () => {
           onBlur={handleBlurY}
         />
 
-        <label className="flex cursor-pointer items-center gap-1.5">
+        {/* TODO: probably add this back in later */}
+        {/* <label className="flex cursor-pointer items-center gap-1.5">
           <input
             type="checkbox"
             checked={values.snapToGrid}
@@ -263,7 +264,7 @@ const SpritePosition = () => {
             className="h-3.5 w-3.5 accent-primary-green cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           />
           <span className={labelClasses}>Snap</span>
-        </label>
+        </label> */}
 
         <fieldset className="flex items-center gap-0 border-0 p-0 m-0">
           <legend className={`${labelClasses} mr-2 sr-only`}>

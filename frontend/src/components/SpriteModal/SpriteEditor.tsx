@@ -385,7 +385,7 @@ const SpriteEditor = () => {
       useGeckodeStore.getState().updateAssetTexture(editingTextureName!, base64Image);
       await phaserScene.updateTextureAsync(newTextureName, base64Image);
     }
-    phaserScene.createSprite(newSprite.id, newSprite.x, newSprite.y, newSprite.textureName);
+    phaserScene.createSprite(newSprite);
 
     // add sprite to state, save workspace for current sprite, and switch to new sprite
     useGeckodeStore.setState({

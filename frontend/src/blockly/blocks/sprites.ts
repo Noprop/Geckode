@@ -95,6 +95,8 @@ javascriptGenerator.forBlock['changeProperty'] = function (block, generator) {
       .includes(spriteKey) &&
     !isIsolated(block)
   ) {
+    // TODO: verify that we should be using sprite.body instead of sprite.x (apparently .body is the physics body which
+    // is the top left of the sprite, rather than the center)
     const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
     return `scene.getSprite(${
       spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"'
