@@ -72,22 +72,6 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
     const { [textureName]: _, ...rest } = get().assetTextures;
     set({ assetTextures: rest });
   },
-
-  addSpriteInstance: (sprite: Omit<SpriteDefinition, 'id'>) => {
-    const instance: SpriteInstance = {
-      ...sprite,
-      id: `id_${Date.now()}`,
-      x: 0,
-      y: 0,
-      visible: true,
-      scaleX: 1,
-      scaleY: 1,
-      direction: 0,
-      snapToGrid: true,
-    };
-    set({ spriteInstances: [...get().spriteInstances, instance], selectedSpriteIdx: get().spriteInstances.length });
-    return instance;
-  },
   removeSpriteInstance: (spriteIdx: number) => {
     set({
       spriteInstances: get().spriteInstances.filter((_, index) => index !== spriteIdx),
@@ -105,24 +89,27 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
       ),
     }));
   },
-  setSelectedSpriteIdx: (spriteIdx: number) => {
-    const { blocklyWorkspace, spriteWorkspaces, spriteInstances, selectedSpriteIdx: currentIdx } = get();
+  setSelectedSpriteIdx: (newIdx: number) => {
+    const { blocklyWorkspace, spriteWorkspaces, spriteInstances, selectedSpriteIdx: prevIdx } = get();
+
+    if (newIdx === prevIdx) return;
     if (!blocklyWorkspace || spriteInstances.length === 0) return;
 
-    if (currentIdx !== null && spriteInstances[currentIdx]) {
+    if (prevIdx !== null && spriteInstances[prevIdx]) {
       const currentState = Blockly.serialization.workspaces.save(blocklyWorkspace);
-      spriteWorkspaces.set(spriteInstances[currentIdx].id, currentState);
+      spriteWorkspaces.set(spriteInstances[prevIdx].id, currentState);
     }
 
-    blocklyWorkspace.clear();
-    const state = spriteWorkspaces.get(spriteInstances[spriteIdx].id);
-
-    if (state && Object.keys(state).length > 0) {
+    // blocklyWorkspace.clear();
+    const state = spriteWorkspaces.get(spriteInstances[newIdx].id);
+    if (!state) {
+      Blockly.serialization.workspaces.load({}, blocklyWorkspace);
+    } else {
       Blockly.serialization.workspaces.load(state, blocklyWorkspace);
     }
 
-    set({ selectedSpriteIdx: spriteIdx });
-    console.log(`sprite ${spriteIdx} workspace loaded`);
+    set({ selectedSpriteIdx: newIdx });
+    console.log(`sprite ${newIdx} workspace loaded`);
   },
   setEditingSprite: (source: 'new' | 'library' | 'asset', textureName: string | null) => {
     set({ editingSource: source, editingTextureName: textureName });

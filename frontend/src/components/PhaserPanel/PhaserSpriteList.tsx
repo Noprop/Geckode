@@ -13,6 +13,8 @@ const PhaserSpriteList = () => {
   const libraryTextures = useGeckodeStore((state) => state.libraryTextures);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
+  console.log('currently selected index: ', selectedSpriteIdx);
+
   useEffect(() => {
     if (sprites.length === 0) return;
     if (selectedSpriteIdx === null)

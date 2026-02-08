@@ -77,12 +77,9 @@ export const createEditorSlice: StateCreator<
     };
 
     spriteOutputs.set(spriteId, output);
-    console.log("generateCode spriteId: ", spriteId);
-    console.log(
-      "generateCode spriteOutputs: ",
-      JSON.stringify(spriteOutputs, null, 2),
-    );
-    console.log("generateCode workspace code: \n", code);
+    console.log('generateCode spriteId: ', spriteId);
+    console.log('generateCode spriteOutputs: ', JSON.stringify(spriteOutputs, null, 2));
+    console.log('generateCode workspace code: \n', code);
 
     // save workspace state
     const state = Blockly.serialization.workspaces.save(blocklyWorkspace);

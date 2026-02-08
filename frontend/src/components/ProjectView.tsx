@@ -2,36 +2,26 @@
 
 import { useEffect } from "react";
 import BlocklyEditor from "@/components/BlocklyEditor";
-import EditorScene from "@/phaser/scenes/EditorScene";
 import { useWorkspaceView } from "@/contexts/WorkspaceViewContext";
-import { EventBus } from "@/phaser/EventBus";
 import { useGeckodeStore } from "@/stores/geckodeStore";
 import Phaser from "./PhaserPanel/Phaser";
-import type { SpriteInstance } from "@/blockly/spriteRegistry";
+
+import TilemapEditor from "./ui/TilemapEditor";
 
 // disable for now
 // import { useBlockSync } from "@/hooks/yjs/useBlockSync";
 // import { useVariableSync } from "@/hooks/yjs/useVariableSync";
 
-const GRID_SIZE = 50;
-const CENTER_X = 240;
-const CENTER_Y = 180;
+// TODO: either delete or use this again
+// const snapToGrid = (x: number, y: number): { x: number; y: number } => {
+//   // Snap to grid lines that radiate from center
+//   const snappedX = CENTER_X + Math.round((x - CENTER_X) / GRID_SIZE) * GRID_SIZE;
+//   const snappedY = CENTER_Y + Math.round((y - CENTER_Y) / GRID_SIZE) * GRID_SIZE;
+//   return { x: snappedX, y: snappedY };
+// };
 
-const snapToGrid = (x: number, y: number): { x: number; y: number } => {
-  // Snap to grid lines that radiate from center
-  const snappedX = CENTER_X + Math.round((x - CENTER_X) / GRID_SIZE) * GRID_SIZE;
-  const snappedY = CENTER_Y + Math.round((y - CENTER_Y) / GRID_SIZE) * GRID_SIZE;
-  return { x: snappedX, y: snappedY };
-};
-
-interface ProjectViewProps {
-  projectId?: number;
-}
-
-const ProjectView = ({ projectId }: ProjectViewProps) => {
-  const documentName = String(projectId ?? 0);
+const ProjectView = () => {
   const { view } = useWorkspaceView();
-  const { setSpriteInstances } = useGeckodeStore();
   const { undoWorkspace, redoWorkspace, canUndo, canRedo } = useGeckodeStore();
 
   // disable for now 
@@ -43,41 +33,6 @@ const ProjectView = ({ projectId }: ProjectViewProps) => {
       // Cancel any pending auto-convert on unmount
       useGeckodeStore.getState().cancelScheduledConvert();
     };
-  }, []);
-
-  useEffect(() => {
-    const handleSpriteMove = ({ id, x, y }: { id: string; x: number; y: number }) => {
-      const phaserScene = useGeckodeStore.getState().phaserScene;
-      if (!(phaserScene instanceof EditorScene)) return;
-
-      const { updateSprite } = useGeckodeStore.getState();
-      updateSprite(id, { x, y });
-
-      // setSpriteInstances((state) => {
-      //   const sprite = state.find((s: SpriteInstance) => s.id === id);
-      //   if (!sprite) return state;
-
-      //   let finalX = x;
-      //   let finalY = y;
-
-      //   if (sprite.snapToGrid) {
-      //     const snapped = snapToGrid(x, y);
-      //     finalX = snapped.x;
-      //     finalY = snapped.y;
-      //     phaserScene.updateSprite(id, {
-      //       x: finalX,
-      //       y: finalY,
-      //     });
-      //   }
-
-      //   return state.map((s: SpriteInstance) =>
-      //     s.id === id ? { ...s, x: finalX, y: finalY } : s,
-      //   );
-      // });
-    };
-
-    EventBus.on("editor-sprite-moved", handleSpriteMove);
-    return () => void EventBus.off("editor-sprite-moved", handleSpriteMove);
   }, []);
 
   return (
@@ -97,7 +52,8 @@ const ProjectView = ({ projectId }: ProjectViewProps) => {
           }`}
           aria-hidden={view !== "sprite"}
         >
-          <div
+          <TilemapEditor />
+          {/* <div
             className="w-full max-w-3xl rounded-2xl border border-dashed border-slate-400
           bg-white/80 p-8 text-center shadow-md backdrop-blur-sm dark:border-slate-700 dark:bg-dark-secondary/80"
           >
@@ -108,7 +64,7 @@ const ProjectView = ({ projectId }: ProjectViewProps) => {
               A dedicated sprite editor will live here. For now, continue using
               the tools on the right.
             </p>
-          </div>
+          </div> */}
         </div>
 
         {view === "blocks" && (

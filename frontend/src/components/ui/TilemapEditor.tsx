@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
-import { Button } from '../ui/Button';
+import { Button } from './Button';
 import { useGeckodeStore } from '@/stores/geckodeStore';
-import EditorTools from './EditorTools';
+import EditorTools from '../SpriteModal/EditorTools';
 import { Display } from 'phaser';
 import EditorScene from '@/phaser/scenes/EditorScene';
 import { useCanvasZoom } from '@/hooks/useCanvasZoom';
@@ -362,25 +362,10 @@ const SpriteEditor = () => {
 
     const newSpriteName = createUniqueSpriteName(spriteName, spriteInstances);
     const newTextureName = editingSource === 'asset' ? editingTextureName! : createUniqueTextureName(spriteName, assetTextures);
-
-    const newSprite: SpriteInstance = {
+    const newSprite = useGeckodeStore.getState().addSpriteInstance({
       name: newSpriteName,
       textureName: newTextureName,
-      id: `id_${Date.now()}`,
-      x: 0,
-      y: 0,
-      visible: true,
-      scaleX: 1,
-      scaleY: 1,
-      direction: 0,
-      snapToGrid: true,
-    };
-
-    // TOOD: manually add sprite instead of doing this:
-    // const newSprite = useGeckodeStore.getState().addSpriteInstance({
-    //   name: newSpriteName,
-    //   textureName: newTextureName,
-    // });
+    });
 
     if (editingSource === 'new' || editingSource === 'library') {
       useGeckodeStore.getState().addAssetTexture(newTextureName, base64Image);
@@ -390,8 +375,6 @@ const SpriteEditor = () => {
       await phaserScene.updateTextureAsync(newTextureName, base64Image);
     }
     phaserScene.createSprite(newSprite.id, newSprite.x, newSprite.y, newSprite.textureName);
-    useGeckodeStore.setState({ spriteInstances: [...spriteInstances, newSprite] });
-    useGeckodeStore.getState().setSelectedSpriteIdx(spriteInstances.length);
     clearEditingSprite();
     setIsSpriteModalOpen(false);
   };

@@ -55,7 +55,6 @@ export interface SpriteActions {
   updateAssetTexture: (textureName: string, base64Image: string) => void;
   removeAssetTexture: (textureName: string) => void;
 
-  addSpriteInstance: (sprite: Omit<SpriteDefinition, 'id'>) => SpriteInstance;
   removeSpriteInstance: (spriteIdx: number) => void;
   updateSpriteInstance: (spriteIdx: number, updates: Partial<SpriteInstance>) => void;
 

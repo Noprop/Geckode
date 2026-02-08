@@ -103,6 +103,7 @@ const SpritePosition = () => {
     };
 
     const handleDragEnd = ({ id, x, y }: { id: string; x: number; y: number; }) => {
+      const { selectedSpriteIdx, spriteInstances, updateSpriteInstance } = useGeckodeStore.getState();
       if (selectedSpriteIdx === null) return;
       if (spriteInstances[selectedSpriteIdx]?.id !== id) return;
       setValues((prev) => ({
