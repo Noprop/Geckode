@@ -1,7 +1,6 @@
 import { javascriptGenerator, Order } from "blockly/javascript";
 import { getSpriteDropdownOptions } from '@/blockly/spriteRegistry';
-import { useEditorStore } from '@/stores/editorStore';
-import { useSpriteStore } from "@/stores/spriteStore";
+import { useGeckodeStore } from '@/stores/geckodeStore';
 import { isIsolated } from '@/blockly/index';
 
 const setProperty = {
@@ -38,12 +37,17 @@ const setProperty = {
 javascriptGenerator.forBlock['setProperty'] = function (block, generator) {
   const value = generator.valueToCode(block, 'VALUE', Order.NONE) || 0;
   const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
-  const spriteName = spriteKey === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey + '"'
+  const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
+  const spriteName = spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"';
 
-  if (useSpriteStore.getState().spriteInstances.map(s => s.id).includes(spriteKey) && !isIsolated(block)){
-    return `scene.getSprite(${spriteName}).set${block.getFieldValue(
-      'PROPERTY'
-    )}(${value})\n`;
+  if (
+    useGeckodeStore
+      .getState()
+      .spriteInstances.map((s) => s.id)
+      .includes(spriteKey) &&
+    !isIsolated(block)
+  ) {
+    return `scene.getSprite(${spriteName}).set${block.getFieldValue('PROPERTY')}(${value})\n`;
   }
 
   return '';
@@ -84,10 +88,19 @@ javascriptGenerator.forBlock['changeProperty'] = function (block, generator) {
   const value = generator.valueToCode(block, 'VALUE', Order.NONE) || 0;
   const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
 
-  if (useSpriteStore.getState().spriteInstances.map(s => s.id).includes(spriteKey) && !isIsolated(block)){
-    return `scene.getSprite(${spriteKey === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey + '"'}).body.${block.getFieldValue(
-      'PROPERTY'
-    )} += ${value}\n`;
+  if (
+    useGeckodeStore
+      .getState()
+      .spriteInstances.map((s) => s.id)
+      .includes(spriteKey) &&
+    !isIsolated(block)
+  ) {
+    // TODO: verify that we should be using sprite.body instead of sprite.x (apparently .body is the physics body which
+    // is the top left of the sprite, rather than the center)
+    const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
+    return `scene.getSprite(${
+      spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"'
+    }).body.${block.getFieldValue('PROPERTY')} += ${value}\n`;
   }
 
   return '';
@@ -120,10 +133,17 @@ const getProperty = {
 
 javascriptGenerator.forBlock['getProperty'] = function (block, generator) {
   const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
-  if (useSpriteStore.getState().spriteInstances.map(s => s.id).includes(spriteKey) && !isIsolated(block)){
-    const code = `scene.getSprite(${spriteKey === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey + '"'}).${block.getFieldValue(
-      'PROPERTY'
-    )}`;
+  if (
+    useGeckodeStore
+      .getState()
+      .spriteInstances.map((s) => s.id)
+      .includes(spriteKey) &&
+    !isIsolated(block)
+  ) {
+    const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
+    const code = `scene.getSprite(${
+      spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"'
+    }).${block.getFieldValue('PROPERTY')}`;
     return [code, Order.NONE];
   }
   return['', Order.NONE];
@@ -155,8 +175,17 @@ javascriptGenerator.forBlock['setRotation'] = function (block, generator) {
   const value = generator.valueToCode(block, 'VALUE', Order.NONE) || 0;
   const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
 
-  if (useSpriteStore.getState().spriteInstances.map(s => s.id).includes(spriteKey) && !isIsolated(block)){
-    return `scene.getSprite(${spriteKey === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey + '"'}).angle = (${value}-90) % 360\n`;
+  if (
+    useGeckodeStore
+      .getState()
+      .spriteInstances.map((s) => s.id)
+      .includes(spriteKey) &&
+    !isIsolated(block)
+  ) {
+    const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
+    return `scene.getSprite(${
+      spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"'
+    }).angle = (${value}-90) % 360\n`;
   }
   return '';
 };
@@ -198,8 +227,15 @@ javascriptGenerator.forBlock['pointAtXY'] = function (block, generator) {
   // const inUpdateLoop = isInUpdateLoop(block);
   // You can use this to generate different code based on context
   
-  if (useSpriteStore.getState().spriteInstances.map(s => s.id).includes(spriteKey) && !isIsolated(block)){
-    const spriteName = `scene.getSprite(${spriteKey === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey + '"'})`
+  if (
+    useGeckodeStore
+      .getState()
+      .spriteInstances.map((s) => s.id)
+      .includes(spriteKey) &&
+    !isIsolated(block)
+  ) {
+    const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
+    const spriteName = `scene.getSprite(${spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"'})`;
     return `${spriteName}.rotation = Phaser.Math.Angle.Between(${spriteName}.x, ${spriteName}.y, ${x}, ${y})\n`;
   }
   return '';
@@ -230,11 +266,21 @@ javascriptGenerator.forBlock['isTouching'] = function (block, generator) {
 
   const spriteKey1 = generator.valueToCode(block, 'SPRITE1', Order.NONE) || '';
   const spriteKey2 = generator.valueToCode(block, 'SPRITE2', Order.NONE) || '';
-  if (useSpriteStore.getState().spriteInstances.map(s => s.id).includes(spriteKey1)
-      && useSpriteStore.getState().spriteInstances.map(s => s.id).includes(spriteKey2) && !isIsolated(block)){
-    const spriteName1 = `scene.getSprite(${spriteKey1 === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey1 + '"'})`;
-    const spriteName2 = `scene.getSprite(${spriteKey2 === useEditorStore.getState().spriteId ? 'thisSprite' : '"' + spriteKey2 + '"'})`;
-    
+  if (
+    useGeckodeStore
+      .getState()
+      .spriteInstances.map((s) => s.id)
+      .includes(spriteKey1) &&
+    useGeckodeStore
+      .getState()
+      .spriteInstances.map((s) => s.id)
+      .includes(spriteKey2) &&
+    !isIsolated(block)
+  ) {
+    const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
+    const spriteName1 = `scene.getSprite(${spriteKey1 === currentSpriteId ? 'thisSprite' : '"' + spriteKey1 + '"'})`;
+    const spriteName2 = `scene.getSprite(${spriteKey2 === currentSpriteId ? 'thisSprite' : '"' + spriteKey2 + '"'})`;
+
     return [`scene.physics.world.overlap(${spriteName1}, ${spriteName2})`, Order.NONE];
   }
   return [`false`, Order.NONE];

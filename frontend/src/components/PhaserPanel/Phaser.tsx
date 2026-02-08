@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useEditorStore } from '@/stores/editorStore';
+import { useGeckodeStore } from '@/stores/geckodeStore';
 import * as Blockly from 'blockly/core';
 import { PlayIcon, StopIcon } from '@/components/icons';
 import PhaserGame from './PhaserGame';
@@ -10,7 +10,7 @@ import PhaserSceneList from './PhaserSceneList';
 import SpritePhysicsCurtain from './SpritePhysicsCurtain';
 
 const Phaser = () => {
-  const { isEditorScene, toggleEditor } = useEditorStore();
+  const { isEditorScene, toggleEditor } = useGeckodeStore();
   const [isPhysicsPanelExpanded, setIsPhysicsPanelExpanded] = useState(false);
 
   return (

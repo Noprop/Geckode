@@ -1,31 +1,22 @@
-import { useEffect } from 'react';
-import { useSpriteStore } from '@/stores/spriteStore';
+import { useEffect, useState } from 'react';
+import { useGeckodeStore } from '@/stores/geckodeStore';
 import { Button } from '../ui/Button';
-import { useEditorStore } from '@/stores/editorStore';
 import { Cross2Icon } from '@radix-ui/react-icons';
 
 const PhaserSpriteList = () => {
-  const sprites = useSpriteStore((state) => state.spriteInstances);
-  const setIsSpriteModalOpen = useSpriteStore((state) => state.setIsSpriteModalOpen);
-  const selectedSpriteId = useSpriteStore((state) => state.selectedSpriteId);
-  const setSelectedSpriteId = useSpriteStore((state) => state.setSelectedSpriteId);
-  const setSelectedSprite = useSpriteStore((state) => state.setSelectedSprite);
-  const removeSpriteFromGame = useSpriteStore((state) => state.removeSpriteFromGame);
+  const sprites = useGeckodeStore((state) => state.spriteInstances);
+  const setIsSpriteModalOpen = useGeckodeStore((state) => state.setIsSpriteModalOpen);
+  const selectedSpriteIdx = useGeckodeStore((state) => state.selectedSpriteIdx);
+  const setSelectedSpriteIdx = useGeckodeStore((state) => state.setSelectedSpriteIdx);
+  const removeSpriteInstance = useGeckodeStore((state) => state.removeSpriteInstance);
+  const assetTextures = useGeckodeStore((state) => state.assetTextures);
+  const libraryTextures = useGeckodeStore((state) => state.libraryTextures);
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
-  const handleSpriteSelect = (spriteId: string) => {
-    useEditorStore.getState().loadWorkspace(spriteId);
-    setSelectedSpriteId(spriteId);
-    setSelectedSprite(sprites.find((sprite) => sprite.id === spriteId)!);
-  };
-
-  // TODO: ensure this works. the idea is that if we load a project with sprites,
-  // then it needs to auto select the first. there should in theory be a manual
-  // way to do this. get rid of this useEffect code if there is.
   useEffect(() => {
-    if (selectedSpriteId || sprites.length === 0) return;
-    setSelectedSpriteId(sprites[0].id);
-    setSelectedSprite(sprites[0]);
-    useEditorStore.getState().loadWorkspace(sprites[0].id);
+    if (sprites.length === 0) return;
+    if (selectedSpriteIdx === null)
+      setSelectedSpriteIdx(0);
   }, []);
 
   return (
@@ -51,25 +42,36 @@ const PhaserSpriteList = () => {
           </div>
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(75px,1fr))] gap-2 pr-1">
-            {sprites.map((sprite) => {
-              const isSelected = sprite.id === selectedSpriteId;
-              console.log('[PhaserSpriteList] isSelected: ', isSelected, 'selectedSpriteId: ', selectedSpriteId);
-
+              {sprites.map((sprite, idx) => {
+                const isSelected = idx === selectedSpriteIdx;
+                const isHovered = idx === hoveredIdx;
+                const textureUrl = assetTextures[sprite.textureName] ?? libraryTextures[sprite.textureName];
               return (
                 <div
                   key={sprite.id}
-                  onClick={() => handleSpriteSelect(sprite.id)}
+                  onClick={() => setSelectedSpriteIdx(idx)}
+                  onMouseEnter={() => setHoveredIdx(idx)}
+                  onMouseLeave={() => setHoveredIdx(null)}
                   className={`relative aspect-square rounded-lg border-2 cursor-pointer transition-all overflow-hidden ${
                     isSelected
                       ? 'border-primary-green bg-primary-green/10 shadow-md ring-2 ring-primary-green/30'
                       : 'border-slate-200 bg-slate-50 hover:border-primary-green/50 dark:border-slate-600 dark:bg-dark-hover dark:hover:border-primary-green/50'
                   }`}
                 >
-                  {/* Sprite Thumbnail Placeholder */}
                   <div className="w-full h-full flex items-center justify-center">
-                    <div className="w-10 h-10 rounded-md bg-slate-200 dark:bg-slate-600 flex items-center justify-center text-lg font-bold text-slate-400 dark:text-slate-400">
-                      {sprite.name.charAt(0).toUpperCase()}
-                    </div>
+                    {textureUrl ? (
+                      <img
+                        src={textureUrl}
+                        alt={sprite.name}
+                        className="w-10 h-10 object-contain"
+                        style={{ imageRendering: 'pixelated' }}
+                        draggable={false}
+                      />
+                    ) : (
+                        <div className="w-10 h-10 rounded-md bg-slate-200 dark:bg-slate-600 flex items-center justify-center text-lg font-bold text-slate-400 dark:text-slate-400">
+                          {sprite.name.charAt(0).toUpperCase()}
+                        </div>
+                    )}
                   </div>
 
                   {/* Sprite Name Label */}
@@ -77,13 +79,12 @@ const PhaserSpriteList = () => {
                     <p className="text-[9px] text-white truncate text-center font-medium">{sprite.name}</p>
                   </div>
 
-                  {/* Delete Button - Only on Selected */}
-                  {isSelected && (
+                  {(isSelected || isHovered) && (
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        removeSpriteFromGame(sprite.id)
+                        removeSpriteInstance(idx)
                       }}
                       className="absolute top-1 right-1 rounded-full bg-slate-700/80 hover:bg-red-500 text-white p-0.5 transition shadow"
                       title="Delete sprite"

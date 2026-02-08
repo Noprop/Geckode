@@ -1,11 +1,10 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import * as Blockly from 'blockly/core';
 import type { PointerEvent as ReactPointerEvent } from 'react';
-import { Button } from '../ui/Button';
+import { Button } from './Button';
 import { useGeckodeStore } from '@/stores/geckodeStore';
-import EditorTools from './EditorTools';
+import EditorTools from '../SpriteModal/EditorTools';
 import { Display } from 'phaser';
 import EditorScene from '@/phaser/scenes/EditorScene';
 import { useCanvasZoom } from '@/hooks/useCanvasZoom';
@@ -363,21 +362,11 @@ const SpriteEditor = () => {
 
     const newSpriteName = createUniqueSpriteName(spriteName, spriteInstances);
     const newTextureName = editingSource === 'asset' ? editingTextureName! : createUniqueTextureName(spriteName, assetTextures);
-
-    const newSprite: SpriteInstance = {
+    const newSprite = useGeckodeStore.getState().addSpriteInstance({
       name: newSpriteName,
       textureName: newTextureName,
-      id: `id_${Date.now()}`,
-      x: 0,
-      y: 0,
-      visible: true,
-      scaleX: 1,
-      scaleY: 1,
-      direction: 0,
-      snapToGrid: true,
-    };
+    });
 
-    // add texture to state, and phaser
     if (editingSource === 'new' || editingSource === 'library') {
       useGeckodeStore.getState().addAssetTexture(newTextureName, base64Image);
       await phaserScene.loadTextureAsync(newTextureName, base64Image);
@@ -386,19 +375,6 @@ const SpriteEditor = () => {
       await phaserScene.updateTextureAsync(newTextureName, base64Image);
     }
     phaserScene.createSprite(newSprite);
-
-    // add sprite to state, save workspace for current sprite, and switch to new sprite
-    useGeckodeStore.setState({
-      spriteInstances: [...spriteInstances, newSprite],
-      selectedSpriteIdx: spriteInstances.length,
-      spriteWorkspaces: {
-        ...useGeckodeStore.getState().spriteWorkspaces,
-        [newSprite.id]: {},
-        [spriteInstances[useGeckodeStore.getState().selectedSpriteIdx].id]: Blockly.serialization.workspaces.save(useGeckodeStore.getState().blocklyWorkspace!),
-      },
-    });
-    Blockly.serialization.workspaces.load({}, useGeckodeStore.getState().blocklyWorkspace!);
-
     clearEditingSprite();
     setIsSpriteModalOpen(false);
   };

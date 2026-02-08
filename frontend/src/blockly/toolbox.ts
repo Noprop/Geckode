@@ -1,7 +1,7 @@
-import { useEditorStore } from '@/stores/editorStore';
+import { useGeckodeStore } from '@/stores/geckodeStore';
 
 const getToolbox = () => {
-  const spriteId = useEditorStore.getState().spriteId || 'BIG BAD MISTAKE';
+  const spriteId = useGeckodeStore.getState().getCurrentSpriteId() ?? '';
 
   return {
     kind: 'categoryToolbox',
@@ -156,7 +156,6 @@ const getToolbox = () => {
                   },
                 },
               },
-              
             },
           },
         ],
@@ -376,7 +375,7 @@ const getToolbox = () => {
         type: 'math_arithmetic',
       },
     ],
-  }
+  };
 };
 
 export default getToolbox;
