@@ -6,7 +6,7 @@ import { useWorkspaceView } from "@/contexts/WorkspaceViewContext";
 import { useGeckodeStore } from "@/stores/geckodeStore";
 import Phaser from "./PhaserPanel/Phaser";
 
-import TilemapEditor from "./ui/TilemapEditor";
+import AssetWorkspace from "./AssetWorkspace/AssetWorkspace";
 
 // disable for now
 // import { useBlockSync } from "@/hooks/yjs/useBlockSync";
@@ -52,7 +52,7 @@ const ProjectView = () => {
           }`}
           aria-hidden={view !== "sprite"}
         >
-          <TilemapEditor />
+          <AssetWorkspace />
           {/* <div
             className="w-full max-w-3xl rounded-2xl border border-dashed border-slate-400
           bg-white/80 p-8 text-center shadow-md backdrop-blur-sm dark:border-slate-700 dark:bg-dark-secondary/80"

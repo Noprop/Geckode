@@ -14,6 +14,7 @@ export type {
   Scene,
   SpriteAddPayload,
   Tilemap,
+  TilemapTool,
 } from "./slices/types";
 
 export const useGeckodeStore = create<GeckodeStore>()(
@@ -31,6 +32,10 @@ export const useGeckodeStore = create<GeckodeStore>()(
         spriteInstances: state.spriteInstances,
         assetTextures: state.assetTextures,
         libraryTextures: state.libraryTextures,
+        tileTextures: state.tileTextures,
+        tilemaps: state.tilemaps,
+        scenes: state.scenes,
+        activeTilemapId: state.activeTilemapId,
         selectedSpriteIdx: state.selectedSpriteIdx,
         spriteWorkspaces: state.spriteWorkspaces,
         projectName: state.projectName,

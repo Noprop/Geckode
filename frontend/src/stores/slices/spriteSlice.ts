@@ -2,8 +2,29 @@ import * as Blockly from 'blockly/core';
 import type { StateCreator } from 'zustand';
 import type { SpriteInstance } from '@/blockly/spriteRegistry';
 import EditorScene from '@/phaser/scenes/EditorScene';
-import { gavin, heroWalkBack1, heroWalkFront1 } from '../sprites';
-import type { GeckodeStore, SpriteSlice } from './types';
+import { dirtTile, gavin, grassTile, heroWalkBack1, heroWalkFront1 } from '../b64_textures';
+import type { GeckodeStore, Scene, SpriteSlice, Tilemap } from './types';
+
+/** Create a 2D array of nulls with the given dimensions */
+export const createEmptyTilemapData = (width: number, height: number): (string | null)[][] =>
+  Array.from({ length: height }, () => Array.from({ length: width }, () => null));
+
+const DEFAULT_TILEMAP_ID = 'tilemap_1';
+const DEFAULT_SCENE_ID = 'scene_1';
+
+const createDefaultTilemap = (): Tilemap => ({
+  id: DEFAULT_TILEMAP_ID,
+  name: 'Tilemap 1',
+  width: 16,
+  height: 16,
+  data: createEmptyTilemapData(16, 16),
+});
+
+const createDefaultScene = (): Scene => ({
+  id: DEFAULT_SCENE_ID,
+  name: 'Scene 1',
+  tilemapId: DEFAULT_TILEMAP_ID,
+});
 
 /** deduplicate texture name */
 export const createUniqueTextureName = (name: string, assetTextures: Record<string, string>): string => {
@@ -52,6 +73,13 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
     'hero-walk-back': heroWalkBack1,
     gavin: gavin,
   },
+  tileTextures: {
+    'grass': grassTile,
+    'dirt': dirtTile,
+  },
+  tilemaps: { [DEFAULT_TILEMAP_ID]: createDefaultTilemap() },
+  scenes: [createDefaultScene()],
+  activeTilemapId: DEFAULT_TILEMAP_ID,
   isSpriteModalOpen: false,
   selectedSpriteIdx: 0,
   editingSource: null,
@@ -78,6 +106,18 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
   removeAssetTexture: (textureName: string) => {
     const { [textureName]: _, ...rest } = get().assetTextures;
     set({ assetTextures: rest });
+  },
+  addTileTexture: (textureName: string, base64Image: string) =>
+    set({
+      tileTextures: { ...get().tileTextures, [textureName]: base64Image },
+    }),
+  updateTileTexture: (textureName: string, base64Image: string) =>
+    set({
+      tileTextures: { ...get().tileTextures, [textureName]: base64Image },
+    }),
+  removeTileTexture: (textureName: string) => {
+    const { [textureName]: _, ...rest } = get().tileTextures;
+    set({ tileTextures: rest });
   },
   removeSpriteInstance: (spriteIdx: number) => {
     set({
@@ -150,6 +190,65 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
     return textureName;
   },
 
+  updateTilemapCell: (tilemapId: string, row: number, col: number, tileKey: string | null) => {
+    const tilemap = get().tilemaps[tilemapId];
+    if (!tilemap) return;
+    const newData = tilemap.data.map((r, ri) =>
+      ri === row ? r.map((c, ci) => (ci === col ? tileKey : c)) : r,
+    );
+    set({
+      tilemaps: {
+        ...get().tilemaps,
+        [tilemapId]: { ...tilemap, data: newData },
+      },
+    });
+  },
+
+  setTilemapData: (tilemapId: string, data: (string | null)[][]) => {
+    const tilemap = get().tilemaps[tilemapId];
+    if (!tilemap) return;
+    set({
+      tilemaps: {
+        ...get().tilemaps,
+        [tilemapId]: { ...tilemap, data },
+      },
+    });
+  },
+
+  resizeTilemap: (tilemapId: string, newWidth: number, newHeight: number) => {
+    const tilemap = get().tilemaps[tilemapId];
+    if (!tilemap) return;
+    const newData: (string | null)[][] = [];
+    for (let r = 0; r < newHeight; r++) {
+      const row: (string | null)[] = [];
+      for (let c = 0; c < newWidth; c++) {
+        row.push(r < tilemap.data.length && c < tilemap.data[r].length ? tilemap.data[r][c] : null);
+      }
+      newData.push(row);
+    }
+    set({
+      tilemaps: {
+        ...get().tilemaps,
+        [tilemapId]: { ...tilemap, width: newWidth, height: newHeight, data: newData },
+      },
+    });
+  },
+
+  setActiveTilemapId: (id: string | null) => set({ activeTilemapId: id }),
+
+  clearTilemap: (tilemapId: string) => {
+    const tilemap = get().tilemaps[tilemapId];
+    if (!tilemap) return;
+    set({
+      tilemaps: {
+        ...get().tilemaps,
+        [tilemapId]: { ...tilemap, data: createEmptyTilemapData(tilemap.width, tilemap.height) },
+      },
+    });
+  },
+
+  setScenes: (scenes: Scene[]) => set({ scenes }),
+
   resetSpriteStore: () => {
     console.log('resetting sprite store');
     set({
@@ -178,6 +277,9 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
       selectedSpriteIdx: 0,
       editingSource: null,
       editingTextureName: null,
+      tilemaps: { [DEFAULT_TILEMAP_ID]: createDefaultTilemap() },
+      scenes: [createDefaultScene()],
+      activeTilemapId: DEFAULT_TILEMAP_ID,
     });
   },
 });

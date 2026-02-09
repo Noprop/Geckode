@@ -31,7 +31,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 label: "Blocks",
                 icon: DrawingPinFilledIcon,
               },
-              { value: "sprite", label: "Tilemap Editor", icon: ImageIcon },
+              { value: "sprite", label: "My Assets", icon: ImageIcon },
             ]}
           />
         }

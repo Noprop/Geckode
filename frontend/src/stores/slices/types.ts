@@ -29,7 +29,10 @@ export interface Tilemap {
   name: string;
   width: number;
   height: number;
+  data: (string | null)[][];
 }
+
+export type TilemapTool = 'place' | 'eraser' | 'bucket' | 'line' | 'rectangle' | 'oval' | 'tile-picker';
 
 // ── Sprite Slice ──
 
@@ -39,6 +42,11 @@ export interface SpriteState {
   spriteInstances: SpriteInstance[];
   assetTextures: Record<string, string>;
   libraryTextures: Record<string, string>;
+  tileTextures: Record<string, string>;
+
+  tilemaps: Record<string, Tilemap>;
+  scenes: Scene[];
+  activeTilemapId: string | null;
 
   isSpriteModalOpen: boolean;
   selectedSpriteIdx: number;
@@ -55,6 +63,10 @@ export interface SpriteActions {
   updateAssetTexture: (textureName: string, base64Image: string) => void;
   removeAssetTexture: (textureName: string) => void;
 
+  addTileTexture: (textureName: string, base64Image: string) => void;
+  updateTileTexture: (textureName: string, base64Image: string) => void;
+  removeTileTexture: (textureName: string) => void;
+
   removeSpriteInstance: (spriteIdx: number) => void;
   updateSpriteInstance: (spriteIdx: number, updates: Partial<SpriteInstance>) => void;
 
@@ -62,6 +74,13 @@ export interface SpriteActions {
   setEditingSprite: (source: EditingSource, textureName: string | null) => void;
   clearEditingSprite: () => void;
   saveSprite: (params: { spriteName: string; base64Image: string }) => string;
+
+  updateTilemapCell: (tilemapId: string, row: number, col: number, tileKey: string | null) => void;
+  setTilemapData: (tilemapId: string, data: (string | null)[][]) => void;
+  resizeTilemap: (tilemapId: string, newWidth: number, newHeight: number) => void;
+  setActiveTilemapId: (id: string | null) => void;
+  clearTilemap: (tilemapId: string) => void;
+  setScenes: (scenes: Scene[]) => void;
 
   resetSpriteStore: () => void;
 }
