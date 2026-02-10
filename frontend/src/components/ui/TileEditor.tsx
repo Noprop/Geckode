@@ -440,8 +440,9 @@ const TileEditor = () => {
   // }, [editingSource, editingTextureName, libraryTextures, assetTextures]);
 
   useEffect(() => {
-    // manually load a tile texture, refer to useEffect above to be dynamic
-    const textureInfo = tileTextures['dirt'];
+    // if (editingSource === null || editingTextureName === null || !canvasRef.current) return;
+    // const textureInfo = editingSource === "library" ? libraryTextures[editingTextureName] : assetTextures[editingTextureName];
+    const textureInfo = tileTextures['grass'];
 
     const img = new Image();
     img.onload = () => {

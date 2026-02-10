@@ -30,19 +30,23 @@ export interface Tilemap {
   width: number;
   height: number;
   data: (string | null)[][];
+  base64: string;
 }
 
 export type TilemapTool = 'place' | 'eraser' | 'bucket' | 'line' | 'rectangle' | 'oval' | 'tile-picker';
 
 // ── Sprite Slice ──
 
-export type EditingSource = 'new' | 'library' | 'asset';
+export type EditingSource = 'new' | 'library' | 'asset' | 'tile' | 'tileset' |'tilemap';
 
 export interface SpriteState {
   spriteInstances: SpriteInstance[];
   assetTextures: Record<string, string>;
   libraryTextures: Record<string, string>;
   tileTextures: Record<string, string>;
+  tilesetTextures: Record<string, string>;
+  animationTextures: Record<string, string>;
+  backgroundTextures: Record<string, string>;
 
   tilemaps: Record<string, Tilemap>;
   scenes: Scene[];
@@ -66,6 +70,18 @@ export interface SpriteActions {
   addTileTexture: (textureName: string, base64Image: string) => void;
   updateTileTexture: (textureName: string, base64Image: string) => void;
   removeTileTexture: (textureName: string) => void;
+
+  addTilesetTexture: (name: string, base64: string) => void;
+  updateTilesetTexture: (name: string, base64: string) => void;
+  removeTilesetTexture: (name: string) => void;
+
+  addAnimationTexture: (name: string, base64: string) => void;
+  updateAnimationTexture: (name: string, base64: string) => void;
+  removeAnimationTexture: (name: string) => void;
+
+  addBackgroundTexture: (name: string, base64: string) => void;
+  updateBackgroundTexture: (name: string, base64: string) => void;
+  removeBackgroundTexture: (name: string) => void;
 
   removeSpriteInstance: (spriteIdx: number) => void;
   updateSpriteInstance: (spriteIdx: number, updates: Partial<SpriteInstance>) => void;

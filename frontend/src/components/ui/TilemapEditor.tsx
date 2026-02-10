@@ -116,6 +116,30 @@ const TilemapEditor = () => {
   const { cellSize, zoomPercent, setZoom, isEditingZoom, setIsEditingZoom, canvasContainerRef, MIN_ZOOM_PERCENT, MAX_ZOOM_PERCENT } =
     useCanvasZoom(gridWidth, gridHeight);
 
+  // Checker pattern cache
+  const checkerTileRef = useRef<HTMLCanvasElement | null>(null);
+  const checkerTileCellSizeRef = useRef<number>(0);
+
+  const getCheckerPattern = (ctx: CanvasRenderingContext2D, size: number): CanvasPattern => {
+    if (!checkerTileRef.current || checkerTileCellSizeRef.current !== size) {
+      const tile = document.createElement('canvas');
+      tile.width = size * 2;
+      tile.height = size * 2;
+      const tileCtx = tile.getContext('2d')!;
+
+      tileCtx.fillStyle = '#9e9e9e';
+      tileCtx.fillRect(0, 0, size, size);
+      tileCtx.fillRect(size, size, size, size);
+      tileCtx.fillStyle = '#6e6e6e';
+      tileCtx.fillRect(size, 0, size, size);
+      tileCtx.fillRect(0, size, size, size);
+
+      checkerTileRef.current = tile;
+      checkerTileCellSizeRef.current = size;
+    }
+    return ctx.createPattern(checkerTileRef.current, 'repeat')!;
+  };
+
   // Pre-load tile images
   const tileImagesRef = useRef<Record<string, HTMLImageElement>>({});
   useEffect(() => {
@@ -172,10 +196,6 @@ const TilemapEditor = () => {
         const y = row * cs;
         if (tileKey && tileImagesRef.current[tileKey]) {
           ctx.drawImage(tileImagesRef.current[tileKey], x, y, cs, cs);
-        } else {
-          const isLight = (row + col) % 2 === 0;
-          ctx.fillStyle = isLight ? '#e2e8f0' : '#cbd5e1';
-          ctx.fillRect(x, y, cs, cs);
         }
       }
     }
@@ -214,6 +234,12 @@ const TilemapEditor = () => {
       const y = row * cs;
       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w * cs, y); ctx.stroke();
     }
+
+    // Draw checker pattern behind everything
+    ctx.globalCompositeOperation = 'destination-over';
+    ctx.fillStyle = getCheckerPattern(ctx, cs);
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.globalCompositeOperation = 'source-over';
   }, [tilemap, cellSize]);
 
   useEffect(() => { renderCanvas(); }, [renderCanvas]);
@@ -423,9 +449,9 @@ const TilemapEditor = () => {
   }
 
   return (
-    <div className="flex-1 min-h-0 flex border-t border-slate-200 bg-slate-800 dark:border-slate-700">
+    <div className="flex-1 min-h-0 flex bg-slate-800">
       {/* Left sidebar — brush size, tools, tile palette, grid size */}
-      <div className="w-30 flex flex-col gap-3 p-2 bg-slate-700 dark:bg-slate-800 border-r border-slate-600">
+      <div className="w-[400px] flex flex-col gap-3 p-2 bg-slate-700 dark:bg-slate-800 border-r border-slate-600">
         {/* Brush size */}
         <div className="grid grid-cols-3 rounded overflow-hidden">
           {[1, 2, 3].map((size) => (
@@ -473,7 +499,7 @@ const TilemapEditor = () => {
         {/* Tile palette */}
         <div className="flex flex-col gap-1">
           <span className="text-[10px] text-slate-400 uppercase tracking-wide font-semibold px-0.5">Tiles</span>
-          <div className="grid grid-cols-2 gap-1.5">
+          <div className="grid grid-cols-8">
             {Object.entries(tileTextures).map(([key, base64]) => (
               <button
                 key={key}
@@ -482,10 +508,10 @@ const TilemapEditor = () => {
                   setSelectedTileKey(key);
                   if (activeTool === 'tile-picker') setActiveTool('place');
                 }}
-                className={`aspect-square rounded cursor-pointer transition border-2 overflow-hidden ${
+                className={`aspect-square cursor-pointer transition overflow-hidden ${
                   selectedTileKey === key
-                    ? 'border-primary-green ring-1 ring-primary-green/50'
-                    : 'border-slate-500 hover:border-slate-400'
+                  ? 'ring-2 ring-primary-green ring-inset'
+                  : 'hover:ring-1 hover:ring-slate-400 hover:ring-inset'
                 }`}
                 title={key}
               >

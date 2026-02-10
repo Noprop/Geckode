@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { createContext, useContext, useMemo, useState } from "react";
 
-export type WorkspaceView = "blocks" | "sprite";
+export type WorkspaceView = "blocks" | "tilemap" | "assets";
 
 type WorkspaceViewContextValue = {
   view: WorkspaceView;
