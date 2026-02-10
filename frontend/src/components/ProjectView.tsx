@@ -6,7 +6,7 @@ import { useWorkspaceView } from "@/contexts/WorkspaceViewContext";
 import { useGeckodeStore } from "@/stores/geckodeStore";
 import Phaser from "./PhaserPanel/Phaser";
 
-import AssetWorkspace from "./AssetWorkspace/AssetWorkspace";
+import AssetWorkspace from "./AssetManager/Overview";
 import TilemapEditor from "@/components/ui/TilemapEditor";
 
 // disable for now

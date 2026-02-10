@@ -4,8 +4,8 @@ import { useMemo } from 'react';
 import { PlusIcon } from '@radix-ui/react-icons';
 import { useGeckodeStore } from '@/stores/geckodeStore';
 import type { AssetType } from '@/stores/slices/types';
-import { colorsByType, type SelectedAsset } from './AssetWorkspace';
-import { TAB_CONFIG } from './AssetWorkspace';
+import { type SelectedAsset } from './Overview';
+import { TAB_CONFIG } from './Overview';
 
 interface AssetListProps {
   filter: AssetType;
@@ -35,7 +35,7 @@ const AssetList = ({ filter, selectedAsset, onSelectAsset, onCreateNew }: AssetL
         >
           <PlusIcon className="h-6 w-6 text-slate-400 group-hover:text-primary-green dark:text-slate-500" />
           <span className="text-[11px] font-semibold text-slate-400 group-hover:text-primary-green dark:text-slate-500">
-            New {TAB_CONFIG.find((tab) => tab.id === filter)?.label}
+            New {TAB_CONFIG.find((tab) => tab.id === filter)?.label.slice(0, -1)}
           </span>
         </button>
 
@@ -60,9 +60,6 @@ const AssetList = ({ filter, selectedAsset, onSelectAsset, onCreateNew }: AssetL
             </div>
             <div className="flex items-center justify-between px-2 py-1.5">
               <div className="truncate text-[11px] font-semibold">{entry.name}</div>
-              <span className={`ml-1 shrink-0 rounded px-1 py-0.5 text-[9px] font-medium uppercase ${colorsByType[entry.type]}`}>
-                {entry.type}
-              </span>
             </div>
           </button>
         ))}

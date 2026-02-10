@@ -2,7 +2,7 @@
 
 import { Pencil2Icon, CopyIcon, TrashIcon } from '@radix-ui/react-icons';
 import { Files } from 'lucide-react';
-import { colorsByType, type SelectedAsset } from './AssetWorkspace';
+import { type SelectedAsset } from './Overview';
 
 interface TextureDetailPanelProps {
   selectedAsset: SelectedAsset;
@@ -36,10 +36,6 @@ const TextureDetailPanel = ({ selectedAsset, base64, onEdit, onDuplicate, onCopy
       <p className="mt-2 truncate text-xs font-semibold text-slate-800 dark:text-slate-200" title={selectedAsset.name}>
         {selectedAsset.name}
       </p>
-
-      <span className={`mt-1 self-start rounded px-1.5 py-0.5 text-[9px] font-medium uppercase ${colorsByType[selectedAsset.type]}`}>
-        {selectedAsset.type}
-      </span>
 
       <div className="mt-3 flex flex-col gap-1.5">
         <button type="button" onClick={onEdit} className="flex items-center gap-1.5 rounded px-2 py-1.5 text-[11px] font-medium text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700">

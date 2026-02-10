@@ -5,25 +5,18 @@ import { useGeckodeStore } from '@/stores/geckodeStore';
 import { createUniqueTextureName } from '@/stores/slices/spriteSlice';
 import type { AssetType } from '@/stores/slices/types';
 import AssetList from './AssetList';
-import TextureDetailPanel from './TextureDetailPanel';
-import TileEditorModal from './TileEditorModal';
+import TextureDetailPanel from './DetailPanel';
+import TileEditorModal from '../TileModal/TileEditorModal';
 
 export type SelectedAsset = { name: string; type: AssetType } | null;
-
-export const colorsByType: Record<AssetType, string> = {
-  textures: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  tiles: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-  tilesets: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-  animations: 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400',
-  backgrounds: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
-};
 
 export const TAB_CONFIG: { id: AssetType; label: string }[] = [
   { id: 'textures', label: 'Textures' },
   { id: 'tiles', label: 'Tiles' },
-  { id: 'tilesets', label: 'Tilesets' },
-  { id: 'animations', label: 'Animations' },
-  { id: 'backgrounds', label: 'Backgrounds' },
+  // TODO:
+  // { id: 'tilesets', label: 'Tilesets' },
+  // { id: 'animations', label: 'Animations' },
+  // { id: 'backgrounds', label: 'Backgrounds' },
 ];
 
 const AssetWorkspace = () => {
