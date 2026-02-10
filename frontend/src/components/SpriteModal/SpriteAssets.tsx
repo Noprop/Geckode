@@ -12,28 +12,28 @@ interface SpriteAssetsProps {
 
 const SpriteAssets = ({ setActiveTab }: SpriteAssetsProps) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const assetTextures = useGeckodeStore((s) => s.assetTextures);
-  const setEditingSprite = useGeckodeStore((s) => s.setEditingSprite);
-  const removeAssetTexture = useGeckodeStore((s) => s.removeAssetTexture);
+  const textures = useGeckodeStore((s) => s.textures);
+  const setEditingAsset = useGeckodeStore((s) => s.setEditingAsset);
+  const removeAsset = useGeckodeStore((s) => s.removeAsset);
 
   const filteredEntries = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    return Object.entries(assetTextures).filter(
+    return Object.entries(textures).filter(
       ([textureName]) => !query || textureName.toLowerCase().includes(query),
     );
-  }, [searchQuery, assetTextures]);
+  }, [searchQuery, textures]);
 
   const handleTextureClick = (textureName: string) => {
-    setEditingSprite('asset', textureName);
+    setEditingAsset(textureName, 'textures', 'asset');
     setActiveTab('editor');
   };
 
   const handleDelete = useCallback(
     (e: React.MouseEvent, textureName: string) => {
       e.stopPropagation();
-      removeAssetTexture(textureName);
+      removeAsset(textureName, 'textures');
     },
-    [removeAssetTexture],
+    [removeAsset],
   );
 
   return (

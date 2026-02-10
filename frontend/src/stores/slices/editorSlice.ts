@@ -209,11 +209,11 @@ export const createEditorSlice: StateCreator<
       );
 
       console.log("[toggleEditor] code: ", code);
-      const { assetTextures } = get();
+      const { textures } = get();
 
       phaserScene?.scene.start(GAME_SCENE_KEY, {
         spriteInstances,
-        assetTextures,
+        textures,
         code,
       });
 

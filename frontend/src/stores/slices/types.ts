@@ -37,16 +37,23 @@ export type TilemapTool = 'place' | 'eraser' | 'bucket' | 'line' | 'rectangle' |
 
 // ── Sprite Slice ──
 
-export type EditingSource = 'new' | 'library' | 'asset' | 'tile' | 'tileset' |'tilemap';
+export type AssetType = 'textures' | 'tiles' | 'tilesets' | 'animations' | 'backgrounds';
+export type EditingSource = 'new' | 'asset' | 'library';
 
 export interface SpriteState {
   spriteInstances: SpriteInstance[];
-  assetTextures: Record<string, string>;
-  libraryTextures: Record<string, string>;
-  tileTextures: Record<string, string>;
-  tilesetTextures: Record<string, string>;
-  animationTextures: Record<string, string>;
-  backgroundTextures: Record<string, string>;
+
+  textures: Record<string, string>;
+  tiles: Record<string, string>;
+  tilesets: Record<string, string>;
+  animations: Record<string, string>;
+  backgrounds: Record<string, string>;
+
+  libaryTextures: Record<string, string>;
+  libaryTiles: Record<string, string>;
+  libaryTilesets: Record<string, string>;
+  libaryAnimations: Record<string, string>;
+  libaryBackgrounds: Record<string, string>;
 
   tilemaps: Record<string, Tilemap>;
   scenes: Scene[];
@@ -54,43 +61,30 @@ export interface SpriteState {
 
   isSpriteModalOpen: boolean;
   selectedSpriteIdx: number;
+
   editingSource: EditingSource | null;
-  editingTextureName: string | null;
+  editingAssetName: string | null;
+  editingAssetType: AssetType | null;
 }
 
 export interface SpriteActions {
-  setSpriteInstances: (instances: SpriteInstance[]) => void;
+  setSelectedSpriteIdx: (spriteIdx: number) => void;
   setIsSpriteModalOpen: (isOpen: boolean) => void;
-  updateInstanceOrder: (spriteIdx: number, newIdx: number) => void;
+  setEditingAsset: (name: string | null, type: AssetType, source: EditingSource) => void;
 
-  addAssetTexture: (textureName: string, base64Image: string) => void;
-  updateAssetTexture: (textureName: string, base64Image: string) => void;
-  removeAssetTexture: (textureName: string) => void;
-
-  addTileTexture: (textureName: string, base64Image: string) => void;
-  updateTileTexture: (textureName: string, base64Image: string) => void;
-  removeTileTexture: (textureName: string) => void;
-
-  addTilesetTexture: (name: string, base64: string) => void;
-  updateTilesetTexture: (name: string, base64: string) => void;
-  removeTilesetTexture: (name: string) => void;
-
-  addAnimationTexture: (name: string, base64: string) => void;
-  updateAnimationTexture: (name: string, base64: string) => void;
-  removeAnimationTexture: (name: string) => void;
-
-  addBackgroundTexture: (name: string, base64: string) => void;
-  updateBackgroundTexture: (name: string, base64: string) => void;
-  removeBackgroundTexture: (name: string) => void;
-
+  /* Sprites */
+  setSpriteInstances: (instances: SpriteInstance[]) => void;
   removeSpriteInstance: (spriteIdx: number) => void;
   updateSpriteInstance: (spriteIdx: number, updates: Partial<SpriteInstance>) => void;
-
-  setSelectedSpriteIdx: (spriteIdx: number) => void;
-  setEditingSprite: (source: EditingSource, textureName: string | null) => void;
-  clearEditingSprite: () => void;
+  updateInstanceOrder: (spriteIdx: number, newIdx: number) => void;
   saveSprite: (params: { spriteName: string; base64Image: string }) => string;
 
+  /* Assets */
+  addAsset: (name: string, base64Image: string, type: AssetType) => void;
+  updateAsset: (name: string, base64Image: string, type: AssetType) => void;
+  removeAsset: (name: string, type: AssetType) => void;
+
+  /* Tilemaps */
   updateTilemapCell: (tilemapId: string, row: number, col: number, tileKey: string | null) => void;
   setTilemapData: (tilemapId: string, data: (string | null)[][]) => void;
   resizeTilemap: (tilemapId: string, newWidth: number, newHeight: number) => void;

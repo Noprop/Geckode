@@ -93,7 +93,7 @@ const TilemapEditor = () => {
   const [selectedTileKey, setSelectedTileKey] = useState<string | null>(null);
   const [brushSize, setBrushSize] = useState(1);
 
-  const tileTextures = useGeckodeStore((s) => s.tileTextures);
+  const tileTextures = useGeckodeStore((s) => s.tiles);
   const tilemaps = useGeckodeStore((s) => s.tilemaps);
   const activeTilemapId = useGeckodeStore((s) => s.activeTilemapId);
   const updateTilemapCell = useGeckodeStore((s) => s.updateTilemapCell);

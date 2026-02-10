@@ -9,8 +9,8 @@ const PhaserSpriteList = () => {
   const selectedSpriteIdx = useGeckodeStore((state) => state.selectedSpriteIdx);
   const setSelectedSpriteIdx = useGeckodeStore((state) => state.setSelectedSpriteIdx);
   const removeSpriteInstance = useGeckodeStore((state) => state.removeSpriteInstance);
-  const assetTextures = useGeckodeStore((state) => state.assetTextures);
-  const libraryTextures = useGeckodeStore((state) => state.libraryTextures);
+  const textures = useGeckodeStore((state) => state.textures);
+  const libaryTextures = useGeckodeStore((state) => state.libaryTextures);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
   useEffect(() => {
@@ -45,7 +45,7 @@ const PhaserSpriteList = () => {
               {sprites.map((sprite, idx) => {
                 const isSelected = idx === selectedSpriteIdx;
                 const isHovered = idx === hoveredIdx;
-                const textureUrl = assetTextures[sprite.textureName] ?? libraryTextures[sprite.textureName];
+                const textureUrl = textures[sprite.textureName] ?? libaryTextures[sprite.textureName];
               return (
                 <div
                   key={sprite.id}

@@ -1,16 +1,24 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useGeckodeStore } from '@/stores/geckodeStore';
 import { createUniqueTextureName } from '@/stores/slices/spriteSlice';
-import TextureGallery from './TextureGallery';
-import TextureDetailPanel, { type SelectedAsset } from './TextureDetailPanel';
-import CreateAssetModal from './CreateAssetModal';
+import type { AssetType } from '@/stores/slices/types';
+import AssetList from './AssetList';
+import TextureDetailPanel from './TextureDetailPanel';
 import TileEditorModal from './TileEditorModal';
 
-type TabId = 'textures' | 'tiles' | 'tilesets' | 'animations' | 'backgrounds';
+export type SelectedAsset = { name: string; type: AssetType } | null;
 
-const tabs: { id: TabId; label: string }[] = [
+export const colorsByType: Record<AssetType, string> = {
+  textures: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  tiles: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  tilesets: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+  animations: 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400',
+  backgrounds: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+};
+
+export const TAB_CONFIG: { id: AssetType; label: string }[] = [
   { id: 'textures', label: 'Textures' },
   { id: 'tiles', label: 'Tiles' },
   { id: 'tilesets', label: 'Tilesets' },
@@ -19,109 +27,67 @@ const tabs: { id: TabId; label: string }[] = [
 ];
 
 const AssetWorkspace = () => {
-  const [activeTab, setActiveTab] = useState<TabId>('textures');
+  const [activeTab, setActiveTab] = useState<AssetType>('textures');
   const [selectedAsset, setSelectedAsset] = useState<SelectedAsset>(null);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isTileEditorModalOpen, setIsTileEditorModalOpen] = useState(false);
 
-  const assetTextures = useGeckodeStore((s) => s.assetTextures);
-  const tileTextures = useGeckodeStore((s) => s.tileTextures);
-  const tilesetTextures = useGeckodeStore((s) => s.tilesetTextures);
-  const animationTextures = useGeckodeStore((s) => s.animationTextures);
-  const backgroundTextures = useGeckodeStore((s) => s.backgroundTextures);
-  const addAssetTexture = useGeckodeStore((s) => s.addAssetTexture);
-  const addTileTexture = useGeckodeStore((s) => s.addTileTexture);
-  const removeAssetTexture = useGeckodeStore((s) => s.removeAssetTexture);
-  const removeTileTexture = useGeckodeStore((s) => s.removeTileTexture);
-  const removeTilesetTexture = useGeckodeStore((s) => s.removeTilesetTexture);
-  const removeAnimationTexture = useGeckodeStore((s) => s.removeAnimationTexture);
-  const removeBackgroundTexture = useGeckodeStore((s) => s.removeBackgroundTexture);
+  const assets = useGeckodeStore((s) => s[activeTab]);
+  const addAsset = useGeckodeStore((s) => s.addAsset);
+  const removeAsset = useGeckodeStore((s) => s.removeAsset);
+  const setEditingAsset = useGeckodeStore((s) => s.setEditingAsset);
   const setIsSpriteModalOpen = useGeckodeStore((s) => s.setIsSpriteModalOpen);
-  const setEditingSprite = useGeckodeStore((s) => s.setEditingSprite);
 
-  // Resolve the base64 for the currently selected asset
-  const getSelectedBase64 = (): string | null => {
-    if (!selectedAsset) return null;
-    switch (selectedAsset.kind) {
-      case 'tile': return tileTextures[selectedAsset.name] ?? null;
-      case 'tileset': return tilesetTextures[selectedAsset.name] ?? null;
-      case 'animation': return animationTextures[selectedAsset.name] ?? null;
-      case 'background': return backgroundTextures[selectedAsset.name] ?? null;
-      default: return assetTextures[selectedAsset.name] ?? null;
-    }
+  const selectedBase64 = selectedAsset ? assets[selectedAsset.name] : null;
+
+  const handleEdit = () => {
+    if (!selectedAsset) return;
+    setEditingAsset(selectedAsset.name, selectedAsset.type, 'asset');
+    if (selectedAsset.type === 'textures') setIsSpriteModalOpen(true);
+    else if (selectedAsset.type === 'tiles') setIsTileEditorModalOpen(true);
   };
 
-  const handleEdit = useCallback(() => {
+  const handleDuplicate = () => {
+    if (!selectedAsset || !selectedBase64) return;
+    const all = useGeckodeStore.getState()[selectedAsset.type];
+    const newName = createUniqueTextureName(selectedAsset.name, all);
+    addAsset(newName, selectedBase64, selectedAsset.type);
+    setSelectedAsset({ name: newName, type: selectedAsset.type });
+  };
+
+  const handleCopy = async () => {
+    if (!selectedBase64) return;
+    await navigator.clipboard.writeText(selectedBase64);
+  };
+
+  const handleDelete = () => {
     if (!selectedAsset) return;
-    if (selectedAsset.kind === 'sprite') {
-      setEditingSprite('asset', selectedAsset.name);
-      setIsSpriteModalOpen(true);
-    } else if (selectedAsset.kind === 'tile') {
-      setEditingSprite('tile', selectedAsset.name);
-      setIsTileEditorModalOpen(true);
-    }
-  }, [selectedAsset, setEditingSprite, setIsSpriteModalOpen]);
-
-  const handleDuplicate = useCallback(() => {
-    if (!selectedAsset) return;
-    const base64 = getSelectedBase64();
-    if (!base64) return;
-
-    if (selectedAsset.kind === 'tile') {
-      const newName = createUniqueTextureName(selectedAsset.name, tileTextures);
-      addTileTexture(newName, base64);
-      setSelectedAsset({ name: newName, kind: 'tile' });
-    } else {
-      const newName = createUniqueTextureName(selectedAsset.name, assetTextures);
-      addAssetTexture(newName, base64);
-      setSelectedAsset({ name: newName, kind: 'sprite' });
-    }
-  }, [selectedAsset, assetTextures, tileTextures, addAssetTexture, addTileTexture]);
-
-  const handleCopy = useCallback(async () => {
-    const base64 = getSelectedBase64();
-    if (!base64) return;
-    await navigator.clipboard.writeText(base64);
-  }, [selectedAsset, activeTab, assetTextures, tileTextures, tilesetTextures, animationTextures, backgroundTextures]);
-
-  const handleDelete = useCallback(() => {
-    if (!selectedAsset) return;
-    switch (selectedAsset.kind) {
-      case 'tile': removeTileTexture(selectedAsset.name); break;
-      case 'tileset': removeTilesetTexture(selectedAsset.name); break;
-      case 'animation': removeAnimationTexture(selectedAsset.name); break;
-      case 'background': removeBackgroundTexture(selectedAsset.name); break;
-      default: removeAssetTexture(selectedAsset.name); break;
-    }
-    setSelectedAsset(null);
-  }, [selectedAsset, removeAssetTexture, removeTileTexture, removeTilesetTexture, removeAnimationTexture, removeBackgroundTexture]);
-
-  const handleCreateSprite = useCallback(() => {
-    setEditingSprite('new', null);
-    setIsSpriteModalOpen(true);
-  }, [setEditingSprite, setIsSpriteModalOpen]);
-
-  const handleCreateTile = useCallback(() => {
-    setEditingSprite('tile', null);
-    setIsTileEditorModalOpen(true);
-  }, [setEditingSprite]);
-
-  // Clear selection when switching tabs
-  const handleTabChange = (tab: TabId) => {
-    setActiveTab(tab);
+    removeAsset(selectedAsset.name, selectedAsset.type);
     setSelectedAsset(null);
   };
+
+  const handleCreateNew = () => {
+    setEditingAsset(null, activeTab, 'new');
+    if (activeTab === 'textures') setIsSpriteModalOpen(true);
+    else if (activeTab === 'tiles') setIsTileEditorModalOpen(true);
+  };
+
+  // Auto-select first item when nothing is selected
+  useEffect(() => {
+    if (selectedAsset) return;
+    const firstKey = Object.keys(assets)[0];
+    if (firstKey) setSelectedAsset({ name: firstKey, type: activeTab });
+  }, [selectedAsset, activeTab, assets]);
 
   return (
     <div className="flex-1 min-h-0 flex flex-col w-full h-full">
       {/* Tab bar */}
       <div className="px-4 pb-3 pt-4 shrink-0">
         <div className="inline-flex rounded-md border border-slate-200 bg-light-tertiary p-1 text-xs font-semibold dark:border-slate-700 dark:bg-dark-tertiary">
-          {tabs.map((tab) => (
+          {TAB_CONFIG.map((tab) => (
             <button
               key={tab.id}
               type="button"
-              onClick={() => handleTabChange(tab.id)}
+              onClick={() => { setActiveTab(tab.id); setSelectedAsset(null); }}
               className={`cursor-pointer flex items-center gap-2 rounded-md px-4 py-2 transition ${
                 activeTab === tab.id
                   ? 'bg-white text-primary-green shadow-sm ring-1 ring-primary-green/30 dark:bg-slate-900'
@@ -134,31 +100,24 @@ const AssetWorkspace = () => {
         </div>
       </div>
 
-      {/* Content area: detail panel + grid */}
+      {/* Content area */}
       <div className="flex flex-1 min-h-0 border-t border-slate-200 dark:border-slate-700">
         <TextureDetailPanel
           selectedAsset={selectedAsset}
-          base64={getSelectedBase64()}
+          base64={selectedBase64}
           onEdit={handleEdit}
           onDuplicate={handleDuplicate}
           onCopy={handleCopy}
           onDelete={handleDelete}
         />
-        <TextureGallery
+        <AssetList
           filter={activeTab}
           selectedAsset={selectedAsset}
           onSelectAsset={setSelectedAsset}
-          onCreateNew={() => setIsCreateModalOpen(true)}
+          onCreateNew={handleCreateNew}
         />
       </div>
 
-      {/* Modals */}
-      <CreateAssetModal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        onCreateSprite={handleCreateSprite}
-        onCreateTile={handleCreateTile}
-      />
       <TileEditorModal
         isOpen={isTileEditorModalOpen}
         onClose={() => setIsTileEditorModalOpen(false)}

@@ -61,16 +61,15 @@ const TileEditor = () => {
 
   // --- Zustand selectors ---
   const setIsSpriteModalOpen = useGeckodeStore((s) => s.setIsSpriteModalOpen);
-  const clearEditingSprite = useGeckodeStore((s) => s.clearEditingSprite);
   const saveSprite = useGeckodeStore((s) => s.saveSprite);
-  const libraryTextures = useGeckodeStore((s) => s.libraryTextures);
-  const assetTextures = useGeckodeStore((s) => s.assetTextures);
+  const libaryTextures = useGeckodeStore((s) => s.libaryTextures);
+  const textures = useGeckodeStore((s) => s.textures);
   const editingSource = useGeckodeStore((s) => s.editingSource);
-  const editingTextureName = useGeckodeStore((s) => s.editingTextureName);
+  const editingAssetName = useGeckodeStore((s) => s.editingAssetName);
   const phaserScene = useGeckodeStore((s) => s.phaserScene);
   const spriteInstances = useGeckodeStore((s) => s.spriteInstances);
 
-  const tileTextures = useGeckodeStore((s) => s.tileTextures);
+  const tiles = useGeckodeStore((s) => s.tiles);
 
   // --- Custom hooks ---
   const { cellSize, zoomPercent, setZoom, isEditingZoom, setIsEditingZoom, canvasContainerRef, MIN_ZOOM_PERCENT, MAX_ZOOM_PERCENT } = useCanvasZoom(gridWidth, gridHeight);
@@ -442,7 +441,7 @@ const TileEditor = () => {
   useEffect(() => {
     // if (editingSource === null || editingTextureName === null || !canvasRef.current) return;
     // const textureInfo = editingSource === "library" ? libraryTextures[editingTextureName] : assetTextures[editingTextureName];
-    const textureInfo = tileTextures['grass'];
+    const textureInfo = tiles['grass'];
 
     const img = new Image();
     img.onload = () => {
@@ -465,7 +464,7 @@ const TileEditor = () => {
       requestRender();
     };
     img.src = textureInfo;
-  }, [tileTextures])
+  }, [tiles])
 
   // --- Grid resize handler (used by uncontrolled inputs) ---
   const handleGridResize = (dimension: 'width' | 'height', value: string, fallback: number) => {

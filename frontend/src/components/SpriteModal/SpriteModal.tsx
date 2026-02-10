@@ -13,10 +13,8 @@ const SpriteModal = () => {
   const [activeTab, setActiveTab] = useState<TabId>('editor');
   const setIsSpriteModalOpen = useGeckodeStore((state) => state.setIsSpriteModalOpen);
   const isSpriteModalOpen = useGeckodeStore((state) => state.isSpriteModalOpen);
-  const clearEditingSprite = useGeckodeStore((s) => s.clearEditingSprite);
-
   const handleClose = () => {
-    clearEditingSprite();
+    useGeckodeStore.setState({ editingSource: null, editingAssetName: null, editingAssetType: null });
     setIsSpriteModalOpen(false);
   };
 

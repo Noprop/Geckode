@@ -11,18 +11,18 @@ interface SpriteLibraryProps {
 
 const SpriteLibrary = ({ setActiveTab }: SpriteLibraryProps) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const libraryTextures = useGeckodeStore((s) => s.libraryTextures);
-  const setEditingSprite = useGeckodeStore((s) => s.setEditingSprite);
+  const libaryTextures = useGeckodeStore((s) => s.libaryTextures);
+  const setEditingAsset = useGeckodeStore((s) => s.setEditingAsset);
 
   const filteredEntries = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    return Object.entries(libraryTextures).filter(
+    return Object.entries(libaryTextures).filter(
       ([textureName]) => !query || textureName.toLowerCase().includes(query),
     );
-  }, [searchQuery, libraryTextures]);
+  }, [searchQuery, libaryTextures]);
 
   const handleTextureClick = (textureName: string) => {
-    setEditingSprite('library', textureName);
+    setEditingAsset(textureName, 'textures', 'library');
     setActiveTab('editor');
   };
 

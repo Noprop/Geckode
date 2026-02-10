@@ -61,12 +61,11 @@ const SpriteEditor = () => {
 
   // --- Zustand selectors ---
   const setIsSpriteModalOpen = useGeckodeStore((s) => s.setIsSpriteModalOpen);
-  const clearEditingSprite = useGeckodeStore((s) => s.clearEditingSprite);
   const saveSprite = useGeckodeStore((s) => s.saveSprite);
-  const libraryTextures = useGeckodeStore((s) => s.libraryTextures);
-  const assetTextures = useGeckodeStore((s) => s.assetTextures);
+  const libaryTextures = useGeckodeStore((s) => s.libaryTextures);
+  const textures = useGeckodeStore((s) => s.textures);
   const editingSource = useGeckodeStore((s) => s.editingSource);
-  const editingTextureName = useGeckodeStore((s) => s.editingTextureName);
+  const editingAssetName = useGeckodeStore((s) => s.editingAssetName);
   const phaserScene = useGeckodeStore((s) => s.phaserScene);
   const spriteInstances = useGeckodeStore((s) => s.spriteInstances);
 
@@ -362,7 +361,7 @@ const SpriteEditor = () => {
     const base64Image = offscreen.toDataURL('image/png');
 
     const newSpriteName = createUniqueSpriteName(spriteName, spriteInstances);
-    const newTextureName = editingSource === 'asset' ? editingTextureName! : createUniqueTextureName(spriteName, assetTextures);
+    const newTextureName = editingSource === 'asset' ? editingAssetName! : createUniqueTextureName(spriteName, textures);
 
     const newSprite: SpriteInstance = {
       name: newSpriteName,
@@ -379,10 +378,10 @@ const SpriteEditor = () => {
 
     // add texture to state, and phaser
     if (editingSource === 'new' || editingSource === 'library') {
-      useGeckodeStore.getState().addAssetTexture(newTextureName, base64Image);
+      useGeckodeStore.getState().addAsset(newTextureName, base64Image, 'textures');
       await phaserScene.loadTextureAsync(newTextureName, base64Image);
     } else if (editingSource === 'asset') {
-      useGeckodeStore.getState().updateAssetTexture(editingTextureName!, base64Image);
+      useGeckodeStore.getState().updateAsset(editingAssetName!, base64Image, 'textures');
       await phaserScene.updateTextureAsync(newTextureName, base64Image);
     }
     phaserScene.createSprite(newSprite);
@@ -399,7 +398,7 @@ const SpriteEditor = () => {
     });
     Blockly.serialization.workspaces.load({}, useGeckodeStore.getState().blocklyWorkspace!);
 
-    clearEditingSprite();
+    useGeckodeStore.setState({ editingSource: null, editingAssetName: null, editingAssetType: null });
     setIsSpriteModalOpen(false);
   };
 
@@ -407,15 +406,15 @@ const SpriteEditor = () => {
   useEffect(() => {
     if (
       editingSource === null ||
-      editingTextureName === null ||
+      editingAssetName === null ||
       !canvasRef.current
     )
       return;
 
     const textureInfo =
       editingSource === "library"
-        ? libraryTextures[editingTextureName]
-        : assetTextures[editingTextureName];
+        ? libaryTextures[editingAssetName]
+        : textures[editingAssetName];
     if (!textureInfo) return;
 
     const img = new Image();
@@ -435,11 +434,11 @@ const SpriteEditor = () => {
 
       resetPixelArrays(width, height);
       outputPixelsRef.current = new Uint8ClampedArray(imageData.data);
-      setSpriteName(editingTextureName);
+      setSpriteName(editingAssetName);
       requestRender();
     };
     img.src = textureInfo;
-  }, [editingSource, editingTextureName, libraryTextures, assetTextures]);
+  }, [editingSource, editingAssetName, libaryTextures, textures]);
 
   // --- Grid resize handler (used by uncontrolled inputs) ---
   const handleGridResize = (dimension: 'width' | 'height', value: string, fallback: number) => {
