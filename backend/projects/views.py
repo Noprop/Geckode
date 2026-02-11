@@ -296,6 +296,9 @@ class SpriteViewSet(ModelViewSet):
     def perform_create(self, serializer):
         # note if project is null, project_id = none
         project_id = self.kwargs.get("project_pk")
+
+        
+
         serializer.save(project_id=project_id)
     
     def get_permissions(self) -> list[any]:
@@ -322,3 +325,4 @@ class SpriteViewSet(ModelViewSet):
 
     def get_queryset(self):
         return super().get_queryset().filter(Q(project_id=self.kwargs.get('project_pk')))
+    

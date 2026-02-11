@@ -133,10 +133,14 @@ class Sprite(Model):
     name = CharField(max_length=200, blank=False)
     texture = ImageField(upload_to=sprite_texture_path, blank=False, null=False)
 
+    class Meta:
+        unique_together = ('project', 'name')
+
     def has_permission(self, user: User, required_permission) -> bool:
         # always allow access if it's a global library
         if (self.project == None):
             return True
+        
         
         # otherwise, anyone who is a member has access to this library
         return self.project.has_permission(user, required_permission)

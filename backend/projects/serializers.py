@@ -1,9 +1,11 @@
-from rest_framework.serializers import ModelSerializer, PrimaryKeyRelatedField, BooleanField, SerializerMethodField, ValidationError
+from rest_framework.serializers import ModelSerializer, CharField, PrimaryKeyRelatedField, BooleanField, SerializerMethodField, ValidationError
 from accounts.serializers import PublicUserSerializer
 from django.utils import timezone
 from .models import ProjectGroup, Project, ProjectCollaborator, OrganizationProject, ProjectInvitation, Sprite
 from accounts.models import User
 from organizations.serializers import PublicOrganizationSerializer
+
+import base64
 
 class ProjectGroupSerializer(ModelSerializer):
     owner = PublicUserSerializer(read_only=True)
@@ -37,6 +39,7 @@ class ProjectSerializer(ModelSerializer):
     owner = PublicUserSerializer(read_only=True)
     is_published = BooleanField(write_only=True, required=False)
     fork_count = SerializerMethodField()
+    sprite_count = SerializerMethodField()
     permission = SerializerMethodField()
 
     class Meta:
@@ -49,7 +52,7 @@ class ProjectSerializer(ModelSerializer):
         return instance.forked_by.count()
     
     def get_sprite_count(self, instance : Project) -> int:
-        return Sprite.objects.filter(sprite_library=instance).count()
+        return Sprite.objects.filter(project=instance).count()
 
     def get_permission(self, instance):
         return instance.get_permission(self.context['request'].user)
@@ -171,6 +174,17 @@ class SpriteSerializer(ModelSerializer):
 
     def get_permission(self, instance):
         return instance.get_permission(self.context['request'].user)
+    
+    def to_representation(self, instance : Sprite):
+        data = super().to_representation(instance)
+
+        # encode image to base64
+        if (instance.texture):
+            with instance.texture.open("rb") as f:
+                data["texture"] = "data:image/png;base64," + base64.b64encode(f.read()).decode()
+        
+        return data
+    
     
     
     def validate(self, attrs):
