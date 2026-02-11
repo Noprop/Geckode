@@ -27,7 +27,9 @@ const PhaserSpriteList = () => {
         </span>
         <Button
           className="btn-confirm px-3 py-1 text-[11px]"
-          onClick={() => setIsSpriteModalOpen(true)}
+          onClick={() => {
+            useGeckodeStore.setState({ editingSource: 'new', isSpriteModalOpen: true });
+          }}
           title="Add new sprite"
         >
           + Add
