@@ -60,15 +60,14 @@ function NumericField({
 }
 
 const SpritePosition = () => {
-  const selectedSpriteIdx = useGeckodeStore((s) => s.selectedSpriteIdx);
+  const selectedSpriteId = useGeckodeStore((s) => s.selectedSpriteId);
   const selectedSprite = useGeckodeStore((s) =>
-    s.selectedSpriteIdx !== null
-      ? s.spriteInstances[s.selectedSpriteIdx]
+    s.selectedSpriteId !== null
+      ? s.spriteInstances.find((i) => i.id === s.selectedSpriteId) ?? null
       : null,
   );
-  const spriteInstances = useGeckodeStore((s) => s.spriteInstances);
   const updateSpriteInstance = useGeckodeStore((s) => s.updateSpriteInstance);
-  const setSelectedSpriteIdx = useGeckodeStore((s) => s.setSelectedSpriteIdx);
+  const setSelectedSpriteId = useGeckodeStore((s) => s.setSelectedSpriteId);
 
   const phaserGame = useGeckodeStore((s) => s.phaserGame);
   const centerX = useMemo(
@@ -90,8 +89,7 @@ const SpritePosition = () => {
 
   useEffect(() => {
     const handleDragStart = ({ id }: { id: string }) => {
-      const idx = useGeckodeStore.getState().spriteInstances.findIndex((s) => s.id === id);
-      if (idx !== -1) setSelectedSpriteIdx(idx);
+      setSelectedSpriteId(id);
     };
 
     const handleDragging = ({ x, y, }: { x: number; y: number; }) => {
@@ -103,15 +101,14 @@ const SpritePosition = () => {
     };
 
     const handleDragEnd = ({ id, x, y }: { id: string; x: number; y: number; }) => {
-      const { selectedSpriteIdx, spriteInstances, updateSpriteInstance } = useGeckodeStore.getState();
-      if (selectedSpriteIdx === null) return;
-      if (spriteInstances[selectedSpriteIdx]?.id !== id) return;
+      const { selectedSpriteId, updateSpriteInstance } = useGeckodeStore.getState();
+      if (selectedSpriteId !== id) return;
       setValues((prev) => ({
         ...prev,
         x: String(Math.round(x)),
         y: String(Math.round(y)),
       }));
-      updateSpriteInstance(selectedSpriteIdx, { x: Math.round(x), y: Math.round(y) });
+      updateSpriteInstance(id, { x: Math.round(x), y: Math.round(y) });
     };
 
     EventBus.on("editor-sprite-drag-start", handleDragStart);
@@ -132,64 +129,64 @@ const SpritePosition = () => {
   );
 
   const handleBlurY = () => {
-    if (selectedSpriteIdx === null || !selectedSprite) return;
+    if (selectedSpriteId === null || !selectedSprite) return;
     const rawValue = values.y;
     const finalValue = resolveBlurValue(rawValue, "y", centerY);
     if (selectedSprite.y !== finalValue) {
-      updateSpriteInstance(selectedSpriteIdx, { y: finalValue as number });
+      updateSpriteInstance(selectedSpriteId, { y: finalValue as number });
     }
   };
 
   const handleBlurName = useCallback(() => {
-    if (selectedSpriteIdx === null || !selectedSprite) return;
+    if (selectedSpriteId === null || !selectedSprite) return;
     const finalValue = resolveBlurValue(
       values.name,
       "name",
       FIELD_DEFAULTS.name,
     );
     if (selectedSprite.name !== finalValue) {
-      updateSpriteInstance(selectedSpriteIdx, { name: finalValue as string });
+      updateSpriteInstance(selectedSpriteId, { name: finalValue as string });
     }
-  }, [selectedSpriteIdx, selectedSprite, values.name, updateSpriteInstance]);
+  }, [selectedSpriteId, selectedSprite, values.name, updateSpriteInstance]);
 
   const handleBlurScaleX = useCallback(() => {
-    if (selectedSpriteIdx === null || !selectedSprite) return;
+    if (selectedSpriteId === null || !selectedSprite) return;
     const finalValue = resolveBlurValue(
       values.scaleX,
       "scaleX",
       FIELD_DEFAULTS.scaleX,
     );
     if (selectedSprite.scaleX !== finalValue) {
-      updateSpriteInstance(selectedSpriteIdx, { scaleX: finalValue as number });
+      updateSpriteInstance(selectedSpriteId, { scaleX: finalValue as number });
     }
-  }, [selectedSpriteIdx, selectedSprite, values.scaleX, updateSpriteInstance]);
+  }, [selectedSpriteId, selectedSprite, values.scaleX, updateSpriteInstance]);
 
   const handleBlurScaleY = useCallback(() => {
-    if (selectedSpriteIdx === null || !selectedSprite) return;
+    if (selectedSpriteId === null || !selectedSprite) return;
     const finalValue = resolveBlurValue(
       values.scaleY,
       "scaleY",
       FIELD_DEFAULTS.scaleY,
     );
     if (selectedSprite.scaleY !== finalValue) {
-      updateSpriteInstance(selectedSpriteIdx, { scaleY: finalValue as number });
+      updateSpriteInstance(selectedSpriteId, { scaleY: finalValue as number });
     }
-  }, [selectedSpriteIdx, selectedSprite, values.scaleY, updateSpriteInstance]);
+  }, [selectedSpriteId, selectedSprite, values.scaleY, updateSpriteInstance]);
 
   const handleBlurDirection = useCallback(() => {
-    if (selectedSpriteIdx === null || !selectedSprite) return;
+    if (selectedSpriteId === null || !selectedSprite) return;
     const finalValue = resolveBlurValue(
       values.direction,
       "direction",
       FIELD_DEFAULTS.direction,
     );
     if (selectedSprite.direction !== finalValue) {
-      updateSpriteInstance(selectedSpriteIdx, {
+      updateSpriteInstance(selectedSpriteId, {
         direction: finalValue as number,
       });
     }
   }, [
-    selectedSpriteIdx,
+    selectedSpriteId,
     selectedSprite,
     values.direction,
     updateSpriteInstance,
@@ -197,18 +194,18 @@ const SpritePosition = () => {
 
   const handleToggle = useCallback(
     (field: "snapToGrid" | "visible", value: boolean) => {
-      if (selectedSpriteIdx === null) return;
-      updateSpriteInstance(selectedSpriteIdx, { [field]: value });
+      if (selectedSpriteId === null) return;
+      updateSpriteInstance(selectedSpriteId, { [field]: value });
     },
-    [selectedSpriteIdx, updateSpriteInstance],
+    [selectedSpriteId, updateSpriteInstance],
   );
 
   const setVisible = useCallback(
     (visible: boolean) => {
-      if (selectedSpriteIdx === null) return;
-      updateSpriteInstance(selectedSpriteIdx, { visible });
+      if (selectedSpriteId === null) return;
+      updateSpriteInstance(selectedSpriteId, { visible });
     },
-    [selectedSpriteIdx, updateSpriteInstance],
+    [selectedSpriteId, updateSpriteInstance],
   );
 
   const disabled = !selectedSprite;
@@ -242,7 +239,7 @@ const SpritePosition = () => {
             const rawValue = values.x;
             const finalValue = resolveBlurValue(rawValue, "x", centerX);
             if (selectedSprite!.x !== finalValue)
-              updateSpriteInstance(selectedSpriteIdx!, { x: finalValue as number });
+              updateSpriteInstance(selectedSpriteId!, { x: finalValue as number });
           }}
         />
         <NumericField

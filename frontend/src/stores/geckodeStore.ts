@@ -14,6 +14,7 @@ export type {
   Scene,
   SpriteAddPayload,
   Tilemap,
+  TilemapTool,
 } from "./slices/types";
 
 export const useGeckodeStore = create<GeckodeStore>()(
@@ -29,9 +30,20 @@ export const useGeckodeStore = create<GeckodeStore>()(
         console.log('partializing state() instances: ', state.spriteInstances),
         {
         spriteInstances: state.spriteInstances,
-        assetTextures: state.assetTextures,
-        libraryTextures: state.libraryTextures,
-        selectedSpriteIdx: state.selectedSpriteIdx,
+        textures: state.textures,
+        libaryTextures: state.libaryTextures,
+        tiles: state.tiles,
+        tilesets: state.tilesets,
+        animations: state.animations,
+        backgrounds: state.backgrounds,
+        libaryTiles: state.libaryTiles,
+        libaryTilesets: state.libaryTilesets,
+        libaryAnimations: state.libaryAnimations,
+        libaryBackgrounds: state.libaryBackgrounds,
+        tilemaps: state.tilemaps,
+        scenes: state.scenes,
+        activeTilemapId: state.activeTilemapId,
+        selectedSpriteId: state.selectedSpriteId,
         spriteWorkspaces: state.spriteWorkspaces,
         projectName: state.projectName,
       }),

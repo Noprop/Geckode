@@ -2,15 +2,53 @@ import * as Blockly from 'blockly/core';
 import type { StateCreator } from 'zustand';
 import type { SpriteInstance } from '@/blockly/spriteRegistry';
 import EditorScene from '@/phaser/scenes/EditorScene';
-import { gavin, heroWalkBack1, heroWalkFront1 } from '../sprites';
-import type { GeckodeStore, SpriteSlice } from './types';
+import {
+  bedrockTile,
+  brickTile,
+  coalOreTile,
+  cobblestoneTile,
+  diamondOreTile,
+  dirtTile,
+  gavin,
+  glassTile,
+  goldOreTile,
+  grassTile,
+  gravelTile,
+  heroWalkBack1,
+  heroWalkFront1,
+  iceTile,
+  ironOreTile,
+  lavaTile,
+  leavesTile,
+  oakLogTile,
+  oakPlanksTile,
+  obsidianTile,
+  sandTile,
+  snowTile,
+  stoneTile,
+  tntTile,
+  waterTile,
+} from '../b64_textures';
+import type { AssetType, EditingSource, GeckodeStore, Scene, SpriteSlice, Tilemap } from './types';
+
+export const createEmptyTilemapData = (width: number, height: number): (string | null)[][] =>
+  Array.from({ length: height }, () => Array.from({ length: width }, () => null));
+
+const createDefaultTilemap = (): Tilemap => ({
+  id: 'tilemap_1',
+  name: 'Tilemap 1',
+  width: 16,
+  height: 16,
+  data: createEmptyTilemapData(16, 16),
+  base64: '',
+});
 
 /** deduplicate texture name */
-export const createUniqueTextureName = (name: string, assetTextures: Record<string, string>): string => {
-  if (!(name in assetTextures)) return name;
-  if (Number.isNaN(Number(name[name.length - 1]))) return createUniqueTextureName(`${name}2`, assetTextures);
+export const createUniqueTextureName = (name: string, textures: Record<string, string>): string => {
+  if (!(name in textures)) return name;
+  if (Number.isNaN(Number(name[name.length - 1]))) return createUniqueTextureName(`${name}2`, textures);
   const lastDigit = Number(name[name.length - 1]);
-  return createUniqueTextureName(`${name.slice(0, -1)}${lastDigit + 1}`, assetTextures);
+  return createUniqueTextureName(`${name.slice(0, -1)}${lastDigit + 1}`, textures);
 };
 
 /** deduplicate sprite instance name */
@@ -44,21 +82,110 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
       },
     },
   ],
-  assetTextures: {
-    gavin: gavin,
+
+  textures: { gavin: gavin },
+  tiles: {
+    grass: grassTile,
+    dirt: dirtTile,
+    stone: stoneTile,
+    cobblestone: cobblestoneTile,
+    sand: sandTile,
+    water: waterTile,
+    lava: lavaTile,
+    oakPlanks: oakPlanksTile,
+    oakLog: oakLogTile,
+    leaves: leavesTile,
+    brick: brickTile,
+    ironOre: ironOreTile,
+    goldOre: goldOreTile,
+    diamondOre: diamondOreTile,
+    coalOre: coalOreTile,
+    snow: snowTile,
+    ice: iceTile,
+    gravel: gravelTile,
+    tnt: tntTile,
+    bedrock: bedrockTile,
+    glass: glassTile,
+    obsidian: obsidianTile,
   },
-  libraryTextures: {
+  tilesets: {},
+  animations: {},
+  backgrounds: {},
+
+  libaryTextures: {
     'hero-walk-front': heroWalkFront1,
     'hero-walk-back': heroWalkBack1,
     gavin: gavin,
   },
-  isSpriteModalOpen: false,
-  selectedSpriteIdx: 0,
-  editingSource: null,
-  editingTextureName: null,
+  libaryTiles: {},
+  libaryTilesets: {},
+  libaryAnimations: {},
+  libaryBackgrounds: {},
 
+  tilemaps: { tilemap_1: createDefaultTilemap() },
+  scenes: [{ id: 'scene_1', name: 'Scene 1', tilemapId: 'tilemap_1' }],
+  activeTilemapId: 'tilemap_1',
+
+  isSpriteModalOpen: false,
+  selectedSpriteId: null,
+  editingSource: null,
+  editingAssetName: null,
+  editingAssetType: null,
+
+  /* ── Modal / Selection ── */
   setIsSpriteModalOpen: (isOpen: boolean) => set({ isSpriteModalOpen: isOpen }),
+  setSelectedSpriteId: (newId: string) => {
+    const { blocklyWorkspace, spriteWorkspaces, selectedSpriteId: prevId } = get();
+    if (newId === prevId) return;
+    if (!blocklyWorkspace) return;
+
+    // Save current workspace for the previously selected sprite
+    if (prevId) {
+      set({
+        spriteWorkspaces: {
+          ...spriteWorkspaces,
+          [prevId]: Blockly.serialization.workspaces.save(blocklyWorkspace),
+        },
+      });
+    }
+
+    // Load workspace for the newly selected sprite
+    const state = get().spriteWorkspaces[newId];
+    if (!state) {
+      Blockly.serialization.workspaces.load({}, blocklyWorkspace);
+    } else {
+      Blockly.serialization.workspaces.load(state, blocklyWorkspace);
+    }
+
+    set({ selectedSpriteId: newId });
+    console.log(`sprite ${newId} workspace loaded`);
+  },
   setSpriteInstances: (instances: SpriteInstance[]) => set({ spriteInstances: instances }),
+  removeSpriteInstance: (spriteId: string) => {
+    const { spriteInstances, selectedSpriteId } = get();
+    const remaining = spriteInstances.filter((instance) => instance.id !== spriteId);
+
+    set({
+      spriteInstances: remaining,
+      selectedSpriteId: selectedSpriteId === spriteId
+        ? (remaining[0]?.id ?? null)
+        : selectedSpriteId,
+    });
+  },
+
+  updateSpriteInstance: (spriteId: string, updates: Partial<SpriteInstance>) => {
+    const { phaserGame, phaserScene } = get();
+    if (!phaserGame || !phaserScene) throw new Error('Game is not ready yet.');
+    if (!(phaserScene instanceof EditorScene)) throw new Error('Should not be able to update sprite from game scene.');
+    phaserScene.updateSprite(spriteId, updates);
+
+    set((state) => ({
+      spriteInstances: state.spriteInstances.map((instance) =>
+        instance.id === spriteId ? { ...instance, ...updates } : instance,
+      ),
+    }));
+  },
+
   updateInstanceOrder: (spriteIdx: number, newIdx: number) => {
     const currentInstances = get().spriteInstances;
     const updatedInstances = [...currentInstances];
@@ -67,84 +194,16 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
     set({ spriteInstances: updatedInstances });
   },
 
-  addAssetTexture: (textureName: string, base64Image: string) =>
-    set({
-      assetTextures: { ...get().assetTextures, [textureName]: base64Image },
-    }),
-  updateAssetTexture: (textureName: string, base64Image: string) =>
-    set({
-      assetTextures: { ...get().assetTextures, [textureName]: base64Image },
-    }),
-  removeAssetTexture: (textureName: string) => {
-    const { [textureName]: _, ...rest } = get().assetTextures;
-    set({ assetTextures: rest });
-  },
-  addLibraryTexture: (textureName: string, base64Image: string) =>
-    set({
-      libraryTextures: { ...get().libraryTextures, [textureName]: base64Image },
-    }),
-  updateLibraryTexture: (textureName: string, base64Image: string) =>
-    set({
-      libraryTextures: { ...get().libraryTextures, [textureName]: base64Image },
-    }),
-  removeLibraryTexture: (textureName: string) => {
-    const { [textureName]: _, ...rest } = get().libraryTextures;
-    set({ libraryTextures: rest });
-  },
-  removeSpriteInstance: (spriteIdx: number) => {
-    set({
-      spriteInstances: get().spriteInstances.filter((_, index) => index !== spriteIdx),
-    });
-  },
-  updateSpriteInstance: (spriteIdx: number, updates: Partial<SpriteInstance>) => {
-    const { phaserGame, phaserScene } = get();
-    if (!phaserGame || !phaserScene) throw new Error('Game is not ready yet.');
-    if (!(phaserScene instanceof EditorScene)) throw new Error('Should not be able to update sprite from game scene.');
-    phaserScene.updateSprite(get().spriteInstances[spriteIdx].id, updates);
-
-    set((state) => ({
-      spriteInstances: state.spriteInstances.map((instance, index) =>
-        index === spriteIdx ? { ...instance, ...updates } : instance,
-      ),
-    }));
-  },
-  setSelectedSpriteIdx: (newIdx: number) => {
-    const { blocklyWorkspace, spriteWorkspaces, spriteInstances, selectedSpriteIdx: prevIdx } = get();
-    if (newIdx === prevIdx) return;
-    if (!blocklyWorkspace || spriteInstances.length === 0) return;
-
-    set({ 
-      spriteWorkspaces: { 
-        ...get().spriteWorkspaces, [spriteInstances[prevIdx].id]: Blockly.serialization.workspaces.save(blocklyWorkspace)
-      }
-    });
-
-    const state = get().spriteWorkspaces[spriteInstances[newIdx].id];
-    if (!state) {
-      Blockly.serialization.workspaces.load({}, blocklyWorkspace);
-    } else {
-      Blockly.serialization.workspaces.load(state, blocklyWorkspace);
-    }
-
-    set({ selectedSpriteIdx: newIdx });
-    console.log(`sprite ${newIdx} workspace loaded`);
-  },
-  setEditingSprite: (source: 'new' | 'library' | 'asset', textureName: string | null) => {
-    set({ editingSource: source, editingTextureName: textureName });
-  },
-  clearEditingSprite: () => {
-    set({ editingSource: null, editingTextureName: null });
-  },
   saveSprite: ({ spriteName, base64Image }) => {
-    const { editingSource, editingTextureName, assetTextures } = get();
+    const { editingSource, editingAssetName, textures } = get();
     let textureName: string;
 
-    if (editingSource === 'asset' && editingTextureName) {
-      textureName = editingTextureName;
+    if (editingSource === 'asset' && editingAssetName) {
+      textureName = editingAssetName;
     } else {
-      textureName = createUniqueTextureName(spriteName, assetTextures);
+      textureName = createUniqueTextureName(spriteName, textures);
     }
-    set({ assetTextures: { ...get().assetTextures, [textureName]: base64Image } });
+    set({ textures: { ...get().textures, [textureName]: base64Image } });
 
     const instance: SpriteInstance = {
       name: createUniqueSpriteName(spriteName, get().spriteInstances),
@@ -162,12 +221,83 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
     return textureName;
   },
 
+  /* ── Assets ── */
+  setEditingAsset: (name: string | null, type: AssetType, source: EditingSource) => { set({ editingSource: source, editingAssetName: name, editingAssetType: type }) },
+
+  addAsset: (name: string, base64Image: string, type: AssetType) => { set({ [type]: { ...get()[type], [name]: base64Image } }); },
+  updateAsset: (name: string, base64Image: string, type: AssetType) => { set({ [type]: { ...get()[type], [name]: base64Image } }); },
+  removeAsset: (name: string, type: AssetType) => {
+    const { [name]: _, ...rest } = get()[type];
+    set({ [type]: rest });
+  },
+
+  /* ── Tilemaps ── */
+  setActiveTilemapId: (id: string | null) => set({ activeTilemapId: id }),
+  updateTilemapCell: (tilemapId: string, row: number, col: number, tileKey: string | null) => {
+    const tilemap = get().tilemaps[tilemapId];
+    if (!tilemap) return;
+    const newData = tilemap.data.map((r, ri) =>
+      ri === row ? r.map((c, ci) => (ci === col ? tileKey : c)) : r,
+    );
+    set({
+      tilemaps: {
+        ...get().tilemaps,
+        [tilemapId]: { ...tilemap, data: newData },
+      },
+    });
+  },
+
+  setTilemapData: (tilemapId: string, data: (string | null)[][]) => {
+    const tilemap = get().tilemaps[tilemapId];
+    if (!tilemap) return;
+    set({
+      tilemaps: {
+        ...get().tilemaps,
+        [tilemapId]: { ...tilemap, data },
+      },
+    });
+  },
+
+  resizeTilemap: (tilemapId: string, newWidth: number, newHeight: number) => {
+    const tilemap = get().tilemaps[tilemapId];
+    if (!tilemap) return;
+    const newData: (string | null)[][] = [];
+    for (let r = 0; r < newHeight; r++) {
+      const row: (string | null)[] = [];
+      for (let c = 0; c < newWidth; c++) {
+        row.push(r < tilemap.data.length && c < tilemap.data[r].length ? tilemap.data[r][c] : null);
+      }
+      newData.push(row);
+    }
+    set({
+      tilemaps: {
+        ...get().tilemaps,
+        [tilemapId]: { ...tilemap, width: newWidth, height: newHeight, data: newData },
+      },
+    });
+  },
+
+  clearTilemap: (tilemapId: string) => {
+    const tilemap = get().tilemaps[tilemapId];
+    if (!tilemap) return;
+    set({
+      tilemaps: {
+        ...get().tilemaps,
+        [tilemapId]: { ...tilemap, data: createEmptyTilemapData(tilemap.width, tilemap.height) },
+      },
+    });
+  },
+
+  setScenes: (scenes: Scene[]) => set({ scenes }),
+
+  /* ── Reset ── */
   resetSpriteStore: () => {
     console.log('resetting sprite store');
+    const defaultSpriteId = `id_${Date.now()}`;
     set({
       spriteInstances: [
         {
-          id: `id_${Date.now()}`,
+          id: defaultSpriteId,
           textureName: 'hero-walk-front',
           name: 'herowalkfront1',
           x: 200,
@@ -179,17 +309,27 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
           snapToGrid: true,
         },
       ],
-      assetTextures: {
-        'hero-walk-front': heroWalkFront1,
-      },
-      libraryTextures: {
+      textures: { 'hero-walk-front': heroWalkFront1 },
+      tiles: {},
+      tilesets: {},
+      animations: {},
+      backgrounds: {},
+      libaryTextures: {
         'hero-walk-front': heroWalkFront1,
         'hero-walk-back': heroWalkBack1,
         gavin: gavin,
       },
-      selectedSpriteIdx: 0,
+      libaryTiles: {},
+      libaryTilesets: {},
+      libaryAnimations: {},
+      libaryBackgrounds: {},
+      selectedSpriteId: defaultSpriteId,
       editingSource: null,
-      editingTextureName: null,
+      editingAssetName: null,
+      editingAssetType: null,
+      tilemaps: { tilemap_1: createDefaultTilemap() },
+      scenes: [{ id: 'scene_1', name: 'Scene 1', tilemapId: 'tilemap_1' }],
+      activeTilemapId: 'tilemap_1',
     });
   },
 });

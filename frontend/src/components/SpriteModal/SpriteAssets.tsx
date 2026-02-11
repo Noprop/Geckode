@@ -1,39 +1,39 @@
-"use client";
+'use client';
 
-/* Uses local assets on disk for library. DEV ONLY */
+import { useState, useMemo, useCallback } from 'react';
+import { TrashIcon } from '@radix-ui/react-icons';
+import { useGeckodeStore } from '@/stores/geckodeStore';
 
-import { useState, useMemo, useCallback } from "react";
-import { TrashIcon } from "@radix-ui/react-icons";
-import { useGeckodeStore } from "@/stores/geckodeStore";
-
-type TabId = "library" | "editor" | "assets";
+type TabId = 'library' | 'editor' | 'assets';
 
 interface SpriteAssetsProps {
   setActiveTab: (tab: TabId) => void;
 }
 
 const SpriteAssets = ({ setActiveTab }: SpriteAssetsProps) => {
-  const [searchQuery, setSearchQuery] = useState("");
-  const assetTextures = useGeckodeStore((s) => s.assetTextures);
-  const setEditingSprite = useGeckodeStore((s) => s.setEditingSprite);
-  const removeAssetTexture = useGeckodeStore((s) => s.removeAssetTexture);
+  const [searchQuery, setSearchQuery] = useState('');
+  const textures = useGeckodeStore((s) => s.textures);
+  const setEditingAsset = useGeckodeStore((s) => s.setEditingAsset);
+  const removeAsset = useGeckodeStore((s) => s.removeAsset);
 
   const filteredEntries = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    return Object.entries(assetTextures).filter(([textureName]) => !query || textureName.toLowerCase().includes(query));
-  }, [searchQuery, assetTextures]);
+    return Object.entries(textures).filter(
+      ([textureName]) => !query || textureName.toLowerCase().includes(query),
+    );
+  }, [searchQuery, textures]);
 
   const handleTextureClick = (textureName: string) => {
-    setEditingSprite("asset", textureName);
-    setActiveTab("editor");
+    setEditingAsset(textureName, 'textures', 'asset');
+    setActiveTab('editor');
   };
 
   const handleDelete = useCallback(
     (e: React.MouseEvent, textureName: string) => {
       e.stopPropagation();
-      removeAssetTexture(textureName);
+      removeAsset(textureName, 'textures');
     },
-    [removeAssetTexture],
+    [removeAsset],
   );
 
   return (
@@ -53,7 +53,9 @@ const SpriteAssets = ({ setActiveTab }: SpriteAssetsProps) => {
               role="button"
               tabIndex={0}
               onClick={() => handleTextureClick(textureName)}
-              onKeyDown={(e) => e.key === "Enter" && handleTextureClick(textureName)}
+              onKeyDown={(e) =>
+                e.key === 'Enter' && handleTextureClick(textureName)
+              }
               className="group relative flex w-36 flex-col overflow-hidden rounded-xs border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:border-slate-700 dark:bg-dark-secondary cursor-pointer"
               title="Click to edit in sprite editor"
             >
@@ -70,7 +72,7 @@ const SpriteAssets = ({ setActiveTab }: SpriteAssetsProps) => {
                   src={base64}
                   alt={textureName}
                   className="h-17 object-contain drop-shadow-sm"
-                  style={{ imageRendering: "pixelated" }}
+                  style={{ imageRendering: 'pixelated' }}
                 />
               </div>
               <div className="flex items-center justify-between px-3 py-2">

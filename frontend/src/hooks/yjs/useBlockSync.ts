@@ -10,9 +10,7 @@ import { useGeckodeStore } from '@/stores/geckodeStore';
 
 export const useBlockSync = (documentName: string) => {
   const blocklyWorkspace = useGeckodeStore((s) => s.blocklyWorkspace);
-  const selectedSpriteIdx = useGeckodeStore((s) => s.selectedSpriteIdx);
-  const spriteInstances = useGeckodeStore((s) => s.spriteInstances);
-  const currentSpriteId = selectedSpriteIdx !== null ? spriteInstances[selectedSpriteIdx]?.id : undefined;
+  const currentSpriteId = useGeckodeStore((s) => s.selectedSpriteId);
   const { doc } = useYjs(documentName);
   const [blocksMap, setBlocksMap] = useState<Map<Block> | null>(null);
   const { clients, stopBlockDragPolling } = useAwareness(documentName);

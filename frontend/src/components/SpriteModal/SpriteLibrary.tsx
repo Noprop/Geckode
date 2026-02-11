@@ -1,31 +1,29 @@
 "use client";
 
-/* Uses local assets on disk for library. DEV ONLY */
+import { useState, useMemo } from 'react';
+import { useGeckodeStore } from '@/stores/geckodeStore';
 
-import { useState, useMemo } from "react";
-import { useGeckodeStore } from "@/stores/geckodeStore";
-
-type TabId = "library" | "editor" | "assets";
+type TabId = 'library' | 'editor' | 'assets';
 
 interface SpriteLibraryProps {
   setActiveTab: (tab: TabId) => void;
 }
 
 const SpriteLibrary = ({ setActiveTab }: SpriteLibraryProps) => {
-  const [searchQuery, setSearchQuery] = useState("");
-  const libraryTextures = useGeckodeStore((s) => s.libraryTextures);
-  const setEditingSprite = useGeckodeStore((s) => s.setEditingSprite);
+  const [searchQuery, setSearchQuery] = useState('');
+  const libaryTextures = useGeckodeStore((s) => s.libaryTextures);
+  const setEditingAsset = useGeckodeStore((s) => s.setEditingAsset);
 
   const filteredEntries = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    return Object.entries(libraryTextures).filter(
+    return Object.entries(libaryTextures).filter(
       ([textureName]) => !query || textureName.toLowerCase().includes(query),
     );
-  }, [searchQuery, libraryTextures]);
+  }, [searchQuery, libaryTextures]);
 
   const handleTextureClick = (textureName: string) => {
-    setEditingSprite("library", textureName);
-    setActiveTab("editor");
+    setEditingAsset(textureName, 'textures', 'library');
+    setActiveTab('editor');
   };
 
   return (
@@ -39,13 +37,15 @@ const SpriteLibrary = ({ setActiveTab }: SpriteLibraryProps) => {
         </div>
       ) : (
         <div className="flex flex-wrap gap-4">
-          {filteredEntries.map(([textureName, base64]) => (
-            <div
+            {filteredEntries.map(([textureName, base64]) => (
+              <div
               key={textureName}
               role="button"
               tabIndex={0}
               onClick={() => handleTextureClick(textureName)}
-              onKeyDown={(e) => e.key === "Enter" && handleTextureClick(textureName)}
+              onKeyDown={(e) =>
+                e.key === 'Enter' && handleTextureClick(textureName)
+              }
               className="group relative flex w-36 flex-col overflow-hidden rounded-xs border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:border-slate-700 dark:bg-dark-secondary cursor-pointer"
               title="Click to edit in sprite editor"
             >
@@ -54,7 +54,7 @@ const SpriteLibrary = ({ setActiveTab }: SpriteLibraryProps) => {
                   src={base64}
                   alt={textureName}
                   className="h-17 object-contain drop-shadow-sm"
-                  style={{ imageRendering: "pixelated" }}
+                  style={{ imageRendering: 'pixelated' }}
                 />
               </div>
               <div className="flex items-center justify-between px-3 py-2">

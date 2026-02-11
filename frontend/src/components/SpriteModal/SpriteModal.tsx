@@ -1,22 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Cross2Icon, Pencil2Icon, ImageIcon, ArchiveIcon } from "@radix-ui/react-icons";
-import SpriteLibrary from "./SpriteLibrary";
-import SpriteAssets from "./SpriteAssets";
-import SpriteEditor from "./SpriteEditor";
-import { useGeckodeStore } from "@/stores/geckodeStore";
+import { useCallback, useEffect, useState } from 'react';
+import { Cross2Icon, Pencil2Icon, ImageIcon, ArchiveIcon } from '@radix-ui/react-icons';
+import SpriteLibrary from './SpriteLibrary';
+import SpriteAssets from './SpriteAssets';
+import SpriteEditor from './SpriteEditor';
+import { useGeckodeStore } from '@/stores/geckodeStore';
 
-export type TabId = "library" | "editor" | "assets";
+type TabId = 'library' | 'editor' | 'assets';
 
 const SpriteModal = () => {
-  const [activeTab, setActiveTab] = useState<TabId>("editor");
+  const [activeTab, setActiveTab] = useState<TabId>('editor');
   const setIsSpriteModalOpen = useGeckodeStore((state) => state.setIsSpriteModalOpen);
   const isSpriteModalOpen = useGeckodeStore((state) => state.isSpriteModalOpen);
-  const clearEditingSprite = useGeckodeStore((s) => s.clearEditingSprite);
-
   const handleClose = () => {
-    clearEditingSprite();
+    useGeckodeStore.setState({ editingSource: null, editingAssetName: null, editingAssetType: null });
     setIsSpriteModalOpen(false);
   };
 
@@ -24,11 +22,11 @@ const SpriteModal = () => {
     if (!isSpriteModalOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") handleClose();
+      if (e.key === 'Escape') handleClose();
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isSpriteModalOpen, handleClose]);
 
   if (!isSpriteModalOpen) return <></>;
@@ -50,7 +48,18 @@ const SpriteModal = () => {
           <div className="inline-flex rounded-md border border-slate-200 bg-light-tertiary p-1 text-xs font-semibold dark:border-slate-700 dark:bg-dark-tertiary">
             <button
               type="button"
-              onClick={() => setActiveTab("assets")}
+              onClick={() => setActiveTab('assets')}
+              className={`cursor-pointer flex items-center gap-2 rounded-md px-4 py-2 transition ${activeTab === 'assets'
+                ? 'bg-white text-primary-green shadow-sm ring-1 ring-primary-green/30 dark:bg-slate-900'
+                : 'text-slate-600 hover:text-primary-green dark:text-slate-300'
+                }`}
+            >
+              <ArchiveIcon className="h-4 w-4" />
+              My Assets
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('library')}
               className={`cursor-pointer flex items-center gap-2 rounded-md px-4 py-2 transition ${
                 activeTab === "assets"
                   ? "bg-white text-primary-green shadow-sm ring-1 ring-primary-green/30 dark:bg-slate-900"
@@ -87,9 +96,9 @@ const SpriteModal = () => {
           </div>
         </div>
 
-        {activeTab === "assets" && <SpriteAssets setActiveTab={setActiveTab} />}
-        {activeTab === "library" && <SpriteLibrary setActiveTab={setActiveTab} />}
-        {activeTab === "editor" && <SpriteEditor />}
+        {activeTab === 'library' && <SpriteLibrary setActiveTab={setActiveTab} />}
+        {activeTab === 'assets' && <SpriteAssets setActiveTab={setActiveTab} />}
+        {activeTab === 'editor' && <SpriteEditor />}
       </div>
     </div>
   );

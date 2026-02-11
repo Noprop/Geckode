@@ -92,7 +92,7 @@ describe("editorSlice", () => {
 
   describe("getCurrentSpriteId", () => {
     it("returns undefined when no sprites exist", () => {
-      useGeckodeStore.setState({ spriteInstances: [], selectedSpriteIdx: null });
+      useGeckodeStore.setState({ spriteInstances: [], selectedSpriteId: null });
       expect(getState().getCurrentSpriteId()).toBeUndefined();
     });
 
@@ -102,17 +102,17 @@ describe("editorSlice", () => {
           { id: "sprite_1", textureName: "t1", name: "s1", x: 0, y: 0, visible: true, scaleX: 1, scaleY: 1, direction: 0, snapToGrid: false },
           { id: "sprite_2", textureName: "t2", name: "s2", x: 0, y: 0, visible: true, scaleX: 1, scaleY: 1, direction: 0, snapToGrid: false },
         ],
-        selectedSpriteIdx: 1,
+        selectedSpriteId: "sprite_2",
       });
       expect(getState().getCurrentSpriteId()).toBe("sprite_2");
     });
 
-    it("returns undefined when selectedSpriteIdx is null", () => {
+    it("returns undefined when selectedSpriteId is null", () => {
       useGeckodeStore.setState({
         spriteInstances: [
           { id: "sprite_1", textureName: "t1", name: "s1", x: 0, y: 0, visible: true, scaleX: 1, scaleY: 1, direction: 0, snapToGrid: false },
         ],
-        selectedSpriteIdx: null,
+        selectedSpriteId: null,
       });
       expect(getState().getCurrentSpriteId()).toBeUndefined();
     });

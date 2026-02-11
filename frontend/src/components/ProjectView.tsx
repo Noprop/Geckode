@@ -6,10 +6,8 @@ import { useWorkspaceView } from "@/contexts/WorkspaceViewContext";
 import { useGeckodeStore } from "@/stores/geckodeStore";
 import Phaser from "./PhaserPanel/Phaser";
 
-import TilemapEditor from "./ui/TilemapEditor";
-import spritesApi from "@/lib/api/handlers/sprites";
-import { Sprite } from "@/lib/types/api/sprites";
-import projectsApi from "@/lib/api/handlers/projects";
+import AssetWorkspace from "./AssetManager/Overview";
+import TilemapEditor from "@/components/ui/TilemapEditor";
 
 // disable for now
 // import { useBlockSync } from "@/hooks/yjs/useBlockSync";
@@ -23,50 +21,11 @@ import projectsApi from "@/lib/api/handlers/projects";
 //   return { x: snappedX, y: snappedY };
 // };
 
-// load project-specific sprites, return success of request
-
 const ProjectView = () => {
   const { view } = useWorkspaceView();
-  const { undoWorkspace, redoWorkspace, canUndo, canRedo, addAssetTexture, addLibraryTexture } = useGeckodeStore();
+  const { undoWorkspace, redoWorkspace, canUndo, canRedo } = useGeckodeStore();
 
-  const loadAssetsFromProject = (prjID: string | number): boolean => {
-    const assetsApi = projectsApi(prjID).spritesApi;
-
-    let success = false;
-
-    assetsApi
-      .list()
-      .then((res) => {
-        const assetSprites: Sprite[] = res.results;
-        for (var asset of assetSprites) {
-          addAssetTexture(asset.name, asset.texture);
-        }
-        success = true;
-      })
-      .catch(() => {});
-
-    return success;
-  };
-
-  // load public sprites, return success of request
-  const loadLibrary = (): boolean => {
-    let success = false;
-
-    spritesApi
-      .list()
-      .then((res) => {
-        const assetSprites: Sprite[] = res.results;
-        for (var asset of assetSprites) {
-          addLibraryTexture(asset.name, asset.texture);
-        }
-        success = true;
-      })
-      .catch(() => {});
-
-    return success;
-  };
-
-  // disable for now
+  // disable for now 
   // useBlockSync(documentName);
   // useVariableSync(documentName);
 
@@ -74,12 +33,6 @@ const ProjectView = () => {
     return () => {
       // Cancel any pending auto-convert on unmount
       useGeckodeStore.getState().cancelScheduledConvert();
-
-      // get asset and library textures
-      useGeckodeStore.getState().resetSpriteStore();
-      const libFetchedSuccessfully = loadLibrary();
-      if (useGeckodeStore.getState().projectId !== null && libFetchedSuccessfully)
-        loadAssetsFromProject(useGeckodeStore.getState().projectId!);
     };
   }, []);
 
@@ -95,24 +48,20 @@ const ProjectView = () => {
           <BlocklyEditor />
         </div>
         <div
-          className={`absolute inset-0 flex items-center justify-center p-8 transition-opacity duration-150 ${
-            view === "sprite" ? "opacity-100" : "opacity-0 pointer-events-none"
+          className={`absolute inset-0 transition-opacity duration-150 ${
+            view === "tilemap" ? "opacity-100" : "opacity-0 pointer-events-none"
           }`}
-          aria-hidden={view !== "sprite"}
+          aria-hidden={view !== "tilemap"}
         >
           <TilemapEditor />
-          {/* <div
-            className="w-full max-w-3xl rounded-2xl border border-dashed border-slate-400
-          bg-white/80 p-8 text-center shadow-md backdrop-blur-sm dark:border-slate-700 dark:bg-dark-secondary/80"
-          >
-            <h2 className="text-2xl font-bold text-primary-green drop-shadow-sm">
-              Sprite Editor Workspace
-            </h2>
-            <p className="mt-3 text-sm text-slate-700 dark:text-slate-200">
-              A dedicated sprite editor will live here. For now, continue using
-              the tools on the right.
-            </p>
-          </div> */}
+        </div>
+        <div
+          className={`absolute inset-0 transition-opacity duration-150 ${
+            view === "assets" ? "opacity-100" : "opacity-0 pointer-events-none"
+          }`}
+          aria-hidden={view !== "assets"}
+        >
+          <AssetWorkspace />
         </div>
 
         {view === "blocks" && (

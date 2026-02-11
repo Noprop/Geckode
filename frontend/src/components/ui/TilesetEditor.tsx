@@ -1,17 +1,14 @@
-"use client";
+'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import * as Blockly from 'blockly/core';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { Button } from '../ui/Button';
 import { useGeckodeStore } from '@/stores/geckodeStore';
-import EditorTools from './EditorTools';
+import { createUniqueTextureName } from '@/stores/slices/spriteSlice';
+import EditorTools from '../SpriteModal/EditorTools';
 import { Display } from 'phaser';
-import EditorScene from '@/phaser/scenes/EditorScene';
 import { useCanvasZoom } from '@/hooks/useCanvasZoom';
 import { usePixelCanvas, createPixelArray } from '@/hooks/usePixelCanvas';
-import { createUniqueSpriteName, createUniqueTextureName } from '@/stores/slices/spriteSlice';
-import type { SpriteInstance } from '@/blockly/spriteRegistry';
 export type Tool = 'pen' | 'eraser' | 'bucket' | 'rectangle' | 'line' | 'oval' | 'rectangle-selection' | 'pan-tool' | 'color-picker';
 
 // Convert RGBA values at index to hex (returns '' for transparent)
@@ -49,9 +46,9 @@ const palette = [
   '#fbbf24',
 ];
 
-const SpriteEditor = () => {
+const TilesetEditor = ({ onClose }: { onClose: () => void }) => {
   // --- UI state (drives rendering) ---
-  const [spriteName, setSpriteName] = useState('mySprite');
+  const [tileName, setTileName] = useState('myTileset');
   const [brushSize, setBrushSize] = useState(1);
   const [primaryColor, setPrimaryColor] = useState('#10b981');
   const [secondaryColor, setSecondaryColor] = useState('#3b82f6');
@@ -60,14 +57,11 @@ const SpriteEditor = () => {
   const [gridHeight, setGridHeight] = useState(16);
 
   // --- Zustand selectors ---
-  const setIsSpriteModalOpen = useGeckodeStore((s) => s.setIsSpriteModalOpen);
-  const saveSprite = useGeckodeStore((s) => s.saveSprite);
-  const libaryTextures = useGeckodeStore((s) => s.libaryTextures);
-  const textures = useGeckodeStore((s) => s.textures);
+  const libaryTilesets = useGeckodeStore((s) => s.libaryTilesets);
+  const tilesets = useGeckodeStore((s) => s.tilesets);
   const editingSource = useGeckodeStore((s) => s.editingSource);
   const editingAssetName = useGeckodeStore((s) => s.editingAssetName);
-  const phaserScene = useGeckodeStore((s) => s.phaserScene);
-  const spriteInstances = useGeckodeStore((s) => s.spriteInstances);
+  const editingAssetType = useGeckodeStore((s) => s.editingAssetType);
 
   // --- Custom hooks ---
   const { cellSize, zoomPercent, setZoom, isEditingZoom, setIsEditingZoom, canvasContainerRef, MIN_ZOOM_PERCENT, MAX_ZOOM_PERCENT } = useCanvasZoom(gridWidth, gridHeight);
@@ -198,17 +192,11 @@ const SpriteEditor = () => {
   };
 
   const getRectanglePixels = (x1: number, y1: number, x2: number, y2: number) => {
-    const minX = Math.min(x1, x2),
-      maxX = Math.max(x1, x2);
-    const minY = Math.min(y1, y2),
-      maxY = Math.max(y1, y2);
+    const minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
+    const minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
     const pixels: { x: number; y: number }[] = [];
-    for (let x = minX; x <= maxX; x++) {
-      pixels.push({ x, y: minY }, { x, y: maxY });
-    }
-    for (let y = minY + 1; y < maxY; y++) {
-      pixels.push({ x: minX, y }, { x: maxX, y });
-    }
+    for (let x = minX; x <= maxX; x++) { pixels.push({ x, y: minY }, { x, y: maxY }); }
+    for (let y = minY + 1; y < maxY; y++) { pixels.push({ x: minX, y }, { x: maxX, y }); }
     return pixels;
   };
 
@@ -306,7 +294,7 @@ const SpriteEditor = () => {
     // Paint for pen and eraser
     if (ds.activeTool === 'pen') {
       if (prev && (Math.abs(position.x - prev.x) > 1 || Math.abs(position.y - prev.y) > 1)) {
-        getLinePixels(prev.x, prev.y, position.x, position.y).forEach((p) => paintAt(p.x, p.y, color));
+        getLinePixels(prev.x, prev.y, position.x, position.y).forEach(p => paintAt(p.x, p.y, color));
       } else {
         paintAt(position.x, position.y, color);
       }
@@ -352,9 +340,7 @@ const SpriteEditor = () => {
   }, []);
 
   // --- Save / Load ---
-  const addSpriteToGame = async () => {
-    if (!(phaserScene instanceof EditorScene)) throw new Error('Phaser scene is not an EditorScene.');
-
+  const saveTileToAssets = () => {
     const w = gridWidth;
     const h = gridHeight;
     const offscreen = document.createElement('canvas');
@@ -366,64 +352,32 @@ const SpriteEditor = () => {
     ctx.putImageData(imageData, 0, 0);
     const base64Image = offscreen.toDataURL('image/png');
 
-    const newSpriteName = createUniqueSpriteName(spriteName, spriteInstances);
-    const newTextureName = editingSource === 'asset' ? editingAssetName! : createUniqueTextureName(spriteName, textures);
-
-    const newSprite: SpriteInstance = {
-      name: newSpriteName,
-      textureName: newTextureName,
-      id: `id_${Date.now()}`,
-      x: 0,
-      y: 0,
-      visible: true,
-      scaleX: 1,
-      scaleY: 1,
-      direction: 0,
-      snapToGrid: true,
-    };
-
-    // add texture to state, and phaser
     if (editingSource === 'new' || editingSource === 'library') {
-      useGeckodeStore.getState().addAsset(newTextureName, base64Image, 'textures');
-      await phaserScene.loadTextureAsync(newTextureName, base64Image);
+      const allTilesets = useGeckodeStore.getState().tilesets;
+      const uniqueName = createUniqueTextureName(tileName, allTilesets);
+      useGeckodeStore.getState().addAsset(uniqueName, base64Image, 'tilesets');
     } else if (editingSource === 'asset') {
-      useGeckodeStore.getState().updateAsset(editingAssetName!, base64Image, 'textures');
-      await phaserScene.updateTextureAsync(newTextureName, base64Image);
+      useGeckodeStore.getState().updateAsset(editingAssetName!, base64Image, 'tilesets');
     }
-    phaserScene.createSprite(newSprite);
-
-    // add sprite to state, save workspace for current sprite, and switch to new sprite
-    const { selectedSpriteId, spriteWorkspaces, blocklyWorkspace } = useGeckodeStore.getState();
-    useGeckodeStore.setState({
-      spriteInstances: [...spriteInstances, newSprite],
-      selectedSpriteId: newSprite.id,
-      spriteWorkspaces: {
-        ...spriteWorkspaces,
-        [newSprite.id]: {},
-        ...(selectedSpriteId && blocklyWorkspace
-          ? { [selectedSpriteId]: Blockly.serialization.workspaces.save(blocklyWorkspace) }
-          : {}),
-      },
-    });
-    Blockly.serialization.workspaces.load({}, useGeckodeStore.getState().blocklyWorkspace!);
 
     useGeckodeStore.setState({ editingSource: null, editingAssetName: null, editingAssetType: null });
-    setIsSpriteModalOpen(false);
+    onClose();
   };
 
-  // Load existing texture when editing from library or asset (use offscreen canvas to avoid checkerboard in pixel data)
+  // Load existing texture when editing from library or asset
   useEffect(() => {
     if (
       editingSource === null ||
       editingAssetName === null ||
+      editingAssetType !== 'tilesets' ||
       !canvasRef.current
     )
       return;
 
     const textureInfo =
-      editingSource === "library"
-        ? libaryTextures[editingAssetName]
-        : textures[editingAssetName];
+      editingSource === 'library'
+        ? libaryTilesets[editingAssetName]
+        : tilesets[editingAssetName];
     if (!textureInfo) return;
 
     const img = new Image();
@@ -443,11 +397,11 @@ const SpriteEditor = () => {
 
       resetPixelArrays(width, height);
       outputPixelsRef.current = new Uint8ClampedArray(imageData.data);
-      setSpriteName(editingAssetName);
+      setTileName(editingAssetName);
       requestRender();
     };
     img.src = textureInfo;
-  }, [editingSource, editingAssetName, libaryTextures, textures]);
+  }, [editingSource, editingAssetName, libaryTilesets, tilesets]);
 
   // --- Grid resize handler (used by uncontrolled inputs) ---
   const handleGridResize = (dimension: 'width' | 'height', value: string, fallback: number) => {
@@ -471,9 +425,10 @@ const SpriteEditor = () => {
               key={size}
               type="button"
               onClick={() => setBrushSize(size)}
-              className={`h-9 flex items-center justify-center cursor-pointer transition ${
-                brushSize === size ? "bg-primary-green" : "bg-slate-600 hover:bg-slate-500"
-              }`}
+              className={`h-9 flex items-center justify-center cursor-pointer transition ${brushSize === size
+                ? 'bg-primary-green'
+                : 'bg-slate-600 hover:bg-slate-500'
+                }`}
               title={`${size}x${size} brush`}
             >
               <div className="bg-white" style={{ width: size * 3 + 2, height: size * 3 + 2 }} />
@@ -490,12 +445,12 @@ const SpriteEditor = () => {
             onClick={swapColors}
             className="absolute right-1.5 bottom-0 w-18 h-8 rounded-xs cursor-pointer transition-shadow"
             style={{
-              backgroundColor: secondaryColor || "#9e9e9e",
+              backgroundColor: secondaryColor || '#9e9e9e',
               backgroundImage: !secondaryColor
-                ? "linear-gradient(45deg, #6e6e6e 25%, transparent 25%), linear-gradient(-45deg, #6e6e6e 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #6e6e6e 75%), linear-gradient(-45deg, transparent 75%, #6e6e6e 75%)"
+                ? 'linear-gradient(45deg, #6e6e6e 25%, transparent 25%), linear-gradient(-45deg, #6e6e6e 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #6e6e6e 75%), linear-gradient(-45deg, transparent 75%, #6e6e6e 75%)'
                 : undefined,
-              backgroundSize: "8px 8px",
-              backgroundPosition: "0 0, 0 4px, 4px -4px, -4px 0px",
+              backgroundSize: '8px 8px',
+              backgroundPosition: '0 0, 0 4px, 4px -4px, -4px 0px',
             }}
             title="Secondary color (right-click) - Click to swap"
           />
@@ -504,12 +459,12 @@ const SpriteEditor = () => {
             onClick={swapColors}
             className="absolute left-1.5 top-0 w-18 h-8 rounded-xs cursor-pointer transition-shadow"
             style={{
-              backgroundColor: primaryColor || "#9e9e9e",
+              backgroundColor: primaryColor || '#9e9e9e',
               backgroundImage: !primaryColor
-                ? "linear-gradient(45deg, #6e6e6e 25%, transparent 25%), linear-gradient(-45deg, #6e6e6e 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #6e6e6e 75%), linear-gradient(-45deg, transparent 75%, #6e6e6e 75%)"
+                ? 'linear-gradient(45deg, #6e6e6e 25%, transparent 25%), linear-gradient(-45deg, #6e6e6e 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #6e6e6e 75%), linear-gradient(-45deg, transparent 75%, #6e6e6e 75%)'
                 : undefined,
-              backgroundSize: "8px 8px",
-              backgroundPosition: "0 0, 0 4px, 4px -4px, -4px 0px",
+              backgroundSize: '8px 8px',
+              backgroundPosition: '0 0, 0 4px, 4px -4px, -4px 0px',
             }}
             title="Primary color (left-click) - Click to swap"
           />
@@ -520,14 +475,13 @@ const SpriteEditor = () => {
           <div className="grid grid-cols-3 w-full gap-1.5">
             <button
               type="button"
-              onClick={() => setPrimaryColor("")}
+              onClick={() => setPrimaryColor('')}
               className="rounded-xs cursor-pointer transition aspect-square hover:ring-2 hover:ring-white/40"
               style={{
-                backgroundImage:
-                  "linear-gradient(45deg, #6e6e6e 25%, transparent 25%), linear-gradient(-45deg, #6e6e6e 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #6e6e6e 75%), linear-gradient(-45deg, transparent 75%, #6e6e6e 75%)",
-                backgroundSize: "8px 8px",
-                backgroundPosition: "0 0, 0 4px, 4px -4px, -4px 0px",
-                backgroundColor: "#9e9e9e",
+                backgroundImage: 'linear-gradient(45deg, #6e6e6e 25%, transparent 25%), linear-gradient(-45deg, #6e6e6e 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #6e6e6e 75%), linear-gradient(-45deg, transparent 75%, #6e6e6e 75%)',
+                backgroundSize: '8px 8px',
+                backgroundPosition: '0 0, 0 4px, 4px -4px, -4px 0px',
+                backgroundColor: '#9e9e9e',
               }}
               title="Transparent"
             />
@@ -551,7 +505,7 @@ const SpriteEditor = () => {
             <span className="text-xs text-slate-300">Custom</span>
             <input
               type="color"
-              value={primaryColor || "#000000"}
+              value={primaryColor || '#000000'}
               onChange={(e) => setPrimaryColor(e.target.value)}
               className="hidden"
             />
@@ -611,7 +565,7 @@ const SpriteEditor = () => {
               style={{
                 width: gridWidth * cellSize,
                 height: gridHeight * cellSize,
-                imageRendering: "pixelated",
+                imageRendering: 'pixelated',
               }}
               onPointerDown={canvasPointerDown}
               onContextMenu={(e) => e.preventDefault()}
@@ -641,9 +595,7 @@ const SpriteEditor = () => {
                 setZoom(parseInt(e.target.value, 10));
                 setIsEditingZoom(false);
               }}
-              onKeyDown={(e) =>
-                e.key === "Enter" ? e.currentTarget.blur() : e.key === "Escape" && setIsEditingZoom(false)
-              }
+              onKeyDown={(e) => e.key === 'Enter' ? e.currentTarget.blur() : e.key === 'Escape' && setIsEditingZoom(false)}
               className="w-14 h-6 px-1 text-xs text-slate-300 text-center bg-slate-600 border border-slate-500 rounded outline-none focus:border-primary-green [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               autoFocus
               onFocus={(e) => e.target.select()}
@@ -653,9 +605,9 @@ const SpriteEditor = () => {
               type="button"
               onClick={() => setIsEditingZoom(true)}
               className="w-14 h-6 text-xs text-slate-300 text-center hover:bg-slate-600 rounded cursor-pointer transition"
-              title="Click to edit zoom (100% = fit to container)"
+                title="Click to edit zoom (100% = fit to container)"
             >
-              {Math.round(zoomPercent)}%
+                {Math.round(zoomPercent)}%
             </button>
           )}
           <button
@@ -677,21 +629,21 @@ const SpriteEditor = () => {
           <canvas
             ref={previewRef}
             className="w-10 h-10 rounded border border-slate-500"
-            style={{ imageRendering: "pixelated" }}
+            style={{ imageRendering: 'pixelated' }}
           />
           <input
             type="text"
-            value={spriteName}
-            onChange={(e) => setSpriteName(e.target.value)}
-            placeholder="Sprite name"
+            value={tileName}
+            onChange={(e) => setTileName(e.target.value)}
+            placeholder="Tileset name"
             className="flex-1 h-9 px-3 rounded bg-slate-600 border border-slate-500 text-sm text-white placeholder:text-slate-400 outline-none focus:border-primary-green"
           />
           <Button
             className="btn-confirm h-9 px-4"
-            onClick={addSpriteToGame}
-            title="Add to game"
+            onClick={saveTileToAssets}
+            title="Save to assets"
           >
-            Add to Game
+            Save to Assets
           </Button>
         </div>
       </div>
@@ -699,4 +651,4 @@ const SpriteEditor = () => {
   );
 };
 
-export default SpriteEditor;
+export default TilesetEditor;

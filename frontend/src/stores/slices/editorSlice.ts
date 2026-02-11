@@ -36,9 +36,7 @@ export const createEditorSlice: StateCreator<
   spriteOutputs: {},
 
   getCurrentSpriteId: () => {
-    const { selectedSpriteIdx, spriteInstances } = get();
-    if (selectedSpriteIdx === null || !spriteInstances[selectedSpriteIdx]) return undefined;
-    return spriteInstances[selectedSpriteIdx].id;
+    return get().selectedSpriteId ?? undefined;
   },
 
   setBlocklyWorkspaceRef: (blocklyWorkspace) => set({ blocklyWorkspace }),
@@ -65,9 +63,8 @@ export const createEditorSlice: StateCreator<
   },
 
   generateCode: () => {
-    const { blocklyWorkspace, spriteWorkspaces, spriteOutputs, selectedSpriteIdx, spriteInstances } = get();
-    if (!blocklyWorkspace || selectedSpriteIdx === null || spriteInstances.length === 0) return;
-    const spriteId = spriteInstances[selectedSpriteIdx].id;
+    const { blocklyWorkspace, spriteWorkspaces, spriteOutputs, selectedSpriteId: spriteId } = get();
+    if (!blocklyWorkspace || !spriteId) return;
 
     const code = javascriptGenerator.workspaceToCode(blocklyWorkspace);
     const output = {
@@ -209,11 +206,11 @@ export const createEditorSlice: StateCreator<
       );
 
       console.log("[toggleEditor] code: ", code);
-      const { assetTextures } = get();
+      const { textures } = get();
 
       phaserScene?.scene.start(GAME_SCENE_KEY, {
         spriteInstances,
-        assetTextures,
+        textures,
         code,
       });
 
@@ -254,7 +251,7 @@ export const createEditorSlice: StateCreator<
     set({
       spriteWorkspaces: {},
       spriteOutputs: {},
-      selectedSpriteIdx: 0,
+      selectedSpriteId: get().spriteInstances[0]?.id ?? null,
       canUndo: false,
       canRedo: false,
     });
