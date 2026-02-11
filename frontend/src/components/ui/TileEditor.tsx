@@ -5,7 +5,7 @@ import * as Blockly from 'blockly/core';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { Button } from '../ui/Button';
 import { useGeckodeStore } from '@/stores/geckodeStore';
-import EditorTools from './EditorTools';
+import EditorTools from '../SpriteModal/EditorTools';
 import { Display } from 'phaser';
 import EditorScene from '@/phaser/scenes/EditorScene';
 import { useCanvasZoom } from '@/hooks/useCanvasZoom';
@@ -49,9 +49,9 @@ const palette = [
   '#fbbf24',
 ];
 
-const SpriteEditor = () => {
+const TileEditor = () => {
   // --- UI state (drives rendering) ---
-  const [spriteName, setSpriteName] = useState('mySprite');
+  const [tileName, setTileName] = useState('myTile');
   const [brushSize, setBrushSize] = useState(1);
   const [primaryColor, setPrimaryColor] = useState('#10b981');
   const [secondaryColor, setSecondaryColor] = useState('#3b82f6');
@@ -69,9 +69,11 @@ const SpriteEditor = () => {
   const phaserScene = useGeckodeStore((s) => s.phaserScene);
   const spriteInstances = useGeckodeStore((s) => s.spriteInstances);
 
+  const tiles = useGeckodeStore((s) => s.tiles);
+
   // --- Custom hooks ---
   const { cellSize, zoomPercent, setZoom, isEditingZoom, setIsEditingZoom, canvasContainerRef, MIN_ZOOM_PERCENT, MAX_ZOOM_PERCENT } = useCanvasZoom(gridWidth, gridHeight);
-  const { canvasRef, previewRef, outputPixelsRef, previewPixelsRef, requestRender, saveToHistory, clearCanvas, resetPixelArrays } = usePixelCanvas(gridWidth, gridHeight, cellSize, 0.5);
+  const { canvasRef, previewRef, outputPixelsRef, previewPixelsRef, requestRender, saveToHistory, clearCanvas, resetPixelArrays } = usePixelCanvas(gridWidth, gridHeight, cellSize);
 
   // --- Drawing state (single ref, no re-renders) ---
   const drawStateRef = useRef({
@@ -346,76 +348,100 @@ const SpriteEditor = () => {
   }, []);
 
   // --- Save / Load ---
-  const addSpriteToGame = async () => {
-    if (!(phaserScene instanceof EditorScene)) throw new Error('Phaser scene is not an EditorScene.');
+  // this flow needs to be modified to save to tile textures instead of sprites
+  const saveTileToAssets = async () => {
+  // const w = gridWidth;
+  // const h = gridHeight;
+  // const offscreen = document.createElement('canvas');
+  // offscreen.width = w;
+  // offscreen.height = h;
+  // const ctx = offscreen.getContext('2d')!;
+  // const imageData = ctx.createImageData(w, h);
+  // imageData.data.set(outputPixelsRef.current);
+  // ctx.putImageData(imageData, 0, 0);
+  // const base64Image = offscreen.toDataURL('image/png');
 
-    const w = gridWidth;
-    const h = gridHeight;
-    const offscreen = document.createElement('canvas');
-    offscreen.width = w;
-    offscreen.height = h;
-    const ctx = offscreen.getContext('2d')!;
-    const imageData = ctx.createImageData(w, h);
-    imageData.data.set(outputPixelsRef.current);
-    ctx.putImageData(imageData, 0, 0);
-    const base64Image = offscreen.toDataURL('image/png');
+    // console.log('tile: ', { base64Image });
 
-    const newSpriteName = createUniqueSpriteName(spriteName, spriteInstances);
-    const newTextureName = editingSource === 'asset' ? editingAssetName! : createUniqueTextureName(spriteName, textures);
+    // keep this code for reference; we can use it to convert random textures to b64
+    // const img = new Image();
+    // img.src = "/dirt_texture.webp";
+    // img.onload = () => {
+    //   const canvas = document.createElement("canvas");
+    //   canvas.width = 16;
+    //   canvas.height = 16;
+    //   const ctx = canvas.getContext("2d");
+    //   if (!ctx) return;
+    //   ctx.imageSmoothingQuality = "high";
+    //   ctx.drawImage(img, 0, 0, 16, 16);
+    //   const b64 = canvas.toDataURL("image/png");
+    //   console.log('tile: ', { b64 });
+    // };
 
-    const newSprite: SpriteInstance = {
-      name: newSpriteName,
-      textureName: newTextureName,
-      id: `id_${Date.now()}`,
-      x: 0,
-      y: 0,
-      visible: true,
-      scaleX: 1,
-      scaleY: 1,
-      direction: 0,
-      snapToGrid: true,
-    };
 
-    // add texture to state, and phaser
-    if (editingSource === 'new' || editingSource === 'library') {
-      useGeckodeStore.getState().addAsset(newTextureName, base64Image, 'textures');
-      await phaserScene.loadTextureAsync(newTextureName, base64Image);
-    } else if (editingSource === 'asset') {
-      useGeckodeStore.getState().updateAsset(editingAssetName!, base64Image, 'textures');
-      await phaserScene.updateTextureAsync(newTextureName, base64Image);
-    }
-    phaserScene.createSprite(newSprite);
 
-    // add sprite to state, save workspace for current sprite, and switch to new sprite
-    useGeckodeStore.setState({
-      spriteInstances: [...spriteInstances, newSprite],
-      selectedSpriteIdx: spriteInstances.length,
-      spriteWorkspaces: {
-        ...useGeckodeStore.getState().spriteWorkspaces,
-        [newSprite.id]: {},
-        [spriteInstances[useGeckodeStore.getState().selectedSpriteIdx].id]: Blockly.serialization.workspaces.save(useGeckodeStore.getState().blocklyWorkspace!),
-      },
-    });
-    Blockly.serialization.workspaces.load({}, useGeckodeStore.getState().blocklyWorkspace!);
+    // const newSpriteName = createUniqueSpriteName(spriteName, spriteInstances);
+    // const newTextureName = editingSource === 'asset' ? editingTextureName! : createUniqueTextureName(spriteName, assetTextures);
 
-    useGeckodeStore.setState({ editingSource: null, editingAssetName: null, editingAssetType: null });
-    setIsSpriteModalOpen(false);
+    // const newSprite: SpriteInstance = {
+    //   name: newSpriteName,
+    //   textureName: newTextureName,
+    //   id: `id_${Date.now()}`,
+    //   x: 0,
+    //   y: 0,
+    //   visible: true,
+    //   scaleX: 1,
+    //   scaleY: 1,
+    //   direction: 0,
+    //   snapToGrid: true,
+    // };
+
+    // // add texture to state, and phaser
+    // if (editingSource === 'new' || editingSource === 'library') {
+    //   useGeckodeStore.getState().addAssetTexture(newTextureName, base64Image);
+    //   await phaserScene.loadTextureAsync(newTextureName, base64Image);
+    // } else if (editingSource === 'asset') {
+    //   useGeckodeStore.getState().updateAssetTexture(editingTextureName!, base64Image);
+    //   await phaserScene.updateTextureAsync(newTextureName, base64Image);
+    // }
+    // phaserScene.createSprite(newSprite);
+
+    // // add sprite to state, save workspace for current sprite, and switch to new sprite
+    // useGeckodeStore.setState({
+    //   spriteInstances: [...spriteInstances, newSprite],
+    //   selectedSpriteIdx: spriteInstances.length,
+    //   spriteWorkspaces: {
+    //     ...useGeckodeStore.getState().spriteWorkspaces,
+    //     [newSprite.id]: {},
+    //     [spriteInstances[useGeckodeStore.getState().selectedSpriteIdx].id]: Blockly.serialization.workspaces.save(useGeckodeStore.getState().blocklyWorkspace!),
+    //   },
+    // });
+    // Blockly.serialization.workspaces.load({}, useGeckodeStore.getState().blocklyWorkspace!);
+
+    // clearEditingSprite();
+    // setIsSpriteModalOpen(false);
   };
 
   // Load existing texture when editing from library or asset (use offscreen canvas to avoid checkerboard in pixel data)
-  useEffect(() => {
-    if (
-      editingSource === null ||
-      editingAssetName === null ||
-      !canvasRef.current
-    )
-      return;
+  // useEffect(() => {
+  //   if (
+  //     editingSource === null ||
+  //     editingTextureName === null ||
+  //     !canvasRef.current
+  //   )
+  //     return;
 
-    const textureInfo =
-      editingSource === "library"
-        ? libaryTextures[editingAssetName]
-        : textures[editingAssetName];
-    if (!textureInfo) return;
+  //   const textureInfo =
+  //     editingSource === "library"
+  //       ? libraryTextures[editingTextureName]
+  //       : assetTextures[editingTextureName];
+  //   if (!textureInfo) return;
+  // }, [editingSource, editingTextureName, libraryTextures, assetTextures]);
+
+  useEffect(() => {
+    // if (editingSource === null || editingTextureName === null || !canvasRef.current) return;
+    // const textureInfo = editingSource === "library" ? libraryTextures[editingTextureName] : assetTextures[editingTextureName];
+    const textureInfo = tiles['grass'];
 
     const img = new Image();
     img.onload = () => {
@@ -434,11 +460,11 @@ const SpriteEditor = () => {
 
       resetPixelArrays(width, height);
       outputPixelsRef.current = new Uint8ClampedArray(imageData.data);
-      setSpriteName(editingAssetName);
+      // setTileName(editingTextureName);
       requestRender();
     };
     img.src = textureInfo;
-  }, [editingSource, editingAssetName, libaryTextures, textures]);
+  }, [tiles])
 
   // --- Grid resize handler (used by uncontrolled inputs) ---
   const handleGridResize = (dimension: 'width' | 'height', value: string, fallback: number) => {
@@ -670,17 +696,17 @@ const SpriteEditor = () => {
           />
           <input
             type="text"
-            value={spriteName}
-            onChange={(e) => setSpriteName(e.target.value)}
+            value={tileName}
+            onChange={(e) => setTileName(e.target.value)}
             placeholder="Sprite name"
             className="flex-1 h-9 px-3 rounded bg-slate-600 border border-slate-500 text-sm text-white placeholder:text-slate-400 outline-none focus:border-primary-green"
           />
           <Button
             className="btn-confirm h-9 px-4"
-            onClick={addSpriteToGame}
-            title="Add to game"
+            onClick={saveTileToAssets}
+            title="Save to assets"
           >
-            Add to Game
+            Save to Assets
           </Button>
         </div>
       </div>
@@ -688,4 +714,4 @@ const SpriteEditor = () => {
   );
 };
 
-export default SpriteEditor;
+export default TileEditor;

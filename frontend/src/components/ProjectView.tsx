@@ -6,7 +6,8 @@ import { useWorkspaceView } from "@/contexts/WorkspaceViewContext";
 import { useGeckodeStore } from "@/stores/geckodeStore";
 import Phaser from "./PhaserPanel/Phaser";
 
-import TilemapEditor from "./ui/TilemapEditor";
+import AssetWorkspace from "./AssetManager/Overview";
+import TilemapEditor from "@/components/ui/TilemapEditor";
 
 // disable for now
 // import { useBlockSync } from "@/hooks/yjs/useBlockSync";
@@ -47,24 +48,20 @@ const ProjectView = () => {
           <BlocklyEditor />
         </div>
         <div
-          className={`absolute inset-0 flex items-center justify-center p-8 transition-opacity duration-150 ${
-            view === "sprite" ? "opacity-100" : "opacity-0 pointer-events-none"
+          className={`absolute inset-0 transition-opacity duration-150 ${
+            view === "tilemap" ? "opacity-100" : "opacity-0 pointer-events-none"
           }`}
-          aria-hidden={view !== "sprite"}
+          aria-hidden={view !== "tilemap"}
         >
           <TilemapEditor />
-          {/* <div
-            className="w-full max-w-3xl rounded-2xl border border-dashed border-slate-400
-          bg-white/80 p-8 text-center shadow-md backdrop-blur-sm dark:border-slate-700 dark:bg-dark-secondary/80"
-          >
-            <h2 className="text-2xl font-bold text-primary-green drop-shadow-sm">
-              Sprite Editor Workspace
-            </h2>
-            <p className="mt-3 text-sm text-slate-700 dark:text-slate-200">
-              A dedicated sprite editor will live here. For now, continue using
-              the tools on the right.
-            </p>
-          </div> */}
+        </div>
+        <div
+          className={`absolute inset-0 transition-opacity duration-150 ${
+            view === "assets" ? "opacity-100" : "opacity-0 pointer-events-none"
+          }`}
+          aria-hidden={view !== "assets"}
+        >
+          <AssetWorkspace />
         </div>
 
         {view === "blocks" && (

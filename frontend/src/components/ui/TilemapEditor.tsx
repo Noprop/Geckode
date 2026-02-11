@@ -1,448 +1,463 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
-import { Button } from './Button';
+import { EraserIcon } from '@radix-ui/react-icons';
+import { PencilIcon, BucketIcon, LineIcon, CircleIcon, ColorPickerIcon } from '@/components/icons';
 import { useGeckodeStore } from '@/stores/geckodeStore';
-import EditorTools from '../SpriteModal/EditorTools';
-import { Display } from 'phaser';
-import EditorScene from '@/phaser/scenes/EditorScene';
+import type { TilemapTool } from '@/stores/geckodeStore';
 import { useCanvasZoom } from '@/hooks/useCanvasZoom';
-import { usePixelCanvas, createPixelArray } from '@/hooks/usePixelCanvas';
-import { createUniqueSpriteName, createUniqueTextureName } from '@/stores/slices/spriteSlice';
-import type { SpriteInstance } from '@/blockly/spriteRegistry';
-export type Tool = 'pen' | 'eraser' | 'bucket' | 'rectangle' | 'line' | 'oval' | 'rectangle-selection' | 'pan-tool' | 'color-picker';
+import { usePixelCanvas } from '@/hooks/usePixelCanvas';
+import {
+  useTilePixelCache,
+  stampSolidColorAt,
+  stampTileAtWithAlpha,
+  rebuildPixelBuffer,
+} from '@/hooks/useTilePixelCache';
 
-// Convert RGBA values at index to hex (returns '' for transparent)
-const rgbaToHex = (data: Uint8ClampedArray, idx: number): string => {
-  if (data[idx + 3] === 0) return '';
-  const r = data[idx].toString(16).padStart(2, '0');
-  const g = data[idx + 1].toString(16).padStart(2, '0');
-  const b = data[idx + 2].toString(16).padStart(2, '0');
-  return `#${r}${g}${b}`;
-};
+const TILE_PX = 16;
 
-// Set pixel in RGBA array
-const setPixel = (data: Uint8ClampedArray, idx: number, color: { r: number; g: number; b: number; a: number } | null) => {
-  if (color) {
-    data[idx] = color.r;
-    data[idx + 1] = color.g;
-    data[idx + 2] = color.b;
-    data[idx + 3] = color.a;
-  } else {
-    data[idx] = 0;
-    data[idx + 1] = 0;
-    data[idx + 2] = 0;
-    data[idx + 3] = 0;
+// ── Bresenham line (tile coords) ──
+const getLineCells = (c0: number, r0: number, c1: number, r1: number) => {
+  const cells: { row: number; col: number }[] = [];
+  const dx = Math.abs(c1 - c0);
+  const dy = Math.abs(r1 - r0);
+  const sx = c0 < c1 ? 1 : -1;
+  const sy = r0 < r1 ? 1 : -1;
+  let err = dx - dy;
+  let col = c0;
+  let row = r0;
+  while (true) {
+    cells.push({ row, col });
+    if (col === c1 && row === r1) break;
+    const e2 = 2 * err;
+    if (e2 > -dy) { err -= dy; col += sx; }
+    if (e2 < dx) { err += dx; row += sy; }
   }
+  return cells;
 };
 
-const palette = [
-  '#ffffff',
-  '#ef4444',
-  '#10b981',
-  '#3b82f6',
-  '#f97316',
-  '#000000',
-  '#8b5cf6',
-  '#fbbf24',
-];
+// ── Rectangle outline (tile coords) ──
+const getRectangleCells = (c1: number, r1: number, c2: number, r2: number) => {
+  const minC = Math.min(c1, c2), maxC = Math.max(c1, c2);
+  const minR = Math.min(r1, r2), maxR = Math.max(r1, r2);
+  const cells: { row: number; col: number }[] = [];
+  for (let c = minC; c <= maxC; c++) { cells.push({ row: minR, col: c }); cells.push({ row: maxR, col: c }); }
+  for (let r = minR + 1; r < maxR; r++) { cells.push({ row: r, col: minC }); cells.push({ row: r, col: maxC }); }
+  return cells;
+};
 
-const SpriteEditor = () => {
-  // --- UI state (drives rendering) ---
-  const [spriteName, setSpriteName] = useState('mySprite');
+// ── Oval outline (tile coords) ──
+const getOvalCells = (c1: number, r1: number, c2: number, r2: number, w: number, h: number) => {
+  const cx = (c1 + c2) / 2, cy = (r1 + r2) / 2;
+  const rx = Math.abs(c2 - c1) / 2, ry = Math.abs(r2 - r1) / 2;
+  if (rx === 0 || ry === 0) return [];
+  const cells: { row: number; col: number }[] = [];
+  const seen = new Set<string>();
+  const steps = Math.max(Math.ceil(2 * Math.PI * Math.max(rx, ry)), 32);
+  for (let i = 0; i < steps; i++) {
+    const angle = (2 * Math.PI * i) / steps;
+    const col = Math.round(cx + rx * Math.cos(angle));
+    const row = Math.round(cy + ry * Math.sin(angle));
+    if (col >= 0 && col < w && row >= 0 && row < h) {
+      const key = `${row},${col}`;
+      if (!seen.has(key)) { seen.add(key); cells.push({ row, col }); }
+    }
+  }
+  return cells;
+};
+
+// ── Tool button ──
+const ToolButton = ({
+  tool,
+  activeTool,
+  onClick,
+  title,
+  children,
+}: {
+  tool: TilemapTool;
+  activeTool: TilemapTool;
+  onClick: () => void;
+  title: string;
+  children: React.ReactNode;
+}) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={`w-12 h-12 flex items-center justify-center rounded cursor-pointer transition ${
+      activeTool === tool
+        ? 'bg-primary-green text-white'
+      : 'bg-slate-200 hover:bg-slate-300 dark:bg-dark-tertiary dark:hover:bg-dark-tertiary/80 text-slate-600 dark:text-slate-300'
+    }`}
+    title={title}
+  >
+    {children}
+  </button>
+);
+
+const TilemapEditor = () => {
+  const [activeTool, setActiveTool] = useState<TilemapTool>('place');
+  const [selectedTileKey, setSelectedTileKey] = useState<string | null>(null);
   const [brushSize, setBrushSize] = useState(1);
-  const [primaryColor, setPrimaryColor] = useState('#10b981');
-  const [secondaryColor, setSecondaryColor] = useState('#3b82f6');
-  const [activeTool, setActiveTool] = useState<Tool>('pen');
-  const [gridWidth, setGridWidth] = useState(16);
-  const [gridHeight, setGridHeight] = useState(16);
+  const [hoverCell, setHoverCell] = useState<{ row: number; col: number } | null>(null);
 
-  // --- Zustand selectors ---
-  const setIsSpriteModalOpen = useGeckodeStore((s) => s.setIsSpriteModalOpen);
-  const clearEditingSprite = useGeckodeStore((s) => s.clearEditingSprite);
-  const saveSprite = useGeckodeStore((s) => s.saveSprite);
-  const libraryTextures = useGeckodeStore((s) => s.libraryTextures);
-  const assetTextures = useGeckodeStore((s) => s.assetTextures);
-  const editingSource = useGeckodeStore((s) => s.editingSource);
-  const editingTextureName = useGeckodeStore((s) => s.editingTextureName);
-  const phaserScene = useGeckodeStore((s) => s.phaserScene);
-  const spriteInstances = useGeckodeStore((s) => s.spriteInstances);
+  const tileTextures = useGeckodeStore((s) => s.tiles);
+  const tilemaps = useGeckodeStore((s) => s.tilemaps);
+  const activeTilemapId = useGeckodeStore((s) => s.activeTilemapId);
+  const updateTilemapCell = useGeckodeStore((s) => s.updateTilemapCell);
+  const setTilemapData = useGeckodeStore((s) => s.setTilemapData);
+  const resizeTilemap = useGeckodeStore((s) => s.resizeTilemap);
+  const clearTilemap = useGeckodeStore((s) => s.clearTilemap);
 
-  // --- Custom hooks ---
-  const { cellSize, zoomPercent, setZoom, isEditingZoom, setIsEditingZoom, canvasContainerRef, MIN_ZOOM_PERCENT, MAX_ZOOM_PERCENT } = useCanvasZoom(gridWidth, gridHeight);
-  const { canvasRef, previewRef, outputPixelsRef, previewPixelsRef, requestRender, saveToHistory, clearCanvas, resetPixelArrays } = usePixelCanvas(gridWidth, gridHeight, cellSize);
+  const tilemap = activeTilemapId ? tilemaps[activeTilemapId] : null;
 
-  // --- Drawing state (single ref, no re-renders) ---
+  // Auto-select first tile texture
+  useEffect(() => {
+    if (!selectedTileKey) {
+      const keys = Object.keys(tileTextures);
+      if (keys.length > 0) setSelectedTileKey(keys[0]);
+    }
+  }, [tileTextures, selectedTileKey]);
+
+  const gridWidthTiles = tilemap?.width ?? 16;
+  const gridHeightTiles = tilemap?.height ?? 16;
+  const pixelW = gridWidthTiles * TILE_PX;
+  const pixelH = gridHeightTiles * TILE_PX;
+
+  const { cellSize, zoomPercent, setZoom, isEditingZoom, setIsEditingZoom, canvasContainerRef, MIN_ZOOM_PERCENT, MAX_ZOOM_PERCENT } =
+    useCanvasZoom(pixelW, pixelH);
+
+  const { canvasRef, outputPixelsRef, previewPixelsRef, requestRender, resetPixelArrays } =
+    usePixelCanvas(pixelW, pixelH, cellSize, 8, { enableKeyboardShortcuts: false });
+
+  const { tilePixelsRef, isReady } = useTilePixelCache(tileTextures);
+
+  // ── Zustand → pixel buffer sync ──
+  useEffect(() => {
+    if (!tilemap || !isReady) return;
+    rebuildPixelBuffer(
+      outputPixelsRef.current, tilemap.data, tilePixelsRef.current,
+      tilemap.width, tilemap.height, TILE_PX,
+    );
+    requestRender();
+  }, [tilemap, isReady, outputPixelsRef, tilePixelsRef, requestRender]);
+
+  // ── Handle resize ──
+  const prevDimsRef = useRef({ w: pixelW, h: pixelH });
+  useEffect(() => {
+    if (prevDimsRef.current.w !== pixelW || prevDimsRef.current.h !== pixelH) {
+      resetPixelArrays(pixelW, pixelH);
+      prevDimsRef.current = { w: pixelW, h: pixelH };
+    }
+  }, [pixelW, pixelH, resetPixelArrays]);
+
+  // ── Drawing state ref (avoids stale closures in window handlers) ──
   const drawStateRef = useRef({
     isDrawing: false,
-    shapeStart: null as { x: number; y: number } | null,
-    prevPos: null as { x: number; y: number } | null,
-    activeButton: 0,
-    // Mirrors of React state for window event handlers (avoids stale closures)
-    activeTool: 'pen' as Tool,
-    primaryColor: '#10b981',
-    secondaryColor: '#3b82f6',
+    shapeStart: null as { row: number; col: number } | null,
+    prevCell: null as { row: number; col: number } | null,
+    activeTool: 'place' as TilemapTool,
+    selectedTileKey: null as string | null,
     brushSize: 1,
-    gridWidth: 16,
-    gridHeight: 16,
   });
-
-  // Keep the mirror in sync with React state
   useEffect(() => {
     const ds = drawStateRef.current;
     ds.activeTool = activeTool;
-    ds.primaryColor = primaryColor;
-    ds.secondaryColor = secondaryColor;
+    ds.selectedTileKey = selectedTileKey;
     ds.brushSize = brushSize;
-    ds.gridWidth = gridWidth;
-    ds.gridHeight = gridHeight;
-  }, [activeTool, primaryColor, secondaryColor, brushSize, gridWidth, gridHeight]);
+  }, [activeTool, selectedTileKey, brushSize]);
 
-  // Swap primary and secondary colors
-  const swapColors = () => {
-    setPrimaryColor(secondaryColor);
-    setSecondaryColor(primaryColor);
-  };
+  // ── Preview cells for shape commit ──
+  const previewCellsRef = useRef<{ row: number; col: number }[]>([]);
 
-  // --- Drawing tools (inline per user preference) ---
-  const paintAt = (x: number, y: number, color: string) => {
-    const { gridWidth: w, gridHeight: h, brushSize: size } = drawStateRef.current;
-    const rgba = Display.Color.HexStringToColor(color);
+  // ── Undo / Redo ──
+  const MAX_HISTORY = 50;
+  const undoStackRef = useRef<(string | null)[][][]>([]);
+  const redoStackRef = useRef<(string | null)[][][]>([]);
+  const [_historyVersion, setHistoryVersion] = useState(0);
+
+  const saveToHistory = useCallback(() => {
+    if (!tilemap) return;
+    undoStackRef.current.push(tilemap.data.map(r => [...r]));
+    if (undoStackRef.current.length > MAX_HISTORY) undoStackRef.current.shift();
+    redoStackRef.current = [];
+    setHistoryVersion(v => v + 1);
+  }, [tilemap]);
+
+  const undo = useCallback(() => {
+    if (!activeTilemapId || !tilemap || undoStackRef.current.length === 0) return;
+    redoStackRef.current.push(tilemap.data.map(r => [...r]));
+    const prev = undoStackRef.current.pop();
+    if (prev) setTilemapData(activeTilemapId, prev);
+    setHistoryVersion(v => v + 1);
+  }, [activeTilemapId, tilemap, setTilemapData]);
+
+  const redo = useCallback(() => {
+    if (!activeTilemapId || !tilemap || redoStackRef.current.length === 0) return;
+    undoStackRef.current.push(tilemap.data.map(r => [...r]));
+    const next = redoStackRef.current.pop();
+    if (next) setTilemapData(activeTilemapId, next);
+    setHistoryVersion(v => v + 1);
+  }, [activeTilemapId, tilemap, setTilemapData]);
+
+  // ── Cell from pointer event ──
+  const getCellFromEvent = useCallback((e: { clientX: number; clientY: number }) => {
+    const canvas = canvasRef.current;
+    if (!canvas || !tilemap) return null;
+    const rect = canvas.getBoundingClientRect();
+    const col = Math.floor((e.clientX - rect.left) / (rect.width / tilemap.width));
+    const row = Math.floor((e.clientY - rect.top) / (rect.height / tilemap.height));
+    if (col < 0 || col >= tilemap.width || row < 0 || row >= tilemap.height) return null;
+    return { row, col };
+  }, [canvasRef, tilemap]);
+
+  // ── Expand a cell by brush size ──
+  const expandBrush = useCallback((row: number, col: number, size: number) => {
+    if (size <= 1) return [{ row, col }];
+    const cells: { row: number; col: number }[] = [];
     const offset = Math.floor(size / 2);
-    const layer1 = outputPixelsRef.current;
-
-    for (let dy = 0; dy < size; dy += 1) {
-      for (let dx = 0; dx < size; dx += 1) {
-        const px = Math.max(0, Math.min(w - 1, x + dx - offset));
-        const py = Math.max(0, Math.min(h - 1, y + dy - offset));
-        const idx = (py * w + px) * 4;
-        setPixel(layer1, idx, { r: rgba.red, g: rgba.green, b: rgba.blue, a: rgba.alpha });
-      }
-    }
-    requestRender();
-  };
-
-  const floodFill = (startX: number, startY: number, fillColor: string) => {
-    const { gridWidth: w, gridHeight: h } = drawStateRef.current;
-    const layer1 = outputPixelsRef.current;
-    const fillRgba = Display.Color.HexStringToColor(fillColor);
-
-    const startIdx = (startY * w + startX) * 4;
-    const targetR = layer1[startIdx];
-    const targetG = layer1[startIdx + 1];
-    const targetB = layer1[startIdx + 2];
-    const targetA = layer1[startIdx + 3];
-
-    if (fillRgba) {
-      if (targetR === fillRgba.red && targetG === fillRgba.green && targetB === fillRgba.blue && targetA === fillRgba.alpha) return;
-    } else {
-      if (targetA === 0) return;
-    }
-
-    const queue: [number, number][] = [[startX, startY]];
-    const visited = new Set<number>();
-
-    while (queue.length > 0) {
-      const [x, y] = queue.shift()!;
-      const pixelIndex = y * w + x;
-      if (visited.has(pixelIndex)) continue;
-      if (x < 0 || x >= w || y < 0 || y >= h) continue;
-
-      const idx = pixelIndex * 4;
-      if (layer1[idx] !== targetR || layer1[idx + 1] !== targetG ||
-        layer1[idx + 2] !== targetB || layer1[idx + 3] !== targetA) continue;
-
-      visited.add(pixelIndex);
-      setPixel(layer1, idx, { r: fillRgba.red, g: fillRgba.green, b: fillRgba.blue, a: fillRgba.alpha });
-
-      queue.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
-    }
-    requestRender();
-  };
-
-  // Bresenham's line algorithm
-  const getLinePixels = (x0: number, y0: number, x1: number, y1: number) => {
-    const pixels: { x: number; y: number }[] = [];
-    const dx = Math.abs(x1 - x0);
-    const dy = Math.abs(y1 - y0);
-    const sx = x0 < x1 ? 1 : -1;
-    const sy = y0 < y1 ? 1 : -1;
-    let err = dx - dy;
-
-    while (true) {
-      pixels.push({ x: x0, y: y0 });
-      if (x0 === x1 && y0 === y1) break;
-      const e2 = 2 * err;
-      if (e2 > -dy) { err -= dy; x0 += sx; }
-      if (e2 < dx) { err += dx; y0 += sy; }
-    }
-    return pixels;
-  };
-
-  const applyBrush = (pixels: { x: number; y: number }[], color: string, layer: Uint8ClampedArray) => {
-    const { brushSize: size, gridWidth: w, gridHeight: h } = drawStateRef.current;
-    const offset = Math.floor(size / 2);
-    const rgba = Display.Color.HexStringToColor(color);
-
-    for (const p of pixels) {
-      for (let dy = 0; dy < size; dy++) {
-        for (let dx = 0; dx < size; dx++) {
-          const px = Math.max(0, Math.min(w - 1, p.x + dx - offset));
-          const py = Math.max(0, Math.min(h - 1, p.y + dy - offset));
-          const idx = (py * w + px) * 4;
-          setPixel(layer, idx, { r: rgba.red, g: rgba.green, b: rgba.blue, a: rgba.alpha });
+    for (let dr = 0; dr < size; dr++) {
+      for (let dc = 0; dc < size; dc++) {
+        const r = row + dr - offset;
+        const c = col + dc - offset;
+        if (r >= 0 && r < gridHeightTiles && c >= 0 && c < gridWidthTiles) {
+          cells.push({ row: r, col: c });
         }
       }
     }
-  };
+    return cells;
+  }, [gridWidthTiles, gridHeightTiles]);
 
-  const getRectanglePixels = (x1: number, y1: number, x2: number, y2: number) => {
-    const minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
-    const minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
-    const pixels: { x: number; y: number }[] = [];
-    for (let x = minX; x <= maxX; x++) { pixels.push({ x, y: minY }, { x, y: maxY }); }
-    for (let y = minY + 1; y < maxY; y++) { pixels.push({ x: minX, y }, { x: maxX, y }); }
-    return pixels;
-  };
-
-  const getOvalPixels = (x1: number, y1: number, x2: number, y2: number) => {
-    const { gridWidth: w, gridHeight: h } = drawStateRef.current;
-    const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
-    const rx = Math.abs(x2 - x1) / 2, ry = Math.abs(y2 - y1) / 2;
-    if (rx === 0 || ry === 0) return [];
-    const pixels: { x: number; y: number }[] = [];
-    const steps = Math.max(Math.ceil(2 * Math.PI * Math.max(rx, ry)), 32);
-    for (let i = 0; i < steps; i++) {
-      const angle = (2 * Math.PI * i) / steps;
-      const x = Math.round(cx + rx * Math.cos(angle));
-      const y = Math.round(cy + ry * Math.sin(angle));
-      if (x >= 0 && x < w && y >= 0 && y < h) pixels.push({ x, y });
-    }
-    return pixels;
-  };
-
-  // --- Pointer helpers ---
-  const getPointerPosition = (event: { clientX: number; clientY: number }) => {
-    const { gridWidth: w, gridHeight: h } = drawStateRef.current;
-    const rect = canvasRef.current!.getBoundingClientRect();
-    return {
-      x: Math.floor((event.clientX - rect.left) / (rect.width / w)),
-      y: Math.floor((event.clientY - rect.top) / (rect.height / h))
-    };
-  };
-
-  const clipToCanvas = (start: { x: number; y: number }, end: { x: number; y: number }) => {
-    const { gridWidth: w, gridHeight: h } = drawStateRef.current;
-    const dx = end.x - start.x, dy = end.y - start.y;
-    const t = Math.min(1,
-      end.x < 0 ? -start.x / dx : end.x >= w ? (w - 1 - start.x) / dx : 1,
-      end.y < 0 ? -start.y / dy : end.y >= h ? (h - 1 - start.y) / dy : 1
-    );
-    return {
-      x: Math.max(0, Math.min(w - 1, Math.round(start.x + dx * t))),
-      y: Math.max(0, Math.min(h - 1, Math.round(start.y + dy * t)))
-    };
-  };
-
-  // --- Pointer event handlers ---
-  const canvasPointerDown = (e: ReactPointerEvent<HTMLCanvasElement>) => {
-    e.preventDefault();
+  // ── Apply single cell placement (for pen / eraser drag) ──
+  const applySingleCell = useCallback((row: number, col: number) => {
+    if (!activeTilemapId || !tilemap) return;
     const ds = drawStateRef.current;
-    const position = getPointerPosition(e);
-    ds.prevPos = position;
-    ds.activeButton = e.button;
-    const color = e.button === 2 ? secondaryColor : primaryColor;
-
-    saveToHistory();
-
-    if (['pen', 'eraser'].includes(activeTool)) {
-      paintAt(position.x, position.y, color);
-      ds.isDrawing = true;
-    } else if (['rectangle', 'line', 'oval'].includes(activeTool)) {
-      ds.shapeStart = position;
-      ds.isDrawing = true;
-    }
-    if (activeTool === 'bucket') {
-      floodFill(position.x, position.y, color);
-    } else if (activeTool === 'color-picker') {
-      const idx = (position.y * gridWidth + position.x) * 4;
-      const pickedColor = rgbaToHex(outputPixelsRef.current, idx);
-      setPrimaryColor(pickedColor);
-    }
-  };
-
-  const handlePointerMove = (e: PointerEvent | ReactPointerEvent<HTMLCanvasElement>) => {
-    const ds = drawStateRef.current;
-    if (!ds.isDrawing) return;
-    const isShapeTool = ['line', 'rectangle', 'oval'].includes(ds.activeTool);
-
-    const position = getPointerPosition(e);
-    const prev = ds.prevPos;
-    if (prev && prev.x === position.x && prev.y === position.y) return;
-    const color = ds.activeButton === 2 ? ds.secondaryColor : ds.primaryColor;
-    ds.prevPos = position;
-
-    // Show shadow for shape tools
-    if (isShapeTool && ds.shapeStart) {
-      const cp = clipToCanvas(ds.shapeStart, position);
-      let pixels: { x: number; y: number }[] = [];
-      if (ds.activeTool === 'line') pixels = getLinePixels(ds.shapeStart.x, ds.shapeStart.y, cp.x, cp.y);
-      else if (ds.activeTool === 'rectangle') pixels = getRectanglePixels(ds.shapeStart.x, ds.shapeStart.y, cp.x, cp.y);
-      else if (ds.activeTool === 'oval') pixels = getOvalPixels(ds.shapeStart.x, ds.shapeStart.y, cp.x, cp.y);
-
-      previewPixelsRef.current = createPixelArray(ds.gridWidth, ds.gridHeight);
-      applyBrush(pixels, color, previewPixelsRef.current);
-      requestRender();
-      return;
-    }
-
-    // Paint for pen and eraser
-    if (ds.activeTool === 'pen') {
-      if (prev && (Math.abs(position.x - prev.x) > 1 || Math.abs(position.y - prev.y) > 1)) {
-        getLinePixels(prev.x, prev.y, position.x, position.y).forEach(p => paintAt(p.x, p.y, color));
-      } else {
-        paintAt(position.x, position.y, color);
+    const tileKey = ds.activeTool === 'eraser' ? null : ds.selectedTileKey;
+    const cells = expandBrush(row, col, ds.brushSize);
+    for (const c of cells) {
+      if (tilemap.data[c.row][c.col] !== tileKey) {
+        updateTilemapCell(activeTilemapId, c.row, c.col, tileKey);
       }
-    } else if (ds.activeTool === 'eraser') {
-      paintAt(position.x, position.y, '');
     }
-  };
+  }, [activeTilemapId, tilemap, updateTilemapCell, expandBrush]);
 
-  const handlePointerUp = (event: PointerEvent) => {
+  // ── Flood fill on tile grid ──
+  const floodFill = useCallback((startRow: number, startCol: number, fillKey: string | null) => {
+    if (!activeTilemapId || !tilemap) return;
+    const w = tilemap.width;
+    const h = tilemap.height;
+    const target = tilemap.data[startRow][startCol];
+    if (target === fillKey) return;
+
+    const newData = tilemap.data.map(r => [...r]);
+    const queue: [number, number][] = [[startRow, startCol]];
+    const visited = new Set<number>();
+
+    while (queue.length > 0) {
+      const [r, c] = queue.shift()!;
+      const idx = r * w + c;
+      if (visited.has(idx)) continue;
+      if (r < 0 || r >= h || c < 0 || c >= w) continue;
+      if (newData[r][c] !== target) continue;
+
+      visited.add(idx);
+      newData[r][c] = fillKey;
+      queue.push([r + 1, c], [r - 1, c], [r, c + 1], [r, c - 1]);
+    }
+
+    setTilemapData(activeTilemapId, newData);
+  }, [activeTilemapId, tilemap, setTilemapData]);
+
+  // ── Commit shape preview cells to store ──
+  const commitPreview = useCallback(() => {
+    if (!activeTilemapId || !tilemap || previewCellsRef.current.length === 0) return;
     const ds = drawStateRef.current;
-    ds.prevPos = null;
+    const tileKey = ds.activeTool === 'eraser' ? null : ds.selectedTileKey;
+    const newData = tilemap.data.map(r => [...r]);
+    for (const { row, col } of previewCellsRef.current) {
+      if (row >= 0 && row < tilemap.height && col >= 0 && col < tilemap.width) {
+        newData[row][col] = tileKey;
+      }
+    }
+    setTilemapData(activeTilemapId, newData);
+    previewCellsRef.current = [];
+  }, [activeTilemapId, tilemap, setTilemapData]);
 
-    if (!ds.isDrawing) return;
-
-    // Finalize shape tools
-    if (ds.shapeStart && ['line', 'rectangle', 'oval'].includes(ds.activeTool)) {
-      const pos = getPointerPosition(event);
-      const cp = clipToCanvas(ds.shapeStart, pos);
-      const color = ds.activeButton === 2 ? ds.secondaryColor : ds.primaryColor;
-
-      let pixels: { x: number; y: number }[] = [];
-      if (ds.activeTool === 'line') pixels = getLinePixels(ds.shapeStart.x, ds.shapeStart.y, cp.x, cp.y);
-      else if (ds.activeTool === 'rectangle') pixels = getRectanglePixels(ds.shapeStart.x, ds.shapeStart.y, cp.x, cp.y);
-      else if (ds.activeTool === 'oval') pixels = getOvalPixels(ds.shapeStart.x, ds.shapeStart.y, cp.x, cp.y);
-
-      applyBrush(pixels, color, outputPixelsRef.current);
-      previewPixelsRef.current = createPixelArray(ds.gridWidth, ds.gridHeight);
+  // ── Compute shape cells with brush expansion ──
+  const computeShapeCells = useCallback((start: { row: number; col: number }, end: { row: number; col: number }) => {
+    const ds = drawStateRef.current;
+    let baseCells: { row: number; col: number }[] = [];
+    if (ds.activeTool === 'line') {
+      baseCells = getLineCells(start.col, start.row, end.col, end.row);
+    } else if (ds.activeTool === 'rectangle') {
+      baseCells = getRectangleCells(start.col, start.row, end.col, end.row);
+    } else if (ds.activeTool === 'oval') {
+      baseCells = getOvalCells(start.col, start.row, end.col, end.row, gridWidthTiles, gridHeightTiles);
     }
 
-    ds.isDrawing = false;
-    ds.shapeStart = null;
+    if (ds.brushSize <= 1) return baseCells;
+
+    // Expand each cell by brush size, deduplicate
+    const seen = new Set<string>();
+    const expanded: { row: number; col: number }[] = [];
+    for (const cell of baseCells) {
+      for (const ec of expandBrush(cell.row, cell.col, ds.brushSize)) {
+        const key = `${ec.row},${ec.col}`;
+        if (!seen.has(key)) { seen.add(key); expanded.push(ec); }
+      }
+    }
+    return expanded;
+  }, [gridWidthTiles, gridHeightTiles, expandBrush]);
+
+  // ── Write shape preview into previewPixelsRef ──
+  const updateShapePreview = useCallback((cells: { row: number; col: number }[]) => {
+    previewPixelsRef.current.fill(0);
+    const ds = drawStateRef.current;
+    const tileKey = ds.activeTool === 'eraser' ? null : ds.selectedTileKey;
+    for (const { row, col } of cells) {
+      if (row < 0 || row >= gridHeightTiles || col < 0 || col >= gridWidthTiles) continue;
+      if (ds.activeTool === 'eraser') {
+        stampSolidColorAt(previewPixelsRef.current, row, col, pixelW, TILE_PX, 239, 68, 68, 90);
+      } else if (tileKey && tilePixelsRef.current[tileKey]) {
+        stampTileAtWithAlpha(previewPixelsRef.current, tilePixelsRef.current[tileKey], row, col, pixelW, TILE_PX, 128);
+      } else {
+        stampSolidColorAt(previewPixelsRef.current, row, col, pixelW, TILE_PX, 16, 185, 129, 77);
+      }
+    }
     requestRender();
-  };
+  }, [previewPixelsRef, tilePixelsRef, pixelW, gridWidthTiles, gridHeightTiles, requestRender]);
 
-  // Window-level pointer tracking
-  useEffect(() => {
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerUp);
-    return () => {
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
-    };
-  }, []);
+  // ── Pointer handlers ──
+  const handlePointerDown = (e: ReactPointerEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    const cell = getCellFromEvent(e);
+    if (!cell || !tilemap) return;
+    const ds = drawStateRef.current;
 
-  // --- Save / Load ---
-  const addSpriteToGame = async () => {
-    if (!(phaserScene instanceof EditorScene)) throw new Error('Phaser scene is not an EditorScene.');
-
-    const w = gridWidth;
-    const h = gridHeight;
-    const offscreen = document.createElement('canvas');
-    offscreen.width = w;
-    offscreen.height = h;
-    const ctx = offscreen.getContext('2d')!;
-    const imageData = ctx.createImageData(w, h);
-    imageData.data.set(outputPixelsRef.current);
-    ctx.putImageData(imageData, 0, 0);
-    const base64Image = offscreen.toDataURL('image/png');
-
-    const newSpriteName = createUniqueSpriteName(spriteName, spriteInstances);
-    const newTextureName = editingSource === 'asset' ? editingTextureName! : createUniqueTextureName(spriteName, assetTextures);
-    const newSprite = useGeckodeStore.getState().addSpriteInstance({
-      name: newSpriteName,
-      textureName: newTextureName,
-    });
-
-    if (editingSource === 'new' || editingSource === 'library') {
-      useGeckodeStore.getState().addAssetTexture(newTextureName, base64Image);
-      await phaserScene.loadTextureAsync(newTextureName, base64Image);
-    } else if (editingSource === 'asset') {
-      useGeckodeStore.getState().updateAssetTexture(editingTextureName!, base64Image);
-      await phaserScene.updateTextureAsync(newTextureName, base64Image);
+    if (ds.activeTool === 'place' || ds.activeTool === 'eraser') {
+      saveToHistory();
+      ds.isDrawing = true;
+      ds.prevCell = cell;
+      applySingleCell(cell.row, cell.col);
+    } else if (['line', 'rectangle', 'oval'].includes(ds.activeTool)) {
+      saveToHistory();
+      ds.isDrawing = true;
+      ds.shapeStart = cell;
+      const cells = expandBrush(cell.row, cell.col, ds.brushSize);
+      previewCellsRef.current = cells;
+      updateShapePreview(cells);
+    } else if (ds.activeTool === 'bucket') {
+      saveToHistory();
+      const fillKey = ds.selectedTileKey;
+      floodFill(cell.row, cell.col, fillKey);
+    } else if (ds.activeTool === 'tile-picker') {
+      const tileKey = tilemap.data[cell.row][cell.col];
+      if (tileKey) {
+        setSelectedTileKey(tileKey);
+        setActiveTool('place');
+      }
     }
-    phaserScene.createSprite(newSprite);
-    clearEditingSprite();
-    setIsSpriteModalOpen(false);
   };
 
-  // Load existing texture when editing from library or asset (use offscreen canvas to avoid checkerboard in pixel data)
   useEffect(() => {
-    if (
-      editingSource === null ||
-      editingTextureName === null ||
-      !canvasRef.current
-    )
-      return;
+    const handleMove = (e: PointerEvent) => {
+      const ds = drawStateRef.current;
+      if (!ds.isDrawing) return;
+      const cell = getCellFromEvent(e);
+      if (!cell) return;
 
-    const textureInfo =
-      editingSource === "library"
-        ? libraryTextures[editingTextureName]
-        : assetTextures[editingTextureName];
-    if (!textureInfo) return;
+      if (ds.activeTool === 'place' || ds.activeTool === 'eraser') {
+        const prev = ds.prevCell;
+        if (prev && prev.row === cell.row && prev.col === cell.col) return;
+        ds.prevCell = cell;
 
-    const img = new Image();
-    img.onload = () => {
-      const width = img.width;
-      const height = img.height;
+        // Interpolate line between prev and current for fast drags
+        if (prev && (Math.abs(cell.row - prev.row) > 1 || Math.abs(cell.col - prev.col) > 1)) {
+          const lineCells = getLineCells(prev.col, prev.row, cell.col, cell.row);
+          for (const lc of lineCells) applySingleCell(lc.row, lc.col);
+        } else {
+          applySingleCell(cell.row, cell.col);
+        }
+      } else if (['line', 'rectangle', 'oval'].includes(ds.activeTool) && ds.shapeStart) {
+        const cells = computeShapeCells(ds.shapeStart, cell);
+        previewCellsRef.current = cells;
+        updateShapePreview(cells);
+      }
+    };
 
-      setGridWidth(width);
-      setGridHeight(height);
+    const handleUp = () => {
+      const ds = drawStateRef.current;
+      if (!ds.isDrawing) return;
 
-      const offscreen = document.createElement("canvas");
-      offscreen.width = width;
-      offscreen.height = height;
-      const offCtx = offscreen.getContext("2d")!;
-      offCtx.drawImage(img, 0, 0);
-      const imageData = offCtx.getImageData(0, 0, width, height);
+      if (['line', 'rectangle', 'oval'].includes(ds.activeTool) && ds.shapeStart) {
+        commitPreview();
+      }
 
-      resetPixelArrays(width, height);
-      outputPixelsRef.current = new Uint8ClampedArray(imageData.data);
-      setSpriteName(editingTextureName);
+      ds.isDrawing = false;
+      ds.shapeStart = null;
+      ds.prevCell = null;
+      previewCellsRef.current = [];
+      previewPixelsRef.current.fill(0);
       requestRender();
     };
-    img.src = textureInfo;
-  }, [editingSource, editingTextureName, libraryTextures, assetTextures]);
 
-  // --- Grid resize handler (used by uncontrolled inputs) ---
-  const handleGridResize = (dimension: 'width' | 'height', value: string, fallback: number) => {
+    window.addEventListener('pointermove', handleMove);
+    window.addEventListener('pointerup', handleUp);
+    return () => {
+      window.removeEventListener('pointermove', handleMove);
+      window.removeEventListener('pointerup', handleUp);
+    };
+  });
+
+  // ── Undo/Redo keyboard shortcuts ──
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      } else if (mod && e.key === 'z' && e.shiftKey) {
+        e.preventDefault();
+        redo();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undo, redo]);
+
+  // ── Grid resize ──
+  const handleGridResize = (dimension: 'width' | 'height', value: string) => {
+    if (!activeTilemapId || !tilemap) return;
     if (value === '') return;
-    const parsed = Math.max(1, Math.min(1024, parseInt(value, 10)));
+    const parsed = Math.max(1, Math.min(128, parseInt(value, 10)));
     if (Number.isNaN(parsed)) return;
-    const newW = dimension === 'width' ? parsed : gridWidth;
-    const newH = dimension === 'height' ? parsed : gridHeight;
-    resetPixelArrays(newW, newH);
-    if (dimension === 'width') setGridWidth(parsed);
-    else setGridHeight(parsed);
+    const newW = dimension === 'width' ? parsed : tilemap.width;
+    const newH = dimension === 'height' ? parsed : tilemap.height;
+    resizeTilemap(activeTilemapId, newW, newH);
   };
+
+  if (!tilemap || !activeTilemapId) {
+    return (
+      <div className="flex-1 min-h-0 flex items-center justify-center text-slate-500 dark:text-slate-400">
+        No tilemap selected
+      </div>
+    );
+  }
 
   return (
-    <div className="flex-1 min-h-0 flex border-t border-slate-200 bg-slate-800 dark:border-slate-700">
-      <div className="w-30 flex flex-col gap-3 p-2 bg-slate-700 dark:bg-slate-800 border-r border-slate-600">
-        {/* brush size */}
+    <div className="flex-1 min-h-0 flex bg-light-secondary dark:bg-dark-secondary h-full">
+      {/* Left sidebar — brush size, tools, tile palette */}
+      <div className="w-[250px] flex flex-col gap-3 p-2 bg-white/50 dark:bg-dark-secondary/50 border-r border-slate-200 dark:border-slate-700">
+        {/* Brush size */}
         <div className="grid grid-cols-3 rounded overflow-hidden">
           {[1, 2, 3].map((size) => (
             <button
               key={size}
               type="button"
               onClick={() => setBrushSize(size)}
-              className={`h-9 flex items-center justify-center cursor-pointer transition ${brushSize === size
-                ? 'bg-primary-green'
-                : 'bg-slate-600 hover:bg-slate-500'
-                }`}
+              className={`h-9 flex items-center justify-center cursor-pointer transition ${
+                brushSize === size ? 'bg-primary-green' : 'bg-slate-200 hover:bg-slate-300 dark:bg-dark-tertiary dark:hover:bg-dark-tertiary/80'
+              }`}
               title={`${size}x${size} brush`}
             >
               <div className="bg-white" style={{ width: size * 3 + 2, height: size * 3 + 2 }} />
@@ -450,125 +465,101 @@ const SpriteEditor = () => {
           ))}
         </div>
 
-        <EditorTools activeTool={activeTool} setActiveTool={setActiveTool} />
-
-        {/* dual color indicator */}
-        <div className="relative w-full h-12 mx-auto mt-2.5 mb-1">
+        {/* Tools grid — matches EditorTools layout */}
+        <div className="grid grid-cols-4 gap-2 w-fit mx-auto">
+          <ToolButton tool="place" activeTool={activeTool} onClick={() => setActiveTool('place')} title="Place tile (pen)">
+            <PencilIcon className="w-5 h-5" />
+          </ToolButton>
+          <ToolButton tool="eraser" activeTool={activeTool} onClick={() => setActiveTool('eraser')} title="Eraser">
+            <EraserIcon className="w-5 h-5" />
+          </ToolButton>
+          <ToolButton tool="bucket" activeTool={activeTool} onClick={() => setActiveTool('bucket')} title="Bucket fill">
+            <BucketIcon className="w-5 h-5" />
+          </ToolButton>
+          <ToolButton tool="line" activeTool={activeTool} onClick={() => setActiveTool('line')} title="Line tool">
+            <LineIcon className="w-5 h-5" />
+          </ToolButton>
+          <ToolButton tool="rectangle" activeTool={activeTool} onClick={() => setActiveTool('rectangle')} title="Rectangle tool">
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="18" height="18" rx="1" />
+            </svg>
+          </ToolButton>
+          <ToolButton tool="oval" activeTool={activeTool} onClick={() => setActiveTool('oval')} title="Oval tool">
+            <CircleIcon className="w-5 h-5" />
+          </ToolButton>
+          <ToolButton tool="tile-picker" activeTool={activeTool} onClick={() => setActiveTool('tile-picker')} title="Tile picker">
+            <ColorPickerIcon className="w-5 h-5" />
+          </ToolButton>
           <button
             type="button"
-            onClick={swapColors}
-            className="absolute right-1.5 bottom-0 w-18 h-8 rounded-xs cursor-pointer transition-shadow"
-            style={{
-              backgroundColor: secondaryColor || '#9e9e9e',
-              backgroundImage: !secondaryColor
-                ? 'linear-gradient(45deg, #6e6e6e 25%, transparent 25%), linear-gradient(-45deg, #6e6e6e 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #6e6e6e 75%), linear-gradient(-45deg, transparent 75%, #6e6e6e 75%)'
-                : undefined,
-              backgroundSize: '8px 8px',
-              backgroundPosition: '0 0, 0 4px, 4px -4px, -4px 0px',
-            }}
-            title="Secondary color (right-click) - Click to swap"
-          />
+            onClick={undo}
+            disabled={undoStackRef.current.length === 0}
+            className="w-12 h-12 flex items-center justify-center rounded cursor-pointer transition bg-slate-200 hover:bg-slate-300 dark:bg-dark-tertiary dark:hover:bg-dark-tertiary/80 text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed"
+            title="Undo (Ctrl+Z)"
+          >
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 7h10a5 5 0 0 1 0 10H9" />
+              <path d="M3 7l4-4M3 7l4 4" />
+            </svg>
+          </button>
           <button
             type="button"
-            onClick={swapColors}
-            className="absolute left-1.5 top-0 w-18 h-8 rounded-xs cursor-pointer transition-shadow"
-            style={{
-              backgroundColor: primaryColor || '#9e9e9e',
-              backgroundImage: !primaryColor
-                ? 'linear-gradient(45deg, #6e6e6e 25%, transparent 25%), linear-gradient(-45deg, #6e6e6e 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #6e6e6e 75%), linear-gradient(-45deg, transparent 75%, #6e6e6e 75%)'
-                : undefined,
-              backgroundSize: '8px 8px',
-              backgroundPosition: '0 0, 0 4px, 4px -4px, -4px 0px',
-            }}
-            title="Primary color (left-click) - Click to swap"
-          />
+            onClick={redo}
+            disabled={redoStackRef.current.length === 0}
+            className="w-12 h-12 flex items-center justify-center rounded cursor-pointer transition bg-slate-200 hover:bg-slate-300 dark:bg-dark-tertiary dark:hover:bg-dark-tertiary/80 text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed"
+            title="Redo (Ctrl+Shift+Z)"
+          >
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 7H11a5 5 0 0 0 0 10h4" />
+              <path d="M21 7l-4-4M21 7l-4 4" />
+            </svg>
+          </button>
         </div>
 
-        {/* color palette */}
-        <div className="flex flex-col gap-2 pt-2">
-          <div className="grid grid-cols-3 w-full gap-1.5">
-            <button
-              type="button"
-              onClick={() => setPrimaryColor('')}
-              className="rounded-xs cursor-pointer transition aspect-square hover:ring-2 hover:ring-white/40"
-              style={{
-                backgroundImage: 'linear-gradient(45deg, #6e6e6e 25%, transparent 25%), linear-gradient(-45deg, #6e6e6e 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #6e6e6e 75%), linear-gradient(-45deg, transparent 75%, #6e6e6e 75%)',
-                backgroundSize: '8px 8px',
-                backgroundPosition: '0 0, 0 4px, 4px -4px, -4px 0px',
-                backgroundColor: '#9e9e9e',
-              }}
-              title="Transparent"
-            />
-            {palette.map((color) => (
+        {/* Tile palette */}
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wide font-semibold px-0.5">Tiles</span>
+          <div className="grid grid-cols-5 gap-[2px]">
+            {Object.entries(tileTextures).map(([key, base64]) => (
               <button
-                key={color}
+                key={key}
                 type="button"
-                onClick={() => setPrimaryColor(color)}
-                className="rounded-xs cursor-pointer transition aspect-square hover:ring-2 hover:ring-white/40"
-                style={{ backgroundColor: color }}
-                title={color}
-              />
+                onClick={() => {
+                  setSelectedTileKey(key);
+                  if (activeTool === 'tile-picker') setActiveTool('place');
+                }}
+                className={`aspect-square cursor-pointer transition-colors overflow-hidden ${
+                  selectedTileKey === key
+                  ? 'border-2 border-primary-green'
+                  : 'border-2 border-transparent hover:border-slate-400 dark:hover:border-slate-500'
+                }`}
+                title={key}
+              >
+                <img
+                  src={base64}
+                  alt={key}
+                  className="w-full h-full object-cover"
+                  style={{ imageRendering: 'pixelated' }}
+                />
+              </button>
             ))}
           </div>
-
-          <label
-            className="w-full h-8 flex items-center justify-center gap-2 rounded cursor-pointer bg-slate-600 hover:bg-slate-500 transition"
-            title="Pick custom color"
-          >
-            <div className="w-4 h-4 rounded border border-white/30" style={{ backgroundColor: primaryColor }} />
-            <span className="text-xs text-slate-300">Custom</span>
-            <input
-              type="color"
-              value={primaryColor || '#000000'}
-              onChange={(e) => setPrimaryColor(e.target.value)}
-              className="hidden"
-            />
-          </label>
         </div>
 
         <div className="flex-1" />
-
-        {/* grid size (uncontrolled inputs reset via key) */}
-        <div className="flex items-center gap-1">
-          <input
-            key={`w-${gridWidth}`}
-            type="number"
-            defaultValue={gridWidth}
-            onBlur={(e) => handleGridResize('width', e.target.value, gridWidth)}
-            onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-            min={1}
-            max={1024}
-            className="w-12 h-8 px-1 text-xs text-slate-300 text-center bg-slate-600 border border-slate-500 rounded outline-none focus:border-primary-green [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            title="Grid width"
-            name="gridWidth"
-          />
-          <span className="text-slate-400 text-xs">x</span>
-          <input
-            key={`h-${gridHeight}`}
-            type="number"
-            defaultValue={gridHeight}
-            onBlur={(e) => handleGridResize('height', e.target.value, gridHeight)}
-            onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-            min={1}
-            max={1024}
-            className="w-12 h-8 px-1 text-xs text-slate-300 text-center bg-slate-600 border border-slate-500 rounded outline-none focus:border-primary-green [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            title="Grid height"
-            name="gridHeight"
-          />
-        </div>
       </div>
 
+      {/* Main canvas area */}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        {/* the canvas, clear button */}
         <div
           ref={canvasContainerRef}
-          className="relative flex-1 flex items-center justify-center bg-slate-600 p-4 overflow-auto min-h-0"
+          className="relative flex-1 flex items-center justify-center bg-light-whiteboard dark:bg-dark-whiteboard p-4 overflow-auto min-h-0"
         >
           <button
             type="button"
-            onClick={clearCanvas}
+            onClick={() => { saveToHistory(); clearTilemap(activeTilemapId); }}
             className="absolute top-2 right-2 z-10 px-3 h-7 flex items-center justify-center rounded bg-red-600/80 hover:bg-red-600 text-white text-xs font-medium cursor-pointer transition"
-            title="Clear canvas"
+            title="Clear tilemap"
           >
             Clear
           </button>
@@ -577,92 +568,110 @@ const SpriteEditor = () => {
               ref={canvasRef}
               className="cursor-crosshair select-none touch-none"
               style={{
-                width: gridWidth * cellSize,
-                height: gridHeight * cellSize,
+                width: pixelW * cellSize,
+                height: pixelH * cellSize,
                 imageRendering: 'pixelated',
               }}
-              onPointerDown={canvasPointerDown}
+              onPointerDown={handlePointerDown}
+              onPointerMove={(e) => setHoverCell(getCellFromEvent(e))}
+              onPointerLeave={() => setHoverCell(null)}
               onContextMenu={(e) => e.preventDefault()}
             />
           </div>
         </div>
 
-        {/* zoom controls */}
-        <div className="h-10 flex items-center justify-center gap-2 bg-slate-700 border-t border-slate-600 shrink-0">
-          <button
-            type="button"
-            onClick={() => setZoom(zoomPercent - 25)}
-            disabled={zoomPercent <= MIN_ZOOM_PERCENT}
-            className="w-8 h-8 flex items-center justify-center rounded bg-slate-600 hover:bg-slate-500 disabled:opacity-40 disabled:cursor-not-allowed text-white cursor-pointer transition"
-            title="Zoom out"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="11" cy="11" r="8" />
-              <path d="M21 21l-4.35-4.35M8 11h6" />
-            </svg>
-          </button>
-          {isEditingZoom ? (
+        {/* Footer bar */}
+        <div className="h-10 flex items-center px-3 bg-white/80 dark:bg-dark-secondary/80 border-t border-slate-200 dark:border-slate-700 shrink-0">
+          {/* Left: grid size + cursor coords */}
+          <div className="flex items-center gap-1.5 flex-1 min-w-0">
             <input
+              key={`w-${tilemap.width}`}
               type="number"
-              defaultValue={Math.round(zoomPercent)}
-              onBlur={(e) => {
-                setZoom(parseInt(e.target.value, 10));
-                setIsEditingZoom(false);
-              }}
-              onKeyDown={(e) => e.key === 'Enter' ? e.currentTarget.blur() : e.key === 'Escape' && setIsEditingZoom(false)}
-              className="w-14 h-6 px-1 text-xs text-slate-300 text-center bg-slate-600 border border-slate-500 rounded outline-none focus:border-primary-green [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              autoFocus
-              onFocus={(e) => e.target.select()}
+              defaultValue={tilemap.width}
+              onBlur={(e) => handleGridResize('width', e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+              min={1}
+              max={128}
+              className="w-10 h-6 px-1 text-xs text-slate-700 dark:text-slate-300 text-center bg-white border border-slate-200 dark:bg-dark-tertiary dark:border-slate-600 rounded outline-none focus:border-primary-green [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              title="Grid width (tiles)"
             />
-          ) : (
+            <span className="text-slate-500 dark:text-slate-400 text-xs">x</span>
+            <input
+              key={`h-${tilemap.height}`}
+              type="number"
+              defaultValue={tilemap.height}
+              onBlur={(e) => handleGridResize('height', e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+              min={1}
+              max={128}
+              className="w-10 h-6 px-1 text-xs text-slate-700 dark:text-slate-300 text-center bg-white border border-slate-200 dark:bg-dark-tertiary dark:border-slate-600 rounded outline-none focus:border-primary-green [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              title="Grid height (tiles)"
+            />
+            <span className="text-slate-300 dark:text-slate-600 mx-1">|</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">
+              {hoverCell ? `${hoverCell.col}, ${hoverCell.row}` : '\u2014'}
+            </span>
+          </div>
+
+          {/* Center: tilemap name */}
+          <span className="text-xs text-slate-500 dark:text-slate-400 font-medium truncate px-2">{tilemap.name}</span>
+
+          {/* Right: zoom controls */}
+          <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
             <button
               type="button"
-              onClick={() => setIsEditingZoom(true)}
-              className="w-14 h-6 text-xs text-slate-300 text-center hover:bg-slate-600 rounded cursor-pointer transition"
-                title="Click to edit zoom (100% = fit to container)"
+              onClick={() => setZoom(zoomPercent - 25)}
+              disabled={zoomPercent <= MIN_ZOOM_PERCENT}
+              className="w-6 h-6 flex items-center justify-center rounded bg-slate-200 hover:bg-slate-300 dark:bg-dark-tertiary dark:hover:bg-dark-tertiary/80 disabled:opacity-40 disabled:cursor-not-allowed text-slate-600 dark:text-slate-300 cursor-pointer transition"
+              title="Zoom out"
             >
-                {Math.round(zoomPercent)}%
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8" />
+                <path d="M21 21l-4.35-4.35M8 11h6" />
+              </svg>
             </button>
-          )}
-          <button
-            type="button"
-            onClick={() => setZoom(zoomPercent + 25)}
-            disabled={zoomPercent >= MAX_ZOOM_PERCENT}
-            className="w-8 h-8 flex items-center justify-center rounded bg-slate-600 hover:bg-slate-500 disabled:opacity-40 disabled:cursor-not-allowed text-white cursor-pointer transition"
-            title="Zoom in"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="11" cy="11" r="8" />
-              <path d="M21 21l-4.35-4.35M11 8v6M8 11h6" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Bottom row; preview, name, and add to game */}
-        <div className="h-16 flex items-center gap-3 px-4 bg-slate-700 dark:bg-slate-800 border-t border-slate-600 shrink-0">
-          <canvas
-            ref={previewRef}
-            className="w-10 h-10 rounded border border-slate-500"
-            style={{ imageRendering: 'pixelated' }}
-          />
-          <input
-            type="text"
-            value={spriteName}
-            onChange={(e) => setSpriteName(e.target.value)}
-            placeholder="Sprite name"
-            className="flex-1 h-9 px-3 rounded bg-slate-600 border border-slate-500 text-sm text-white placeholder:text-slate-400 outline-none focus:border-primary-green"
-          />
-          <Button
-            className="btn-confirm h-9 px-4"
-            onClick={addSpriteToGame}
-            title="Add to game"
-          >
-            Add to Game
-          </Button>
+            {isEditingZoom ? (
+              <input
+                type="number"
+                defaultValue={Math.round(zoomPercent)}
+                onBlur={(e) => {
+                  setZoom(parseInt(e.target.value, 10));
+                  setIsEditingZoom(false);
+                }}
+                onKeyDown={(e) =>
+                  e.key === 'Enter' ? e.currentTarget.blur() : e.key === 'Escape' && setIsEditingZoom(false)
+                }
+                className="w-12 h-6 px-1 text-xs text-slate-700 dark:text-slate-300 text-center bg-white border border-slate-200 dark:bg-dark-tertiary dark:border-slate-600 rounded outline-none focus:border-primary-green [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                autoFocus
+                onFocus={(e) => e.target.select()}
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsEditingZoom(true)}
+                className="w-12 h-6 text-xs text-slate-600 dark:text-slate-300 text-center hover:bg-slate-200 dark:hover:bg-dark-tertiary rounded cursor-pointer transition"
+                title="Click to edit zoom (100% = fit to container)"
+              >
+                {Math.round(zoomPercent)}%
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setZoom(zoomPercent + 25)}
+              disabled={zoomPercent >= MAX_ZOOM_PERCENT}
+              className="w-6 h-6 flex items-center justify-center rounded bg-slate-200 hover:bg-slate-300 dark:bg-dark-tertiary dark:hover:bg-dark-tertiary/80 disabled:opacity-40 disabled:cursor-not-allowed text-slate-600 dark:text-slate-300 cursor-pointer transition"
+              title="Zoom in"
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8" />
+                <path d="M21 21l-4.35-4.35M11 8v6M8 11h6" />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 };
 
-export default SpriteEditor;
+export default TilemapEditor;
