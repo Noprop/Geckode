@@ -36,7 +36,7 @@ export default class GameScene extends Phaser.Scene {
   private gridGraphics: Phaser.GameObjects.Graphics | null = null;
 
   // Tilemap properties
-  private static readonly TILE_SIZE = 32;
+  private static readonly TILE_SIZE = 16;
   private tilemap: Phaser.Tilemaps.Tilemap | null = null;
   private groundLayer: Phaser.Tilemaps.TilemapLayer | null = null;
 
@@ -146,6 +146,10 @@ export default class GameScene extends Phaser.Scene {
     const height = this.scale.height;
     const mapWidth = Math.ceil(width / tileSize);
     const mapHeight = Math.ceil(height / tileSize);
+
+    // console.log('tileSize: ', tileSize);
+    // console.log('width: ', width, 'height: ', height);
+    // console.log('mapWidth: ', mapWidth, 'mapHeight: ', mapHeight);
 
     // Create tilemap data - simple ground at bottom 2 rows
     const mapData: number[][] = [];

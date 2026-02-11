@@ -78,6 +78,19 @@ export default class EditorScene extends Phaser.Scene {
   }
 
   async create() {
+    // Tile 0: Empty/sky (transparent)
+    // We don't draw anything for tile 0
+
+    // Tile 1: Grass tile
+    // const graphics = this.add.graphics({ x: -128, y: -96 });
+    // graphics.fillStyle(0x4ade80); // green-400
+    // graphics.fillRect(0, 0, 16, 16);
+    // graphics.generateTexture('grass', 16, 16);
+
+    // const { tilemaps } = useGeckodeStore.getState();
+    // console.log('tilemaps: ', tilemaps);
+  
+
     // this.showGrid();
     this.spriteLayer = null;
     this.tilemapLayer = null;

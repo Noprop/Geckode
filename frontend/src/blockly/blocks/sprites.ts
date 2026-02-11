@@ -143,11 +143,10 @@ javascriptGenerator.forBlock['getProperty'] = function (block, generator) {
     const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
     const code = `scene.getSprite(${
       spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"'
-    }).${block.getFieldValue('PROPERTY')}`;
+    }).body.${block.getFieldValue('PROPERTY')}`;
     return [code, Order.NONE];
   }
   return['', Order.NONE];
-  
 };
 
 const setRotation = {

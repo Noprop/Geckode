@@ -7,14 +7,15 @@ import type { AssetType } from '@/stores/slices/types';
 import AssetList from './AssetList';
 import TextureDetailPanel from './DetailPanel';
 import TileEditorModal from '../TileModal/TileEditorModal';
+import TilesetEditorModal from '../TileModal/TilesetEditorModal';
 
 export type SelectedAsset = { name: string; type: AssetType } | null;
 
 export const TAB_CONFIG: { id: AssetType; label: string }[] = [
   { id: 'textures', label: 'Textures' },
   { id: 'tiles', label: 'Tiles' },
+  { id: 'tilesets', label: 'Tilesets' },
   // TODO:
-  // { id: 'tilesets', label: 'Tilesets' },
   // { id: 'animations', label: 'Animations' },
   // { id: 'backgrounds', label: 'Backgrounds' },
 ];
@@ -23,6 +24,7 @@ const AssetWorkspace = () => {
   const [activeTab, setActiveTab] = useState<AssetType>('textures');
   const [selectedAsset, setSelectedAsset] = useState<SelectedAsset>(null);
   const [isTileEditorModalOpen, setIsTileEditorModalOpen] = useState(false);
+  const [isTilesetEditorModalOpen, setIsTilesetEditorModalOpen] = useState(false);
 
   const assets = useGeckodeStore((s) => s[activeTab]);
   const addAsset = useGeckodeStore((s) => s.addAsset);
@@ -37,6 +39,7 @@ const AssetWorkspace = () => {
     setEditingAsset(selectedAsset.name, selectedAsset.type, 'asset');
     if (selectedAsset.type === 'textures') setIsSpriteModalOpen(true);
     else if (selectedAsset.type === 'tiles') setIsTileEditorModalOpen(true);
+    else if (selectedAsset.type === 'tilesets') setIsTilesetEditorModalOpen(true);
   };
 
   const handleDuplicate = () => {
@@ -62,6 +65,7 @@ const AssetWorkspace = () => {
     setEditingAsset(null, activeTab, 'new');
     if (activeTab === 'textures') setIsSpriteModalOpen(true);
     else if (activeTab === 'tiles') setIsTileEditorModalOpen(true);
+    else if (activeTab === 'tilesets') setIsTilesetEditorModalOpen(true);
   };
 
   // Auto-select first item when nothing is selected
@@ -100,6 +104,10 @@ const AssetWorkspace = () => {
       <TileEditorModal
         isOpen={isTileEditorModalOpen}
         onClose={() => setIsTileEditorModalOpen(false)}
+      />
+      <TilesetEditorModal
+        isOpen={isTilesetEditorModalOpen}
+        onClose={() => setIsTilesetEditorModalOpen(false)}
       />
     </div>
   );

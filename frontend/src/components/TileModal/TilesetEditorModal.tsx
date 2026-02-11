@@ -2,14 +2,14 @@
 
 import { useEffect } from 'react';
 import { Cross2Icon } from '@radix-ui/react-icons';
-import TileEditor from '../ui/TileEditor';
+import TilesetEditor from '../ui/TilesetEditor';
 
-interface TileEditorModalProps {
+interface TilesetEditorModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-const TileEditorModal = ({ isOpen, onClose }: TileEditorModalProps) => {
+const TilesetEditorModal = ({ isOpen, onClose }: TilesetEditorModalProps) => {
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -29,14 +29,14 @@ const TileEditorModal = ({ isOpen, onClose }: TileEditorModalProps) => {
           type="button"
           onClick={onClose}
           className="absolute right-3 top-3 z-10 rounded-full bg-black/5 p-2 text-slate-700 transition hover:bg-black/10 dark:bg-white/10 dark:text-slate-100 dark:hover:bg-white/20"
-          title="Close tile editor"
+          title="Close tileset editor"
         >
           <Cross2Icon className="h-4 w-4" />
         </button>
-        <TileEditor onClose={onClose} />
+        <TilesetEditor onClose={onClose} />
       </div>
     </div>
   );
 };
 
-export default TileEditorModal;
+export default TilesetEditorModal;

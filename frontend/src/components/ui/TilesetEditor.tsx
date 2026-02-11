@@ -46,9 +46,9 @@ const palette = [
   '#fbbf24',
 ];
 
-const TileEditor = ({ onClose }: { onClose: () => void }) => {
+const TilesetEditor = ({ onClose }: { onClose: () => void }) => {
   // --- UI state (drives rendering) ---
-  const [tileName, setTileName] = useState('myTile');
+  const [tileName, setTileName] = useState('myTileset');
   const [brushSize, setBrushSize] = useState(1);
   const [primaryColor, setPrimaryColor] = useState('#10b981');
   const [secondaryColor, setSecondaryColor] = useState('#3b82f6');
@@ -57,8 +57,8 @@ const TileEditor = ({ onClose }: { onClose: () => void }) => {
   const [gridHeight, setGridHeight] = useState(16);
 
   // --- Zustand selectors ---
-  const libaryTiles = useGeckodeStore((s) => s.libaryTiles);
-  const tiles = useGeckodeStore((s) => s.tiles);
+  const libaryTilesets = useGeckodeStore((s) => s.libaryTilesets);
+  const tilesets = useGeckodeStore((s) => s.tilesets);
   const editingSource = useGeckodeStore((s) => s.editingSource);
   const editingAssetName = useGeckodeStore((s) => s.editingAssetName);
   const editingAssetType = useGeckodeStore((s) => s.editingAssetType);
@@ -353,11 +353,11 @@ const TileEditor = ({ onClose }: { onClose: () => void }) => {
     const base64Image = offscreen.toDataURL('image/png');
 
     if (editingSource === 'new' || editingSource === 'library') {
-      const allTiles = useGeckodeStore.getState().tiles;
-      const uniqueName = createUniqueTextureName(tileName, allTiles);
-      useGeckodeStore.getState().addAsset(uniqueName, base64Image, 'tiles');
+      const allTilesets = useGeckodeStore.getState().tilesets;
+      const uniqueName = createUniqueTextureName(tileName, allTilesets);
+      useGeckodeStore.getState().addAsset(uniqueName, base64Image, 'tilesets');
     } else if (editingSource === 'asset') {
-      useGeckodeStore.getState().updateAsset(editingAssetName!, base64Image, 'tiles');
+      useGeckodeStore.getState().updateAsset(editingAssetName!, base64Image, 'tilesets');
     }
 
     useGeckodeStore.setState({ editingSource: null, editingAssetName: null, editingAssetType: null });
@@ -369,15 +369,15 @@ const TileEditor = ({ onClose }: { onClose: () => void }) => {
     if (
       editingSource === null ||
       editingAssetName === null ||
-      editingAssetType !== 'tiles' ||
+      editingAssetType !== 'tilesets' ||
       !canvasRef.current
     )
       return;
 
     const textureInfo =
       editingSource === 'library'
-        ? libaryTiles[editingAssetName]
-        : tiles[editingAssetName];
+        ? libaryTilesets[editingAssetName]
+        : tilesets[editingAssetName];
     if (!textureInfo) return;
 
     const img = new Image();
@@ -401,7 +401,7 @@ const TileEditor = ({ onClose }: { onClose: () => void }) => {
       requestRender();
     };
     img.src = textureInfo;
-  }, [editingSource, editingAssetName, libaryTiles, tiles]);
+  }, [editingSource, editingAssetName, libaryTilesets, tilesets]);
 
   // --- Grid resize handler (used by uncontrolled inputs) ---
   const handleGridResize = (dimension: 'width' | 'height', value: string, fallback: number) => {
@@ -635,7 +635,7 @@ const TileEditor = ({ onClose }: { onClose: () => void }) => {
             type="text"
             value={tileName}
             onChange={(e) => setTileName(e.target.value)}
-            placeholder="Sprite name"
+            placeholder="Tileset name"
             className="flex-1 h-9 px-3 rounded bg-slate-600 border border-slate-500 text-sm text-white placeholder:text-slate-400 outline-none focus:border-primary-green"
           />
           <Button
@@ -651,4 +651,4 @@ const TileEditor = ({ onClose }: { onClose: () => void }) => {
   );
 };
 
-export default TileEditor;
+export default TilesetEditor;
