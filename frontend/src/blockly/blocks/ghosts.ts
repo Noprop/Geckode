@@ -3,7 +3,7 @@
 import { javascriptGenerator, Order } from 'blockly/javascript';
 import { registerFieldAngle } from '@blockly/field-angle';
 import { getSpriteDropdownOptions } from '@/blockly/spriteRegistry';
-import { useEditorStore } from '@/stores/editorStore';
+import { useGeckodeStore } from '@/stores/geckodeStore';
 
 
 

@@ -1,18 +1,35 @@
 "use client";
 
-import { GitHubLogoIcon, DownloadIcon } from "@radix-ui/react-icons";
-import { useEditorStore } from "@/stores/editorStore";
+import { useState } from "react";
+import { GitHubLogoIcon, DownloadIcon, ResetIcon } from "@radix-ui/react-icons";
+import { useGeckodeStore } from "@/stores/geckodeStore";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import projectsApi from "@/lib/api/handlers/projects";
 import { headerBtnClasses } from "./Header";
 import { extractAxiosErrMsg } from "@/lib/api/axios";
+import { Modal } from "@/components/ui/modals/Modal";
 
 export default function ProjectControls() {
   const showSnackbar = useSnackbar();
-  const { projectName, setProjectName, saveProject, projectId } = useEditorStore();
+  const { projectName, setProjectName, saveProject, resetProject, projectId } = useGeckodeStore();
+  const [showResetModal, setShowResetModal] = useState(false);
 
   const handleSave = () => {
     saveProject(showSnackbar);
+  };
+
+  const handleResetClick = () => {
+    setShowResetModal(true);
+  };
+
+  const handleResetConfirm = () => {
+    resetProject();
+    setShowResetModal(false);
+    showSnackbar("Project reset to default state", "success");
+  };
+
+  const handleResetCancel = () => {
+    setShowResetModal(false);
   };
 
   // every time user exits focus on the project name, it is updated

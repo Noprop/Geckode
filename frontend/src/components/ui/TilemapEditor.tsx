@@ -1,44 +1,29 @@
-"use client";
+'use client';
 
-import { useEffect, useRef, useState } from "react";
-import * as Blockly from "blockly/core";
-import type { PointerEvent as ReactPointerEvent } from "react";
-import { Button } from "../ui/Button";
-import { useGeckodeStore } from "@/stores/geckodeStore";
-import EditorTools from "./EditorTools";
-import { Display } from "phaser";
-import EditorScene from "@/phaser/scenes/EditorScene";
-import { useCanvasZoom } from "@/hooks/useCanvasZoom";
-import { usePixelCanvas, createPixelArray } from "@/hooks/usePixelCanvas";
-import { createUniqueSpriteName, createUniqueTextureName } from "@/stores/slices/spriteSlice";
-import type { SpriteInstance } from "@/blockly/spriteRegistry";
-import projectsApi from "@/lib/api/handlers/projects";
-export type Tool =
-  | "pen"
-  | "eraser"
-  | "bucket"
-  | "rectangle"
-  | "line"
-  | "oval"
-  | "rectangle-selection"
-  | "pan-tool"
-  | "color-picker";
+import { useEffect, useRef, useState } from 'react';
+import type { PointerEvent as ReactPointerEvent } from 'react';
+import { Button } from './Button';
+import { useGeckodeStore } from '@/stores/geckodeStore';
+import EditorTools from '../SpriteModal/EditorTools';
+import { Display } from 'phaser';
+import EditorScene from '@/phaser/scenes/EditorScene';
+import { useCanvasZoom } from '@/hooks/useCanvasZoom';
+import { usePixelCanvas, createPixelArray } from '@/hooks/usePixelCanvas';
+import { createUniqueSpriteName, createUniqueTextureName } from '@/stores/slices/spriteSlice';
+import type { SpriteInstance } from '@/blockly/spriteRegistry';
+export type Tool = 'pen' | 'eraser' | 'bucket' | 'rectangle' | 'line' | 'oval' | 'rectangle-selection' | 'pan-tool' | 'color-picker';
 
 // Convert RGBA values at index to hex (returns '' for transparent)
 const rgbaToHex = (data: Uint8ClampedArray, idx: number): string => {
-  if (data[idx + 3] === 0) return "";
-  const r = data[idx].toString(16).padStart(2, "0");
-  const g = data[idx + 1].toString(16).padStart(2, "0");
-  const b = data[idx + 2].toString(16).padStart(2, "0");
+  if (data[idx + 3] === 0) return '';
+  const r = data[idx].toString(16).padStart(2, '0');
+  const g = data[idx + 1].toString(16).padStart(2, '0');
+  const b = data[idx + 2].toString(16).padStart(2, '0');
   return `#${r}${g}${b}`;
 };
 
 // Set pixel in RGBA array
-const setPixel = (
-  data: Uint8ClampedArray,
-  idx: number,
-  color: { r: number; g: number; b: number; a: number } | null,
-) => {
+const setPixel = (data: Uint8ClampedArray, idx: number, color: { r: number; g: number; b: number; a: number } | null) => {
   if (color) {
     data[idx] = color.r;
     data[idx + 1] = color.g;
@@ -52,15 +37,24 @@ const setPixel = (
   }
 };
 
-const palette = ["#ffffff", "#ef4444", "#10b981", "#3b82f6", "#f97316", "#000000", "#8b5cf6", "#fbbf24"];
+const palette = [
+  '#ffffff',
+  '#ef4444',
+  '#10b981',
+  '#3b82f6',
+  '#f97316',
+  '#000000',
+  '#8b5cf6',
+  '#fbbf24',
+];
 
 const SpriteEditor = () => {
   // --- UI state (drives rendering) ---
-  const [spriteName, setSpriteName] = useState("mySprite");
+  const [spriteName, setSpriteName] = useState('mySprite');
   const [brushSize, setBrushSize] = useState(1);
-  const [primaryColor, setPrimaryColor] = useState("#10b981");
-  const [secondaryColor, setSecondaryColor] = useState("#3b82f6");
-  const [activeTool, setActiveTool] = useState<Tool>("pen");
+  const [primaryColor, setPrimaryColor] = useState('#10b981');
+  const [secondaryColor, setSecondaryColor] = useState('#3b82f6');
+  const [activeTool, setActiveTool] = useState<Tool>('pen');
   const [gridWidth, setGridWidth] = useState(16);
   const [gridHeight, setGridHeight] = useState(16);
 
@@ -76,26 +70,8 @@ const SpriteEditor = () => {
   const spriteInstances = useGeckodeStore((s) => s.spriteInstances);
 
   // --- Custom hooks ---
-  const {
-    cellSize,
-    zoomPercent,
-    setZoom,
-    isEditingZoom,
-    setIsEditingZoom,
-    canvasContainerRef,
-    MIN_ZOOM_PERCENT,
-    MAX_ZOOM_PERCENT,
-  } = useCanvasZoom(gridWidth, gridHeight);
-  const {
-    canvasRef,
-    previewRef,
-    outputPixelsRef,
-    previewPixelsRef,
-    requestRender,
-    saveToHistory,
-    clearCanvas,
-    resetPixelArrays,
-  } = usePixelCanvas(gridWidth, gridHeight, cellSize);
+  const { cellSize, zoomPercent, setZoom, isEditingZoom, setIsEditingZoom, canvasContainerRef, MIN_ZOOM_PERCENT, MAX_ZOOM_PERCENT } = useCanvasZoom(gridWidth, gridHeight);
+  const { canvasRef, previewRef, outputPixelsRef, previewPixelsRef, requestRender, saveToHistory, clearCanvas, resetPixelArrays } = usePixelCanvas(gridWidth, gridHeight, cellSize);
 
   // --- Drawing state (single ref, no re-renders) ---
   const drawStateRef = useRef({
@@ -104,9 +80,9 @@ const SpriteEditor = () => {
     prevPos: null as { x: number; y: number } | null,
     activeButton: 0,
     // Mirrors of React state for window event handlers (avoids stale closures)
-    activeTool: "pen" as Tool,
-    primaryColor: "#10b981",
-    secondaryColor: "#3b82f6",
+    activeTool: 'pen' as Tool,
+    primaryColor: '#10b981',
+    secondaryColor: '#3b82f6',
     brushSize: 1,
     gridWidth: 16,
     gridHeight: 16,
@@ -159,13 +135,7 @@ const SpriteEditor = () => {
     const targetA = layer1[startIdx + 3];
 
     if (fillRgba) {
-      if (
-        targetR === fillRgba.red &&
-        targetG === fillRgba.green &&
-        targetB === fillRgba.blue &&
-        targetA === fillRgba.alpha
-      )
-        return;
+      if (targetR === fillRgba.red && targetG === fillRgba.green && targetB === fillRgba.blue && targetA === fillRgba.alpha) return;
     } else {
       if (targetA === 0) return;
     }
@@ -180,13 +150,8 @@ const SpriteEditor = () => {
       if (x < 0 || x >= w || y < 0 || y >= h) continue;
 
       const idx = pixelIndex * 4;
-      if (
-        layer1[idx] !== targetR ||
-        layer1[idx + 1] !== targetG ||
-        layer1[idx + 2] !== targetB ||
-        layer1[idx + 3] !== targetA
-      )
-        continue;
+      if (layer1[idx] !== targetR || layer1[idx + 1] !== targetG ||
+        layer1[idx + 2] !== targetB || layer1[idx + 3] !== targetA) continue;
 
       visited.add(pixelIndex);
       setPixel(layer1, idx, { r: fillRgba.red, g: fillRgba.green, b: fillRgba.blue, a: fillRgba.alpha });
@@ -209,14 +174,8 @@ const SpriteEditor = () => {
       pixels.push({ x: x0, y: y0 });
       if (x0 === x1 && y0 === y1) break;
       const e2 = 2 * err;
-      if (e2 > -dy) {
-        err -= dy;
-        x0 += sx;
-      }
-      if (e2 < dx) {
-        err += dx;
-        y0 += sy;
-      }
+      if (e2 > -dy) { err -= dy; x0 += sx; }
+      if (e2 < dx) { err += dx; y0 += sy; }
     }
     return pixels;
   };
@@ -239,26 +198,18 @@ const SpriteEditor = () => {
   };
 
   const getRectanglePixels = (x1: number, y1: number, x2: number, y2: number) => {
-    const minX = Math.min(x1, x2),
-      maxX = Math.max(x1, x2);
-    const minY = Math.min(y1, y2),
-      maxY = Math.max(y1, y2);
+    const minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
+    const minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
     const pixels: { x: number; y: number }[] = [];
-    for (let x = minX; x <= maxX; x++) {
-      pixels.push({ x, y: minY }, { x, y: maxY });
-    }
-    for (let y = minY + 1; y < maxY; y++) {
-      pixels.push({ x: minX, y }, { x: maxX, y });
-    }
+    for (let x = minX; x <= maxX; x++) { pixels.push({ x, y: minY }, { x, y: maxY }); }
+    for (let y = minY + 1; y < maxY; y++) { pixels.push({ x: minX, y }, { x: maxX, y }); }
     return pixels;
   };
 
   const getOvalPixels = (x1: number, y1: number, x2: number, y2: number) => {
     const { gridWidth: w, gridHeight: h } = drawStateRef.current;
-    const cx = (x1 + x2) / 2,
-      cy = (y1 + y2) / 2;
-    const rx = Math.abs(x2 - x1) / 2,
-      ry = Math.abs(y2 - y1) / 2;
+    const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
+    const rx = Math.abs(x2 - x1) / 2, ry = Math.abs(y2 - y1) / 2;
     if (rx === 0 || ry === 0) return [];
     const pixels: { x: number; y: number }[] = [];
     const steps = Math.max(Math.ceil(2 * Math.PI * Math.max(rx, ry)), 32);
@@ -277,22 +228,20 @@ const SpriteEditor = () => {
     const rect = canvasRef.current!.getBoundingClientRect();
     return {
       x: Math.floor((event.clientX - rect.left) / (rect.width / w)),
-      y: Math.floor((event.clientY - rect.top) / (rect.height / h)),
+      y: Math.floor((event.clientY - rect.top) / (rect.height / h))
     };
   };
 
   const clipToCanvas = (start: { x: number; y: number }, end: { x: number; y: number }) => {
     const { gridWidth: w, gridHeight: h } = drawStateRef.current;
-    const dx = end.x - start.x,
-      dy = end.y - start.y;
-    const t = Math.min(
-      1,
+    const dx = end.x - start.x, dy = end.y - start.y;
+    const t = Math.min(1,
       end.x < 0 ? -start.x / dx : end.x >= w ? (w - 1 - start.x) / dx : 1,
-      end.y < 0 ? -start.y / dy : end.y >= h ? (h - 1 - start.y) / dy : 1,
+      end.y < 0 ? -start.y / dy : end.y >= h ? (h - 1 - start.y) / dy : 1
     );
     return {
       x: Math.max(0, Math.min(w - 1, Math.round(start.x + dx * t))),
-      y: Math.max(0, Math.min(h - 1, Math.round(start.y + dy * t))),
+      y: Math.max(0, Math.min(h - 1, Math.round(start.y + dy * t)))
     };
   };
 
@@ -307,16 +256,16 @@ const SpriteEditor = () => {
 
     saveToHistory();
 
-    if (["pen", "eraser"].includes(activeTool)) {
+    if (['pen', 'eraser'].includes(activeTool)) {
       paintAt(position.x, position.y, color);
       ds.isDrawing = true;
-    } else if (["rectangle", "line", "oval"].includes(activeTool)) {
+    } else if (['rectangle', 'line', 'oval'].includes(activeTool)) {
       ds.shapeStart = position;
       ds.isDrawing = true;
     }
-    if (activeTool === "bucket") {
+    if (activeTool === 'bucket') {
       floodFill(position.x, position.y, color);
-    } else if (activeTool === "color-picker") {
+    } else if (activeTool === 'color-picker') {
       const idx = (position.y * gridWidth + position.x) * 4;
       const pickedColor = rgbaToHex(outputPixelsRef.current, idx);
       setPrimaryColor(pickedColor);
@@ -326,7 +275,7 @@ const SpriteEditor = () => {
   const handlePointerMove = (e: PointerEvent | ReactPointerEvent<HTMLCanvasElement>) => {
     const ds = drawStateRef.current;
     if (!ds.isDrawing) return;
-    const isShapeTool = ["line", "rectangle", "oval"].includes(ds.activeTool);
+    const isShapeTool = ['line', 'rectangle', 'oval'].includes(ds.activeTool);
 
     const position = getPointerPosition(e);
     const prev = ds.prevPos;
@@ -338,9 +287,9 @@ const SpriteEditor = () => {
     if (isShapeTool && ds.shapeStart) {
       const cp = clipToCanvas(ds.shapeStart, position);
       let pixels: { x: number; y: number }[] = [];
-      if (ds.activeTool === "line") pixels = getLinePixels(ds.shapeStart.x, ds.shapeStart.y, cp.x, cp.y);
-      else if (ds.activeTool === "rectangle") pixels = getRectanglePixels(ds.shapeStart.x, ds.shapeStart.y, cp.x, cp.y);
-      else if (ds.activeTool === "oval") pixels = getOvalPixels(ds.shapeStart.x, ds.shapeStart.y, cp.x, cp.y);
+      if (ds.activeTool === 'line') pixels = getLinePixels(ds.shapeStart.x, ds.shapeStart.y, cp.x, cp.y);
+      else if (ds.activeTool === 'rectangle') pixels = getRectanglePixels(ds.shapeStart.x, ds.shapeStart.y, cp.x, cp.y);
+      else if (ds.activeTool === 'oval') pixels = getOvalPixels(ds.shapeStart.x, ds.shapeStart.y, cp.x, cp.y);
 
       previewPixelsRef.current = createPixelArray(ds.gridWidth, ds.gridHeight);
       applyBrush(pixels, color, previewPixelsRef.current);
@@ -349,14 +298,14 @@ const SpriteEditor = () => {
     }
 
     // Paint for pen and eraser
-    if (ds.activeTool === "pen") {
+    if (ds.activeTool === 'pen') {
       if (prev && (Math.abs(position.x - prev.x) > 1 || Math.abs(position.y - prev.y) > 1)) {
-        getLinePixels(prev.x, prev.y, position.x, position.y).forEach((p) => paintAt(p.x, p.y, color));
+        getLinePixels(prev.x, prev.y, position.x, position.y).forEach(p => paintAt(p.x, p.y, color));
       } else {
         paintAt(position.x, position.y, color);
       }
-    } else if (ds.activeTool === "eraser") {
-      paintAt(position.x, position.y, "");
+    } else if (ds.activeTool === 'eraser') {
+      paintAt(position.x, position.y, '');
     }
   };
 
@@ -367,15 +316,15 @@ const SpriteEditor = () => {
     if (!ds.isDrawing) return;
 
     // Finalize shape tools
-    if (ds.shapeStart && ["line", "rectangle", "oval"].includes(ds.activeTool)) {
+    if (ds.shapeStart && ['line', 'rectangle', 'oval'].includes(ds.activeTool)) {
       const pos = getPointerPosition(event);
       const cp = clipToCanvas(ds.shapeStart, pos);
       const color = ds.activeButton === 2 ? ds.secondaryColor : ds.primaryColor;
 
       let pixels: { x: number; y: number }[] = [];
-      if (ds.activeTool === "line") pixels = getLinePixels(ds.shapeStart.x, ds.shapeStart.y, cp.x, cp.y);
-      else if (ds.activeTool === "rectangle") pixels = getRectanglePixels(ds.shapeStart.x, ds.shapeStart.y, cp.x, cp.y);
-      else if (ds.activeTool === "oval") pixels = getOvalPixels(ds.shapeStart.x, ds.shapeStart.y, cp.x, cp.y);
+      if (ds.activeTool === 'line') pixels = getLinePixels(ds.shapeStart.x, ds.shapeStart.y, cp.x, cp.y);
+      else if (ds.activeTool === 'rectangle') pixels = getRectanglePixels(ds.shapeStart.x, ds.shapeStart.y, cp.x, cp.y);
+      else if (ds.activeTool === 'oval') pixels = getOvalPixels(ds.shapeStart.x, ds.shapeStart.y, cp.x, cp.y);
 
       applyBrush(pixels, color, outputPixelsRef.current);
       previewPixelsRef.current = createPixelArray(ds.gridWidth, ds.gridHeight);
@@ -388,83 +337,61 @@ const SpriteEditor = () => {
 
   // Window-level pointer tracking
   useEffect(() => {
-    window.addEventListener("pointermove", handlePointerMove);
-    window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
     return () => {
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
     };
   }, []);
 
   // --- Save / Load ---
   const addSpriteToGame = async () => {
-    if (!(phaserScene instanceof EditorScene)) throw new Error("Phaser scene is not an EditorScene.");
+    if (!(phaserScene instanceof EditorScene)) throw new Error('Phaser scene is not an EditorScene.');
 
     const w = gridWidth;
     const h = gridHeight;
-    const offscreen = document.createElement("canvas");
+    const offscreen = document.createElement('canvas');
     offscreen.width = w;
     offscreen.height = h;
-    const ctx = offscreen.getContext("2d")!;
+    const ctx = offscreen.getContext('2d')!;
     const imageData = ctx.createImageData(w, h);
     imageData.data.set(outputPixelsRef.current);
     ctx.putImageData(imageData, 0, 0);
-    const base64Image = offscreen.toDataURL("image/png");
+    const base64Image = offscreen.toDataURL('image/png');
 
     const newSpriteName = createUniqueSpriteName(spriteName, spriteInstances);
-    const newTextureName =
-      editingSource === "asset" ? editingTextureName! : createUniqueTextureName(spriteName, assetTextures);
-
-    const newSprite: SpriteInstance = {
+    const newTextureName = editingSource === 'asset' ? editingTextureName! : createUniqueTextureName(spriteName, assetTextures);
+    const newSprite = useGeckodeStore.getState().addSpriteInstance({
       name: newSpriteName,
       textureName: newTextureName,
-      id: `id_${Date.now()}`,
-      x: 0,
-      y: 0,
-      visible: true,
-      scaleX: 1,
-      scaleY: 1,
-      direction: 0,
-      snapToGrid: true,
-    };
+    });
 
-    // add texture to state, and phaser
-    console.log(`EDITING SOURCE ${editingSource}`);
-    if (editingSource === "new" || editingSource === "library") {
+    if (editingSource === 'new' || editingSource === 'library') {
       useGeckodeStore.getState().addAssetTexture(newTextureName, base64Image);
       await phaserScene.loadTextureAsync(newTextureName, base64Image);
-
-      // TODO: add to assets library on server
-    } else if (editingSource === "asset") {
+    } else if (editingSource === 'asset') {
       useGeckodeStore.getState().updateAssetTexture(editingTextureName!, base64Image);
       await phaserScene.updateTextureAsync(newTextureName, base64Image);
     }
     phaserScene.createSprite(newSprite);
-
-    // add sprite to state, save workspace for current sprite, and switch to new sprite
-    useGeckodeStore.setState({
-      spriteInstances: [...spriteInstances, newSprite],
-      selectedSpriteIdx: spriteInstances.length,
-      spriteWorkspaces: {
-        ...useGeckodeStore.getState().spriteWorkspaces,
-        [newSprite.id]: {},
-        [spriteInstances[useGeckodeStore.getState().selectedSpriteIdx].id]: Blockly.serialization.workspaces.save(
-          useGeckodeStore.getState().blocklyWorkspace!,
-        ),
-      },
-    });
-    Blockly.serialization.workspaces.load({}, useGeckodeStore.getState().blocklyWorkspace!);
-
     clearEditingSprite();
     setIsSpriteModalOpen(false);
   };
 
   // Load existing texture when editing from library or asset (use offscreen canvas to avoid checkerboard in pixel data)
   useEffect(() => {
-    if (editingSource === null || editingTextureName === null || !canvasRef.current) return;
+    if (
+      editingSource === null ||
+      editingTextureName === null ||
+      !canvasRef.current
+    )
+      return;
 
     const textureInfo =
-      editingSource === "library" ? libraryTextures[editingTextureName] : assetTextures[editingTextureName];
+      editingSource === "library"
+        ? libraryTextures[editingTextureName]
+        : assetTextures[editingTextureName];
     if (!textureInfo) return;
 
     const img = new Image();
@@ -491,14 +418,14 @@ const SpriteEditor = () => {
   }, [editingSource, editingTextureName, libraryTextures, assetTextures]);
 
   // --- Grid resize handler (used by uncontrolled inputs) ---
-  const handleGridResize = (dimension: "width" | "height", value: string, fallback: number) => {
-    if (value === "") return;
+  const handleGridResize = (dimension: 'width' | 'height', value: string, fallback: number) => {
+    if (value === '') return;
     const parsed = Math.max(1, Math.min(1024, parseInt(value, 10)));
     if (Number.isNaN(parsed)) return;
-    const newW = dimension === "width" ? parsed : gridWidth;
-    const newH = dimension === "height" ? parsed : gridHeight;
+    const newW = dimension === 'width' ? parsed : gridWidth;
+    const newH = dimension === 'height' ? parsed : gridHeight;
     resetPixelArrays(newW, newH);
-    if (dimension === "width") setGridWidth(parsed);
+    if (dimension === 'width') setGridWidth(parsed);
     else setGridHeight(parsed);
   };
 
@@ -512,9 +439,10 @@ const SpriteEditor = () => {
               key={size}
               type="button"
               onClick={() => setBrushSize(size)}
-              className={`h-9 flex items-center justify-center cursor-pointer transition ${
-                brushSize === size ? "bg-primary-green" : "bg-slate-600 hover:bg-slate-500"
-              }`}
+              className={`h-9 flex items-center justify-center cursor-pointer transition ${brushSize === size
+                ? 'bg-primary-green'
+                : 'bg-slate-600 hover:bg-slate-500'
+                }`}
               title={`${size}x${size} brush`}
             >
               <div className="bg-white" style={{ width: size * 3 + 2, height: size * 3 + 2 }} />
@@ -531,12 +459,12 @@ const SpriteEditor = () => {
             onClick={swapColors}
             className="absolute right-1.5 bottom-0 w-18 h-8 rounded-xs cursor-pointer transition-shadow"
             style={{
-              backgroundColor: secondaryColor || "#9e9e9e",
+              backgroundColor: secondaryColor || '#9e9e9e',
               backgroundImage: !secondaryColor
-                ? "linear-gradient(45deg, #6e6e6e 25%, transparent 25%), linear-gradient(-45deg, #6e6e6e 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #6e6e6e 75%), linear-gradient(-45deg, transparent 75%, #6e6e6e 75%)"
+                ? 'linear-gradient(45deg, #6e6e6e 25%, transparent 25%), linear-gradient(-45deg, #6e6e6e 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #6e6e6e 75%), linear-gradient(-45deg, transparent 75%, #6e6e6e 75%)'
                 : undefined,
-              backgroundSize: "8px 8px",
-              backgroundPosition: "0 0, 0 4px, 4px -4px, -4px 0px",
+              backgroundSize: '8px 8px',
+              backgroundPosition: '0 0, 0 4px, 4px -4px, -4px 0px',
             }}
             title="Secondary color (right-click) - Click to swap"
           />
@@ -545,12 +473,12 @@ const SpriteEditor = () => {
             onClick={swapColors}
             className="absolute left-1.5 top-0 w-18 h-8 rounded-xs cursor-pointer transition-shadow"
             style={{
-              backgroundColor: primaryColor || "#9e9e9e",
+              backgroundColor: primaryColor || '#9e9e9e',
               backgroundImage: !primaryColor
-                ? "linear-gradient(45deg, #6e6e6e 25%, transparent 25%), linear-gradient(-45deg, #6e6e6e 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #6e6e6e 75%), linear-gradient(-45deg, transparent 75%, #6e6e6e 75%)"
+                ? 'linear-gradient(45deg, #6e6e6e 25%, transparent 25%), linear-gradient(-45deg, #6e6e6e 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #6e6e6e 75%), linear-gradient(-45deg, transparent 75%, #6e6e6e 75%)'
                 : undefined,
-              backgroundSize: "8px 8px",
-              backgroundPosition: "0 0, 0 4px, 4px -4px, -4px 0px",
+              backgroundSize: '8px 8px',
+              backgroundPosition: '0 0, 0 4px, 4px -4px, -4px 0px',
             }}
             title="Primary color (left-click) - Click to swap"
           />
@@ -561,14 +489,13 @@ const SpriteEditor = () => {
           <div className="grid grid-cols-3 w-full gap-1.5">
             <button
               type="button"
-              onClick={() => setPrimaryColor("")}
+              onClick={() => setPrimaryColor('')}
               className="rounded-xs cursor-pointer transition aspect-square hover:ring-2 hover:ring-white/40"
               style={{
-                backgroundImage:
-                  "linear-gradient(45deg, #6e6e6e 25%, transparent 25%), linear-gradient(-45deg, #6e6e6e 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #6e6e6e 75%), linear-gradient(-45deg, transparent 75%, #6e6e6e 75%)",
-                backgroundSize: "8px 8px",
-                backgroundPosition: "0 0, 0 4px, 4px -4px, -4px 0px",
-                backgroundColor: "#9e9e9e",
+                backgroundImage: 'linear-gradient(45deg, #6e6e6e 25%, transparent 25%), linear-gradient(-45deg, #6e6e6e 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #6e6e6e 75%), linear-gradient(-45deg, transparent 75%, #6e6e6e 75%)',
+                backgroundSize: '8px 8px',
+                backgroundPosition: '0 0, 0 4px, 4px -4px, -4px 0px',
+                backgroundColor: '#9e9e9e',
               }}
               title="Transparent"
             />
@@ -592,7 +519,7 @@ const SpriteEditor = () => {
             <span className="text-xs text-slate-300">Custom</span>
             <input
               type="color"
-              value={primaryColor || "#000000"}
+              value={primaryColor || '#000000'}
               onChange={(e) => setPrimaryColor(e.target.value)}
               className="hidden"
             />
@@ -607,8 +534,8 @@ const SpriteEditor = () => {
             key={`w-${gridWidth}`}
             type="number"
             defaultValue={gridWidth}
-            onBlur={(e) => handleGridResize("width", e.target.value, gridWidth)}
-            onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+            onBlur={(e) => handleGridResize('width', e.target.value, gridWidth)}
+            onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
             min={1}
             max={1024}
             className="w-12 h-8 px-1 text-xs text-slate-300 text-center bg-slate-600 border border-slate-500 rounded outline-none focus:border-primary-green [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
@@ -620,8 +547,8 @@ const SpriteEditor = () => {
             key={`h-${gridHeight}`}
             type="number"
             defaultValue={gridHeight}
-            onBlur={(e) => handleGridResize("height", e.target.value, gridHeight)}
-            onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+            onBlur={(e) => handleGridResize('height', e.target.value, gridHeight)}
+            onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
             min={1}
             max={1024}
             className="w-12 h-8 px-1 text-xs text-slate-300 text-center bg-slate-600 border border-slate-500 rounded outline-none focus:border-primary-green [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
@@ -652,7 +579,7 @@ const SpriteEditor = () => {
               style={{
                 width: gridWidth * cellSize,
                 height: gridHeight * cellSize,
-                imageRendering: "pixelated",
+                imageRendering: 'pixelated',
               }}
               onPointerDown={canvasPointerDown}
               onContextMenu={(e) => e.preventDefault()}
@@ -682,9 +609,7 @@ const SpriteEditor = () => {
                 setZoom(parseInt(e.target.value, 10));
                 setIsEditingZoom(false);
               }}
-              onKeyDown={(e) =>
-                e.key === "Enter" ? e.currentTarget.blur() : e.key === "Escape" && setIsEditingZoom(false)
-              }
+              onKeyDown={(e) => e.key === 'Enter' ? e.currentTarget.blur() : e.key === 'Escape' && setIsEditingZoom(false)}
               className="w-14 h-6 px-1 text-xs text-slate-300 text-center bg-slate-600 border border-slate-500 rounded outline-none focus:border-primary-green [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               autoFocus
               onFocus={(e) => e.target.select()}
@@ -694,9 +619,9 @@ const SpriteEditor = () => {
               type="button"
               onClick={() => setIsEditingZoom(true)}
               className="w-14 h-6 text-xs text-slate-300 text-center hover:bg-slate-600 rounded cursor-pointer transition"
-              title="Click to edit zoom (100% = fit to container)"
+                title="Click to edit zoom (100% = fit to container)"
             >
-              {Math.round(zoomPercent)}%
+                {Math.round(zoomPercent)}%
             </button>
           )}
           <button
@@ -718,7 +643,7 @@ const SpriteEditor = () => {
           <canvas
             ref={previewRef}
             className="w-10 h-10 rounded border border-slate-500"
-            style={{ imageRendering: "pixelated" }}
+            style={{ imageRendering: 'pixelated' }}
           />
           <input
             type="text"
@@ -727,7 +652,11 @@ const SpriteEditor = () => {
             placeholder="Sprite name"
             className="flex-1 h-9 px-3 rounded bg-slate-600 border border-slate-500 text-sm text-white placeholder:text-slate-400 outline-none focus:border-primary-green"
           />
-          <Button className="btn-confirm h-9 px-4" onClick={addSpriteToGame} title="Add to game">
+          <Button
+            className="btn-confirm h-9 px-4"
+            onClick={addSpriteToGame}
+            title="Add to game"
+          >
             Add to Game
           </Button>
         </div>
