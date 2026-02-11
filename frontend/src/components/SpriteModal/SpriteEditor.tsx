@@ -387,13 +387,16 @@ const SpriteEditor = () => {
     phaserScene.createSprite(newSprite);
 
     // add sprite to state, save workspace for current sprite, and switch to new sprite
+    const { selectedSpriteId, spriteWorkspaces, blocklyWorkspace } = useGeckodeStore.getState();
     useGeckodeStore.setState({
       spriteInstances: [...spriteInstances, newSprite],
-      selectedSpriteIdx: spriteInstances.length,
+      selectedSpriteId: newSprite.id,
       spriteWorkspaces: {
-        ...useGeckodeStore.getState().spriteWorkspaces,
+        ...spriteWorkspaces,
         [newSprite.id]: {},
-        [spriteInstances[useGeckodeStore.getState().selectedSpriteIdx].id]: Blockly.serialization.workspaces.save(useGeckodeStore.getState().blocklyWorkspace!),
+        ...(selectedSpriteId && blocklyWorkspace
+          ? { [selectedSpriteId]: Blockly.serialization.workspaces.save(blocklyWorkspace) }
+          : {}),
       },
     });
     Blockly.serialization.workspaces.load({}, useGeckodeStore.getState().blocklyWorkspace!);

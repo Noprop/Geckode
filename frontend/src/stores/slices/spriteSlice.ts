@@ -127,49 +127,61 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
   activeTilemapId: 'tilemap_1',
 
   isSpriteModalOpen: false,
-  selectedSpriteIdx: 0,
+  selectedSpriteId: null,
   editingSource: null,
   editingAssetName: null,
   editingAssetType: null,
 
   /* ── Modal / Selection ── */
   setIsSpriteModalOpen: (isOpen: boolean) => set({ isSpriteModalOpen: isOpen }),
-  setSelectedSpriteIdx: (newIdx: number) => {
-    const { blocklyWorkspace, spriteWorkspaces, spriteInstances, selectedSpriteIdx: prevIdx } = get();
-    if (newIdx === prevIdx) return;
-    if (!blocklyWorkspace || spriteInstances.length === 0) return;
+  setSelectedSpriteId: (newId: string) => {
+    const { blocklyWorkspace, spriteWorkspaces, selectedSpriteId: prevId } = get();
+    if (newId === prevId) return;
+    if (!blocklyWorkspace) return;
 
-    // Save current workspace first
-    set({
-      spriteWorkspaces: {
-        ...spriteWorkspaces,
-        [spriteInstances[prevIdx].id]: Blockly.serialization.workspaces.save(blocklyWorkspace),
-      },
-    });
+    // Save current workspace for the previously selected sprite
+    if (prevId) {
+      set({
+        spriteWorkspaces: {
+          ...spriteWorkspaces,
+          [prevId]: Blockly.serialization.workspaces.save(blocklyWorkspace),
+        },
+      });
+    }
 
-    // Overwrite the workspace
-    const state = get().spriteWorkspaces[spriteInstances[newIdx].id];
+    // Load workspace for the newly selected sprite
+    const state = get().spriteWorkspaces[newId];
     if (!state) {
       Blockly.serialization.workspaces.load({}, blocklyWorkspace);
     } else {
       Blockly.serialization.workspaces.load(state, blocklyWorkspace);
     }
 
-    set({ selectedSpriteIdx: newIdx });
-    console.log(`sprite ${newIdx} workspace loaded`);
+    set({ selectedSpriteId: newId });
+    console.log(`sprite ${newId} workspace loaded`);
   },
   setSpriteInstances: (instances: SpriteInstance[]) => set({ spriteInstances: instances }),
-  removeSpriteInstance: (spriteIdx: number) => { set({ spriteInstances: get().spriteInstances.filter((_, index) => index !== spriteIdx) }) },
+  removeSpriteInstance: (spriteId: string) => {
+    const { spriteInstances, selectedSpriteId } = get();
+    const remaining = spriteInstances.filter((instance) => instance.id !== spriteId);
 
-  updateSpriteInstance: (spriteIdx: number, updates: Partial<SpriteInstance>) => {
+    set({
+      spriteInstances: remaining,
+      selectedSpriteId: selectedSpriteId === spriteId
+        ? (remaining[0]?.id ?? null)
+        : selectedSpriteId,
+    });
+  },
+
+  updateSpriteInstance: (spriteId: string, updates: Partial<SpriteInstance>) => {
     const { phaserGame, phaserScene } = get();
     if (!phaserGame || !phaserScene) throw new Error('Game is not ready yet.');
     if (!(phaserScene instanceof EditorScene)) throw new Error('Should not be able to update sprite from game scene.');
-    phaserScene.updateSprite(get().spriteInstances[spriteIdx].id, updates);
+    phaserScene.updateSprite(spriteId, updates);
 
     set((state) => ({
-      spriteInstances: state.spriteInstances.map((instance, index) =>
-        index === spriteIdx ? { ...instance, ...updates } : instance,
+      spriteInstances: state.spriteInstances.map((instance) =>
+        instance.id === spriteId ? { ...instance, ...updates } : instance,
       ),
     }));
   },
@@ -281,10 +293,11 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
   /* ── Reset ── */
   resetSpriteStore: () => {
     console.log('resetting sprite store');
+    const defaultSpriteId = `id_${Date.now()}`;
     set({
       spriteInstances: [
         {
-          id: `id_${Date.now()}`,
+          id: defaultSpriteId,
           textureName: 'hero-walk-front',
           name: 'herowalkfront1',
           x: 200,
@@ -310,7 +323,7 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
       libaryTilesets: {},
       libaryAnimations: {},
       libaryBackgrounds: {},
-      selectedSpriteIdx: 0,
+      selectedSpriteId: defaultSpriteId,
       editingSource: null,
       editingAssetName: null,
       editingAssetType: null,

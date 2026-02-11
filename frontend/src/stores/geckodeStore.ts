@@ -43,7 +43,7 @@ export const useGeckodeStore = create<GeckodeStore>()(
         tilemaps: state.tilemaps,
         scenes: state.scenes,
         activeTilemapId: state.activeTilemapId,
-        selectedSpriteIdx: state.selectedSpriteIdx,
+        selectedSpriteId: state.selectedSpriteId,
         spriteWorkspaces: state.spriteWorkspaces,
         projectName: state.projectName,
       }),

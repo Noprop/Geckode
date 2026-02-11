@@ -60,7 +60,7 @@ export interface SpriteState {
   activeTilemapId: string | null;
 
   isSpriteModalOpen: boolean;
-  selectedSpriteIdx: number;
+  selectedSpriteId: string | null;
 
   editingSource: EditingSource | null;
   editingAssetName: string | null;
@@ -68,14 +68,14 @@ export interface SpriteState {
 }
 
 export interface SpriteActions {
-  setSelectedSpriteIdx: (spriteIdx: number) => void;
+  setSelectedSpriteId: (spriteId: string) => void;
   setIsSpriteModalOpen: (isOpen: boolean) => void;
   setEditingAsset: (name: string | null, type: AssetType, source: EditingSource) => void;
 
   /* Sprites */
   setSpriteInstances: (instances: SpriteInstance[]) => void;
-  removeSpriteInstance: (spriteIdx: number) => void;
-  updateSpriteInstance: (spriteIdx: number, updates: Partial<SpriteInstance>) => void;
+  removeSpriteInstance: (spriteId: string) => void;
+  updateSpriteInstance: (spriteId: string, updates: Partial<SpriteInstance>) => void;
   updateInstanceOrder: (spriteIdx: number, newIdx: number) => void;
   saveSprite: (params: { spriteName: string; base64Image: string }) => string;
 

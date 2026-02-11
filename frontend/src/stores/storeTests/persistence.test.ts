@@ -78,7 +78,7 @@ describe("persistence", () => {
         ],
         assetTextures: { tex: "base64" },
         libraryTextures: { lib: "base64lib" },
-        selectedSpriteIdx: 1,
+        selectedSpriteId: 1,
         spriteWorkspaces: new Map([["sid", { blocks: {} } as any]]),
         projectName: "TestProject",
       });
@@ -97,7 +97,7 @@ describe("persistence", () => {
       expect(state.spriteInstances).toBeDefined();
       expect(state.assetTextures).toBeDefined();
       expect(state.libraryTextures).toBeDefined();
-      expect(state.selectedSpriteIdx).toBe(1);
+      expect(state.selectedSpriteId).toBe(1);
       expect(state.projectName).toBe("TestProject");
       expect(state.spriteWorkspaces).toBeDefined();
     });

@@ -219,12 +219,12 @@ function loadLocalWorkspace(workspace: Blockly.WorkspaceSvg) {
   const doLoad = () => {
     // if spriteInstances.length === 1, and spriteWorkspaces is {} (default), then we need to
     // load the start workspace. otherwise, just load the workspace for the selected sprite.
-    const { spriteInstances, spriteWorkspaces, selectedSpriteIdx, scheduleConvert } = useGeckodeStore.getState();
+    const { spriteInstances, spriteWorkspaces, selectedSpriteId, scheduleConvert } = useGeckodeStore.getState();
     if (spriteInstances.length === 1 && Object.keys(spriteWorkspaces).length === 0) {
       Blockly.serialization.workspaces.load(starterWorkspace, workspace);
       useGeckodeStore.setState({ spriteWorkspaces: { [spriteInstances[0].id]: Blockly.serialization.workspaces.save(workspace) } });
-    } else {
-      Blockly.serialization.workspaces.load(spriteWorkspaces[spriteInstances[selectedSpriteIdx].id], workspace);
+    } else if (selectedSpriteId) {
+      Blockly.serialization.workspaces.load(spriteWorkspaces[selectedSpriteId], workspace);
     }
     scheduleConvert();
   };
@@ -254,8 +254,7 @@ function loadRemoteWorkspace(
         console.error("Failed to load workspace!");
       }
 
-      const { spriteInstances, setSelectedSpriteIdx } =
-        useGeckodeStore.getState();
+      const { setSelectedSpriteId } = useGeckodeStore.getState();
 
       useGeckodeStore.setState({
         projectName: project.name,
@@ -263,10 +262,8 @@ function loadRemoteWorkspace(
       });
 
       // Select the sprite matching the first project sprite
-      const idx = spriteInstances.findIndex(
-        (s) => s.id === project.sprites[0]?.id,
-      );
-      if (idx !== -1) setSelectedSpriteIdx(idx);
+      const firstSpriteId = project.sprites[0]?.id;
+      if (firstSpriteId) setSelectedSpriteId(firstSpriteId);
     });
 }
 

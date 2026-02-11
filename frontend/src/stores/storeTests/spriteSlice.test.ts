@@ -42,7 +42,7 @@ beforeEach(() => {
       gavin: 'base64-gavin',
     },
     isSpriteModalOpen: false,
-    selectedSpriteIdx: null,
+    selectedSpriteId: null,
     editingSource: null,
     editingTextureName: null,
   });
@@ -114,7 +114,7 @@ describe('spriteSlice', () => {
       });
       expect(getState().spriteInstances).toHaveLength(2);
 
-      getState().removeSpriteInstance(0);
+      getState().removeSpriteInstance(getState().spriteInstances[0].id);
       expect(getState().spriteInstances).toHaveLength(1);
       expect(getState().spriteInstances[0].name).toBe('sprite2');
     });
@@ -163,10 +163,10 @@ describe('spriteSlice', () => {
     });
   });
 
-  describe('setSelectedSpriteIdx / setEditingSprite / clearEditingSprite', () => {
+  describe('setSelectedSpriteId / setEditingSprite / clearEditingSprite', () => {
     it('updates selection', () => {
-      getState().setSelectedSpriteIdx(1);
-      expect(getState().selectedSpriteIdx).toBe(1);
+      getState().setSelectedSpriteId('inst1');
+      expect(getState().selectedSpriteId).toBe('inst1');
     });
 
     it('setEditingSprite sets source and texture name', () => {
@@ -260,7 +260,7 @@ describe('spriteSlice', () => {
         name: 'extra',
       });
       getState().addAssetTexture('custom', 'data');
-      getState().setSelectedSpriteIdx(1);
+      getState().setSelectedSpriteId('some-id');
       getState().setEditingSprite('asset', 'custom');
 
       getState().resetSpriteStore();
@@ -272,7 +272,7 @@ describe('spriteSlice', () => {
       expect(getState().libraryTextures).toHaveProperty('hero-walk-front');
       expect(getState().libraryTextures).toHaveProperty('hero-walk-back');
       expect(getState().libraryTextures).toHaveProperty('gavin');
-      expect(getState().selectedSpriteIdx).toBeNull();
+      expect(getState().selectedSpriteId).toBeNull();
       expect(getState().editingSource).toBeNull();
       expect(getState().editingTextureName).toBeNull();
     });
