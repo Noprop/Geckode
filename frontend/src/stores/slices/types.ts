@@ -68,7 +68,7 @@ export interface SpriteState {
 }
 
 export interface SpriteActions {
-  setSelectedSpriteId: (spriteId: string) => void;
+  setSelectedSpriteId: (spriteId: string | null) => void;
   setIsSpriteModalOpen: (isOpen: boolean) => void;
   setEditingAsset: (name: string | null, type: AssetType, source: EditingSource) => void;
 
