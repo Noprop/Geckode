@@ -16,14 +16,14 @@ interface TextureDetailPanelProps {
 const TextureDetailPanel = ({ selectedAsset, base64, onEdit, onDuplicate, onCopy, onDelete }: TextureDetailPanelProps) => {
   if (!selectedAsset || !base64) {
     return (
-      <div className="flex w-[120px] shrink-0 flex-col items-center justify-center border-r border-slate-200 bg-white/50 p-3 text-center dark:border-slate-700 dark:bg-dark-secondary/50">
+      <div className="flex w-[120px] shrink-0 flex-col items-center justify-center border-r border-slate-200 bg-white/50 px-3 pb-3 text-center dark:border-slate-700 dark:bg-dark-secondary/50">
         <p className="text-xs text-slate-400 dark:text-slate-500">Select an asset to view details</p>
       </div>
     );
   }
 
   return (
-    <div className="flex w-[120px] shrink-0 flex-col border-r border-slate-200 bg-white/50 p-3 dark:border-slate-700 dark:bg-dark-secondary/50">
+    <div className="flex w-[180px] shrink-0 flex-col border-r border-slate-200 bg-white/50 pt-4 pl-4 pr-3 pb-3 dark:border-slate-700 dark:bg-dark-secondary/50">
       <div className="flex aspect-square items-center justify-center rounded-md border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
         <img
           src={base64}

@@ -7,6 +7,13 @@ import { PencilIcon, BucketIcon, LineIcon, CircleIcon, ColorPickerIcon } from '@
 import { useGeckodeStore } from '@/stores/geckodeStore';
 import type { TilemapTool } from '@/stores/geckodeStore';
 import { useCanvasZoom } from '@/hooks/useCanvasZoom';
+import { usePixelCanvas } from '@/hooks/usePixelCanvas';
+import {
+  useTilePixelCache,
+  stampSolidColorAt,
+  stampTileAtWithAlpha,
+  rebuildPixelBuffer,
+} from '@/hooks/useTilePixelCache';
 
 const TILE_PX = 16;
 
@@ -80,7 +87,7 @@ const ToolButton = ({
     className={`w-12 h-12 flex items-center justify-center rounded cursor-pointer transition ${
       activeTool === tool
         ? 'bg-primary-green text-white'
-        : 'bg-slate-600 text-slate-300 hover:bg-slate-500'
+      : 'bg-slate-200 hover:bg-slate-300 dark:bg-dark-tertiary dark:hover:bg-dark-tertiary/80 text-slate-600 dark:text-slate-300'
     }`}
     title={title}
   >
@@ -92,6 +99,7 @@ const TilemapEditor = () => {
   const [activeTool, setActiveTool] = useState<TilemapTool>('place');
   const [selectedTileKey, setSelectedTileKey] = useState<string | null>(null);
   const [brushSize, setBrushSize] = useState(1);
+  const [hoverCell, setHoverCell] = useState<{ row: number; col: number } | null>(null);
 
   const tileTextures = useGeckodeStore((s) => s.tiles);
   const tilemaps = useGeckodeStore((s) => s.tilemaps);
@@ -111,46 +119,37 @@ const TilemapEditor = () => {
     }
   }, [tileTextures, selectedTileKey]);
 
-  const gridWidth = tilemap?.width ?? 16;
-  const gridHeight = tilemap?.height ?? 16;
+  const gridWidthTiles = tilemap?.width ?? 16;
+  const gridHeightTiles = tilemap?.height ?? 16;
+  const pixelW = gridWidthTiles * TILE_PX;
+  const pixelH = gridHeightTiles * TILE_PX;
+
   const { cellSize, zoomPercent, setZoom, isEditingZoom, setIsEditingZoom, canvasContainerRef, MIN_ZOOM_PERCENT, MAX_ZOOM_PERCENT } =
-    useCanvasZoom(gridWidth, gridHeight);
+    useCanvasZoom(pixelW, pixelH);
 
-  // Checker pattern cache
-  const checkerTileRef = useRef<HTMLCanvasElement | null>(null);
-  const checkerTileCellSizeRef = useRef<number>(0);
+  const { canvasRef, outputPixelsRef, previewPixelsRef, requestRender, resetPixelArrays } =
+    usePixelCanvas(pixelW, pixelH, cellSize, 8, { enableKeyboardShortcuts: false });
 
-  const getCheckerPattern = (ctx: CanvasRenderingContext2D, size: number): CanvasPattern => {
-    if (!checkerTileRef.current || checkerTileCellSizeRef.current !== size) {
-      const tile = document.createElement('canvas');
-      tile.width = size * 2;
-      tile.height = size * 2;
-      const tileCtx = tile.getContext('2d')!;
+  const { tilePixelsRef, isReady } = useTilePixelCache(tileTextures);
 
-      tileCtx.fillStyle = '#9e9e9e';
-      tileCtx.fillRect(0, 0, size, size);
-      tileCtx.fillRect(size, size, size, size);
-      tileCtx.fillStyle = '#6e6e6e';
-      tileCtx.fillRect(size, 0, size, size);
-      tileCtx.fillRect(0, size, size, size);
-
-      checkerTileRef.current = tile;
-      checkerTileCellSizeRef.current = size;
-    }
-    return ctx.createPattern(checkerTileRef.current, 'repeat')!;
-  };
-
-  // Pre-load tile images
-  const tileImagesRef = useRef<Record<string, HTMLImageElement>>({});
+  // ── Zustand → pixel buffer sync ──
   useEffect(() => {
-    const images: Record<string, HTMLImageElement> = {};
-    for (const [key, base64] of Object.entries(tileTextures)) {
-      const img = new Image();
-      img.src = base64;
-      images[key] = img;
+    if (!tilemap || !isReady) return;
+    rebuildPixelBuffer(
+      outputPixelsRef.current, tilemap.data, tilePixelsRef.current,
+      tilemap.width, tilemap.height, TILE_PX,
+    );
+    requestRender();
+  }, [tilemap, isReady, outputPixelsRef, tilePixelsRef, requestRender]);
+
+  // ── Handle resize ──
+  const prevDimsRef = useRef({ w: pixelW, h: pixelH });
+  useEffect(() => {
+    if (prevDimsRef.current.w !== pixelW || prevDimsRef.current.h !== pixelH) {
+      resetPixelArrays(pixelW, pixelH);
+      prevDimsRef.current = { w: pixelW, h: pixelH };
     }
-    tileImagesRef.current = images;
-  }, [tileTextures]);
+  }, [pixelW, pixelH, resetPixelArrays]);
 
   // ── Drawing state ref (avoids stale closures in window handlers) ──
   const drawStateRef = useRef({
@@ -168,81 +167,38 @@ const TilemapEditor = () => {
     ds.brushSize = brushSize;
   }, [activeTool, selectedTileKey, brushSize]);
 
-  // ── Preview cells for shape tools ──
+  // ── Preview cells for shape commit ──
   const previewCellsRef = useRef<{ row: number; col: number }[]>([]);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // ── Canvas rendering ──
-  const renderCanvas = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || !tilemap) return;
+  // ── Undo / Redo ──
+  const MAX_HISTORY = 50;
+  const undoStackRef = useRef<(string | null)[][][]>([]);
+  const redoStackRef = useRef<(string | null)[][][]>([]);
+  const [_historyVersion, setHistoryVersion] = useState(0);
 
-    const w = tilemap.width;
-    const h = tilemap.height;
-    const cs = cellSize;
+  const saveToHistory = useCallback(() => {
+    if (!tilemap) return;
+    undoStackRef.current.push(tilemap.data.map(r => [...r]));
+    if (undoStackRef.current.length > MAX_HISTORY) undoStackRef.current.shift();
+    redoStackRef.current = [];
+    setHistoryVersion(v => v + 1);
+  }, [tilemap]);
 
-    canvas.width = w * cs;
-    canvas.height = h * cs;
+  const undo = useCallback(() => {
+    if (!activeTilemapId || !tilemap || undoStackRef.current.length === 0) return;
+    redoStackRef.current.push(tilemap.data.map(r => [...r]));
+    const prev = undoStackRef.current.pop();
+    if (prev) setTilemapData(activeTilemapId, prev);
+    setHistoryVersion(v => v + 1);
+  }, [activeTilemapId, tilemap, setTilemapData]);
 
-    const ctx = canvas.getContext('2d')!;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.imageSmoothingEnabled = false;
-
-    // Draw committed cells
-    for (let row = 0; row < h; row++) {
-      for (let col = 0; col < w; col++) {
-        const tileKey = tilemap.data[row][col];
-        const x = col * cs;
-        const y = row * cs;
-        if (tileKey && tileImagesRef.current[tileKey]) {
-          ctx.drawImage(tileImagesRef.current[tileKey], x, y, cs, cs);
-        }
-      }
-    }
-
-    // Draw shape preview overlay
-    const ds = drawStateRef.current;
-    const previewKey = ds.activeTool === 'eraser' ? null : ds.selectedTileKey;
-    if (previewCellsRef.current.length > 0) {
-      for (const { row, col } of previewCellsRef.current) {
-        if (row < 0 || row >= h || col < 0 || col >= w) continue;
-        const x = col * cs;
-        const y = row * cs;
-        if (ds.activeTool === 'eraser') {
-          // Show empty checkerboard with red tint for eraser preview
-          ctx.fillStyle = 'rgba(239, 68, 68, 0.35)';
-          ctx.fillRect(x, y, cs, cs);
-        } else if (previewKey && tileImagesRef.current[previewKey]) {
-          ctx.globalAlpha = 0.5;
-          ctx.drawImage(tileImagesRef.current[previewKey], x, y, cs, cs);
-          ctx.globalAlpha = 1.0;
-        } else {
-          ctx.fillStyle = 'rgba(16, 185, 129, 0.3)';
-          ctx.fillRect(x, y, cs, cs);
-        }
-      }
-    }
-
-    // Draw grid lines
-    ctx.strokeStyle = 'rgba(100, 116, 139, 0.4)';
-    ctx.lineWidth = 1;
-    for (let col = 0; col <= w; col++) {
-      const x = col * cs;
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h * cs); ctx.stroke();
-    }
-    for (let row = 0; row <= h; row++) {
-      const y = row * cs;
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w * cs, y); ctx.stroke();
-    }
-
-    // Draw checker pattern behind everything
-    ctx.globalCompositeOperation = 'destination-over';
-    ctx.fillStyle = getCheckerPattern(ctx, cs);
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.globalCompositeOperation = 'source-over';
-  }, [tilemap, cellSize]);
-
-  useEffect(() => { renderCanvas(); }, [renderCanvas]);
+  const redo = useCallback(() => {
+    if (!activeTilemapId || !tilemap || redoStackRef.current.length === 0) return;
+    undoStackRef.current.push(tilemap.data.map(r => [...r]));
+    const next = redoStackRef.current.pop();
+    if (next) setTilemapData(activeTilemapId, next);
+    setHistoryVersion(v => v + 1);
+  }, [activeTilemapId, tilemap, setTilemapData]);
 
   // ── Cell from pointer event ──
   const getCellFromEvent = useCallback((e: { clientX: number; clientY: number }) => {
@@ -253,7 +209,7 @@ const TilemapEditor = () => {
     const row = Math.floor((e.clientY - rect.top) / (rect.height / tilemap.height));
     if (col < 0 || col >= tilemap.width || row < 0 || row >= tilemap.height) return null;
     return { row, col };
-  }, [tilemap]);
+  }, [canvasRef, tilemap]);
 
   // ── Expand a cell by brush size ──
   const expandBrush = useCallback((row: number, col: number, size: number) => {
@@ -264,13 +220,13 @@ const TilemapEditor = () => {
       for (let dc = 0; dc < size; dc++) {
         const r = row + dr - offset;
         const c = col + dc - offset;
-        if (r >= 0 && r < gridHeight && c >= 0 && c < gridWidth) {
+        if (r >= 0 && r < gridHeightTiles && c >= 0 && c < gridWidthTiles) {
           cells.push({ row: r, col: c });
         }
       }
     }
     return cells;
-  }, [gridWidth, gridHeight]);
+  }, [gridWidthTiles, gridHeightTiles]);
 
   // ── Apply single cell placement (for pen / eraser drag) ──
   const applySingleCell = useCallback((row: number, col: number) => {
@@ -336,7 +292,7 @@ const TilemapEditor = () => {
     } else if (ds.activeTool === 'rectangle') {
       baseCells = getRectangleCells(start.col, start.row, end.col, end.row);
     } else if (ds.activeTool === 'oval') {
-      baseCells = getOvalCells(start.col, start.row, end.col, end.row, gridWidth, gridHeight);
+      baseCells = getOvalCells(start.col, start.row, end.col, end.row, gridWidthTiles, gridHeightTiles);
     }
 
     if (ds.brushSize <= 1) return baseCells;
@@ -351,7 +307,25 @@ const TilemapEditor = () => {
       }
     }
     return expanded;
-  }, [gridWidth, gridHeight, expandBrush]);
+  }, [gridWidthTiles, gridHeightTiles, expandBrush]);
+
+  // ── Write shape preview into previewPixelsRef ──
+  const updateShapePreview = useCallback((cells: { row: number; col: number }[]) => {
+    previewPixelsRef.current.fill(0);
+    const ds = drawStateRef.current;
+    const tileKey = ds.activeTool === 'eraser' ? null : ds.selectedTileKey;
+    for (const { row, col } of cells) {
+      if (row < 0 || row >= gridHeightTiles || col < 0 || col >= gridWidthTiles) continue;
+      if (ds.activeTool === 'eraser') {
+        stampSolidColorAt(previewPixelsRef.current, row, col, pixelW, TILE_PX, 239, 68, 68, 90);
+      } else if (tileKey && tilePixelsRef.current[tileKey]) {
+        stampTileAtWithAlpha(previewPixelsRef.current, tilePixelsRef.current[tileKey], row, col, pixelW, TILE_PX, 128);
+      } else {
+        stampSolidColorAt(previewPixelsRef.current, row, col, pixelW, TILE_PX, 16, 185, 129, 77);
+      }
+    }
+    requestRender();
+  }, [previewPixelsRef, tilePixelsRef, pixelW, gridWidthTiles, gridHeightTiles, requestRender]);
 
   // ── Pointer handlers ──
   const handlePointerDown = (e: ReactPointerEvent<HTMLCanvasElement>) => {
@@ -361,15 +335,19 @@ const TilemapEditor = () => {
     const ds = drawStateRef.current;
 
     if (ds.activeTool === 'place' || ds.activeTool === 'eraser') {
+      saveToHistory();
       ds.isDrawing = true;
       ds.prevCell = cell;
       applySingleCell(cell.row, cell.col);
     } else if (['line', 'rectangle', 'oval'].includes(ds.activeTool)) {
+      saveToHistory();
       ds.isDrawing = true;
       ds.shapeStart = cell;
-      previewCellsRef.current = expandBrush(cell.row, cell.col, ds.brushSize);
-      renderCanvas();
+      const cells = expandBrush(cell.row, cell.col, ds.brushSize);
+      previewCellsRef.current = cells;
+      updateShapePreview(cells);
     } else if (ds.activeTool === 'bucket') {
+      saveToHistory();
       const fillKey = ds.selectedTileKey;
       floodFill(cell.row, cell.col, fillKey);
     } else if (ds.activeTool === 'tile-picker') {
@@ -401,8 +379,9 @@ const TilemapEditor = () => {
           applySingleCell(cell.row, cell.col);
         }
       } else if (['line', 'rectangle', 'oval'].includes(ds.activeTool) && ds.shapeStart) {
-        previewCellsRef.current = computeShapeCells(ds.shapeStart, cell);
-        renderCanvas();
+        const cells = computeShapeCells(ds.shapeStart, cell);
+        previewCellsRef.current = cells;
+        updateShapePreview(cells);
       }
     };
 
@@ -418,7 +397,8 @@ const TilemapEditor = () => {
       ds.shapeStart = null;
       ds.prevCell = null;
       previewCellsRef.current = [];
-      renderCanvas();
+      previewPixelsRef.current.fill(0);
+      requestRender();
     };
 
     window.addEventListener('pointermove', handleMove);
@@ -428,6 +408,22 @@ const TilemapEditor = () => {
       window.removeEventListener('pointerup', handleUp);
     };
   });
+
+  // ── Undo/Redo keyboard shortcuts ──
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      } else if (mod && e.key === 'z' && e.shiftKey) {
+        e.preventDefault();
+        redo();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undo, redo]);
 
   // ── Grid resize ──
   const handleGridResize = (dimension: 'width' | 'height', value: string) => {
@@ -442,16 +438,16 @@ const TilemapEditor = () => {
 
   if (!tilemap || !activeTilemapId) {
     return (
-      <div className="flex-1 min-h-0 flex items-center justify-center text-slate-400">
+      <div className="flex-1 min-h-0 flex items-center justify-center text-slate-500 dark:text-slate-400">
         No tilemap selected
       </div>
     );
   }
 
   return (
-    <div className="flex-1 min-h-0 flex bg-slate-800">
-      {/* Left sidebar — brush size, tools, tile palette, grid size */}
-      <div className="w-[400px] flex flex-col gap-3 p-2 bg-slate-700 dark:bg-slate-800 border-r border-slate-600">
+    <div className="flex-1 min-h-0 flex bg-light-secondary dark:bg-dark-secondary h-full">
+      {/* Left sidebar — brush size, tools, tile palette */}
+      <div className="w-[250px] flex flex-col gap-3 p-2 bg-white/50 dark:bg-dark-secondary/50 border-r border-slate-200 dark:border-slate-700">
         {/* Brush size */}
         <div className="grid grid-cols-3 rounded overflow-hidden">
           {[1, 2, 3].map((size) => (
@@ -460,7 +456,7 @@ const TilemapEditor = () => {
               type="button"
               onClick={() => setBrushSize(size)}
               className={`h-9 flex items-center justify-center cursor-pointer transition ${
-                brushSize === size ? 'bg-primary-green' : 'bg-slate-600 hover:bg-slate-500'
+                brushSize === size ? 'bg-primary-green' : 'bg-slate-200 hover:bg-slate-300 dark:bg-dark-tertiary dark:hover:bg-dark-tertiary/80'
               }`}
               title={`${size}x${size} brush`}
             >
@@ -470,7 +466,7 @@ const TilemapEditor = () => {
         </div>
 
         {/* Tools grid — matches EditorTools layout */}
-        <div className="grid grid-cols-2 gap-2 w-fit mx-auto">
+        <div className="grid grid-cols-4 gap-2 w-fit mx-auto">
           <ToolButton tool="place" activeTool={activeTool} onClick={() => setActiveTool('place')} title="Place tile (pen)">
             <PencilIcon className="w-5 h-5" />
           </ToolButton>
@@ -494,12 +490,36 @@ const TilemapEditor = () => {
           <ToolButton tool="tile-picker" activeTool={activeTool} onClick={() => setActiveTool('tile-picker')} title="Tile picker">
             <ColorPickerIcon className="w-5 h-5" />
           </ToolButton>
+          <button
+            type="button"
+            onClick={undo}
+            disabled={undoStackRef.current.length === 0}
+            className="w-12 h-12 flex items-center justify-center rounded cursor-pointer transition bg-slate-200 hover:bg-slate-300 dark:bg-dark-tertiary dark:hover:bg-dark-tertiary/80 text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed"
+            title="Undo (Ctrl+Z)"
+          >
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 7h10a5 5 0 0 1 0 10H9" />
+              <path d="M3 7l4-4M3 7l4 4" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={redo}
+            disabled={redoStackRef.current.length === 0}
+            className="w-12 h-12 flex items-center justify-center rounded cursor-pointer transition bg-slate-200 hover:bg-slate-300 dark:bg-dark-tertiary dark:hover:bg-dark-tertiary/80 text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed"
+            title="Redo (Ctrl+Shift+Z)"
+          >
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 7H11a5 5 0 0 0 0 10h4" />
+              <path d="M21 7l-4-4M21 7l-4 4" />
+            </svg>
+          </button>
         </div>
 
         {/* Tile palette */}
         <div className="flex flex-col gap-1">
-          <span className="text-[10px] text-slate-400 uppercase tracking-wide font-semibold px-0.5">Tiles</span>
-          <div className="grid grid-cols-8">
+          <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wide font-semibold px-0.5">Tiles</span>
+          <div className="grid grid-cols-5 gap-[2px]">
             {Object.entries(tileTextures).map(([key, base64]) => (
               <button
                 key={key}
@@ -508,10 +528,10 @@ const TilemapEditor = () => {
                   setSelectedTileKey(key);
                   if (activeTool === 'tile-picker') setActiveTool('place');
                 }}
-                className={`aspect-square cursor-pointer transition overflow-hidden ${
+                className={`aspect-square cursor-pointer transition-colors overflow-hidden ${
                   selectedTileKey === key
-                  ? 'ring-2 ring-primary-green ring-inset'
-                  : 'hover:ring-1 hover:ring-slate-400 hover:ring-inset'
+                  ? 'border-2 border-primary-green'
+                  : 'border-2 border-transparent hover:border-slate-400 dark:hover:border-slate-500'
                 }`}
                 title={key}
               >
@@ -527,49 +547,17 @@ const TilemapEditor = () => {
         </div>
 
         <div className="flex-1" />
-
-        {/* Grid size */}
-        <div className="flex flex-col gap-1">
-          <span className="text-[10px] text-slate-400 uppercase tracking-wide font-semibold px-0.5">
-            Grid ({tilemap.width * TILE_PX}x{tilemap.height * TILE_PX}px)
-          </span>
-          <div className="flex items-center gap-1">
-            <input
-              key={`w-${tilemap.width}`}
-              type="number"
-              defaultValue={tilemap.width}
-              onBlur={(e) => handleGridResize('width', e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-              min={1}
-              max={128}
-              className="w-12 h-8 px-1 text-xs text-slate-300 text-center bg-slate-600 border border-slate-500 rounded outline-none focus:border-primary-green [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              title="Grid width (tiles)"
-            />
-            <span className="text-slate-400 text-xs">x</span>
-            <input
-              key={`h-${tilemap.height}`}
-              type="number"
-              defaultValue={tilemap.height}
-              onBlur={(e) => handleGridResize('height', e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-              min={1}
-              max={128}
-              className="w-12 h-8 px-1 text-xs text-slate-300 text-center bg-slate-600 border border-slate-500 rounded outline-none focus:border-primary-green [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              title="Grid height (tiles)"
-            />
-          </div>
-        </div>
       </div>
 
       {/* Main canvas area */}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
         <div
           ref={canvasContainerRef}
-          className="relative flex-1 flex items-center justify-center bg-slate-600 p-4 overflow-auto min-h-0"
+          className="relative flex-1 flex items-center justify-center bg-light-whiteboard dark:bg-dark-whiteboard p-4 overflow-auto min-h-0"
         >
           <button
             type="button"
-            onClick={() => clearTilemap(activeTilemapId)}
+            onClick={() => { saveToHistory(); clearTilemap(activeTilemapId); }}
             className="absolute top-2 right-2 z-10 px-3 h-7 flex items-center justify-center rounded bg-red-600/80 hover:bg-red-600 text-white text-xs font-medium cursor-pointer transition"
             title="Clear tilemap"
           >
@@ -580,75 +568,106 @@ const TilemapEditor = () => {
               ref={canvasRef}
               className="cursor-crosshair select-none touch-none"
               style={{
-                width: tilemap.width * cellSize,
-                height: tilemap.height * cellSize,
+                width: pixelW * cellSize,
+                height: pixelH * cellSize,
                 imageRendering: 'pixelated',
               }}
               onPointerDown={handlePointerDown}
+              onPointerMove={(e) => setHoverCell(getCellFromEvent(e))}
+              onPointerLeave={() => setHoverCell(null)}
               onContextMenu={(e) => e.preventDefault()}
             />
           </div>
         </div>
 
-        {/* Zoom controls */}
-        <div className="h-10 flex items-center justify-center gap-2 bg-slate-700 border-t border-slate-600 shrink-0">
-          <button
-            type="button"
-            onClick={() => setZoom(zoomPercent - 25)}
-            disabled={zoomPercent <= MIN_ZOOM_PERCENT}
-            className="w-8 h-8 flex items-center justify-center rounded bg-slate-600 hover:bg-slate-500 disabled:opacity-40 disabled:cursor-not-allowed text-white cursor-pointer transition"
-            title="Zoom out"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="11" cy="11" r="8" />
-              <path d="M21 21l-4.35-4.35M8 11h6" />
-            </svg>
-          </button>
-          {isEditingZoom ? (
+        {/* Footer bar */}
+        <div className="h-10 flex items-center px-3 bg-white/80 dark:bg-dark-secondary/80 border-t border-slate-200 dark:border-slate-700 shrink-0">
+          {/* Left: grid size + cursor coords */}
+          <div className="flex items-center gap-1.5 flex-1 min-w-0">
             <input
+              key={`w-${tilemap.width}`}
               type="number"
-              defaultValue={Math.round(zoomPercent)}
-              onBlur={(e) => {
-                setZoom(parseInt(e.target.value, 10));
-                setIsEditingZoom(false);
-              }}
-              onKeyDown={(e) =>
-                e.key === 'Enter' ? e.currentTarget.blur() : e.key === 'Escape' && setIsEditingZoom(false)
-              }
-              className="w-14 h-6 px-1 text-xs text-slate-300 text-center bg-slate-600 border border-slate-500 rounded outline-none focus:border-primary-green [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              autoFocus
-              onFocus={(e) => e.target.select()}
+              defaultValue={tilemap.width}
+              onBlur={(e) => handleGridResize('width', e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+              min={1}
+              max={128}
+              className="w-10 h-6 px-1 text-xs text-slate-700 dark:text-slate-300 text-center bg-white border border-slate-200 dark:bg-dark-tertiary dark:border-slate-600 rounded outline-none focus:border-primary-green [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              title="Grid width (tiles)"
             />
-          ) : (
+            <span className="text-slate-500 dark:text-slate-400 text-xs">x</span>
+            <input
+              key={`h-${tilemap.height}`}
+              type="number"
+              defaultValue={tilemap.height}
+              onBlur={(e) => handleGridResize('height', e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+              min={1}
+              max={128}
+              className="w-10 h-6 px-1 text-xs text-slate-700 dark:text-slate-300 text-center bg-white border border-slate-200 dark:bg-dark-tertiary dark:border-slate-600 rounded outline-none focus:border-primary-green [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              title="Grid height (tiles)"
+            />
+            <span className="text-slate-300 dark:text-slate-600 mx-1">|</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">
+              {hoverCell ? `${hoverCell.col}, ${hoverCell.row}` : '\u2014'}
+            </span>
+          </div>
+
+          {/* Center: tilemap name */}
+          <span className="text-xs text-slate-500 dark:text-slate-400 font-medium truncate px-2">{tilemap.name}</span>
+
+          {/* Right: zoom controls */}
+          <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
             <button
               type="button"
-              onClick={() => setIsEditingZoom(true)}
-              className="w-14 h-6 text-xs text-slate-300 text-center hover:bg-slate-600 rounded cursor-pointer transition"
-              title="Click to edit zoom (100% = fit to container)"
+              onClick={() => setZoom(zoomPercent - 25)}
+              disabled={zoomPercent <= MIN_ZOOM_PERCENT}
+              className="w-6 h-6 flex items-center justify-center rounded bg-slate-200 hover:bg-slate-300 dark:bg-dark-tertiary dark:hover:bg-dark-tertiary/80 disabled:opacity-40 disabled:cursor-not-allowed text-slate-600 dark:text-slate-300 cursor-pointer transition"
+              title="Zoom out"
             >
-              {Math.round(zoomPercent)}%
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8" />
+                <path d="M21 21l-4.35-4.35M8 11h6" />
+              </svg>
             </button>
-          )}
-          <button
-            type="button"
-            onClick={() => setZoom(zoomPercent + 25)}
-            disabled={zoomPercent >= MAX_ZOOM_PERCENT}
-            className="w-8 h-8 flex items-center justify-center rounded bg-slate-600 hover:bg-slate-500 disabled:opacity-40 disabled:cursor-not-allowed text-white cursor-pointer transition"
-            title="Zoom in"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="11" cy="11" r="8" />
-              <path d="M21 21l-4.35-4.35M11 8v6M8 11h6" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Bottom bar */}
-        <div className="h-12 flex items-center gap-3 px-4 bg-slate-700 dark:bg-slate-800 border-t border-slate-600 shrink-0">
-          <span className="text-xs text-slate-400 font-medium">{tilemap.name}</span>
-          <span className="text-xs text-slate-500">
-            {tilemap.width}x{tilemap.height} tiles ({tilemap.width * TILE_PX}x{tilemap.height * TILE_PX}px)
-          </span>
+            {isEditingZoom ? (
+              <input
+                type="number"
+                defaultValue={Math.round(zoomPercent)}
+                onBlur={(e) => {
+                  setZoom(parseInt(e.target.value, 10));
+                  setIsEditingZoom(false);
+                }}
+                onKeyDown={(e) =>
+                  e.key === 'Enter' ? e.currentTarget.blur() : e.key === 'Escape' && setIsEditingZoom(false)
+                }
+                className="w-12 h-6 px-1 text-xs text-slate-700 dark:text-slate-300 text-center bg-white border border-slate-200 dark:bg-dark-tertiary dark:border-slate-600 rounded outline-none focus:border-primary-green [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                autoFocus
+                onFocus={(e) => e.target.select()}
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsEditingZoom(true)}
+                className="w-12 h-6 text-xs text-slate-600 dark:text-slate-300 text-center hover:bg-slate-200 dark:hover:bg-dark-tertiary rounded cursor-pointer transition"
+                title="Click to edit zoom (100% = fit to container)"
+              >
+                {Math.round(zoomPercent)}%
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setZoom(zoomPercent + 25)}
+              disabled={zoomPercent >= MAX_ZOOM_PERCENT}
+              className="w-6 h-6 flex items-center justify-center rounded bg-slate-200 hover:bg-slate-300 dark:bg-dark-tertiary dark:hover:bg-dark-tertiary/80 disabled:opacity-40 disabled:cursor-not-allowed text-slate-600 dark:text-slate-300 cursor-pointer transition"
+              title="Zoom in"
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8" />
+                <path d="M21 21l-4.35-4.35M11 8v6M8 11h6" />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
     </div>

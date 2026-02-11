@@ -73,28 +73,7 @@ const AssetWorkspace = () => {
 
   return (
     <div className="flex-1 min-h-0 flex flex-col w-full h-full">
-      {/* Tab bar */}
-      <div className="px-4 pb-3 pt-4 shrink-0">
-        <div className="inline-flex rounded-md border border-slate-200 bg-light-tertiary p-1 text-xs font-semibold dark:border-slate-700 dark:bg-dark-tertiary">
-          {TAB_CONFIG.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => { setActiveTab(tab.id); setSelectedAsset(null); }}
-              className={`cursor-pointer flex items-center gap-2 rounded-md px-4 py-2 transition ${
-                activeTab === tab.id
-                  ? 'bg-white text-primary-green shadow-sm ring-1 ring-primary-green/30 dark:bg-slate-900'
-                  : 'text-slate-600 hover:text-primary-green dark:text-slate-300'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Content area */}
-      <div className="flex flex-1 min-h-0 border-t border-slate-200 dark:border-slate-700">
+      <div className="flex flex-1 min-h-0">
         <TextureDetailPanel
           selectedAsset={selectedAsset}
           base64={selectedBase64}
@@ -105,6 +84,13 @@ const AssetWorkspace = () => {
         />
         <AssetList
           filter={activeTab}
+          activeTab={activeTab}
+          onTabChange={(tab) => {
+            setActiveTab(tab);
+            const tabAssets = useGeckodeStore.getState()[tab];
+            const firstKey = Object.keys(tabAssets)[0];
+            setSelectedAsset(firstKey ? { name: firstKey, type: tab } : null);
+          }}
           selectedAsset={selectedAsset}
           onSelectAsset={setSelectedAsset}
           onCreateNew={handleCreateNew}

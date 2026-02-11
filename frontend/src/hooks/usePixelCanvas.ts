@@ -7,7 +7,11 @@ export const createPixelArray = (width: number, height: number): Uint8ClampedArr
   return new Uint8ClampedArray(width * height * 4);
 };
 
-export function usePixelCanvas(gridWidth: number, gridHeight: number, cellSize: number) {
+export function usePixelCanvas(
+  gridWidth: number, gridHeight: number, cellSize: number, sizeMod: number,
+  options?: { enableKeyboardShortcuts?: boolean },
+) {
+  const enableKB = options?.enableKeyboardShortcuts ?? true;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const previewRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -66,6 +70,8 @@ export function usePixelCanvas(gridWidth: number, gridHeight: number, cellSize: 
 
   // ---- Checker pattern (cached tile) ----
   const getCheckerPattern = (ctx: CanvasRenderingContext2D, size: number): CanvasPattern => {
+    size = size * sizeMod;
+
     if (!checkerTileRef.current || checkerTileCellSizeRef.current !== size) {
       const tile = document.createElement('canvas');
       tile.width = size * 2;
@@ -179,6 +185,7 @@ export function usePixelCanvas(gridWidth: number, gridHeight: number, cellSize: 
 
   // Keyboard shortcuts for undo/redo
   useEffect(() => {
+    if (!enableKB) return;
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key === 'z' && !event.shiftKey) {
         event.preventDefault();
@@ -193,7 +200,7 @@ export function usePixelCanvas(gridWidth: number, gridHeight: number, cellSize: 
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo]);
+  }, [undo, redo, enableKB]);
 
   return {
     canvasRef,

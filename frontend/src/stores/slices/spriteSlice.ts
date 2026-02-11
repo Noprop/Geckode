@@ -2,7 +2,33 @@ import * as Blockly from 'blockly/core';
 import type { StateCreator } from 'zustand';
 import type { SpriteInstance } from '@/blockly/spriteRegistry';
 import EditorScene from '@/phaser/scenes/EditorScene';
-import { dirtTile, gavin, grassTile, heroWalkBack1, heroWalkFront1 } from '../b64_textures';
+import {
+  bedrockTile,
+  brickTile,
+  coalOreTile,
+  cobblestoneTile,
+  diamondOreTile,
+  dirtTile,
+  gavin,
+  glassTile,
+  goldOreTile,
+  grassTile,
+  gravelTile,
+  heroWalkBack1,
+  heroWalkFront1,
+  iceTile,
+  ironOreTile,
+  lavaTile,
+  leavesTile,
+  oakLogTile,
+  oakPlanksTile,
+  obsidianTile,
+  sandTile,
+  snowTile,
+  stoneTile,
+  tntTile,
+  waterTile,
+} from '../b64_textures';
 import type { AssetType, EditingSource, GeckodeStore, Scene, SpriteSlice, Tilemap } from './types';
 
 export const createEmptyTilemapData = (width: number, height: number): (string | null)[][] =>
@@ -58,7 +84,30 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
   ],
 
   textures: { gavin: gavin },
-  tiles: { grass: grassTile, dirt: dirtTile },
+  tiles: {
+    grass: grassTile,
+    dirt: dirtTile,
+    stone: stoneTile,
+    cobblestone: cobblestoneTile,
+    sand: sandTile,
+    water: waterTile,
+    lava: lavaTile,
+    oakPlanks: oakPlanksTile,
+    oakLog: oakLogTile,
+    leaves: leavesTile,
+    brick: brickTile,
+    ironOre: ironOreTile,
+    goldOre: goldOreTile,
+    diamondOre: diamondOreTile,
+    coalOre: coalOreTile,
+    snow: snowTile,
+    ice: iceTile,
+    gravel: gravelTile,
+    tnt: tntTile,
+    bedrock: bedrockTile,
+    glass: glassTile,
+    obsidian: obsidianTile,
+  },
   tilesets: {},
   animations: {},
   backgrounds: {},

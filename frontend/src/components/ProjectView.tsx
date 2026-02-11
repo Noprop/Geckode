@@ -56,7 +56,7 @@ const ProjectView = () => {
           <TilemapEditor />
         </div>
         <div
-          className={`absolute inset-0 flex items-center justify-center p-8 transition-opacity duration-150 ${
+          className={`absolute inset-0 transition-opacity duration-150 ${
             view === "assets" ? "opacity-100" : "opacity-0 pointer-events-none"
           }`}
           aria-hidden={view !== "assets"}
