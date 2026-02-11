@@ -162,16 +162,25 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
   },
   setSpriteInstances: (instances: SpriteInstance[]) => set({ spriteInstances: instances }),
   removeSpriteInstance: (spriteId: string) => {
-    const { spriteInstances, selectedSpriteId, setSelectedSpriteId } = get();
+    const { spriteInstances, selectedSpriteId, spriteWorkspaces, blocklyWorkspace, phaserScene } = get();
     const remaining = spriteInstances.filter((instance) => instance.id !== spriteId);
+    phaserScene!.removeSprite(spriteId);
 
-    setSelectedSpriteId(
-      selectedSpriteId === spriteId
-        ? (remaining[0]?.id ?? null)
-        : selectedSpriteId
-    );
+    if (selectedSpriteId === spriteId && remaining.length > 0) {
+      Blockly.serialization.workspaces.load(spriteWorkspaces[spriteInstances[0].id], blocklyWorkspace!);
+    }
+
     set({
       spriteInstances: remaining,
+      spriteWorkspaces: {
+        ...Object.fromEntries(
+          Object.entries(spriteWorkspaces)
+            .filter(([id]) => id !== spriteId)
+        ),
+      },
+      selectedSpriteId: selectedSpriteId === spriteId
+        ? (remaining[0]?.id ?? null)
+        : selectedSpriteId,
     });
   },
 

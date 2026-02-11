@@ -262,7 +262,7 @@ export default class GameScene extends Phaser.Scene {
     return sprite;
   }
 
-  public removeGameSprite(id: string) {
+  public removeSprite(id: string) {
     const sprite = this.gameSprites.get(id);
     if (!sprite) return;
     sprite.destroy();
