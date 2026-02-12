@@ -11,11 +11,9 @@ def project_thumbnail_path(_instance, filename):
     file_ext = filename.split('.')[-1]
     return f"proj-thumbnails/{random_string}.{file_ext}"
 
-def sprite_texture_path(_instance, filename : str):
-    characters = string.ascii_letters + string.digits
-    random_string = ''.join(random.choices(characters, k=20))
-    file_ext = filename.split('.')[-1]
-    return f"sprites/{random_string}.{file_ext}"
+# temporary function due to bug with django migrations 
+def sprite_texture_path(_instance, filename):
+    return ""
 
 class ProjectGroup(Model):
     owner = ForeignKey(User, related_name='project_groups', on_delete=CASCADE)
@@ -30,7 +28,7 @@ class Project(Model):
         ('invite', 'Can invite and code'),
         ('admin', 'Can change project details'),
     ]
-    PROJECT_STATE_FIELDS = ['blocks', 'game_state', 'sprites']
+    PROJECT_STATE_FIELDS = ['blocks', 'game_state', 'assets']
 
     owner = ForeignKey(User, related_name='projects', on_delete=CASCADE)
     group = ForeignKey(ProjectGroup, related_name='projects', null=True, blank=True, on_delete=SET_NULL)
@@ -128,10 +126,18 @@ class ProjectInvitation(Model):
     def has_permission(self, user, required_permission):
         return self.project.has_permission(user, required_permission)
 
-class Sprite(Model):
+class Asset(Model):
+    ASSET_TYPES = (
+        ('assets', 'used for assets'),
+        ('tiles', 'used for tiles'),
+        #('backgrounds', 'used for backgrounds'),
+    )
+
+
     project = ForeignKey(Project, on_delete=CASCADE, related_name="projects", null=True)
     name = CharField(max_length=200, blank=False)
-    texture = ImageField(upload_to=sprite_texture_path, blank=False, null=False)
+    asset = CharField(blank=False, null=True)
+    asset_type = CharField(blank=False, null=False, choices=ASSET_TYPES, default=ASSET_TYPES[0][0])
 
     class Meta:
         unique_together = ('project', 'name')

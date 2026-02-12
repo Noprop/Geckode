@@ -8,6 +8,11 @@ import Phaser from "./PhaserPanel/Phaser";
 
 import AssetWorkspace from "./AssetManager/Overview";
 import TilemapEditor from "@/components/ui/TilemapEditor";
+import projectsApi from "@/lib/api/handlers/projects";
+import assetsApi from "@/lib/api/handlers/assets";
+import { useParams } from "next/navigation";
+import { useSnackbar } from "@/hooks/useSnackbar";
+import { extractAxiosErrMsg } from "@/lib/api/axios";
 
 // disable for now
 // import { useBlockSync } from "@/hooks/yjs/useBlockSync";
@@ -23,9 +28,12 @@ import TilemapEditor from "@/components/ui/TilemapEditor";
 
 const ProjectView = () => {
   const { view } = useWorkspaceView();
-  const { undoWorkspace, redoWorkspace, canUndo, canRedo } = useGeckodeStore();
+  const { undoWorkspace, redoWorkspace, canUndo, canRedo, addAsset, addLibraryAsset, setProjectId, resetAssetsOnly } =
+    useGeckodeStore();
+  const prjId = Number(useParams().projectID);
+  const showSnackbar = useSnackbar();
 
-  // disable for now 
+  // disable for now
   // useBlockSync(documentName);
   // useVariableSync(documentName);
 
@@ -33,6 +41,32 @@ const ProjectView = () => {
     return () => {
       // Cancel any pending auto-convert on unmount
       useGeckodeStore.getState().cancelScheduledConvert();
+
+      // clear all previous sprites and rebuild
+      resetAssetsOnly();
+
+      // set project ID and pull all assets
+      if (!Number.isNaN(prjId)) {
+        setProjectId(prjId);
+
+        projectsApi(prjId)
+          .assetsApi.list({ texture_type: "textures" })
+          .then((res) => {
+            for (var tex of res.results) {
+              addAsset(tex.name, tex.texture, "textures");
+            }
+          })
+          .catch((err) => showSnackbar(extractAxiosErrMsg(err, "Failed to get project assets!"), "error"));
+
+        assetsApi
+          .list({ texture_type: "textures" })
+          .then((res) => {
+            for (var tex of res.results) {
+              addLibraryAsset(tex.name, tex.texture, "libaryTextures");
+            }
+          })
+          .catch((err) => showSnackbar(extractAxiosErrMsg(err, "Failed to get library assets!"), "error"));
+      }
     };
   }, []);
 

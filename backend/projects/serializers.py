@@ -1,11 +1,22 @@
-from rest_framework.serializers import ModelSerializer, CharField, PrimaryKeyRelatedField, BooleanField, SerializerMethodField, ValidationError
+from rest_framework.serializers import ModelSerializer, ImageField, PrimaryKeyRelatedField, BooleanField, SerializerMethodField, ValidationError
 from accounts.serializers import PublicUserSerializer
 from django.utils import timezone
-from .models import ProjectGroup, Project, ProjectCollaborator, OrganizationProject, ProjectInvitation, Sprite
+from .models import ProjectGroup, Project, ProjectCollaborator, OrganizationProject, ProjectInvitation, Asset
 from accounts.models import User
 from organizations.serializers import PublicOrganizationSerializer
-
 import base64
+
+# confirm provided string is a base64-encoded file
+def is_base64(s : str) -> bool:
+    try:
+        # If it’s a data URL, strip the prefix
+        if s.startswith("data:"):
+            s = s.split(",", 1)[1]
+
+        base64.b64decode(s, validate=True)
+        return True
+    except:
+        return False
 
 class ProjectGroupSerializer(ModelSerializer):
     owner = PublicUserSerializer(read_only=True)
@@ -39,20 +50,20 @@ class ProjectSerializer(ModelSerializer):
     owner = PublicUserSerializer(read_only=True)
     is_published = BooleanField(write_only=True, required=False)
     fork_count = SerializerMethodField()
-    sprite_count = SerializerMethodField()
+    asset_count = SerializerMethodField()
     permission = SerializerMethodField()
 
     class Meta:
         model = Project
         fields = ['id', 'owner', 'created_at', 'updated_at', 'name', 'description', 'published_at',
-                    'is_published', 'fork_count', 'sprite_count', 'blocks', 'game_state', 'thumbnail', 'sprites', 'permission']
+                    'is_published', 'fork_count', 'asset_count', 'blocks', 'game_state', 'thumbnail', 'sprites', 'permission']
         read_only_fields = ['created_at', 'updated_at', 'published_at']
 
     def get_fork_count(self, instance):
         return instance.forked_by.count()
     
-    def get_sprite_count(self, instance : Project) -> int:
-        return Sprite.objects.filter(project=instance).count()
+    def get_asset_count(self, instance : Project) -> int:
+        return Asset.objects.filter(project=instance).count()
 
     def get_permission(self, instance):
         return instance.get_permission(self.context['request'].user)
@@ -166,40 +177,83 @@ class ProjectInvitationSerializer(ModelSerializer):
 
         return attrs
 
-class SpriteSerializer(ModelSerializer):
+class AssetSerializer(ModelSerializer):
+    asset_file = ImageField(write_only=True, allow_null=True, required=False)
 
     class Meta:
-        model = Sprite
-        fields = ["id", "name", "texture"]
+        model = Asset
+        fields = ["id", "name", "asset", "asset_file", "asset_type"]
 
     def get_permission(self, instance):
         return instance.get_permission(self.context['request'].user)
     
-    def to_representation(self, instance : Sprite):
-        data = super().to_representation(instance)
-
-        # encode image to base64
-        if (instance.texture):
-            with instance.texture.open("rb") as f:
-                data["texture"] = "data:image/png;base64," + base64.b64encode(f.read()).decode()
+    # convert image to base64
+    def create(self, validated_data):
+        if (validated_data.get("asset") and validated_data.get("asset_file")):
+            raise ValidationError("Either submit a file object in the 'asset_file' field or a base64 image string in the 'asset' field. Not both!")
         
-        return data
+        # convert image file to base64
+        elif (validated_data.get("asset_file")):
+            image = validated_data.pop("asset_file")
+            encoded = "data:image/png;base64," + base64.b64encode(image.read()).decode()
+
+            return Asset.objects.create(
+                asset=encoded,
+                **validated_data
+            )
+        
+        # verify the provided string is a base64 file, assign to asset
+        elif (validated_data.get("asset")):
+            file_data : str = validated_data.pop("asset")
+            
+            if (file_data.startswith("data:image/png;base64,") and is_base64(file_data[22:])):
+                return Asset.objects.create(
+                    asset=file_data,
+                    **validated_data
+                )
+            
+            else: raise ValidationError("Provided 'asset' is not a base64 string!")
+
+        else:
+            raise ValidationError("Either 'asset_file' or 'asset' needed!")
+
     
-    
+    def update(self, instance : Asset, validated_data):
+        if (validated_data.get("asset") and validated_data.get("asset_file")):
+            raise ValidationError("Either submit a file object in the 'asset_file' field or a base64 image string in the 'asset' field. Not both!")
+        
+        # convert image file to base64
+        elif (validated_data.get("asset_file")):
+            image = validated_data.pop("asset_file")
+            instance.asset = "data:image/png;base64," + base64.b64encode(image.read()).decode()
+         
+        # verify the provided string is a base64 file, assign to asset
+        elif (validated_data.get("asset")):
+            file_data : str = validated_data.pop("asset")
+
+            if (file_data.startswith("data:image/png;base64,") and is_base64(file_data[22:])):
+                instance.asset = file_data
+            
+            else: raise ValidationError("Provided 'asset' is not a base64 string!")
+
+        else:
+            raise ValidationError("Either 'asset_file' or 'asset' needed!")
+            
+        return super().update(instance, validated_data)
     
     def validate(self, attrs):
         try:
             if 'view' in self.context and hasattr(self.context['view'], 'kwargs'):
                 if 'request' in self.context:
                     user = self.context['request'].user
-                    sprite = Sprite.objects.get(id=self.context['view'].kwargs.get('pk'))
+                    asset = Asset.objects.get(id=self.context['view'].kwargs.get('pk'))
 
-                    if (sprite.project == None):
-                        raise ValidationError({'permission': 'Cannot modify public sprites!'})
+                    if (asset.project == None):
+                        raise ValidationError({'permission': 'Cannot modify public assets!'})
                     
-                    if not sprite.has_permission(user, 'code'):
+                    if not asset.has_permission(user, 'code'):
                         raise ValidationError({'permission': 'You do not have permission to perform this action'})
-        except Sprite.DoesNotExist:
+        except Asset.DoesNotExist:
             pass
 
         return attrs

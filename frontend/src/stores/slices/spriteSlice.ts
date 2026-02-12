@@ -29,7 +29,7 @@ import {
   tntTile,
   waterTile,
 } from '../b64_textures';
-import type { AssetType, EditingSource, GeckodeStore, Scene, SpriteSlice, Tilemap } from './types';
+import type { AssetType, EditingSource, GeckodeStore, LibraryAssetType, Scene, SpriteSlice, Tilemap } from './types';
 
 export const createEmptyTilemapData = (width: number, height: number): (string | null)[][] =>
   Array.from({ length: height }, () => Array.from({ length: width }, () => null));
@@ -59,6 +59,10 @@ export const createUniqueSpriteName = (name: string, instances: { name: string }
   const lastDigit = Number(name[name.length - 1]);
   return createUniqueSpriteName(`${name.slice(0, -1)}${lastDigit + 1}`, instances);
 };
+
+export const convertToLibraryAsset = (asset: AssetType) : LibraryAssetType => "library" + String(asset)[0].toLowerCase() + String(asset).slice(1) as LibraryAssetType;
+export const convertToAsset = (asset: LibraryAssetType) : AssetType => String(asset).slice(7).toLowerCase() as AssetType
+
 
 export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> = (set, get) => ({
   spriteInstances: [
@@ -231,6 +235,13 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
     set({ [type]: rest });
   },
 
+  addLibraryAsset: (name: string, base64Image: string, type: LibraryAssetType) => { set({ [type]: { ...get()[type], [name]: base64Image } }); },
+  updateLibraryAsset: (name: string, base64Image: string, type: LibraryAssetType) => { set({ [type]: { ...get()[type], [name]: base64Image } }); },
+  removeLibraryAsset: (name: string, type: LibraryAssetType) => {
+    const { [name]: _, ...rest } = get()[type];
+    set({ [type]: rest });
+  },
+
   /* ── Tilemaps ── */
   setActiveTilemapId: (id: string | null) => set({ activeTilemapId: id }),
   updateTilemapCell: (tilemapId: string, row: number, col: number, tileKey: string | null) => {
@@ -330,6 +341,26 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
       tilemaps: { tilemap_1: createDefaultTilemap() },
       scenes: [{ id: 'scene_1', name: 'Scene 1', tilemapId: 'tilemap_1' }],
       activeTilemapId: 'tilemap_1',
+    });
+  },
+
+  resetAssetsOnly() {
+    console.log(`resetting assets`);
+
+    set({
+      tiles: {},
+      tilesets: {},
+      animations: {},
+      backgrounds: {},
+      libaryTextures: {
+        'hero-walk-front': heroWalkFront1,
+        'hero-walk-back': heroWalkBack1,
+        gavin: gavin,
+      },
+      libaryTiles: {},
+      libaryTilesets: {},
+      libaryAnimations: {},
+      libaryBackgrounds: {},  
     });
   },
 });

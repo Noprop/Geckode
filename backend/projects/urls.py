@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework_nested.routers import DefaultRouter, NestedDefaultRouter
-from .views import ProjectGroupViewSet, ProjectViewSet, ProjectCollaboratorViewSet, ProjectInvitationViewSet, ProjectOrganizationViewSet, OrganizationProjectViewSet, SpriteViewSet
+from .views import ProjectGroupViewSet, ProjectViewSet, ProjectCollaboratorViewSet, ProjectInvitationViewSet, ProjectOrganizationViewSet, OrganizationProjectViewSet, AssetViewSet
 
 
 router = DefaultRouter()
@@ -10,12 +10,12 @@ router.register(r'projects', ProjectViewSet, basename='projects')
 projects_router = NestedDefaultRouter(router, r'projects', lookup='project')
 projects_router.register(r'collaborators', ProjectCollaboratorViewSet, basename='project-collaborators')
 projects_router.register(r'invitations', ProjectInvitationViewSet, basename='project-invitations')
-projects_router.register(r'sprites', SpriteViewSet, basename='sprites')
+projects_router.register(r'assets', AssetViewSet, basename='assets')
 
 
-# exporting a general sprite router for public sprites
-sprite_router = DefaultRouter()
-router.register(r'sprites', SpriteViewSet, basename='sprites')
+# exporting a general asset router for public assets
+asset_router = DefaultRouter()
+router.register(r'assets', AssetViewSet, basename='assets')
 
 urlpatterns = [
     path('', include(router.urls)),

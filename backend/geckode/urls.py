@@ -20,12 +20,12 @@ from django.urls import path, include, URLResolver, URLPattern
 from django.conf import settings
 from django.conf.urls.static import static
 
-from projects.urls import sprite_router
+from projects.urls import asset_router
 
 urlpatterns : list[URLPattern | URLResolver]= [
     path('admin/', admin.site.urls),
     path('api/', include('accounts.urls')),
     path('api/', include('organizations.urls')),
     path('api/', include('projects.urls')),
-    path('api/', include(sprite_router.urls))
+    path('api/', include(asset_router.urls))
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -1,8 +1,8 @@
 from rest_framework.viewsets import ModelViewSet
-from .models import ProjectGroup, Project, ProjectCollaborator, OrganizationProject, ProjectInvitation, Sprite
-from .serializers import ProjectGroupSerializer, ProjectSerializer, ProjectInvitationSerializer, ProjectCollaboratorSerializer, OrganizationProjectSerializer, ProjectOrganizationSerializer, SpriteSerializer
+from .models import ProjectGroup, Project, ProjectCollaborator, OrganizationProject, ProjectInvitation, Asset
+from .serializers import ProjectGroupSerializer, ProjectSerializer, ProjectInvitationSerializer, ProjectCollaboratorSerializer, OrganizationProjectSerializer, ProjectOrganizationSerializer, AssetSerializer
 from django_filters.rest_framework import DjangoFilterBackend
-from .filters import ProjectFilter, apply_project_access_filters, ProjectCollaboratorFilter, ProjectInvitationFilter, OrganizationProjectFilter, ProjectOrganizationFilter, SpriteFilter
+from .filters import ProjectFilter, apply_project_access_filters, ProjectCollaboratorFilter, ProjectInvitationFilter, OrganizationProjectFilter, ProjectOrganizationFilter, AssetFilter
 from utils.permissions import create_user_permission_class, AnyOf
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.decorators import action
@@ -285,11 +285,11 @@ class ProjectInvitationViewSet(ModelViewSet):
 
         return Response({"status": "accepted"}, status=HTTP_200_OK)
 
-class SpriteViewSet(ModelViewSet):
-    queryset = Sprite.objects.all()
-    serializer_class = SpriteSerializer
+class AssetViewSet(ModelViewSet):
+    queryset = Asset.objects.all()
+    serializer_class = AssetSerializer
     filter_backends = [DjangoFilterBackend]
-    filterset_class = SpriteFilter
+    filterset_class = AssetFilter
 
     http_method_names = ['get', 'post', 'patch', 'delete']
 
@@ -309,7 +309,7 @@ class SpriteViewSet(ModelViewSet):
         '''
         
         if self.kwargs.get('project_pk') == None:
-            # TODO: restrict creating/updating for public sprites
+            # TODO: restrict creating/updating for public assets
             return super().get_permissions()
 
         return super().get_permissions() + [
@@ -318,7 +318,7 @@ class SpriteViewSet(ModelViewSet):
                 user_override_fields=[],
                 primary_pk_class=Project,
                 lookup='project_pk',
-                secondary_pk_class=Sprite,
+                secondary_pk_class=Asset,
                 secondary_pk_kwargs={'id': self.kwargs.get('pk')},
             )()
         ]

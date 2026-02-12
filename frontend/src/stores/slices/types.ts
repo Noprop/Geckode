@@ -38,6 +38,7 @@ export type TilemapTool = 'place' | 'eraser' | 'bucket' | 'line' | 'rectangle' |
 // ── Sprite Slice ──
 
 export type AssetType = 'textures' | 'tiles' | 'tilesets' | 'animations' | 'backgrounds';
+export type LibraryAssetType = 'libaryTextures' | 'libaryTiles' | 'libaryTilesets' | 'libaryAnimations' | 'libaryBackgrounds';
 export type EditingSource = 'new' | 'asset' | 'library';
 
 export interface SpriteState {
@@ -84,6 +85,10 @@ export interface SpriteActions {
   updateAsset: (name: string, base64Image: string, type: AssetType) => void;
   removeAsset: (name: string, type: AssetType) => void;
 
+  addLibraryAsset: (name: string, base64Image: string, type: LibraryAssetType) => void;
+  updateLibraryAsset: (name: string, base64Image: string, type: LibraryAssetType) => void;
+  removeLibraryAsset: (name: string, type: LibraryAssetType) => void;
+
   /* Tilemaps */
   updateTilemapCell: (tilemapId: string, row: number, col: number, tileKey: string | null) => void;
   setTilemapData: (tilemapId: string, data: (string | null)[][]) => void;
@@ -93,6 +98,7 @@ export interface SpriteActions {
   setScenes: (scenes: Scene[]) => void;
 
   resetSpriteStore: () => void;
+  resetAssetsOnly: () => void;
 }
 
 export type SpriteSlice = SpriteState & SpriteActions;

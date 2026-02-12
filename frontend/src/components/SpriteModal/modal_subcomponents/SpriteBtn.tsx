@@ -1,4 +1,4 @@
-import { Sprite } from "@/lib/types/api/sprites/index";
+import { Sprite } from "@/lib/types/api/assets/index";
 import { TrashIcon } from "@radix-ui/react-icons";
 import React from "react";
 
