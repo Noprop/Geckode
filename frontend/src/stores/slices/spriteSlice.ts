@@ -138,7 +138,7 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
 
   /* ── Modal / Selection ── */
   setIsSpriteModalOpen: (isOpen: boolean) => set({ isSpriteModalOpen: isOpen }),
-  setSelectedSpriteId: (newId: string) => {
+  setSelectedSpriteId: (newId: string | null) => {
     const { blocklyWorkspace, spriteWorkspaces, selectedSpriteId: prevId } = get();
     if (newId === prevId) return;
     if (!blocklyWorkspace) return;
@@ -154,7 +154,7 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
     }
 
     // Load workspace for the newly selected sprite
-    const state = get().spriteWorkspaces[newId];
+    const state = newId && get().spriteWorkspaces[newId];
     if (!state) {
       Blockly.serialization.workspaces.load({}, blocklyWorkspace);
     } else {
@@ -166,11 +166,22 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
   },
   setSpriteInstances: (instances: SpriteInstance[]) => set({ spriteInstances: instances }),
   removeSpriteInstance: (spriteId: string) => {
-    const { spriteInstances, selectedSpriteId } = get();
+    const { spriteInstances, selectedSpriteId, spriteWorkspaces, blocklyWorkspace, phaserScene } = get();
     const remaining = spriteInstances.filter((instance) => instance.id !== spriteId);
+    phaserScene!.removeSprite(spriteId);
+
+    if (selectedSpriteId === spriteId && remaining.length > 0) {
+      Blockly.serialization.workspaces.load(spriteWorkspaces[spriteInstances[0].id], blocklyWorkspace!);
+    }
 
     set({
       spriteInstances: remaining,
+      spriteWorkspaces: {
+        ...Object.fromEntries(
+          Object.entries(spriteWorkspaces)
+            .filter(([id]) => id !== spriteId)
+        ),
+      },
       selectedSpriteId: selectedSpriteId === spriteId
         ? (remaining[0]?.id ?? null)
         : selectedSpriteId,

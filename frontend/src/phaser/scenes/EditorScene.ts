@@ -7,11 +7,13 @@ import { SpriteInstance } from '@/blockly/spriteRegistry';
 export default class EditorScene extends Phaser.Scene {
   public key: string;
   private readonly SPRITE_DEPTH = 10;
-  private readonly TILEMAP_DEPTH = 5;
-  private readonly TILE_SIZE = 32;
+  private readonly TILE_SIZE = 16;
   private editorSprites = new Map<string, Phaser.Physics.Arcade.Sprite>();
   private spriteLayer: Phaser.GameObjects.Layer | null = null;
+  private tilemap: Phaser.Tilemaps.Tilemap | null = null;
   private tilemapLayer: Phaser.Tilemaps.TilemapLayer | null = null;
+  private tileKeyToIndex: Map<string, number> = new Map();
+  private static readonly TILESET_KEY = 'editor-tileset';
   private gridGraphics: Phaser.GameObjects.Graphics | null = null;
 
   private activeDrag: {
@@ -32,70 +34,26 @@ export default class EditorScene extends Phaser.Scene {
       console.log('preloading texture: ', instance.textureName);
       const base64Image = textures[instance.textureName];
       if (!base64Image || this.textures.exists(instance.textureName)) continue;
-      this.load.image(instance.textureName, base64Image);
-    }
-  }
-
-  /** Queue a texture load and return a promise that resolves once it's in the cache. */
-  public loadTextureAsync(name: string, base64Image: string): Promise<void> {
-    if (this.textures.exists(name)) return Promise.resolve();
-    return new Promise<void>((resolve) => {
-      this.load.once('complete', () => resolve());
-      this.load.image(name, base64Image);
-      this.load.start();
-    });
-  }
-
-  /**
-   * Safely replace an existing texture without crashing sprites that reference it.
-   * Hides affected sprites, removes the old texture, loads the new one,
-   * then re-binds and reveals them. Falls back to loadTextureAsync if the
-   * texture doesn't exist yet.
-   */
-  public async updateTextureAsync(name: string, base64Image: string): Promise<void> {
-    if (!this.textures.exists(name)) {
-      return this.loadTextureAsync(name, base64Image);
+      this.load.image("sprite-" +instance.textureName, base64Image);
     }
 
-    // Collect every sprite using this texture and hide it so Phaser
-    // won't try to render a destroyed GL texture between frames.
-    const affected: Phaser.Physics.Arcade.Sprite[] = [];
-    for (const sprite of this.editorSprites.values()) {
-      if (sprite.texture.key === name) {
-        sprite.setVisible(false);
-        affected.push(sprite);
-      }
-    }
-
-    this.textures.remove(name);
-    await this.loadTextureAsync(name, base64Image);
-
-    // Re-bind the freshly loaded texture and show the sprites again.
-    for (const sprite of affected) {
-      sprite.setTexture(name);
-      sprite.setVisible(true);
+    for (const tile of Object.keys(useGeckodeStore.getState().tiles)) {
+      const base64Image = useGeckodeStore.getState().tiles[tile];
+      if (!base64Image || this.textures.exists(tile)) continue;
+      this.load.image("tile-" + tile, base64Image);
     }
   }
 
   async create() {
-    // Tile 0: Empty/sky (transparent)
-    // We don't draw anything for tile 0
-
-    // Tile 1: Grass tile
-    // const graphics = this.add.graphics({ x: -128, y: -96 });
-    // graphics.fillStyle(0x4ade80); // green-400
-    // graphics.fillRect(0, 0, 16, 16);
-    // graphics.generateTexture('grass', 16, 16);
-
-    // const { tilemaps } = useGeckodeStore.getState();
-    // console.log('tilemaps: ', tilemaps);
-  
-
-    // this.showGrid();
     this.spriteLayer = null;
     this.tilemapLayer = null;
     this.gridGraphics = null;
     this.editorSprites.clear();
+
+    this.generateTilesetTexture();
+
+    const { tilemaps } = useGeckodeStore.getState();
+    this.createTilemap(tilemaps['tilemap_1'].data);
 
     this.spriteLayer = this.add.layer();
     this.spriteLayer.setDepth(this.SPRITE_DEPTH);
@@ -115,7 +73,7 @@ export default class EditorScene extends Phaser.Scene {
   // -- Sprite management -- //
   public createSprite(instance: SpriteInstance) {
     if (!this.spriteLayer) return;
-    const sprite = this.physics.add.sprite(instance.x, instance.y, instance.textureName);
+    const sprite = this.physics.add.sprite(instance.x, instance.y, 'sprite-' +instance.textureName);
     sprite.setData('spriteId', instance.id);
     sprite.setDepth(this.SPRITE_DEPTH);
     sprite.setScale(instance.scaleX, instance.scaleY);
@@ -148,7 +106,51 @@ export default class EditorScene extends Phaser.Scene {
     if (updates.scaleX !== undefined || updates.scaleY !== undefined) {
       sprite.setScale(updates.scaleX ?? sprite.scaleX, updates.scaleY ?? sprite.scaleY);
     }
-    if (updates.direction !== undefined) sprite.setAngle(updates.direction - 90);
+    if (updates.direction !== undefined) sprite.setAngle(updates.direction);
+  }
+
+  // -- Texture management -- //
+  public loadSpriteTextureAsync(name: string, base64Image: string): Promise<void> {
+    return this.loadTextureAsync("sprite-" + name, base64Image);
+  }
+  public loadTileTextureAsync(name: string, base64Image: string): Promise<void> {
+    return this.loadTextureAsync("tile-" + name, base64Image);
+  }
+  public loadTextureAsync(name: string, base64Image: string): Promise<void> {
+    if (this.textures.exists(name)) return Promise.resolve();
+    return new Promise<void>((resolve) => {
+      this.load.once('complete', () => resolve());
+      this.load.image(name, base64Image);
+      this.load.start();
+    });
+  }
+
+  public updateSpriteTextureAsync(name: string, base64Image: string): Promise<void> {
+    return this.updateTextureAsync("sprite-" + name, base64Image);
+  }
+  public updateTileTextureAsync(name: string, base64Image: string): Promise<void> {
+    return this.updateTextureAsync("tile-" + name, base64Image);
+  }
+  public async updateTextureAsync(name: string, base64Image: string): Promise<void> {
+    if (!this.textures.exists(name)) return this.loadTextureAsync(name, base64Image);
+
+    // Collect every sprite using this texture and hide it so Phaser
+    // won't try to render a destroyed GL texture between frames.
+    const affected: Phaser.Physics.Arcade.Sprite[] = [];
+    for (const sprite of this.editorSprites.values()) {
+      if (sprite.texture.key === name) {
+        sprite.setVisible(false);
+        affected.push(sprite);
+      }
+    }
+
+    this.textures.remove(name);
+    await this.loadTextureAsync(name, base64Image);
+
+    for (const sprite of affected) {
+      sprite.setTexture(name);
+      sprite.setVisible(true);
+    }
   }
 
   // -- Grid management -- //
@@ -197,8 +199,99 @@ export default class EditorScene extends Phaser.Scene {
     if (this.gridGraphics) this.gridGraphics.setVisible(false);
   }
 
-  private isPointerInBounds(pointer: Phaser.Input.Pointer): boolean {
-    return pointer.x >= 0 && pointer.x <= this.scale.width && pointer.y >= 0 && pointer.y <= this.scale.height;
+  private generateTilesetTexture(): void {
+    const { tiles } = useGeckodeStore.getState();
+    const tileKeys = Object.keys(tiles);
+
+    // Build mapping: index 0 = empty, 1+ = each tile key
+    this.tileKeyToIndex.clear();
+    for (let i = 0; i < tileKeys.length; i++) {
+      this.tileKeyToIndex.set(tileKeys[i], i + 1);
+    }
+
+    const totalSlots = tileKeys.length + 1; // +1 for empty tile at index 0
+    const stripWidth = totalSlots * this.TILE_SIZE;
+
+    // Remove previous tileset texture if it exists
+    if (this.textures.exists(EditorScene.TILESET_KEY)) {
+      this.textures.remove(EditorScene.TILESET_KEY);
+    }
+
+    const dt = this.textures.addDynamicTexture(
+      EditorScene.TILESET_KEY,
+      stripWidth,
+      this.TILE_SIZE,
+      false,
+    );
+    if (!dt) return;
+
+    // Index 0 is left transparent (empty tile)
+    // Stamp each tile texture at its index position
+    for (let i = 0; i < tileKeys.length; i++) {
+      const textureKey = 'tile-' + tileKeys[i];
+      if (!this.textures.exists(textureKey)) continue;
+      dt.stamp(textureKey, undefined, (i + 1) * this.TILE_SIZE, 0, {
+        originX: 0,
+        originY: 0,
+      });
+    }
+
+    dt.render();
+  }
+
+  private createTilemap(tilemap: (string | null)[][]): void {
+    const tileSize = this.TILE_SIZE;
+
+    // Clean up previous tilemap/layer
+    if (this.tilemapLayer) {
+      this.tilemapLayer.destroy();
+      this.tilemapLayer = null;
+    }
+    if (this.tilemap) {
+      this.tilemap.destroy();
+      this.tilemap = null;
+    }
+
+    // Convert string keys to numeric indices using tileKeyToIndex
+    const numericData: number[][] = tilemap.map((row) =>
+      row.map((cell) => {
+        if (!cell) return 0;
+        return this.tileKeyToIndex.get(cell) ?? 0;
+      }),
+    );
+
+    // Create tilemap from numeric data
+    this.tilemap = this.make.tilemap({
+      data: numericData,
+      tileWidth: tileSize,
+      tileHeight: tileSize,
+    });
+
+    // Add tileset image
+    const tileset = this.tilemap.addTilesetImage(
+      EditorScene.TILESET_KEY,
+      EditorScene.TILESET_KEY,
+      tileSize,
+      tileSize,
+      0,
+      0,
+    );
+    if (!tileset) return;
+
+    // Center the map around (0, 0)
+    const mapPixelWidth = tilemap[0].length * tileSize;
+    const mapPixelHeight = tilemap.length * tileSize;
+
+    const layer = this.tilemap.createLayer(
+      0,
+      tileset,
+      -mapPixelWidth / 2,
+      -mapPixelHeight / 2,
+    );
+    if (layer) {
+      this.tilemapLayer = layer as Phaser.Tilemaps.TilemapLayer;
+      this.tilemapLayer.setDepth(0); // Below sprites at depth 10
+    }
   }
 
   private initEventListeners() {
@@ -250,7 +343,7 @@ export default class EditorScene extends Phaser.Scene {
 
     this.input.on('dragend', (pointer: Phaser.Input.Pointer, sprite: Phaser.Physics.Arcade.Sprite) => {
       if (!this.activeDrag) return;
-      if (this.isPointerInBounds(pointer)) {
+      if (pointer.x >= 0 && pointer.x <= this.scale.width && pointer.y >= 0 && pointer.y <= this.scale.height) {
         EventBus.emit('editor-sprite-drag-end', {
           id: sprite.getData('spriteId'),
           x: pointer.worldX,

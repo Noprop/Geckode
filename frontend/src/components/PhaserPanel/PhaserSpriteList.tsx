@@ -53,6 +53,14 @@ const PhaserSpriteList = () => {
                   <div
                     key={sprite.id}
                     onClick={() => setSelectedSpriteId(sprite.id)}
+                    onDoubleClick={() => {
+                      useGeckodeStore.setState({
+                        editingSource: 'asset',
+                        editingAssetName: sprite.textureName,
+                        editingAssetType: 'textures',
+                        isSpriteModalOpen: true,
+                      });
+                    }}
                     onMouseEnter={() => setHoveredId(sprite.id)}
                     onMouseLeave={() => setHoveredId(null)}
                     className={`relative aspect-square rounded-lg border-2 cursor-pointer transition-all overflow-hidden ${isSelected

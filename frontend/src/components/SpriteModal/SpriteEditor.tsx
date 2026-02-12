@@ -401,6 +401,11 @@ const SpriteEditor = () => {
   const addSpriteToGame = async () => {
     if (!(phaserScene instanceof EditorScene)) throw new Error("Phaser scene is not an EditorScene.");
 
+    // Read editing state from the live store to avoid stale closure values
+    // (the component may have unmounted/remounted when switching tabs)
+    const { editingSource: currentEditingSource, editingAssetName: currentEditingAssetName } =
+      useGeckodeStore.getState();
+
     const w = gridWidth;
     const h = gridHeight;
     const offscreen = document.createElement("canvas");
@@ -412,9 +417,16 @@ const SpriteEditor = () => {
     ctx.putImageData(imageData, 0, 0);
     const base64Image = offscreen.toDataURL("image/png");
 
+    if (currentEditingSource === "asset") {
+      useGeckodeStore.getState().updateAsset(currentEditingAssetName!, base64Image, "textures");
+      await phaserScene.updateSpriteTextureAsync(currentEditingAssetName!, base64Image);
+      useGeckodeStore.setState({ editingSource: null, editingAssetName: null, editingAssetType: null });
+      setIsSpriteModalOpen(false);
+      return;
+    }
+
     const newSpriteName = createUniqueSpriteName(spriteName, spriteInstances);
-    const newTextureName =
-      editingSource === "asset" ? editingAssetName! : createUniqueTextureName(spriteName, textures);
+    const newTextureName = createUniqueTextureName(spriteName, textures);
 
     const newSprite: SpriteInstance = {
       name: newSpriteName,
@@ -430,13 +442,8 @@ const SpriteEditor = () => {
     };
 
     // add texture to state, and phaser
-    if (editingSource === "new" || editingSource === "library") {
-      useGeckodeStore.getState().addAsset(newTextureName, base64Image, "textures");
-      await phaserScene.loadTextureAsync(newTextureName, base64Image);
-    } else if (editingSource === "asset") {
-      useGeckodeStore.getState().updateAsset(editingAssetName!, base64Image, "textures");
-      await phaserScene.updateTextureAsync(newTextureName, base64Image);
-    }
+    useGeckodeStore.getState().addAsset(newTextureName, base64Image, "textures");
+    await phaserScene.loadSpriteTextureAsync(newTextureName, base64Image);
     phaserScene.createSprite(newSprite);
 
     // add sprite to state, save workspace for current sprite, and switch to new sprite
@@ -725,8 +732,12 @@ const SpriteEditor = () => {
             placeholder="Sprite name"
             className="flex-1 h-9 px-3 rounded bg-slate-600 border border-slate-500 text-sm text-white placeholder:text-slate-400 outline-none focus:border-primary-green"
           />
-          <Button className="btn-confirm h-9 px-4" onClick={addSpriteToGame} title="Add to game">
-            Add to Game
+          <Button
+            className="btn-confirm h-9 px-4"
+            onClick={addSpriteToGame}
+            title={editingSource === "asset" ? "Save changes" : "Add to game"}
+          >
+            {editingSource === "asset" ? "Save" : "Add to Game"}
           </Button>
         </div>
       </div>
