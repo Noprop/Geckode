@@ -191,7 +191,7 @@ export const createEditorSlice: StateCreator<
         .join("\n");
 
       const updateCode = `
-        scene.update = () => {
+        scene.updateHook = () => {
           ${updateBody}
         };
       `;

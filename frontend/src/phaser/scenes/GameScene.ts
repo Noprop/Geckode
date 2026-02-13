@@ -25,6 +25,8 @@ export default class GameScene extends Phaser.Scene {
     S: Phaser.Input.Keyboard.Key;
     D: Phaser.Input.Keyboard.Key;
   };
+  private justPressedKeys: Array<Phaser.Input.Keyboard.Key> = [];
+  private justReleasedKeys: Array<Phaser.Input.Keyboard.Key> = [];
   private gameSprites = new Map<string, Phaser.Physics.Arcade.Sprite>();
   private static readonly GAME_SPRITE_BASE_DEPTH = Number.MAX_SAFE_INTEGER - 100;
   private gameLayer!: Phaser.GameObjects.Layer;
@@ -99,7 +101,14 @@ export default class GameScene extends Phaser.Scene {
   }
 
   startHook() {}
-  update() {}
+  updateHook() {}
+
+  update() {
+    this.justPressedKeys = [];
+    this.justReleasedKeys = [];
+
+    this.updateHook();
+  }
 
   private generateTilesetTexture(): void {
     const tileSize = GameScene.TILE_SIZE;
@@ -317,4 +326,56 @@ export default class GameScene extends Phaser.Scene {
       throw new Error(`runScript failed: ${message}`);
     }
   }
+
+  public getJustPressed(key: Phaser.Input.Keyboard.Key) {
+    if (this.justPressedKeys.includes(key)) {
+      return true;
+    }
+    if (Phaser.Input.Keyboard.JustDown(key)) {
+      this.justPressedKeys.push(key);
+      return true;
+    }
+    return false;
+  }
+
+  public getJustReleased(key: Phaser.Input.Keyboard.Key) {
+    if (this.justReleasedKeys.includes(key)) {
+      return true;
+    }
+    if (Phaser.Input.Keyboard.JustUp(key)) {
+      this.justReleasedKeys.push(key);
+      return true;
+    }
+    return false;
+  }
+
+  private moveWithArrows(spriteName: string, vx: number, vy: number){
+    const sprite = this.getSprite(spriteName);
+    if (sprite) {
+      if (vx != 0) {
+        if (this.cursors.left.isDown && this.cursors.right.isDown) {
+          sprite.setVelocityX(0);
+        } else if (this.cursors.left.isDown) {
+          sprite.setVelocityX(-vx);
+        } else if (this.cursors.right.isDown) {
+          sprite.setVelocityX(vx);
+        } else if (this.getJustReleased(this.cursors.left) || this.getJustReleased(this.cursors.right)) {
+          sprite.setVelocityX(0);
+        }
+      }
+      if (vy != 0) {
+        if (this.cursors.up.isDown && this.cursors.down.isDown) {
+          sprite.setVelocityY(0);
+        } else if (this.cursors.up.isDown) {
+          sprite.setVelocityY(-vy);
+        } else if (this.cursors.down.isDown) {
+          sprite.setVelocityY(vy);
+        } else if (this.getJustReleased(this.cursors.up) || this.getJustReleased(this.cursors.down)) {
+          sprite.setVelocityY(0);
+        }
+      }
+    }
+  }
+
+
 }
