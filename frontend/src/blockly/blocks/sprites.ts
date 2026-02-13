@@ -47,7 +47,11 @@ javascriptGenerator.forBlock['setProperty'] = function (block, generator) {
       .includes(spriteKey) &&
     !isIsolated(block)
   ) {
-    return `scene.getSprite(${spriteName}).set${block.getFieldValue('PROPERTY')}(${value})\n`;
+    const prop = block.getFieldValue('PROPERTY');
+    if (prop === 'Y' || prop === 'VelocityY') {
+      return `scene.getSprite(${spriteName}).set${prop}(-(${value}))\n`;
+    }
+    return `scene.getSprite(${spriteName}).set${prop}(${value})\n`;
   }
 
   return '';
@@ -95,12 +99,13 @@ javascriptGenerator.forBlock['changeProperty'] = function (block, generator) {
       .includes(spriteKey) &&
     !isIsolated(block)
   ) {
-    // TODO: verify that we should be using sprite.body instead of sprite.x (apparently .body is the physics body which
-    // is the top left of the sprite, rather than the center)
     const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
-    return `scene.getSprite(${
-      spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"'
-    }).body.${block.getFieldValue('PROPERTY')} += ${value}\n`;
+    const spriteName = spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"';
+    const prop = block.getFieldValue('PROPERTY');
+    if (prop === 'y' || prop === 'velocity.y') {
+      return `scene.getSprite(${spriteName}).${prop} -= ${value}\n`;
+    }
+    return `scene.getSprite(${spriteName}).${prop} += ${value}\n`;
   }
 
   return '';
@@ -141,10 +146,12 @@ javascriptGenerator.forBlock['getProperty'] = function (block, generator) {
     !isIsolated(block)
   ) {
     const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
-    const code = `scene.getSprite(${
-      spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"'
-    }).body.${block.getFieldValue('PROPERTY')}`;
-    return [code, Order.NONE];
+    const spriteName = spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"';
+    const prop = block.getFieldValue('PROPERTY');
+    if (prop === 'y' || prop === 'velocity.y') {
+      return [`-(scene.getSprite(${spriteName}).${prop})`, Order.NONE];
+    }
+    return [`scene.getSprite(${spriteName}).${prop}`, Order.NONE];
   }
   return['', Order.NONE];
 };
@@ -235,7 +242,7 @@ javascriptGenerator.forBlock['pointAtXY'] = function (block, generator) {
   ) {
     const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
     const spriteName = `scene.getSprite(${spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"'})`;
-    return `${spriteName}.rotation = Phaser.Math.Angle.Between(${spriteName}.x, ${spriteName}.y, ${x}, ${y})\n`;
+    return `${spriteName}.rotation = Phaser.Math.Angle.Between(${spriteName}.x, ${spriteName}.y, ${x}, -(${y}))\n`;
   }
   return '';
 };

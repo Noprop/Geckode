@@ -45,6 +45,11 @@ export default class GameScene extends Phaser.Scene {
     this.key = GAME_SCENE_KEY;
   }
 
+  /** Store (positive-up) → Phaser (positive-down) */
+  private toWorldY(y: number): number { return -y; }
+  /** Phaser (positive-down) → Store (positive-up) */
+  private fromWorldY(y: number): number { return -y; }
+
   preload() {
     this.generateTilesetTexture();
   }
@@ -222,7 +227,7 @@ export default class GameScene extends Phaser.Scene {
   public addGameSprite(instance: SpriteInstance) {
     const { id, x, y, textureName, scaleX, scaleY, visible, direction, physics } = instance;
     console.log('[GameScene] addGameSprite called', textureName, x, y, id, physics);
-    const sprite = this.physics.add.sprite(x, y, textureName);
+    const sprite = this.physics.add.sprite(x, this.toWorldY(y), textureName);
     sprite.setName(id);
     sprite.setData('gameSpriteId', id);
     sprite.setDepth(GameScene.GAME_SPRITE_BASE_DEPTH);
@@ -239,7 +244,7 @@ export default class GameScene extends Phaser.Scene {
     if (physics?.enabled) {
       sprite.setDamping(true);
       sprite.setDrag(physics.drag);
-      sprite.setGravityY(physics.gravityY);
+      sprite.setGravityY(this.toWorldY(physics.gravityY));
       sprite.setBounce(physics.bounce);
       sprite.setCollideWorldBounds(physics.collideWorldBounds);
 

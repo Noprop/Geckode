@@ -76,7 +76,7 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
       physics: {
         enabled: false,
         drag: 0.01,
-        gravityY: 1,
+        gravityY: -1,
         bounce: 0.5,
         collideWorldBounds: true,
       },
