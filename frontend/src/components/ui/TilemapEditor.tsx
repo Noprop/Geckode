@@ -5,7 +5,7 @@ import type { PointerEvent as ReactPointerEvent } from 'react';
 import { EraserIcon } from '@radix-ui/react-icons';
 import { PencilIcon, BucketIcon, LineIcon, CircleIcon, ColorPickerIcon } from '@/components/icons';
 import { useGeckodeStore } from '@/stores/geckodeStore';
-import type { TilemapTool } from '@/stores/geckodeStore';
+import type { TilemapTool, Tileset } from '@/stores/geckodeStore';
 import { EventBus } from '@/phaser/EventBus';
 import { useCanvasZoom } from '@/hooks/useCanvasZoom';
 import { usePixelCanvas } from '@/hooks/usePixelCanvas';
@@ -15,10 +15,11 @@ import {
   stampTileAtWithAlpha,
   rebuildPixelBuffer,
 } from '@/hooks/useTilePixelCache';
-import TileEditorModal from '@/components/TileModal/TileEditorModal';
+import TilesetEditorModal from '@/components/TileModal/TilesetEditorModal';
 import { getLineCells, getRectangleCells, getOvalCells } from '@/lib/tileGridGeometry';
 
 const TILE_PX = 16;
+const TILESET_GRID = 5; // tileset data is 5x5
 
 // ── Tool button ──
 const ToolButton = ({
@@ -50,15 +51,17 @@ const ToolButton = ({
 
 const TilemapEditor = () => {
   const [activeTool, setActiveTool] = useState<TilemapTool>('place');
-  const [selectedTileKey, setSelectedTileKey] = useState<string | null>(null);
+  const [selectedTilesetId, setSelectedTilesetId] = useState<string | null>(null);
+  const [selectedSingleTile, setSelectedSingleTile] = useState<string | null>(null);
   const [brushSize, setBrushSize] = useState(1);
   const [hoverCell, setHoverCell] = useState<{ row: number; col: number } | null>(null);
-  const [isTileEditorOpen, setIsTileEditorOpen] = useState(false);
+  const [isTilesetEditorOpen, setIsTilesetEditorOpen] = useState(false);
   const [showCollidables, setShowCollidables] = useState(false);
   const minimapRef = useRef<HTMLCanvasElement>(null);
   const collidableCanvasRef = useRef<HTMLCanvasElement>(null);
 
   const tileTextures = useGeckodeStore((s) => s.tiles);
+  const tilesets = useGeckodeStore((s) => s.tilesets);
   const tilemaps = useGeckodeStore((s) => s.tilemaps);
   const activeTilemapId = useGeckodeStore((s) => s.activeTilemapId);
   const updateTilemapCell = useGeckodeStore((s) => s.updateTilemapCell);
@@ -70,13 +73,21 @@ const TilemapEditor = () => {
 
   const tilemap = activeTilemapId ? tilemaps[activeTilemapId] : null;
 
-  // Auto-select first tile texture
+  // Get the selected tileset object
+  const selectedTileset: Tileset | null = selectedTilesetId ? tilesets[selectedTilesetId] ?? null : null;
+
+  // Resolve the effective tile key for per-cell operations:
+  // If tile-picker was used, use the single tile. Otherwise use top-left tile of selected tileset.
+  const effectiveSingleTile: string | null = selectedSingleTile
+    ?? (selectedTileset ? getFirstTile(selectedTileset) : null);
+
+  // Auto-select first tileset
   useEffect(() => {
-    if (!selectedTileKey) {
-      const keys = Object.keys(tileTextures);
-      if (keys.length > 0) setSelectedTileKey(keys[0]);
+    if (!selectedTilesetId) {
+      const keys = Object.keys(tilesets);
+      if (keys.length > 0) setSelectedTilesetId(keys[0]);
     }
-  }, [tileTextures, selectedTileKey]);
+  }, [tilesets, selectedTilesetId]);
 
   const gridWidthTiles = tilemap?.width ?? 16;
   const gridHeightTiles = tilemap?.height ?? 16;
@@ -161,15 +172,17 @@ const TilemapEditor = () => {
     shapeStart: null as { row: number; col: number } | null,
     prevCell: null as { row: number; col: number } | null,
     activeTool: 'place' as TilemapTool,
-    selectedTileKey: null as string | null,
+    selectedTilesetId: null as string | null,
+    selectedSingleTile: null as string | null,
     brushSize: 1,
   });
   useEffect(() => {
     const ds = drawStateRef.current;
     ds.activeTool = activeTool;
-    ds.selectedTileKey = selectedTileKey;
+    ds.selectedTilesetId = selectedTilesetId;
+    ds.selectedSingleTile = effectiveSingleTile;
     ds.brushSize = brushSize;
-  }, [activeTool, selectedTileKey, brushSize]);
+  }, [activeTool, selectedTilesetId, effectiveSingleTile, brushSize]);
 
   // ── Preview cells for shape commit ──
   const previewCellsRef = useRef<{ row: number; col: number }[]>([]);
@@ -232,11 +245,27 @@ const TilemapEditor = () => {
     return cells;
   }, [gridWidthTiles, gridHeightTiles]);
 
-  // ── Apply single cell placement (for pen / eraser drag) ──
+  // ── Stamp a tileset at a position (top-left corner) ──
+  const stampTileset = useCallback((tileset: Tileset, topRow: number, topCol: number) => {
+    if (!activeTilemapId || !tilemap) return;
+    for (let dr = 0; dr < TILESET_GRID; dr++) {
+      for (let dc = 0; dc < TILESET_GRID; dc++) {
+        const tileKey = tileset.data[dr]?.[dc];
+        if (tileKey === null || tileKey === undefined) continue;
+        const r = topRow + dr;
+        const c = topCol + dc;
+        if (r >= 0 && r < tilemap.height && c >= 0 && c < tilemap.width) {
+          updateTilemapCell(activeTilemapId, r, c, tileKey);
+        }
+      }
+    }
+  }, [activeTilemapId, tilemap, updateTilemapCell]);
+
+  // ── Apply single cell placement (for pen / eraser drag with single tile) ──
   const applySingleCell = useCallback((row: number, col: number) => {
     if (!activeTilemapId || !tilemap) return;
     const ds = drawStateRef.current;
-    const tileKey = ds.activeTool === 'eraser' ? null : ds.selectedTileKey;
+    const tileKey = ds.activeTool === 'eraser' ? null : ds.selectedSingleTile;
     const cells = expandBrush(row, col, ds.brushSize);
     for (const c of cells) {
       if (tilemap.data[c.row][c.col] !== tileKey) {
@@ -244,6 +273,26 @@ const TilemapEditor = () => {
       }
     }
   }, [activeTilemapId, tilemap, updateTilemapCell, expandBrush]);
+
+  // ── Apply tileset stamp at a position (handles brush size = repeat tilesets) ──
+  const applyTilesetStamp = useCallback((row: number, col: number) => {
+    const ds = drawStateRef.current;
+    const tsId = ds.selectedTilesetId;
+    if (!tsId) return;
+    const ts = useGeckodeStore.getState().tilesets[tsId];
+    if (!ts) return;
+    const size = ds.brushSize;
+    if (size <= 1) {
+      stampTileset(ts, row, col);
+    } else {
+      const offset = Math.floor(size / 2);
+      for (let dr = 0; dr < size; dr++) {
+        for (let dc = 0; dc < size; dc++) {
+          stampTileset(ts, row + (dr - offset) * TILESET_GRID, col + (dc - offset) * TILESET_GRID);
+        }
+      }
+    }
+  }, [stampTileset]);
 
   // ── Flood fill on tile grid ──
   const floodFill = useCallback((startRow: number, startCol: number, fillKey: string | null) => {
@@ -276,7 +325,7 @@ const TilemapEditor = () => {
   const commitPreview = useCallback(() => {
     if (!activeTilemapId || !tilemap || previewCellsRef.current.length === 0) return;
     const ds = drawStateRef.current;
-    const tileKey = ds.activeTool === 'eraser' ? null : ds.selectedTileKey;
+    const tileKey = ds.activeTool === 'eraser' ? null : ds.selectedSingleTile;
     const newData = tilemap.data.map(r => [...r]);
     for (const { row, col } of previewCellsRef.current) {
       if (row >= 0 && row < tilemap.height && col >= 0 && col < tilemap.width) {
@@ -317,7 +366,7 @@ const TilemapEditor = () => {
   const updateShapePreview = useCallback((cells: { row: number; col: number }[]) => {
     previewPixelsRef.current.fill(0);
     const ds = drawStateRef.current;
-    const tileKey = ds.activeTool === 'eraser' ? null : ds.selectedTileKey;
+    const tileKey = ds.activeTool === 'eraser' ? null : ds.selectedSingleTile;
     for (const { row, col } of cells) {
       if (row < 0 || row >= gridHeightTiles || col < 0 || col >= gridWidthTiles) continue;
       if (ds.activeTool === 'eraser') {
@@ -338,7 +387,18 @@ const TilemapEditor = () => {
     if (!cell || !tilemap) return;
     const ds = drawStateRef.current;
 
-    if (ds.activeTool === 'place' || ds.activeTool === 'eraser') {
+    if (ds.activeTool === 'place') {
+      saveToHistory();
+      // If we have a single tile selected (from tile-picker), use per-cell placement
+      if (ds.selectedSingleTile && !ds.selectedTilesetId) {
+        ds.isDrawing = true;
+        ds.prevCell = cell;
+        applySingleCell(cell.row, cell.col);
+      } else {
+        // Stamp the selected tileset
+        applyTilesetStamp(cell.row, cell.col);
+      }
+    } else if (ds.activeTool === 'eraser') {
       saveToHistory();
       ds.isDrawing = true;
       ds.prevCell = cell;
@@ -352,12 +412,12 @@ const TilemapEditor = () => {
       updateShapePreview(cells);
     } else if (ds.activeTool === 'bucket') {
       saveToHistory();
-      const fillKey = ds.selectedTileKey;
-      floodFill(cell.row, cell.col, fillKey);
+      floodFill(cell.row, cell.col, ds.selectedSingleTile);
     } else if (ds.activeTool === 'tile-picker') {
       const tileKey = tilemap.data[cell.row][cell.col];
       if (tileKey) {
-        setSelectedTileKey(tileKey);
+        setSelectedSingleTile(tileKey);
+        setSelectedTilesetId(null);
         setActiveTool('place');
       }
     }
@@ -448,13 +508,16 @@ const TilemapEditor = () => {
     );
   }
 
+  // Tileset entries for palette
+  const tilesetEntries = Object.entries(tilesets);
+
   return (
     <div className="flex-1 min-h-0 flex bg-light-secondary dark:bg-dark-secondary h-full">
-      <TileEditorModal
-        isOpen={isTileEditorOpen}
-        onClose={() => setIsTileEditorOpen(false)}
+      <TilesetEditorModal
+        isOpen={isTilesetEditorOpen}
+        onClose={() => setIsTilesetEditorOpen(false)}
       />
-      {/* Left sidebar — brush size, tools, tile palette */}
+      {/* Left sidebar — brush size, tools, tileset palette */}
       <div className="w-[250px] flex flex-col gap-3 p-2 bg-white/50 dark:bg-dark-secondary/50 border-r border-slate-200 dark:border-slate-700">
         {/* Brush size */}
         <div className="grid grid-cols-3 rounded overflow-hidden">
@@ -510,38 +573,63 @@ const TilemapEditor = () => {
           </ToolButton>
         </div>
 
-        {/* Tile palette */}
+        {/* Tileset palette */}
         <div className="flex flex-col gap-1">
-          <span className="text-sm text-slate-600 dark:text-slate-300 font-semibold px-0.5">Tiles</span>
-          <div className="grid grid-cols-5 gap-[2px]">
-            {Object.entries(tileTextures).map(([key, base64]) => (
+          <span className="text-sm text-slate-600 dark:text-slate-300 font-semibold px-0.5">Tilesets</span>
+          <div className="grid grid-cols-3 gap-[2px]">
+            {tilesetEntries.map(([id, ts]) => (
               <button
-                key={key}
+                key={id}
                 type="button"
                 onClick={() => {
-                  setSelectedTileKey(key);
+                  setSelectedTilesetId(id);
+                  setSelectedSingleTile(null);
                   if (activeTool === 'tile-picker') setActiveTool('place');
                 }}
                 onDoubleClick={() => {
-                  setEditingAsset(key, 'tiles', 'asset');
-                  setIsTileEditorOpen(true);
+                  setEditingAsset(id, 'tilesets', 'asset');
+                  setIsTilesetEditorOpen(true);
                 }}
                 className={`aspect-square cursor-pointer transition-colors overflow-hidden ${
-                  selectedTileKey === key
+                  selectedTilesetId === id
                   ? 'border-2 border-primary-green'
                   : 'border-2 border-transparent hover:border-slate-400 dark:hover:border-slate-500'
                 }`}
-                title={key}
+                title={ts.name}
               >
-                <img
-                  src={base64}
-                  alt={key}
-                  className="w-full h-full object-cover"
-                  style={{ imageRendering: 'pixelated' }}
-                />
+                {ts.base64Preview ? (
+                  <img
+                    src={ts.base64Preview}
+                    alt={ts.name}
+                    className="w-full h-full object-cover"
+                    style={{ imageRendering: 'pixelated' }}
+                  />
+                ) : (
+                  <div className="w-full h-full bg-slate-200 dark:bg-dark-tertiary" />
+                )}
               </button>
             ))}
           </div>
+
+          {tilesetEntries.length === 0 && (
+            <span className="text-xs text-slate-400 dark:text-slate-500 px-0.5">No tilesets yet</span>
+          )}
+
+          {/* Active selection indicator */}
+          {selectedSingleTile && !selectedTilesetId && (
+            <div className="flex items-center gap-1.5 px-1 py-1 rounded bg-slate-100 dark:bg-dark-tertiary">
+              <span className="text-[10px] text-slate-500 dark:text-slate-400">Single tile:</span>
+              {tileTextures[selectedSingleTile] && (
+                <img
+                  src={tileTextures[selectedSingleTile]}
+                  alt={selectedSingleTile}
+                  className="w-5 h-5 object-contain"
+                  style={{ imageRendering: 'pixelated' }}
+                />
+              )}
+              <span className="text-[10px] text-slate-600 dark:text-slate-300 truncate">{selectedSingleTile}</span>
+            </div>
+          )}
 
           {/* Show collidables checkbox */}
           <label className="flex items-center gap-1.5 px-0.5 cursor-pointer select-none">
@@ -729,5 +817,15 @@ const TilemapEditor = () => {
     </div>
   );
 };
+
+/** Get the first non-null tile key from a tileset's data grid */
+function getFirstTile(tileset: Tileset): string | null {
+  for (const row of tileset.data) {
+    for (const cell of row) {
+      if (cell) return cell;
+    }
+  }
+  return null;
+}
 
 export default TilemapEditor;

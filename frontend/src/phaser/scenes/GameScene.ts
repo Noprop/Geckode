@@ -251,9 +251,8 @@ export default class GameScene extends Phaser.Scene {
 
     // Apply physics settings if enabled
     if (physics?.enabled) {
-      sprite.setDamping(true);
       sprite.setDrag(physics.drag);
-      sprite.setGravityY(this.toWorldY(physics.gravityY));
+      sprite.setGravityY(physics.gravityY);
       sprite.setBounce(physics.bounce);
       sprite.setCollideWorldBounds(physics.collideWorldBounds);
 
