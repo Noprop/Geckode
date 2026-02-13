@@ -168,6 +168,9 @@ const getToolbox = () => {
           {
             kind: 'block',
             type: 'keyPressed',
+            fields: {
+              PRESSED_TYPE: 'pressed',
+            },
           },
         ],
       },

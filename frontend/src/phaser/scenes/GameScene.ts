@@ -91,7 +91,12 @@ export default class GameScene extends Phaser.Scene {
   }
 
   startHook() {}
-  update() {}
+  updateHook() {}
+
+  update() {
+
+    this.updateHook();
+  }
 
   private generateTilesetTexture(): void {
     const tileSize = GameScene.TILE_SIZE;
@@ -301,4 +306,10 @@ export default class GameScene extends Phaser.Scene {
       throw new Error(`runScript failed: ${message}`);
     }
   }
+
+  private getJustPressed(key) {
+
+  }
+
+
 }
