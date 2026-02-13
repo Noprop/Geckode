@@ -94,7 +94,11 @@ export default class GameScene extends Phaser.Scene {
   }
 
   startHook() {}
-  update() {}
+  updateHook() {}
+
+  update() {
+    this.updateHook();
+  }
 
   private generateTilesetTexture(): void {
     const tileSize = GameScene.TILE_SIZE;
