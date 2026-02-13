@@ -350,5 +350,33 @@ export default class GameScene extends Phaser.Scene {
     return false;
   }
 
+  private moveWithArrows(spriteName: string, vx: number, vy: number){
+    const sprite = this.getSprite(spriteName);
+    if (sprite) {
+      if (vx != 0) {
+        if (this.cursors.left.isDown && this.cursors.right.isDown) {
+          sprite.setVelocityX(0);
+        } else if (this.cursors.left.isDown) {
+          sprite.setVelocityX(-vx);
+        } else if (this.cursors.right.isDown) {
+          sprite.setVelocityX(vx);
+        } else if (this.getJustReleased(this.cursors.left) || this.getJustReleased(this.cursors.right)) {
+          sprite.setVelocityX(0);
+        }
+      }
+      if (vy != 0) {
+        if (this.cursors.up.isDown && this.cursors.down.isDown) {
+          sprite.setVelocityY(0);
+        } else if (this.cursors.up.isDown) {
+          sprite.setVelocityY(-vy);
+        } else if (this.cursors.down.isDown) {
+          sprite.setVelocityY(vy);
+        } else if (this.getJustReleased(this.cursors.up) || this.getJustReleased(this.cursors.down)) {
+          sprite.setVelocityY(0);
+        }
+      }
+    }
+  }
+
 
 }

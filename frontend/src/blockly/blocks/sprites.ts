@@ -300,16 +300,7 @@ javascriptGenerator.forBlock['moveWithArrows'] = function (block, generator) {
   const spriteName = spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"';
 
 
-  return `if (${VX} != 0) {
-    if (scene.cursors.left.isDown) {scene.getSprite(${spriteName}).setVelocityX(-${VX});}
-    if (scene.cursors.right.isDown) {scene.getSprite(${spriteName}).setVelocityX(${VX});}
-    if (scene.getJustReleased(scene.cursors.left) || scene.getJustReleased(scene.cursors.right)) {scene.getSprite(${spriteName}).setVelocityX(0);}
-  }
-  if (${VY} != 0) {
-    if (scene.cursors.up.isDown) {scene.getSprite(${spriteName}).setVelocityY(-${VY});}
-    if (scene.cursors.down.isDown) {scene.getSprite(${spriteName}).setVelocityY(${VY});}
-    if (scene.getJustReleased(scene.cursors.up) || scene.getJustReleased(scene.cursors.down)) {scene.getSprite(${spriteName}).setVelocityY(0);}
-  }\n`;
+  return `scene.moveWithArrows(${spriteName},${VX},${VY});\n`;
   
 
 };
