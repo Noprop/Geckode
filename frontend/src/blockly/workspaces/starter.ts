@@ -13,7 +13,7 @@ const starterWorkspace = {
               "type": "setProperty",
               "id": "z4a[C6klShqm`U-l0fmw",
               "fields": {
-                "PROPERTY": "X"
+                "PROPERTY": "x"
               },
               "inputs": {
                 "SPRITE": {
@@ -40,7 +40,7 @@ const starterWorkspace = {
                   "type": "setProperty",
                   "id": "QxT$/{}/evtm5ZKh9_HO",
                   "fields": {
-                    "PROPERTY": "Y"
+                    "PROPERTY": "y"
                   },
                   "inputs": {
                     "SPRITE": {
@@ -79,7 +79,7 @@ const starterWorkspace = {
               "type": "setProperty",
               "id": "_a:BM|tzU^Hig/3A0{J(",
               "fields": {
-                "PROPERTY": "VelocityX"
+                "PROPERTY": "velocity.x"
               },
               "inputs": {
                 "SPRITE": {
@@ -106,7 +106,7 @@ const starterWorkspace = {
                   "type": "setProperty",
                   "id": "Z|=S}`*{O1lcVNRFNQlB",
                   "fields": {
-                    "PROPERTY": "VelocityY"
+                    "PROPERTY": "velocity.y"
                   },
                   "inputs": {
                     "SPRITE": {
@@ -154,7 +154,7 @@ const starterWorkspace = {
                             "type": "setProperty",
                             "id": ",1P5h0J5twHpm-g$VCK/",
                             "fields": {
-                              "PROPERTY": "VelocityX"
+                              "PROPERTY": "velocity.x"
                             },
                             "inputs": {
                               "SPRITE": {
@@ -205,7 +205,7 @@ const starterWorkspace = {
                                 "type": "setProperty",
                                 "id": "h%v4X=0.^NWf6*/}h*wP",
                                 "fields": {
-                                  "PROPERTY": "VelocityX"
+                                  "PROPERTY": "velocity.x"
                                 },
                                 "inputs": {
                                   "SPRITE": {
@@ -256,7 +256,7 @@ const starterWorkspace = {
                                     "type": "setProperty",
                                     "id": ",v#S~tV(BY+5+)!J499p",
                                     "fields": {
-                                      "PROPERTY": "VelocityY"
+                                      "PROPERTY": "velocity.y"
                                     },
                                     "inputs": {
                                       "SPRITE": {
@@ -307,7 +307,7 @@ const starterWorkspace = {
                                         "type": "setProperty",
                                         "id": "T*w.2c@$MiLzx`Rf|Oj[",
                                         "fields": {
-                                          "PROPERTY": "VelocityY"
+                                          "PROPERTY": "velocity.y"
                                         },
                                         "inputs": {
                                           "SPRITE": {

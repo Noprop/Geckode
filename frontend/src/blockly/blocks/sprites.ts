@@ -17,10 +17,10 @@ const setProperty = {
       type: 'field_dropdown',
       name: 'PROPERTY',
       options: [
-        ['x', 'X'],
-        ['y', 'Y'],
-        ['velocityX', 'VelocityX'],
-        ['velocityY', 'VelocityY'],
+        ['x', 'x'],
+        ['y', 'y'],
+        ['velocityX', 'velocity.x'],
+        ['velocityY', 'velocity.y'],
       ],
     },
     {
