@@ -227,7 +227,7 @@ export default class GameScene extends Phaser.Scene {
   public addGameSprite(instance: SpriteInstance) {
     const { id, x, y, textureName, scaleX, scaleY, visible, direction, physics } = instance;
     console.log('[GameScene] addGameSprite called', textureName, x, y, id, physics);
-    const sprite = this.physics.add.sprite(x, this.toWorldY(y), textureName);
+    const sprite = this.physics.add.sprite(x, this.toWorldY(y), 'sprite-' + textureName);
     sprite.setName(id);
     sprite.setData('gameSpriteId', id);
     sprite.setDepth(GameScene.GAME_SPRITE_BASE_DEPTH);
