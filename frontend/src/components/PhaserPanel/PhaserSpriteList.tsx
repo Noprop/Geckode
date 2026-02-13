@@ -11,6 +11,7 @@ const PhaserSpriteList = () => {
   const removeSpriteInstance = useGeckodeStore((state) => state.removeSpriteInstance);
   const textures = useGeckodeStore((state) => state.textures);
   const libaryTextures = useGeckodeStore((state) => state.libaryTextures);
+  const isEditorScene = useGeckodeStore((state) => state.isEditorScene);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -31,6 +32,7 @@ const PhaserSpriteList = () => {
             useGeckodeStore.setState({ editingSource: 'new', isSpriteModalOpen: true });
           }}
           title="Add new sprite"
+          disabled={!isEditorScene}
         >
           + Add
         </Button>

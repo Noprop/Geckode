@@ -10,16 +10,20 @@ interface SpritePhysicsCurtainProps {
 
 const DEFAULT_PHYSICS: SpritePhysics = {
   enabled: false,
-  gravityY: 300,
+  gravityY: -300,
   bounce: 0.2,
   drag: 0.005,
   collideWorldBounds: true,
 };
 
 const SpritePhysicsCurtain = ({ isExpanded, onToggle }: SpritePhysicsCurtainProps) => {
-  const selectedSprite = useGeckodeStore((state) => state.selectedSprite);
   const selectedSpriteId = useGeckodeStore((state) => state.selectedSpriteId);
-  const updateSprite = useGeckodeStore((state) => state.updateSprite);
+  const selectedSprite = useGeckodeStore((s) =>
+    s.selectedSpriteId !== null
+      ? s.spriteInstances.find((i) => i.id === s.selectedSpriteId) ?? null
+      : null,
+  );
+  const updateSpriteInstance = useGeckodeStore((state) => state.updateSpriteInstance);
 
   const [values, setValues] = useState<SpritePhysics>(DEFAULT_PHYSICS);
 
@@ -35,7 +39,7 @@ const SpritePhysicsCurtain = ({ isExpanded, onToggle }: SpritePhysicsCurtainProp
     if (!selectedSpriteId) return;
     const newPhysics = { ...values, [field]: value };
     setValues(newPhysics);
-    updateSprite(selectedSpriteId, { physics: newPhysics });
+    updateSpriteInstance(selectedSpriteId, { physics: newPhysics });
   };
 
   const handleNumberChange = (field: keyof SpritePhysics, value: string) => {
@@ -49,7 +53,7 @@ const SpritePhysicsCurtain = ({ isExpanded, onToggle }: SpritePhysicsCurtainProp
     const currentValue = values[field];
     const finalValue = typeof currentValue === 'number' && !isNaN(currentValue) ? currentValue : defaultValue;
     const newPhysics = { ...values, [field]: finalValue };
-    updateSprite(selectedSpriteId, { physics: newPhysics });
+    updateSpriteInstance(selectedSpriteId, { physics: newPhysics });
   };
 
   return (
@@ -113,7 +117,7 @@ const SpritePhysicsCurtain = ({ isExpanded, onToggle }: SpritePhysicsCurtainProp
                 type="number"
                 value={values.gravityY}
                 onChange={(e) => handleNumberChange('gravityY', e.target.value)}
-                onBlur={() => handleNumberBlur('gravityY', 300)}
+                onBlur={() => handleNumberBlur('gravityY', -300)}
                 disabled={!selectedSprite || !values.enabled}
                 className="w-16 rounded-full border border-slate-300 bg-white px-2 py-1 text-xs text-center outline-none transition focus:border-primary-green focus:ring-2 focus:ring-primary-green/20 disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-600 dark:bg-dark-hover dark:text-slate-100 dark:disabled:bg-dark-tertiary dark:disabled:text-slate-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               />

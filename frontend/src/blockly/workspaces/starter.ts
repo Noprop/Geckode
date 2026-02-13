@@ -171,7 +171,7 @@ const starterWorkspace = {
                                   "type": "math_number",
                                   "id": "T1^+.;{VOKH*bLb`H4k1",
                                   "fields": {
-                                    "NUM": -500
+                                    "NUM": -300
                                   }
                                 }
                               }
@@ -222,7 +222,7 @@ const starterWorkspace = {
                                       "type": "math_number",
                                       "id": ",/o,|GPBU;r+@W2d,q(y",
                                       "fields": {
-                                        "NUM": 500
+                                        "NUM": 300
                                       }
                                     }
                                   }
@@ -273,7 +273,7 @@ const starterWorkspace = {
                                           "type": "math_number",
                                           "id": "X}U~EVEIhy0@MDKPyglR",
                                           "fields": {
-                                            "NUM": -500
+                                            "NUM": 300
                                           }
                                         }
                                       }
@@ -324,7 +324,7 @@ const starterWorkspace = {
                                               "type": "math_number",
                                               "id": "JiPj_$/Do6+ZS8Ci=F}U",
                                               "fields": {
-                                                "NUM": 500
+                                                "NUM": -300
                                               }
                                             }
                                           }
