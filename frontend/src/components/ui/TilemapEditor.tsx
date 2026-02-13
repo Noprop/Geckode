@@ -15,6 +15,7 @@ import {
   stampTileAtWithAlpha,
   rebuildPixelBuffer,
 } from '@/hooks/useTilePixelCache';
+import TileEditorModal from '@/components/TileModal/TileEditorModal';
 
 const TILE_PX = 16;
 
@@ -101,6 +102,8 @@ const TilemapEditor = () => {
   const [selectedTileKey, setSelectedTileKey] = useState<string | null>(null);
   const [brushSize, setBrushSize] = useState(1);
   const [hoverCell, setHoverCell] = useState<{ row: number; col: number } | null>(null);
+  const [isTileEditorOpen, setIsTileEditorOpen] = useState(false);
+  const minimapRef = useRef<HTMLCanvasElement>(null);
 
   const tileTextures = useGeckodeStore((s) => s.tiles);
   const tilemaps = useGeckodeStore((s) => s.tilemaps);
@@ -109,6 +112,7 @@ const TilemapEditor = () => {
   const setTilemapData = useGeckodeStore((s) => s.setTilemapData);
   const resizeTilemap = useGeckodeStore((s) => s.resizeTilemap);
   const clearTilemap = useGeckodeStore((s) => s.clearTilemap);
+  const setEditingAsset = useGeckodeStore((s) => s.setEditingAsset);
 
   const tilemap = activeTilemapId ? tilemaps[activeTilemapId] : null;
 
@@ -131,7 +135,28 @@ const TilemapEditor = () => {
   const { canvasRef, outputPixelsRef, previewPixelsRef, requestRender, resetPixelArrays } =
     usePixelCanvas(pixelW, pixelH, cellSize, 8, { enableKeyboardShortcuts: false });
 
-  const { tilePixelsRef, isReady } = useTilePixelCache(tileTextures);
+  const { tilePixelsRef, tileAveragesRef, isReady } = useTilePixelCache(tileTextures);
+
+  // ── Render minimap — one averaged-color block per tile ──
+  const renderMinimap = useCallback(() => {
+    const canvas = minimapRef.current;
+    if (!canvas || !tilemap) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    canvas.width = gridWidthTiles;
+    canvas.height = gridHeightTiles;
+    ctx.clearRect(0, 0, gridWidthTiles, gridHeightTiles);
+    const averages = tileAveragesRef.current;
+    for (let row = 0; row < gridHeightTiles; row++) {
+      for (let col = 0; col < gridWidthTiles; col++) {
+        const key = tilemap.data[row]?.[col];
+        if (!key || !averages[key]) continue;
+        const { r, g, b, a } = averages[key];
+        ctx.fillStyle = `rgba(${r},${g},${b},${a / 255})`;
+        ctx.fillRect(col, row, 1, 1);
+      }
+    }
+  }, [tilemap, gridWidthTiles, gridHeightTiles, tileAveragesRef]);
 
   // ── Zustand → pixel buffer sync ──
   useEffect(() => {
@@ -141,7 +166,8 @@ const TilemapEditor = () => {
       tilemap.width, tilemap.height, TILE_PX,
     );
     requestRender();
-  }, [tilemap, isReady, outputPixelsRef, tilePixelsRef, requestRender]);
+    renderMinimap();
+  }, [tilemap, isReady, outputPixelsRef, tilePixelsRef, requestRender, renderMinimap]);
 
   // ── Handle resize ──
   const prevDimsRef = useRef({ w: pixelW, h: pixelH });
@@ -447,6 +473,10 @@ const TilemapEditor = () => {
 
   return (
     <div className="flex-1 min-h-0 flex bg-light-secondary dark:bg-dark-secondary h-full">
+      <TileEditorModal
+        isOpen={isTileEditorOpen}
+        onClose={() => setIsTileEditorOpen(false)}
+      />
       {/* Left sidebar — brush size, tools, tile palette */}
       <div className="w-[250px] flex flex-col gap-3 p-2 bg-white/50 dark:bg-dark-secondary/50 border-r border-slate-200 dark:border-slate-700">
         {/* Brush size */}
@@ -464,6 +494,16 @@ const TilemapEditor = () => {
               <div className="bg-white" style={{ width: size * 3 + 2, height: size * 3 + 2 }} />
             </button>
           ))}
+        </div>
+
+        {/* Minimap */}
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wide font-semibold px-0.5">Minimap</span>
+          <canvas
+            ref={minimapRef}
+            className="w-full rounded border border-gray-400"
+            style={{ imageRendering: 'pixelated', aspectRatio: `${gridWidthTiles} / ${gridHeightTiles}` }}
+          />
         </div>
 
         {/* Tools grid — matches EditorTools layout */}
@@ -487,9 +527,6 @@ const TilemapEditor = () => {
           </ToolButton>
           <ToolButton tool="oval" activeTool={activeTool} onClick={() => setActiveTool('oval')} title="Oval tool">
             <CircleIcon className="w-5 h-5" />
-          </ToolButton>
-          <ToolButton tool="tile-picker" activeTool={activeTool} onClick={() => setActiveTool('tile-picker')} title="Tile picker">
-            <ColorPickerIcon className="w-5 h-5" />
           </ToolButton>
           <button
             type="button"
@@ -528,6 +565,10 @@ const TilemapEditor = () => {
                 onClick={() => {
                   setSelectedTileKey(key);
                   if (activeTool === 'tile-picker') setActiveTool('place');
+                }}
+                onDoubleClick={() => {
+                  setEditingAsset(key, 'tiles', 'asset');
+                  setIsTileEditorOpen(true);
                 }}
                 className={`aspect-square cursor-pointer transition-colors overflow-hidden ${
                   selectedTileKey === key
