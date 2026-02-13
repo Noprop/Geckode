@@ -29,7 +29,7 @@ import {
   tntTile,
   waterTile,
 } from '../b64_textures';
-import type { AssetType, EditingSource, GeckodeStore, Scene, SpriteSlice, Tilemap } from './types';
+import type { AssetType, EditingSource, GeckodeStore, Scene, SpriteSlice, Tilemap, Tileset } from './types';
 
 export const createEmptyTilemapData = (height: number, width: number): (string | null)[][] =>
   Array.from({ length: height }, () => Array.from({ length: width }, () => null));
@@ -76,7 +76,7 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
       physics: {
         enabled: false,
         drag: 0.01,
-        gravityY: 1,
+        gravityY: -1,
         bounce: 0.5,
         collideWorldBounds: true,
       },
@@ -109,6 +109,7 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
     obsidian: obsidianTile,
   },
   tilesets: {},
+  tileCollidables: {},
   animations: {},
   backgrounds: {},
 
@@ -242,6 +243,23 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
     set({ [type]: rest });
   },
 
+  /* ── Tilesets ── */
+  addTileset: (tileset: Tileset) => {
+    set({ tilesets: { ...get().tilesets, [tileset.id]: tileset } });
+  },
+  updateTileset: (id: string, tileset: Tileset) => {
+    set({ tilesets: { ...get().tilesets, [id]: tileset } });
+  },
+  removeTileset: (id: string) => {
+    const { [id]: _, ...rest } = get().tilesets;
+    set({ tilesets: rest });
+  },
+
+  /* ── Tile Collidables ── */
+  setTileCollidable: (tileKey: string, collidable: boolean) => {
+    set({ tileCollidables: { ...get().tileCollidables, [tileKey]: collidable } });
+  },
+
   /* ── Tilemaps ── */
   setActiveTilemapId: (id: string | null) => set({ activeTilemapId: id }),
   updateTilemapCell: (tilemapId: string, row: number, col: number, tileKey: string | null) => {
@@ -323,6 +341,7 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
       textures: { 'hero-walk-front': heroWalkFront1 },
       tiles: {},
       tilesets: {},
+      tileCollidables: {},
       animations: {},
       backgrounds: {},
       libaryTextures: {

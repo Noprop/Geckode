@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useGeckodeStore } from '@/stores/geckodeStore';
 import { createUniqueTextureName } from '@/stores/slices/spriteSlice';
-import type { AssetType } from '@/stores/slices/types';
+import type { AssetType, Tileset } from '@/stores/slices/types';
 import AssetList from './AssetList';
 import TextureDetailPanel from './DetailPanel';
 import TileEditorModal from '../TileModal/TileEditorModal';
@@ -32,7 +32,10 @@ const AssetWorkspace = () => {
   const setEditingAsset = useGeckodeStore((s) => s.setEditingAsset);
   const setIsSpriteModalOpen = useGeckodeStore((s) => s.setIsSpriteModalOpen);
 
-  const selectedBase64 = selectedAsset ? assets[selectedAsset.name] : null;
+  const rawValue = selectedAsset ? assets[selectedAsset.name] : null;
+  const selectedBase64 = rawValue
+    ? (typeof rawValue === 'string' ? rawValue : (rawValue as Tileset).base64Preview)
+    : null;
 
   const handleEdit = () => {
     if (!selectedAsset) return;
@@ -45,7 +48,8 @@ const AssetWorkspace = () => {
   const handleDuplicate = () => {
     if (!selectedAsset || !selectedBase64) return;
     const all = useGeckodeStore.getState()[selectedAsset.type];
-    const newName = createUniqueTextureName(selectedAsset.name, all);
+    const nameMap = Object.fromEntries(Object.keys(all).map(k => [k, '']));
+    const newName = createUniqueTextureName(selectedAsset.name, nameMap);
     addAsset(newName, selectedBase64, selectedAsset.type);
     setSelectedAsset({ name: newName, type: selectedAsset.type });
   };

@@ -41,7 +41,12 @@ javascriptGenerator.forBlock['setProperty'] = function (block, generator) {
   const spriteName = spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"';
 
 
-  return `scene.getSprite(${spriteName}).set${block.getFieldValue('PROPERTY')}(${value})\n`;
+  const prop = block.getFieldValue('PROPERTY');
+  if (prop === 'Y' || prop === 'VelocityY') {
+    return `scene.getSprite(${spriteName}).set${prop}(-(${value}))\n`;
+  }
+  return `scene.getSprite(${spriteName}).set${prop}(${value})\n`;
+
 
 };
 
@@ -81,12 +86,17 @@ javascriptGenerator.forBlock['changeProperty'] = function (block, generator) {
   const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
 
 
+  const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
+  const spriteName = spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"';
+  const prop = block.getFieldValue('PROPERTY');
+  if (prop === 'y' || prop === 'velocity.y') {
+    return `scene.getSprite(${spriteName}).${prop} -= ${value}\n`;
+  }
+  return `scene.getSprite(${spriteName}).${prop} += ${value}\n`;
+
   // TODO: verify that we should be using sprite.body instead of sprite.x (apparently .body is the physics body which
   // is the top left of the sprite, rather than the center)
-  const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
-  return `scene.getSprite(${
-    spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"'
-  }).body.${block.getFieldValue('PROPERTY')} += ${value}\n`;
+
 
 };
 
@@ -125,10 +135,12 @@ javascriptGenerator.forBlock['getProperty'] = function (block, generator) {
     !isIsolated(block)
   ) {
     const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
-    const code = `scene.getSprite(${
-      spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"'
-    }).body.${block.getFieldValue('PROPERTY')}`;
-    return [code, Order.NONE];
+    const spriteName = spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"';
+    const prop = block.getFieldValue('PROPERTY');
+    if (prop === 'y' || prop === 'velocity.y') {
+      return [`-(scene.getSprite(${spriteName}).${prop})`, Order.NONE];
+    }
+    return [`scene.getSprite(${spriteName}).${prop}`, Order.NONE];
   }
   return['', Order.NONE];
 };

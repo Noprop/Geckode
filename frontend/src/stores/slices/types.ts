@@ -33,7 +33,14 @@ export interface Tilemap {
   base64: string;
 }
 
-export type TilemapTool = 'place' | 'eraser' | 'bucket' | 'line' | 'rectangle' | 'oval' | 'tile-picker';
+export interface Tileset {
+  id: string;
+  name: string;
+  data: (string | null)[][];  // 5x5 grid of tile keys
+  base64Preview: string;
+}
+
+export type TilemapTool = 'place' | 'eraser' | 'bucket' | 'line' | 'rectangle' | 'oval' | 'tile-picker' | 'collidable';
 
 // ── Sprite Slice ──
 
@@ -45,7 +52,7 @@ export interface SpriteState {
 
   textures: Record<string, string>;
   tiles: Record<string, string>;
-  tilesets: Record<string, string>;
+  tilesets: Record<string, Tileset>;
   animations: Record<string, string>;
   backgrounds: Record<string, string>;
 
@@ -54,6 +61,8 @@ export interface SpriteState {
   libaryTilesets: Record<string, string>;
   libaryAnimations: Record<string, string>;
   libaryBackgrounds: Record<string, string>;
+
+  tileCollidables: Record<string, boolean>;
 
   tilemaps: Record<string, Tilemap>;
   scenes: Scene[];
@@ -83,6 +92,14 @@ export interface SpriteActions {
   addAsset: (name: string, base64Image: string, type: AssetType) => void;
   updateAsset: (name: string, base64Image: string, type: AssetType) => void;
   removeAsset: (name: string, type: AssetType) => void;
+
+  /* Tilesets */
+  addTileset: (tileset: Tileset) => void;
+  updateTileset: (id: string, tileset: Tileset) => void;
+  removeTileset: (id: string) => void;
+
+  /* Tile collidables */
+  setTileCollidable: (tileKey: string, collidable: boolean) => void;
 
   /* Tilemaps */
   updateTilemapCell: (tilemapId: string, row: number, col: number, tileKey: string | null) => void;
