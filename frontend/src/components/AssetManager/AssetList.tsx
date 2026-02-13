@@ -14,9 +14,10 @@ interface AssetListProps {
   selectedAsset: SelectedAsset;
   onSelectAsset: (asset: SelectedAsset) => void;
   onCreateNew: () => void;
+  onDoubleClickAsset?: (asset: SelectedAsset) => void;
 }
 
-const AssetList = ({ filter, activeTab, onTabChange, selectedAsset, onSelectAsset, onCreateNew }: AssetListProps) => {
+const AssetList = ({ filter, activeTab, onTabChange, selectedAsset, onSelectAsset, onCreateNew, onDoubleClickAsset }: AssetListProps) => {
   const assets = useGeckodeStore((s) => s[filter]);
 
   const entries = useMemo(
@@ -72,6 +73,7 @@ const AssetList = ({ filter, activeTab, onTabChange, selectedAsset, onSelectAsse
               type="button"
               key={`${entry.type}-${entry.name}`}
               onClick={() => onSelectAsset({ name: entry.name, type: entry.type })}
+              onDoubleClick={() => onDoubleClickAsset?.({ name: entry.name, type: entry.type })}
               className={`group relative flex w-[120px] cursor-pointer flex-col overflow-hidden rounded-md border bg-white shadow-sm transition dark:bg-dark-secondary ${
                 isSelected(entry)
                   ? 'border-primary-green ring-2 ring-primary-green/30'

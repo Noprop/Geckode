@@ -75,8 +75,8 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
       snapToGrid: true,
       physics: {
         enabled: false,
-        drag: 0.01,
-        gravityY: -1,
+        drag: 0.99,
+        gravityY: 300,
         bounce: 0.5,
         collideWorldBounds: true,
       },

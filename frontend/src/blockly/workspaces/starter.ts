@@ -103,27 +103,51 @@ const starterWorkspace = {
               },
               "next": {
                 "block": {
-                  "type": "setProperty",
-                  "id": "Z|=S}`*{O1lcVNRFNQlB",
-                  "fields": {
-                    "PROPERTY": "VelocityY"
-                  },
+                  "type": "controls_if",
+                  "id": "^LJRy*UK^YFM7qXEbQC^",
                   "inputs": {
-                    "SPRITE": {
+                    "IF0": {
                       "shadow": {
-                        "type": "spriteGhost",
-                        "id": "V|~SqPlN]^abf:o[)?]x",
+                        "type": "logic_boolean",
+                        "id": "W(9/Z$p3JvZ2|:=CM4*L",
                         "fields": {
-                          "SPRITE": "id_1769104655700_9212"
+                          "BOOL": "TRUE"
+                        }
+                      },
+                      "block": {
+                        "type": "keyPressed",
+                        "id": "Y:`4yeOG/Ui6pHCG^]A%",
+                        "fields": {
+                          "KEY": "left"
                         }
                       }
                     },
-                    "VALUE": {
-                      "shadow": {
-                        "type": "math_number",
-                        "id": "-2_hhE*~GOZc5XF*h`^b",
+                    "DO0": {
+                      "block": {
+                        "type": "setProperty",
+                        "id": ",1P5h0J5twHpm-g$VCK/",
                         "fields": {
-                          "NUM": 0
+                          "PROPERTY": "VelocityX"
+                        },
+                        "inputs": {
+                          "SPRITE": {
+                            "shadow": {
+                              "type": "spriteGhost",
+                              "id": "/%6*l`Qd0fq!+w@7s=1|",
+                              "fields": {
+                                "SPRITE": "id_1769104655700_9212"
+                              }
+                            }
+                          },
+                          "VALUE": {
+                            "shadow": {
+                              "type": "math_number",
+                              "id": "T1^+.;{VOKH*bLb`H4k1",
+                              "fields": {
+                                "NUM": -300
+                              }
+                            }
+                          }
                         }
                       }
                     }
@@ -131,7 +155,7 @@ const starterWorkspace = {
                   "next": {
                     "block": {
                       "type": "controls_if",
-                      "id": "^LJRy*UK^YFM7qXEbQC^",
+                      "id": "HYH{;3tx)rW+FYLTe9#C",
                       "inputs": {
                         "IF0": {
                           "shadow": {
@@ -143,16 +167,16 @@ const starterWorkspace = {
                           },
                           "block": {
                             "type": "keyPressed",
-                            "id": "Y:`4yeOG/Ui6pHCG^]A%",
+                            "id": "IMczrXl+Qb9aIq=25YX$",
                             "fields": {
-                              "KEY": "left"
+                              "KEY": "right"
                             }
                           }
                         },
                         "DO0": {
                           "block": {
                             "type": "setProperty",
-                            "id": ",1P5h0J5twHpm-g$VCK/",
+                            "id": "h%v4X=0.^NWf6*/}h*wP",
                             "fields": {
                               "PROPERTY": "VelocityX"
                             },
@@ -160,7 +184,7 @@ const starterWorkspace = {
                               "SPRITE": {
                                 "shadow": {
                                   "type": "spriteGhost",
-                                  "id": "/%6*l`Qd0fq!+w@7s=1|",
+                                  "id": "f{D{|DOQjfY?MZ~ECmF-",
                                   "fields": {
                                     "SPRITE": "id_1769104655700_9212"
                                   }
@@ -169,9 +193,9 @@ const starterWorkspace = {
                               "VALUE": {
                                 "shadow": {
                                   "type": "math_number",
-                                  "id": "T1^+.;{VOKH*bLb`H4k1",
+                                  "id": ",/o,|GPBU;r+@W2d,q(y",
                                   "fields": {
-                                    "NUM": -300
+                                    "NUM": 300
                                   }
                                 }
                               }
@@ -182,7 +206,7 @@ const starterWorkspace = {
                       "next": {
                         "block": {
                           "type": "controls_if",
-                          "id": "HYH{;3tx)rW+FYLTe9#C",
+                          "id": "+Q[Eom5,94}qq|]yVn}4",
                           "inputs": {
                             "IF0": {
                               "shadow": {
@@ -194,24 +218,24 @@ const starterWorkspace = {
                               },
                               "block": {
                                 "type": "keyPressed",
-                                "id": "IMczrXl+Qb9aIq=25YX$",
+                                "id": "$S#*VopOA$QRz1)Y$b!}",
                                 "fields": {
-                                  "KEY": "right"
+                                  "KEY": "up"
                                 }
                               }
                             },
                             "DO0": {
                               "block": {
                                 "type": "setProperty",
-                                "id": "h%v4X=0.^NWf6*/}h*wP",
+                                "id": ",v#S~tV(BY+5+)!J499p",
                                 "fields": {
-                                  "PROPERTY": "VelocityX"
+                                  "PROPERTY": "VelocityY"
                                 },
                                 "inputs": {
                                   "SPRITE": {
                                     "shadow": {
                                       "type": "spriteGhost",
-                                      "id": "f{D{|DOQjfY?MZ~ECmF-",
+                                      "id": "c@d/LE6sBQBst6KVFNQK",
                                       "fields": {
                                         "SPRITE": "id_1769104655700_9212"
                                       }
@@ -220,115 +244,9 @@ const starterWorkspace = {
                                   "VALUE": {
                                     "shadow": {
                                       "type": "math_number",
-                                      "id": ",/o,|GPBU;r+@W2d,q(y",
+                                      "id": "X}U~EVEIhy0@MDKPyglR",
                                       "fields": {
                                         "NUM": 300
-                                      }
-                                    }
-                                  }
-                                }
-                              }
-                            }
-                          },
-                          "next": {
-                            "block": {
-                              "type": "controls_if",
-                              "id": "+Q[Eom5,94}qq|]yVn}4",
-                              "inputs": {
-                                "IF0": {
-                                  "shadow": {
-                                    "type": "logic_boolean",
-                                    "id": "W(9/Z$p3JvZ2|:=CM4*L",
-                                    "fields": {
-                                      "BOOL": "TRUE"
-                                    }
-                                  },
-                                  "block": {
-                                    "type": "keyPressed",
-                                    "id": "$S#*VopOA$QRz1)Y$b!}",
-                                    "fields": {
-                                      "KEY": "up"
-                                    }
-                                  }
-                                },
-                                "DO0": {
-                                  "block": {
-                                    "type": "setProperty",
-                                    "id": ",v#S~tV(BY+5+)!J499p",
-                                    "fields": {
-                                      "PROPERTY": "VelocityY"
-                                    },
-                                    "inputs": {
-                                      "SPRITE": {
-                                        "shadow": {
-                                          "type": "spriteGhost",
-                                          "id": "c@d/LE6sBQBst6KVFNQK",
-                                          "fields": {
-                                            "SPRITE": "id_1769104655700_9212"
-                                          }
-                                        }
-                                      },
-                                      "VALUE": {
-                                        "shadow": {
-                                          "type": "math_number",
-                                          "id": "X}U~EVEIhy0@MDKPyglR",
-                                          "fields": {
-                                            "NUM": 300
-                                          }
-                                        }
-                                      }
-                                    }
-                                  }
-                                }
-                              },
-                              "next": {
-                                "block": {
-                                  "type": "controls_if",
-                                  "id": "uV^0^lg[JX]7pR$AISs$",
-                                  "inputs": {
-                                    "IF0": {
-                                      "shadow": {
-                                        "type": "logic_boolean",
-                                        "id": "W(9/Z$p3JvZ2|:=CM4*L",
-                                        "fields": {
-                                          "BOOL": "TRUE"
-                                        }
-                                      },
-                                      "block": {
-                                        "type": "keyPressed",
-                                        "id": "rF@4:79Gl+X|!gp.qwg*",
-                                        "fields": {
-                                          "KEY": "down"
-                                        }
-                                      }
-                                    },
-                                    "DO0": {
-                                      "block": {
-                                        "type": "setProperty",
-                                        "id": "T*w.2c@$MiLzx`Rf|Oj[",
-                                        "fields": {
-                                          "PROPERTY": "VelocityY"
-                                        },
-                                        "inputs": {
-                                          "SPRITE": {
-                                            "shadow": {
-                                              "type": "spriteGhost",
-                                              "id": "4Z)s1ZP3qwHyXBxz-dO[",
-                                              "fields": {
-                                                "SPRITE": "id_1769104655700_9212"
-                                              }
-                                            }
-                                          },
-                                          "VALUE": {
-                                            "shadow": {
-                                              "type": "math_number",
-                                              "id": "JiPj_$/Do6+ZS8Ci=F}U",
-                                              "fields": {
-                                                "NUM": -300
-                                              }
-                                            }
-                                          }
-                                        }
                                       }
                                     }
                                   }

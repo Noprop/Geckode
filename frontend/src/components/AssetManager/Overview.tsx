@@ -102,6 +102,14 @@ const AssetWorkspace = () => {
           selectedAsset={selectedAsset}
           onSelectAsset={setSelectedAsset}
           onCreateNew={handleCreateNew}
+          onDoubleClickAsset={(asset) => {
+            if (!asset) return;
+            setSelectedAsset(asset);
+            setEditingAsset(asset.name, asset.type, 'asset');
+            if (asset.type === 'textures') setIsSpriteModalOpen(true);
+            else if (asset.type === 'tiles') setIsTileEditorModalOpen(true);
+            else if (asset.type === 'tilesets') setIsTilesetEditorModalOpen(true);
+          }}
         />
       </div>
 
