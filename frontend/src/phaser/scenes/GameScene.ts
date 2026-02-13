@@ -335,11 +335,11 @@ export default class GameScene extends Phaser.Scene {
   }
 
   public getJustReleased(key: Phaser.Input.Keyboard.Key) {
-    if (this.justPressedKeys.includes(key)) {
+    if (this.justReleasedKeys.includes(key)) {
       return true;
     }
     if (Phaser.Input.Keyboard.JustUp(key)) {
-      this.justPressedKeys.push(key);
+      this.justReleasedKeys.push(key);
       return true;
     }
     return false;
