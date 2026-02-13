@@ -34,12 +34,39 @@ import type { AssetType, EditingSource, GeckodeStore, Scene, SpriteSlice, Tilema
 export const createEmptyTilemapData = (height: number, width: number): (string | null)[][] =>
   Array.from({ length: height }, () => Array.from({ length: width }, () => null));
 
-const createDefaultTilemap = (): Tilemap => ({
+export const TILE_PX = 16;
+export const TILESET_WIDTH = 5;
+const DEFAULT_TILESET_ID = 'tileset_1';
+
+const createDefaultTilesetData = (): (string | null)[][] => {
+  const defaults: (string | null)[] = [
+    'grass', 'dirt', 'stone', 'cobblestone', 'sand',
+    'water', 'lava', 'oakPlanks', 'oakLog', 'leaves',
+    'brick', 'ironOre', 'goldOre', 'diamondOre', 'coalOre',
+    'snow', 'ice', 'gravel', 'tnt', 'bedrock',
+    'glass', 'obsidian', null, null, null,
+  ];
+  const data: (string | null)[][] = [];
+  for (let i = 0; i < defaults.length; i += TILESET_WIDTH) {
+    data.push(defaults.slice(i, i + TILESET_WIDTH));
+  }
+  return data;
+};
+
+const createDefaultTileset = (): Tileset => ({
+  id: DEFAULT_TILESET_ID,
+  name: 'Default Tileset',
+  data: createDefaultTilesetData(),
+  base64Preview: '',
+});
+
+const createDefaultTilemap = (tilesetId: string): Tilemap => ({
   id: 'tilemap_1',
   name: 'Tilemap 1',
   height: 12,
   width: 16,
   data: createEmptyTilemapData(12, 16),
+  tilesetId,
   base64: '',
 });
 
@@ -108,7 +135,7 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
     glass: glassTile,
     obsidian: obsidianTile,
   },
-  tilesets: {},
+  tilesets: [createDefaultTileset()],
   tileCollidables: {},
   animations: {},
   backgrounds: {},
@@ -123,7 +150,7 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
   libaryAnimations: {},
   libaryBackgrounds: {},
 
-  tilemaps: { tilemap_1: createDefaultTilemap() },
+  tilemaps: { tilemap_1: createDefaultTilemap(DEFAULT_TILESET_ID) },
   scenes: [{ id: 'scene_1', name: 'Scene 1', tilemapId: 'tilemap_1' }],
   activeTilemapId: 'tilemap_1',
 
@@ -236,23 +263,59 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
   /* ── Assets ── */
   setEditingAsset: (name: string | null, type: AssetType, source: EditingSource) => { set({ editingSource: source, editingAssetName: name, editingAssetType: type }) },
 
-  addAsset: (name: string, base64Image: string, type: AssetType) => { set({ [type]: { ...get()[type], [name]: base64Image } }); },
-  updateAsset: (name: string, base64Image: string, type: AssetType) => { set({ [type]: { ...get()[type], [name]: base64Image } }); },
+  addAsset: (name: string, base64Image: string, type: AssetType) => {
+    if (type === 'tilesets') return;
+    const assets = { ...(get() as any)[type], [name]: base64Image };
+    set({ [type]: assets } as any);
+  },
+  updateAsset: (name: string, base64Image: string, type: AssetType) => {
+    if (type === 'tilesets') return;
+    const assets = { ...(get() as any)[type], [name]: base64Image };
+    set({ [type]: assets } as any);
+  },
   removeAsset: (name: string, type: AssetType) => {
-    const { [name]: _, ...rest } = get()[type];
-    set({ [type]: rest });
+    if (type === 'tilesets') return;
+    const current = { ...(get() as any)[type] };
+    delete current[name];
+    set({ [type]: current } as any);
   },
 
   /* ── Tilesets ── */
   addTileset: (tileset: Tileset) => {
-    set({ tilesets: { ...get().tilesets, [tileset.id]: tileset } });
+    const existing = get().tilesets;
+    const idx = existing.findIndex((ts) => ts.id === tileset.id);
+    if (idx === -1) {
+      set({ tilesets: [...existing, tileset] });
+      return;
+    }
+    set({ tilesets: existing.map((ts, i) => (i === idx ? tileset : ts)) });
   },
   updateTileset: (id: string, tileset: Tileset) => {
-    set({ tilesets: { ...get().tilesets, [id]: tileset } });
+    set({
+      tilesets: get().tilesets.map((ts) => (ts.id === id ? tileset : ts)),
+    });
   },
   removeTileset: (id: string) => {
-    const { [id]: _, ...rest } = get().tilesets;
-    set({ tilesets: rest });
+    const existing = get().tilesets;
+    if (existing.length <= 1) return;
+
+    const nextTilesets = existing.filter((ts) => ts.id !== id);
+    if (nextTilesets.length === existing.length) return;
+
+    const fallbackTilesetId = nextTilesets[0].id;
+    const nextTilemaps = Object.fromEntries(
+      Object.entries(get().tilemaps).map(([tilemapId, tilemap]) => [
+        tilemapId,
+        tilemap.tilesetId === id
+          ? { ...tilemap, tilesetId: fallbackTilesetId }
+          : tilemap,
+      ]),
+    );
+
+    set({
+      tilesets: nextTilesets,
+      tilemaps: nextTilemaps,
+    });
   },
 
   /* ── Tile Collidables ── */
@@ -262,6 +325,17 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
 
   /* ── Tilemaps ── */
   setActiveTilemapId: (id: string | null) => set({ activeTilemapId: id }),
+  setTilemapTilesetId: (tilemapId: string, tilesetId: string) => {
+    const tilemap = get().tilemaps[tilemapId];
+    if (!tilemap) return;
+    if (!get().tilesets.some((ts) => ts.id === tilesetId)) return;
+    set({
+      tilemaps: {
+        ...get().tilemaps,
+        [tilemapId]: { ...tilemap, tilesetId },
+      },
+    });
+  },
   updateTilemapCell: (tilemapId: string, row: number, col: number, tileKey: string | null) => {
     const tilemap = get().tilemaps[tilemapId];
     if (!tilemap) return;
@@ -339,8 +413,31 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
         },
       ],
       textures: { 'hero-walk-front': heroWalkFront1 },
-      tiles: {},
-      tilesets: {},
+      tiles: {
+        grass: grassTile,
+        dirt: dirtTile,
+        stone: stoneTile,
+        cobblestone: cobblestoneTile,
+        sand: sandTile,
+        water: waterTile,
+        lava: lavaTile,
+        oakPlanks: oakPlanksTile,
+        oakLog: oakLogTile,
+        leaves: leavesTile,
+        brick: brickTile,
+        ironOre: ironOreTile,
+        goldOre: goldOreTile,
+        diamondOre: diamondOreTile,
+        coalOre: coalOreTile,
+        snow: snowTile,
+        ice: iceTile,
+        gravel: gravelTile,
+        tnt: tntTile,
+        bedrock: bedrockTile,
+        glass: glassTile,
+        obsidian: obsidianTile,
+      },
+      tilesets: [createDefaultTileset()],
       tileCollidables: {},
       animations: {},
       backgrounds: {},
@@ -357,7 +454,7 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
       editingSource: null,
       editingAssetName: null,
       editingAssetType: null,
-      tilemaps: { tilemap_1: createDefaultTilemap() },
+      tilemaps: { tilemap_1: createDefaultTilemap(DEFAULT_TILESET_ID) },
       scenes: [{ id: 'scene_1', name: 'Scene 1', tilemapId: 'tilemap_1' }],
       activeTilemapId: 'tilemap_1',
     });

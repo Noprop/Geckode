@@ -30,13 +30,14 @@ export interface Tilemap {
   width: number;
   height: number;
   data: (string | null)[][];
+  tilesetId: string;
   base64: string;
 }
 
 export interface Tileset {
   id: string;
   name: string;
-  data: (string | null)[][];  // 5x5 grid of tile keys
+  data: (string | null)[][];  // 5xN grid of tile keys (fixed width of 5)
   base64Preview: string;
 }
 
@@ -52,7 +53,7 @@ export interface SpriteState {
 
   textures: Record<string, string>;
   tiles: Record<string, string>;
-  tilesets: Record<string, Tileset>;
+  tilesets: Tileset[];
   animations: Record<string, string>;
   backgrounds: Record<string, string>;
 
@@ -106,6 +107,7 @@ export interface SpriteActions {
   setTilemapData: (tilemapId: string, data: (string | null)[][]) => void;
   resizeTilemap: (tilemapId: string, newWidth: number, newHeight: number) => void;
   setActiveTilemapId: (id: string | null) => void;
+  setTilemapTilesetId: (tilemapId: string, tilesetId: string) => void;
   clearTilemap: (tilemapId: string) => void;
   setScenes: (scenes: Scene[]) => void;
 

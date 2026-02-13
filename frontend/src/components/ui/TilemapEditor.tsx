@@ -1,8 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { PointerEvent as ReactPointerEvent } from 'react';
-import { EraserIcon } from '@radix-ui/react-icons';
+import type { DragEvent as ReactDragEvent, PointerEvent as ReactPointerEvent } from 'react';
+import { CopyIcon, EraserIcon, Pencil2Icon, TrashIcon } from '@radix-ui/react-icons';
 import { PencilIcon, BucketIcon, LineIcon, CircleIcon, ColorPickerIcon } from '@/components/icons';
 import { useGeckodeStore } from '@/stores/geckodeStore';
 import type { TilemapTool, Tileset } from '@/stores/geckodeStore';
@@ -15,11 +15,10 @@ import {
   stampTileAtWithAlpha,
   rebuildPixelBuffer,
 } from '@/hooks/useTilePixelCache';
-import TilesetEditorModal from '@/components/TileModal/TilesetEditorModal';
+import TileEditorModal from '@/components/TileModal/TileEditorModal';
 import { getLineCells, getRectangleCells, getOvalCells } from '@/lib/tileGridGeometry';
-
-const TILE_PX = 16;
-const TILESET_GRID = 5; // tileset data is 5x5
+import { createUniqueTextureName } from '@/stores/slices/spriteSlice';
+import { TILE_PX, TILESET_WIDTH } from '@/stores/slices/spriteSlice';
 
 // ── Tool button ──
 const ToolButton = ({
@@ -51,11 +50,12 @@ const ToolButton = ({
 
 const TilemapEditor = () => {
   const [activeTool, setActiveTool] = useState<TilemapTool>('place');
-  const [selectedTilesetId, setSelectedTilesetId] = useState<string | null>(null);
   const [selectedSingleTile, setSelectedSingleTile] = useState<string | null>(null);
+  const [selectedTilesetCell, setSelectedTilesetCell] = useState<{ row: number; col: number; tileKey: string } | null>(null);
+  const [dragOverTilesetCell, setDragOverTilesetCell] = useState<{ row: number; col: number } | null>(null);
   const [brushSize, setBrushSize] = useState(1);
   const [hoverCell, setHoverCell] = useState<{ row: number; col: number } | null>(null);
-  const [isTilesetEditorOpen, setIsTilesetEditorOpen] = useState(false);
+  const [isTileEditorOpen, setIsTileEditorOpen] = useState(false);
   const [showCollidables, setShowCollidables] = useState(false);
   const minimapRef = useRef<HTMLCanvasElement>(null);
   const collidableCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -67,27 +67,52 @@ const TilemapEditor = () => {
   const updateTilemapCell = useGeckodeStore((s) => s.updateTilemapCell);
   const setTilemapData = useGeckodeStore((s) => s.setTilemapData);
   const resizeTilemap = useGeckodeStore((s) => s.resizeTilemap);
+  const setTilemapTilesetId = useGeckodeStore((s) => s.setTilemapTilesetId);
   const clearTilemap = useGeckodeStore((s) => s.clearTilemap);
+  const updateTileset = useGeckodeStore((s) => s.updateTileset);
+  const addAsset = useGeckodeStore((s) => s.addAsset);
   const setEditingAsset = useGeckodeStore((s) => s.setEditingAsset);
   const tileCollidables = useGeckodeStore((s) => s.tileCollidables);
 
   const tilemap = activeTilemapId ? tilemaps[activeTilemapId] : null;
 
-  // Get the selected tileset object
-  const selectedTileset: Tileset | null = selectedTilesetId ? tilesets[selectedTilesetId] ?? null : null;
+  const selectedTileset: Tileset | null = tilemap
+    ? (tilesets.find((ts) => ts.id === tilemap.tilesetId) ?? tilesets[0] ?? null)
+    : null;
 
-  // Resolve the effective tile key for per-cell operations:
-  // If tile-picker was used, use the single tile. Otherwise use top-left tile of selected tileset.
-  const effectiveSingleTile: string | null = selectedSingleTile
-    ?? (selectedTileset ? getFirstTile(selectedTileset) : null);
-
-  // Auto-select first tileset
+  // Ensure active tilemap always points at a valid tileset.
   useEffect(() => {
-    if (!selectedTilesetId) {
-      const keys = Object.keys(tilesets);
-      if (keys.length > 0) setSelectedTilesetId(keys[0]);
+    if (!tilemap || !activeTilemapId || tilesets.length === 0) return;
+    if (!tilesets.some((ts) => ts.id === tilemap.tilesetId)) {
+      setTilemapTilesetId(activeTilemapId, tilesets[0].id);
     }
-  }, [tilesets, selectedTilesetId]);
+  }, [tilemap, activeTilemapId, tilesets, setTilemapTilesetId]);
+
+  // Keep selected tile synced with the current tileset or fallback to first non-null cell.
+  useEffect(() => {
+    if (!selectedTileset) {
+      setSelectedTilesetCell(null);
+      setSelectedSingleTile(null);
+      return;
+    }
+
+    if (selectedTilesetCell) {
+      const currentTile = selectedTileset.data[selectedTilesetCell.row]?.[selectedTilesetCell.col] ?? null;
+      if (currentTile) {
+        if (currentTile !== selectedTilesetCell.tileKey) {
+          setSelectedTilesetCell({ row: selectedTilesetCell.row, col: selectedTilesetCell.col, tileKey: currentTile });
+        }
+        setSelectedSingleTile(currentTile);
+        return;
+      }
+    }
+
+    const first = findFirstTileCell(selectedTileset);
+    setSelectedTilesetCell(first);
+    setSelectedSingleTile(first?.tileKey ?? null);
+  }, [selectedTileset]);
+
+  const effectiveSingleTile: string | null = selectedSingleTile;
 
   const gridWidthTiles = tilemap?.width ?? 16;
   const gridHeightTiles = tilemap?.height ?? 16;
@@ -172,17 +197,15 @@ const TilemapEditor = () => {
     shapeStart: null as { row: number; col: number } | null,
     prevCell: null as { row: number; col: number } | null,
     activeTool: 'place' as TilemapTool,
-    selectedTilesetId: null as string | null,
     selectedSingleTile: null as string | null,
     brushSize: 1,
   });
   useEffect(() => {
     const ds = drawStateRef.current;
     ds.activeTool = activeTool;
-    ds.selectedTilesetId = selectedTilesetId;
     ds.selectedSingleTile = effectiveSingleTile;
     ds.brushSize = brushSize;
-  }, [activeTool, selectedTilesetId, effectiveSingleTile, brushSize]);
+  }, [activeTool, effectiveSingleTile, brushSize]);
 
   // ── Preview cells for shape commit ──
   const previewCellsRef = useRef<{ row: number; col: number }[]>([]);
@@ -245,22 +268,6 @@ const TilemapEditor = () => {
     return cells;
   }, [gridWidthTiles, gridHeightTiles]);
 
-  // ── Stamp a tileset at a position (top-left corner) ──
-  const stampTileset = useCallback((tileset: Tileset, topRow: number, topCol: number) => {
-    if (!activeTilemapId || !tilemap) return;
-    for (let dr = 0; dr < TILESET_GRID; dr++) {
-      for (let dc = 0; dc < TILESET_GRID; dc++) {
-        const tileKey = tileset.data[dr]?.[dc];
-        if (tileKey === null || tileKey === undefined) continue;
-        const r = topRow + dr;
-        const c = topCol + dc;
-        if (r >= 0 && r < tilemap.height && c >= 0 && c < tilemap.width) {
-          updateTilemapCell(activeTilemapId, r, c, tileKey);
-        }
-      }
-    }
-  }, [activeTilemapId, tilemap, updateTilemapCell]);
-
   // ── Apply single cell placement (for pen / eraser drag with single tile) ──
   const applySingleCell = useCallback((row: number, col: number) => {
     if (!activeTilemapId || !tilemap) return;
@@ -273,26 +280,6 @@ const TilemapEditor = () => {
       }
     }
   }, [activeTilemapId, tilemap, updateTilemapCell, expandBrush]);
-
-  // ── Apply tileset stamp at a position (handles brush size = repeat tilesets) ──
-  const applyTilesetStamp = useCallback((row: number, col: number) => {
-    const ds = drawStateRef.current;
-    const tsId = ds.selectedTilesetId;
-    if (!tsId) return;
-    const ts = useGeckodeStore.getState().tilesets[tsId];
-    if (!ts) return;
-    const size = ds.brushSize;
-    if (size <= 1) {
-      stampTileset(ts, row, col);
-    } else {
-      const offset = Math.floor(size / 2);
-      for (let dr = 0; dr < size; dr++) {
-        for (let dc = 0; dc < size; dc++) {
-          stampTileset(ts, row + (dr - offset) * TILESET_GRID, col + (dc - offset) * TILESET_GRID);
-        }
-      }
-    }
-  }, [stampTileset]);
 
   // ── Flood fill on tile grid ──
   const floodFill = useCallback((startRow: number, startCol: number, fillKey: string | null) => {
@@ -388,16 +375,11 @@ const TilemapEditor = () => {
     const ds = drawStateRef.current;
 
     if (ds.activeTool === 'place') {
+      if (!ds.selectedSingleTile) return;
       saveToHistory();
-      // If we have a single tile selected (from tile-picker), use per-cell placement
-      if (ds.selectedSingleTile && !ds.selectedTilesetId) {
-        ds.isDrawing = true;
-        ds.prevCell = cell;
-        applySingleCell(cell.row, cell.col);
-      } else {
-        // Stamp the selected tileset
-        applyTilesetStamp(cell.row, cell.col);
-      }
+      ds.isDrawing = true;
+      ds.prevCell = cell;
+      applySingleCell(cell.row, cell.col);
     } else if (ds.activeTool === 'eraser') {
       saveToHistory();
       ds.isDrawing = true;
@@ -417,7 +399,6 @@ const TilemapEditor = () => {
       const tileKey = tilemap.data[cell.row][cell.col];
       if (tileKey) {
         setSelectedSingleTile(tileKey);
-        setSelectedTilesetId(null);
         setActiveTool('place');
       }
     }
@@ -500,6 +481,104 @@ const TilemapEditor = () => {
     resizeTilemap(activeTilemapId, newW, newH);
   };
 
+  const handleSelectTilesetCell = useCallback((row: number, col: number) => {
+    if (!selectedTileset) return;
+    const tileKey = selectedTileset.data[row]?.[col] ?? null;
+    if (!tileKey) return;
+    setSelectedTilesetCell({ row, col, tileKey });
+    setSelectedSingleTile(tileKey);
+    if (activeTool === 'tile-picker') setActiveTool('place');
+  }, [selectedTileset, activeTool]);
+
+  const updateActiveTilesetData = useCallback((updater: (data: (string | null)[][]) => (string | null)[][] | null) => {
+    if (!selectedTileset) return;
+    const draft = selectedTileset.data.map((row) => [...row]);
+    const nextData = updater(draft);
+    if (!nextData) return;
+    updateTileset(selectedTileset.id, {
+      ...selectedTileset,
+      data: normalizeTilesetData(nextData),
+    });
+  }, [selectedTileset, updateTileset]);
+
+  const handleDuplicateTile = useCallback(() => {
+    const tileKey = selectedTilesetCell?.tileKey;
+    if (!tileKey || !selectedTileset || !tileTextures[tileKey]) return;
+
+    const duplicatedTileKey = createUniqueTextureName(tileKey, tileTextures);
+    addAsset(duplicatedTileKey, tileTextures[tileKey], 'tiles');
+
+    updateActiveTilesetData((data) => {
+      const empty = findFirstEmptyTilesetCell(data);
+      if (empty) {
+        data[empty.row][empty.col] = duplicatedTileKey;
+        setSelectedTilesetCell({ row: empty.row, col: empty.col, tileKey: duplicatedTileKey });
+        setSelectedSingleTile(duplicatedTileKey);
+        return data;
+      }
+
+      data.push(Array.from({ length: TILESET_WIDTH }, () => null));
+      const nextRow = data.length - 1;
+      data[nextRow][0] = duplicatedTileKey;
+      setSelectedTilesetCell({ row: nextRow, col: 0, tileKey: duplicatedTileKey });
+      setSelectedSingleTile(duplicatedTileKey);
+      return data;
+    });
+  }, [selectedTilesetCell, selectedTileset, tileTextures, addAsset, updateActiveTilesetData]);
+
+  const handleDeleteTile = useCallback(() => {
+    if (!selectedTilesetCell) return;
+    const { row, col } = selectedTilesetCell;
+    updateActiveTilesetData((data) => {
+      if (!data[row] || data[row][col] === null) return null;
+      data[row][col] = null;
+      return data;
+    });
+  }, [selectedTilesetCell, updateActiveTilesetData]);
+
+  const handleTilesetDragStart = useCallback((
+    e: ReactDragEvent<HTMLButtonElement>,
+    row: number,
+    col: number,
+    tileKey: string,
+  ) => {
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', JSON.stringify({ row, col, tileKey }));
+  }, []);
+
+  const handleTilesetDrop = useCallback((e: ReactDragEvent<HTMLButtonElement>, destRow: number, destCol: number) => {
+    e.preventDefault();
+    setDragOverTilesetCell(null);
+    if (!selectedTileset) return;
+
+    let payload: { row: number; col: number; tileKey: string } | null = null;
+    try {
+      payload = JSON.parse(e.dataTransfer.getData('text/plain'));
+    } catch {
+      payload = null;
+    }
+    if (!payload) return;
+
+    updateActiveTilesetData((data) => {
+      const sourceTile = data[payload.row]?.[payload.col] ?? null;
+      if (!sourceTile || sourceTile !== payload.tileKey) return null;
+      if (!data[destRow]) return null;
+      if (payload.row === destRow && payload.col === destCol) return null;
+
+      const destTile = data[destRow][destCol];
+      if (destTile !== null) {
+        const shouldOverwrite = window.confirm('This slot is already used. Overwrite this tile slot?');
+        if (!shouldOverwrite) return null;
+      }
+
+      data[payload.row][payload.col] = null;
+      data[destRow][destCol] = sourceTile;
+      setSelectedTilesetCell({ row: destRow, col: destCol, tileKey: sourceTile });
+      setSelectedSingleTile(sourceTile);
+      return data;
+    });
+  }, [selectedTileset, updateActiveTilesetData]);
+
   if (!tilemap || !activeTilemapId) {
     return (
       <div className="flex-1 min-h-0 flex items-center justify-center text-slate-500 dark:text-slate-400">
@@ -508,17 +587,14 @@ const TilemapEditor = () => {
     );
   }
 
-  // Tileset entries for palette
-  const tilesetEntries = Object.entries(tilesets);
-
   return (
     <div className="flex-1 min-h-0 flex bg-light-secondary dark:bg-dark-secondary h-full">
-      <TilesetEditorModal
-        isOpen={isTilesetEditorOpen}
-        onClose={() => setIsTilesetEditorOpen(false)}
+      <TileEditorModal
+        isOpen={isTileEditorOpen}
+        onClose={() => setIsTileEditorOpen(false)}
       />
       {/* Left sidebar — brush size, tools, tileset palette */}
-      <div className="w-[250px] flex flex-col gap-3 p-2 bg-white/50 dark:bg-dark-secondary/50 border-r border-slate-200 dark:border-slate-700">
+      <div className="w-[250px] flex flex-col gap-3 p-2 bg-light-secondary dark:bg-dark-secondary border-r border-slate-200 dark:border-slate-700">
         {/* Brush size */}
         <div className="grid grid-cols-3 rounded overflow-hidden">
           {[1, 2, 3].map((size) => (
@@ -573,61 +649,105 @@ const TilemapEditor = () => {
           </ToolButton>
         </div>
 
-        {/* Tileset palette */}
-        <div className="flex flex-col gap-1">
-          <span className="text-sm text-slate-600 dark:text-slate-300 font-semibold px-0.5">Tilesets</span>
-          <div className="grid grid-cols-3 gap-[2px]">
-            {tilesetEntries.map(([id, ts]) => (
+        {/* Tileset panel */}
+        <div className="flex flex-col gap-2 min-h-0">
+          <span className="text-sm text-slate-600 dark:text-slate-300 font-semibold px-0.5">Tileset</span>
+          <div className="flex items-center gap-1">
+            <select
+              value={tilemap.tilesetId}
+              onChange={(e) => setTilemapTilesetId(activeTilemapId, e.target.value)}
+              className="w-1/2 h-7 px-2 rounded bg-white border border-slate-200 dark:bg-dark-tertiary dark:border-slate-600 text-xs text-slate-700 dark:text-slate-200 outline-none focus:border-primary-green"
+              title="Active tilemap tileset"
+            >
+              {tilesets.map((tileset) => (
+                <option key={tileset.id} value={tileset.id}>
+                  {tileset.name}
+                </option>
+              ))}
+            </select>
+
+            <div className="w-1/2 grid grid-cols-3">
               <button
-                key={id}
                 type="button"
+                disabled={!selectedTilesetCell}
                 onClick={() => {
-                  setSelectedTilesetId(id);
-                  setSelectedSingleTile(null);
-                  if (activeTool === 'tile-picker') setActiveTool('place');
+                  if (!selectedTilesetCell?.tileKey) return;
+                  setEditingAsset(selectedTilesetCell.tileKey, 'tiles', 'asset');
+                  setIsTileEditorOpen(true);
                 }}
-                onDoubleClick={() => {
-                  setEditingAsset(id, 'tilesets', 'asset');
-                  setIsTilesetEditorOpen(true);
-                }}
-                className={`aspect-square cursor-pointer transition-colors overflow-hidden ${
-                  selectedTilesetId === id
-                  ? 'border-2 border-primary-green'
-                  : 'border-2 border-transparent hover:border-slate-400 dark:hover:border-slate-500'
-                }`}
-                title={ts.name}
+                className="h-7 flex items-center justify-center rounded-sm bg-transparent hover:bg-slate-200/60 dark:hover:bg-dark-tertiary/60 text-slate-700 dark:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-green/50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition"
+                title="Edit selected tile"
               >
-                {ts.base64Preview ? (
-                  <img
-                    src={ts.base64Preview}
-                    alt={ts.name}
-                    className="w-full h-full object-cover"
-                    style={{ imageRendering: 'pixelated' }}
-                  />
-                ) : (
-                  <div className="w-full h-full bg-slate-200 dark:bg-dark-tertiary" />
-                )}
+                <Pencil2Icon className="w-4 h-4" />
               </button>
-            ))}
+              <button
+                type="button"
+                disabled={!selectedTilesetCell}
+                onClick={handleDuplicateTile}
+                className="h-7 flex items-center justify-center rounded-sm bg-transparent hover:bg-slate-200/60 dark:hover:bg-dark-tertiary/60 text-slate-700 dark:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-green/50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition"
+                title="Duplicate selected tile"
+              >
+                <CopyIcon className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                disabled={!selectedTilesetCell}
+                onClick={handleDeleteTile}
+                className="h-7 flex items-center justify-center rounded-sm bg-transparent hover:bg-slate-200/60 dark:hover:bg-dark-tertiary/60 text-red-600 dark:text-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-green/50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition"
+                title="Delete selected tile from tileset"
+              >
+                <TrashIcon className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
-          {tilesetEntries.length === 0 && (
-            <span className="text-xs text-slate-400 dark:text-slate-500 px-0.5">No tilesets yet</span>
-          )}
-
-          {/* Active selection indicator */}
-          {selectedSingleTile && !selectedTilesetId && (
-            <div className="flex items-center gap-1.5 px-1 py-1 rounded bg-slate-100 dark:bg-dark-tertiary">
-              <span className="text-[10px] text-slate-500 dark:text-slate-400">Single tile:</span>
-              {tileTextures[selectedSingleTile] && (
-                <img
-                  src={tileTextures[selectedSingleTile]}
-                  alt={selectedSingleTile}
-                  className="w-5 h-5 object-contain"
-                  style={{ imageRendering: 'pixelated' }}
-                />
-              )}
-              <span className="text-[10px] text-slate-600 dark:text-slate-300 truncate">{selectedSingleTile}</span>
+          {selectedTileset && (
+            <div className="rounded border border-slate-300 dark:border-slate-700 p-1">
+              <div className="grid grid-cols-5 max-h-[260px] overflow-y-auto">
+                {selectedTileset.data.map((row, rowIndex) =>
+                  Array.from({ length: TILESET_WIDTH }, (_, colIndex) => {
+                    const tileKey = row[colIndex] ?? null;
+                    const isSelected = selectedTilesetCell?.row === rowIndex
+                      && selectedTilesetCell?.col === colIndex
+                      && selectedTilesetCell?.tileKey === tileKey
+                      && tileKey !== null;
+                    const isDragOver = dragOverTilesetCell?.row === rowIndex && dragOverTilesetCell?.col === colIndex;
+                    return (
+                      <button
+                        key={`${rowIndex}-${colIndex}`}
+                        type="button"
+                        draggable={Boolean(tileKey)}
+                        onClick={() => handleSelectTilesetCell(rowIndex, colIndex)}
+                        onDragStart={(e) => {
+                          if (!tileKey) return;
+                          handleTilesetDragStart(e, rowIndex, colIndex, tileKey);
+                        }}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          setDragOverTilesetCell({ row: rowIndex, col: colIndex });
+                        }}
+                        onDragLeave={() => setDragOverTilesetCell(null)}
+                        onDrop={(e) => handleTilesetDrop(e, rowIndex, colIndex)}
+                        className={`relative aspect-square border transition-colors ${isSelected
+                          ? 'border-2 border-dashed border-primary-green'
+                          : 'border-slate-300 dark:border-slate-700'
+                          } ${isDragOver ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-slate-100 dark:bg-dark-tertiary'
+                          }`}
+                        title={tileKey ?? 'Empty'}
+                      >
+                        {tileKey && tileTextures[tileKey] ? (
+                          <img
+                            src={tileTextures[tileKey]}
+                            alt={tileKey}
+                            className="w-full h-full object-cover pointer-events-none"
+                            style={{ imageRendering: 'pixelated' }}
+                          />
+                        ) : null}
+                      </button>
+                    );
+                  }),
+                )}
+              </div>
             </div>
           )}
 
@@ -818,11 +938,31 @@ const TilemapEditor = () => {
   );
 };
 
-/** Get the first non-null tile key from a tileset's data grid */
-function getFirstTile(tileset: Tileset): string | null {
-  for (const row of tileset.data) {
-    for (const cell of row) {
-      if (cell) return cell;
+function normalizeTilesetData(data: (string | null)[][]): (string | null)[][] {
+  const rowCount = Math.max(1, data.length);
+  return Array.from({ length: rowCount }, (_, row) =>
+    Array.from({ length: TILESET_WIDTH }, (_, col) => data[row]?.[col] ?? null),
+  );
+}
+
+function findFirstTileCell(tileset: Tileset): { row: number; col: number; tileKey: string } | null {
+  for (let row = 0; row < tileset.data.length; row++) {
+    for (let col = 0; col < TILESET_WIDTH; col++) {
+      const tileKey = tileset.data[row]?.[col] ?? null;
+      if (tileKey) {
+        return { row, col, tileKey };
+      }
+    }
+  }
+  return null;
+}
+
+function findFirstEmptyTilesetCell(data: (string | null)[][]): { row: number; col: number } | null {
+  for (let row = 0; row < data.length; row++) {
+    for (let col = 0; col < TILESET_WIDTH; col++) {
+      if ((data[row]?.[col] ?? null) === null) {
+        return { row, col };
+      }
     }
   }
   return null;
