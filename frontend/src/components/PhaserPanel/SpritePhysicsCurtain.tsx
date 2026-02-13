@@ -17,9 +17,13 @@ const DEFAULT_PHYSICS: SpritePhysics = {
 };
 
 const SpritePhysicsCurtain = ({ isExpanded, onToggle }: SpritePhysicsCurtainProps) => {
-  const selectedSprite = useGeckodeStore((state) => state.selectedSprite);
   const selectedSpriteId = useGeckodeStore((state) => state.selectedSpriteId);
-  const updateSprite = useGeckodeStore((state) => state.updateSprite);
+  const selectedSprite = useGeckodeStore((s) =>
+    s.selectedSpriteId !== null
+      ? s.spriteInstances.find((i) => i.id === s.selectedSpriteId) ?? null
+      : null,
+  );
+  const updateSpriteInstance = useGeckodeStore((state) => state.updateSpriteInstance);
 
   const [values, setValues] = useState<SpritePhysics>(DEFAULT_PHYSICS);
 
@@ -35,7 +39,7 @@ const SpritePhysicsCurtain = ({ isExpanded, onToggle }: SpritePhysicsCurtainProp
     if (!selectedSpriteId) return;
     const newPhysics = { ...values, [field]: value };
     setValues(newPhysics);
-    updateSprite(selectedSpriteId, { physics: newPhysics });
+    updateSpriteInstance(selectedSpriteId, { physics: newPhysics });
   };
 
   const handleNumberChange = (field: keyof SpritePhysics, value: string) => {
@@ -49,7 +53,7 @@ const SpritePhysicsCurtain = ({ isExpanded, onToggle }: SpritePhysicsCurtainProp
     const currentValue = values[field];
     const finalValue = typeof currentValue === 'number' && !isNaN(currentValue) ? currentValue : defaultValue;
     const newPhysics = { ...values, [field]: finalValue };
-    updateSprite(selectedSpriteId, { physics: newPhysics });
+    updateSpriteInstance(selectedSpriteId, { physics: newPhysics });
   };
 
   return (

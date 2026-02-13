@@ -16,58 +16,9 @@ import {
   rebuildPixelBuffer,
 } from '@/hooks/useTilePixelCache';
 import TileEditorModal from '@/components/TileModal/TileEditorModal';
+import { getLineCells, getRectangleCells, getOvalCells } from '@/lib/tileGridGeometry';
 
 const TILE_PX = 16;
-
-// ── Bresenham line (tile coords) ──
-const getLineCells = (c0: number, r0: number, c1: number, r1: number) => {
-  const cells: { row: number; col: number }[] = [];
-  const dx = Math.abs(c1 - c0);
-  const dy = Math.abs(r1 - r0);
-  const sx = c0 < c1 ? 1 : -1;
-  const sy = r0 < r1 ? 1 : -1;
-  let err = dx - dy;
-  let col = c0;
-  let row = r0;
-  while (true) {
-    cells.push({ row, col });
-    if (col === c1 && row === r1) break;
-    const e2 = 2 * err;
-    if (e2 > -dy) { err -= dy; col += sx; }
-    if (e2 < dx) { err += dx; row += sy; }
-  }
-  return cells;
-};
-
-// ── Rectangle outline (tile coords) ──
-const getRectangleCells = (c1: number, r1: number, c2: number, r2: number) => {
-  const minC = Math.min(c1, c2), maxC = Math.max(c1, c2);
-  const minR = Math.min(r1, r2), maxR = Math.max(r1, r2);
-  const cells: { row: number; col: number }[] = [];
-  for (let c = minC; c <= maxC; c++) { cells.push({ row: minR, col: c }); cells.push({ row: maxR, col: c }); }
-  for (let r = minR + 1; r < maxR; r++) { cells.push({ row: r, col: minC }); cells.push({ row: r, col: maxC }); }
-  return cells;
-};
-
-// ── Oval outline (tile coords) ──
-const getOvalCells = (c1: number, r1: number, c2: number, r2: number, w: number, h: number) => {
-  const cx = (c1 + c2) / 2, cy = (r1 + r2) / 2;
-  const rx = Math.abs(c2 - c1) / 2, ry = Math.abs(r2 - r1) / 2;
-  if (rx === 0 || ry === 0) return [];
-  const cells: { row: number; col: number }[] = [];
-  const seen = new Set<string>();
-  const steps = Math.max(Math.ceil(2 * Math.PI * Math.max(rx, ry)), 32);
-  for (let i = 0; i < steps; i++) {
-    const angle = (2 * Math.PI * i) / steps;
-    const col = Math.round(cx + rx * Math.cos(angle));
-    const row = Math.round(cy + ry * Math.sin(angle));
-    if (col >= 0 && col < w && row >= 0 && row < h) {
-      const key = `${row},${col}`;
-      if (!seen.has(key)) { seen.add(key); cells.push({ row, col }); }
-    }
-  }
-  return cells;
-};
 
 // ── Tool button ──
 const ToolButton = ({
@@ -103,7 +54,9 @@ const TilemapEditor = () => {
   const [brushSize, setBrushSize] = useState(1);
   const [hoverCell, setHoverCell] = useState<{ row: number; col: number } | null>(null);
   const [isTileEditorOpen, setIsTileEditorOpen] = useState(false);
+  const [showCollidables, setShowCollidables] = useState(false);
   const minimapRef = useRef<HTMLCanvasElement>(null);
+  const collidableCanvasRef = useRef<HTMLCanvasElement>(null);
 
   const tileTextures = useGeckodeStore((s) => s.tiles);
   const tilemaps = useGeckodeStore((s) => s.tilemaps);
@@ -113,6 +66,7 @@ const TilemapEditor = () => {
   const resizeTilemap = useGeckodeStore((s) => s.resizeTilemap);
   const clearTilemap = useGeckodeStore((s) => s.clearTilemap);
   const setEditingAsset = useGeckodeStore((s) => s.setEditingAsset);
+  const tileCollidables = useGeckodeStore((s) => s.tileCollidables);
 
   const tilemap = activeTilemapId ? tilemaps[activeTilemapId] : null;
 
@@ -168,6 +122,29 @@ const TilemapEditor = () => {
     requestRender();
     renderMinimap();
   }, [tilemap, isReady, outputPixelsRef, tilePixelsRef, requestRender, renderMinimap]);
+
+  // ── Render collidable overlay ──
+  useEffect(() => {
+    const canvas = collidableCanvasRef.current;
+    if (!canvas || !tilemap || !showCollidables) return;
+    const w = pixelW * cellSize;
+    const h = pixelH * cellSize;
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, w, h);
+    const tileSizePx = (w / tilemap.width);
+    ctx.fillStyle = 'rgba(239, 68, 68, 0.3)';
+    for (let row = 0; row < tilemap.height; row++) {
+      for (let col = 0; col < tilemap.width; col++) {
+        const key = tilemap.data[row]?.[col];
+        if (key && tileCollidables[key]) {
+          ctx.fillRect(col * tileSizePx, row * tileSizePx, tileSizePx, tileSizePx);
+        }
+      }
+    }
+  }, [tilemap, showCollidables, tileCollidables, pixelW, pixelH, cellSize]);
 
   // ── Handle resize ──
   const prevDimsRef = useRef({ w: pixelW, h: pixelH });
@@ -528,35 +505,14 @@ const TilemapEditor = () => {
           <ToolButton tool="oval" activeTool={activeTool} onClick={() => setActiveTool('oval')} title="Oval tool">
             <CircleIcon className="w-5 h-5" />
           </ToolButton>
-          <button
-            type="button"
-            onClick={undo}
-            disabled={undoStackRef.current.length === 0}
-            className="w-12 h-12 flex items-center justify-center rounded cursor-pointer transition bg-slate-200 hover:bg-slate-300 dark:bg-dark-tertiary dark:hover:bg-dark-tertiary/80 text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed"
-            title="Undo (Ctrl+Z)"
-          >
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 7h10a5 5 0 0 1 0 10H9" />
-              <path d="M3 7l4-4M3 7l4 4" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            onClick={redo}
-            disabled={redoStackRef.current.length === 0}
-            className="w-12 h-12 flex items-center justify-center rounded cursor-pointer transition bg-slate-200 hover:bg-slate-300 dark:bg-dark-tertiary dark:hover:bg-dark-tertiary/80 text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed"
-            title="Redo (Ctrl+Shift+Z)"
-          >
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 7H11a5 5 0 0 0 0 10h4" />
-              <path d="M21 7l-4-4M21 7l-4 4" />
-            </svg>
-          </button>
+          <ToolButton tool="tile-picker" activeTool={activeTool} onClick={() => setActiveTool('tile-picker')} title="Tile picker">
+            <ColorPickerIcon className="w-5 h-5" />
+          </ToolButton>
         </div>
 
         {/* Tile palette */}
         <div className="flex flex-col gap-1">
-          <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wide font-semibold px-0.5">Tiles</span>
+          <span className="text-sm text-slate-600 dark:text-slate-300 font-semibold px-0.5">Tiles</span>
           <div className="grid grid-cols-5 gap-[2px]">
             {Object.entries(tileTextures).map(([key, base64]) => (
               <button
@@ -586,6 +542,17 @@ const TilemapEditor = () => {
               </button>
             ))}
           </div>
+
+          {/* Show collidables checkbox */}
+          <label className="flex items-center gap-1.5 px-0.5 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={showCollidables}
+              onChange={(e) => setShowCollidables(e.target.checked)}
+              className="accent-primary-green w-3.5 h-3.5 cursor-pointer"
+            />
+            <span className="text-xs text-slate-500 dark:text-slate-400">Show collidables</span>
+          </label>
         </div>
 
         <div className="flex-1" />
@@ -629,6 +596,43 @@ const TilemapEditor = () => {
               onPointerLeave={() => setHoverCell(null)}
               onContextMenu={(e) => e.preventDefault()}
             />
+            {showCollidables && (
+              <canvas
+                ref={collidableCanvasRef}
+                className="absolute top-0 left-0 pointer-events-none"
+                style={{
+                  width: pixelW * cellSize,
+                  height: pixelH * cellSize,
+                }}
+              />
+            )}
+          </div>
+          {/* Floating undo/redo */}
+          <div className="absolute bottom-2 right-2 z-10 flex gap-1.5">
+            <button
+              type="button"
+              onClick={undo}
+              disabled={undoStackRef.current.length === 0}
+              className="w-7 h-7 flex items-center justify-center rounded bg-slate-200/80 hover:bg-slate-300 dark:bg-dark-tertiary/80 dark:hover:bg-dark-tertiary text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition"
+              title="Undo (Ctrl+Z)"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 7h10a5 5 0 0 1 0 10H9" />
+                <path d="M3 7l4-4M3 7l4 4" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              onClick={redo}
+              disabled={redoStackRef.current.length === 0}
+              className="w-7 h-7 flex items-center justify-center rounded bg-slate-200/80 hover:bg-slate-300 dark:bg-dark-tertiary/80 dark:hover:bg-dark-tertiary text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition"
+              title="Redo (Ctrl+Shift+Z)"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 7H11a5 5 0 0 0 0 10h4" />
+                <path d="M21 7l-4-4M21 7l-4 4" />
+              </svg>
+            </button>
           </div>
         </div>
 

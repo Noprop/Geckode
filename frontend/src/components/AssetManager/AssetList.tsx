@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { PlusIcon } from '@radix-ui/react-icons';
 import { useGeckodeStore } from '@/stores/geckodeStore';
-import type { AssetType } from '@/stores/slices/types';
+import type { AssetType, Tileset } from '@/stores/slices/types';
 import { type SelectedAsset } from './Overview';
 import { TAB_CONFIG } from './Overview';
 
@@ -20,7 +20,11 @@ const AssetList = ({ filter, activeTab, onTabChange, selectedAsset, onSelectAsse
   const assets = useGeckodeStore((s) => s[filter]);
 
   const entries = useMemo(
-    () => Object.entries(assets).map(([name, base64]) => ({ name, base64, type: filter })),
+    () => Object.entries(assets).map(([name, val]) => ({
+      name,
+      base64: typeof val === 'string' ? val : (val as Tileset).base64Preview,
+      type: filter,
+    })),
     [assets, filter],
   );
 
