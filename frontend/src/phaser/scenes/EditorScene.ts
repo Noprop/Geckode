@@ -15,6 +15,7 @@ export default class EditorScene extends Phaser.Scene {
   private tileKeyToIndex: Map<string, number> = new Map();
   private static readonly TILESET_KEY = 'editor-tileset';
   private gridGraphics: Phaser.GameObjects.Graphics | null = null;
+  private handleUpdateTilemap: (() => void) | null = null;
 
   private activeDrag: {
     sprite: Phaser.Physics.Arcade.Sprite;
@@ -34,7 +35,7 @@ export default class EditorScene extends Phaser.Scene {
       console.log('preloading texture: ', instance.textureName);
       const base64Image = textures[instance.textureName];
       if (!base64Image || this.textures.exists(instance.textureName)) continue;
-      this.load.image("sprite-" +instance.textureName, base64Image);
+      this.load.image("sprite-" + instance.textureName, base64Image);
     }
 
     for (const tile of Object.keys(useGeckodeStore.getState().tiles)) {
@@ -65,7 +66,7 @@ export default class EditorScene extends Phaser.Scene {
       this.createSprite(instance);
     }
 
-    this.cameras.main.centerOn(0, 0);
+    this.cameras.main.centerOn(this.scale.width/2, -this.scale.height/2);
     EventBus.emit('current-scene-ready', this);
   }
   update() {}
@@ -285,8 +286,8 @@ export default class EditorScene extends Phaser.Scene {
     const layer = this.tilemap.createLayer(
       0,
       tileset,
-      -mapPixelWidth / 2,
-      -mapPixelHeight / 2,
+      0,
+      -mapPixelHeight,
     );
     if (layer) {
       this.tilemapLayer = layer as Phaser.Tilemaps.TilemapLayer;
@@ -294,7 +295,21 @@ export default class EditorScene extends Phaser.Scene {
     }
   }
 
+  shutdown() {
+    if (this.handleUpdateTilemap) {
+      EventBus.off('update-tilemap', this.handleUpdateTilemap);
+      this.handleUpdateTilemap = null;
+    }
+  }
+
   private initEventListeners() {
+    this.handleUpdateTilemap = () => {
+      const { tilemaps } = useGeckodeStore.getState();
+      this.generateTilesetTexture();
+      this.createTilemap(tilemaps['tilemap_1'].data);
+    };
+    EventBus.on('update-tilemap', this.handleUpdateTilemap);
+
     // may have to adjust this down the line for tilemaps
     this.input.on('dragstart', (_pointer: Phaser.Input.Pointer, sprite: Phaser.Physics.Arcade.Sprite) => {
       this.activeDrag = {

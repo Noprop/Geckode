@@ -6,6 +6,7 @@ import { EraserIcon } from '@radix-ui/react-icons';
 import { PencilIcon, BucketIcon, LineIcon, CircleIcon, ColorPickerIcon } from '@/components/icons';
 import { useGeckodeStore } from '@/stores/geckodeStore';
 import type { TilemapTool } from '@/stores/geckodeStore';
+import { EventBus } from '@/phaser/EventBus';
 import { useCanvasZoom } from '@/hooks/useCanvasZoom';
 import { usePixelCanvas } from '@/hooks/usePixelCanvas';
 import {
@@ -555,14 +556,24 @@ const TilemapEditor = () => {
           ref={canvasContainerRef}
           className="relative flex-1 flex items-center justify-center bg-light-whiteboard dark:bg-dark-whiteboard p-4 overflow-auto min-h-0"
         >
-          <button
-            type="button"
-            onClick={() => { saveToHistory(); clearTilemap(activeTilemapId); }}
-            className="absolute top-2 right-2 z-10 px-3 h-7 flex items-center justify-center rounded bg-red-600/80 hover:bg-red-600 text-white text-xs font-medium cursor-pointer transition"
-            title="Clear tilemap"
-          >
-            Clear
-          </button>
+          <div className="absolute top-2 right-2 z-10 flex gap-1.5">
+            <button
+              type="button"
+              onClick={() => EventBus.emit('update-tilemap')}
+              className="px-3 h-7 flex items-center justify-center rounded bg-emerald-600/80 hover:bg-emerald-600 text-white text-xs font-medium cursor-pointer transition"
+              title="Save tilemap to scene"
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              onClick={() => { saveToHistory(); clearTilemap(activeTilemapId); }}
+              className="px-3 h-7 flex items-center justify-center rounded bg-red-600/80 hover:bg-red-600 text-white text-xs font-medium cursor-pointer transition"
+              title="Clear tilemap"
+            >
+              Clear
+            </button>
+          </div>
           <div className="relative">
             <canvas
               ref={canvasRef}
