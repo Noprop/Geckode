@@ -3,6 +3,10 @@ import { getSpriteDropdownOptions } from '@/blockly/spriteRegistry';
 import { useGeckodeStore } from '@/stores/geckodeStore';
 import { isIsolated } from '@/blockly/index';
 
+const needsFlip = (prop: string) => {
+  return prop === 'y' || prop === 'velocity.y';
+}
+
 const setProperty = {
   type: 'setProperty',
   tooltip: 'Set the property of a sprite',
@@ -48,10 +52,7 @@ javascriptGenerator.forBlock['setProperty'] = function (block, generator) {
     !isIsolated(block)
   ) {
     const prop = block.getFieldValue('PROPERTY');
-    if (prop === 'Y' || prop === 'VelocityY') {
-      return `scene.getSprite(${spriteName}).set${prop}(-(${value}))\n`;
-    }
-    return `scene.getSprite(${spriteName}).set${prop}(${value})\n`;
+    return `scene.getSprite(${spriteName}).body.${prop} = ${needsFlip(prop) ? -value : value}\n`;
   }
 
   return '';
@@ -102,10 +103,7 @@ javascriptGenerator.forBlock['changeProperty'] = function (block, generator) {
     const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
     const spriteName = spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"';
     const prop = block.getFieldValue('PROPERTY');
-    if (prop === 'y' || prop === 'velocity.y') {
-      return `scene.getSprite(${spriteName}).${prop} -= ${value}\n`;
-    }
-    return `scene.getSprite(${spriteName}).${prop} += ${value}\n`;
+    return `scene.getSprite(${spriteName}).body.${prop} += ${needsFlip(prop) ? -value : value}\n`;
   }
 
   return '';
@@ -148,10 +146,7 @@ javascriptGenerator.forBlock['getProperty'] = function (block, generator) {
     const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
     const spriteName = spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"';
     const prop = block.getFieldValue('PROPERTY');
-    if (prop === 'y' || prop === 'velocity.y') {
-      return [`-(scene.getSprite(${spriteName}).${prop})`, Order.NONE];
-    }
-    return [`scene.getSprite(${spriteName}).${prop}`, Order.NONE];
+    return [`${needsFlip(prop) ? '-' : ''}scene.getSprite(${spriteName}).body.${prop}`, Order.NONE];
   }
   return['', Order.NONE];
 };
