@@ -56,8 +56,15 @@ const keyPressed = {
 }
 
 javascriptGenerator.forBlock['keyPressed'] = function (block, generator) {
-  //const code = `scene.cursors.${block.getFieldValue('KEY')}.isDown`
-  const code = `Phaser.Input.Keyboard.JustDown(scene.cursors.${block.getFieldValue('KEY')})`
+  if (block.getFieldValue('PRESSED_TYPE') == "pressed") {
+    const code = `scene.cursors.${block.getFieldValue('KEY')}.isDown`
+    return [code, Order.NONE];
+  } else if (block.getFieldValue('PRESSED_TYPE') == "just_pressed") {
+    const code = `scene.getJustPressed(scene.cursors.${block.getFieldValue('KEY')})`
+    return [code, Order.NONE];
+  }
+  
+  const code = `scene.getJustReleased(scene.cursors.${block.getFieldValue('KEY')})`
   return [code, Order.NONE];
 };
 

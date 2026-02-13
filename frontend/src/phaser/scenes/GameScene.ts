@@ -25,6 +25,8 @@ export default class GameScene extends Phaser.Scene {
     S: Phaser.Input.Keyboard.Key;
     D: Phaser.Input.Keyboard.Key;
   };
+  private justPressedKeys: Array<Phaser.Input.Keyboard.Key> = [];
+  private justReleasedKeys: Array<Phaser.Input.Keyboard.Key> = [];
   private gameSprites = new Map<string, Phaser.Physics.Arcade.Sprite>();
   private static readonly GAME_SPRITE_BASE_DEPTH = Number.MAX_SAFE_INTEGER - 100;
   private gameLayer!: Phaser.GameObjects.Layer;
@@ -97,6 +99,8 @@ export default class GameScene extends Phaser.Scene {
   updateHook() {}
 
   update() {
+    this.justPressedKeys = [];
+    this.justReleasedKeys = [];
 
     this.updateHook();
   }
@@ -319,8 +323,26 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
-  private getJustPressed(key) {
+  public getJustPressed(key: Phaser.Input.Keyboard.Key) {
+    if (this.justPressedKeys.includes(key)) {
+      return true;
+    }
+    if (Phaser.Input.Keyboard.JustDown(key)) {
+      this.justPressedKeys.push(key);
+      return true;
+    }
+    return false;
+  }
 
+  public getJustReleased(key: Phaser.Input.Keyboard.Key) {
+    if (this.justPressedKeys.includes(key)) {
+      return true;
+    }
+    if (Phaser.Input.Keyboard.JustUp(key)) {
+      this.justPressedKeys.push(key);
+      return true;
+    }
+    return false;
   }
 
 
