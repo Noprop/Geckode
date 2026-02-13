@@ -158,6 +158,39 @@ const getToolbox = () => {
               },
             },
           },
+          {
+            kind: 'block',
+            type: 'moveWithArrows',
+            inputs: {
+              SPRITE: {
+                shadow: {
+                  type: 'spriteGhost',
+                  fields: {
+                    SPRITE: spriteId,
+                  },
+                },
+              },
+              VX: {
+                shadow: {
+                  type: 'math_number',
+                  fields: {
+                    NUM: 50,
+                  },
+                },
+              },
+              VY: {
+                shadow: {
+                  type: 'math_number',
+                  fields: {
+                    NUM: 50,
+                  },
+                },
+              },
+            },
+          },
+
+
+
         ],
       },
       {

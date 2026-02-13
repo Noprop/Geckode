@@ -44,18 +44,8 @@ javascriptGenerator.forBlock['setProperty'] = function (block, generator) {
   const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
   const spriteName = spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"';
 
-  if (
-    useGeckodeStore
-      .getState()
-      .spriteInstances.map((s) => s.id)
-      .includes(spriteKey) &&
-    !isIsolated(block)
-  ) {
-    const prop = block.getFieldValue('PROPERTY');
-    return `scene.getSprite(${spriteName}).body.${prop} = ${needsFlip(prop) ? -value : value}\n`;
-  }
-
-  return '';
+  const prop = block.getFieldValue('PROPERTY');
+  return `scene.getSprite(${spriteName}).body.${prop} = ${needsFlip(prop) ? -value : value}\n`;
 };
 
 const changeProperty = {
@@ -93,20 +83,11 @@ javascriptGenerator.forBlock['changeProperty'] = function (block, generator) {
   const value = generator.valueToCode(block, 'VALUE', Order.NONE) || 0;
   const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
 
-  if (
-    useGeckodeStore
-      .getState()
-      .spriteInstances.map((s) => s.id)
-      .includes(spriteKey) &&
-    !isIsolated(block)
-  ) {
-    const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
-    const spriteName = spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"';
-    const prop = block.getFieldValue('PROPERTY');
-    return `scene.getSprite(${spriteName}).body.${prop} += ${needsFlip(prop) ? -value : value}\n`;
-  }
+  const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
+  const spriteName = spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"';
+  const prop = block.getFieldValue('PROPERTY');
+  return `scene.getSprite(${spriteName}).body.${prop} += ${needsFlip(prop) ? -value : value}\n`;
 
-  return '';
 };
 
 const getProperty = {
@@ -136,19 +117,11 @@ const getProperty = {
 
 javascriptGenerator.forBlock['getProperty'] = function (block, generator) {
   const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
-  if (
-    useGeckodeStore
-      .getState()
-      .spriteInstances.map((s) => s.id)
-      .includes(spriteKey) &&
-    !isIsolated(block)
-  ) {
-    const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
-    const spriteName = spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"';
-    const prop = block.getFieldValue('PROPERTY');
-    return [`${needsFlip(prop) ? '-' : ''}scene.getSprite(${spriteName}).body.${prop}`, Order.NONE];
-  }
-  return['', Order.NONE];
+
+  const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
+  const spriteName = spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"';
+  const prop = block.getFieldValue('PROPERTY');
+  return [`${needsFlip(prop) ? '-' : ''}scene.getSprite(${spriteName}).body.${prop}`, Order.NONE];
 };
 
 const setRotation = {
@@ -176,19 +149,12 @@ javascriptGenerator.forBlock['setRotation'] = function (block, generator) {
   const value = generator.valueToCode(block, 'VALUE', Order.NONE) || 0;
   const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
 
-  if (
-    useGeckodeStore
-      .getState()
-      .spriteInstances.map((s) => s.id)
-      .includes(spriteKey) &&
-    !isIsolated(block)
-  ) {
-    const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
-    return `scene.getSprite(${
-      spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"'
-    }).angle = (${value}-90) % 360\n`;
-  }
-  return '';
+
+  const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
+  return `scene.getSprite(${
+    spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"'
+  }).angle = (${value}-90) % 360\n`;
+
 };
 
 const pointAtXY = {
@@ -228,18 +194,11 @@ javascriptGenerator.forBlock['pointAtXY'] = function (block, generator) {
   // const inUpdateLoop = isInUpdateLoop(block);
   // You can use this to generate different code based on context
   
-  if (
-    useGeckodeStore
-      .getState()
-      .spriteInstances.map((s) => s.id)
-      .includes(spriteKey) &&
-    !isIsolated(block)
-  ) {
-    const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
-    const spriteName = `scene.getSprite(${spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"'})`;
-    return `${spriteName}.rotation = Phaser.Math.Angle.Between(${spriteName}.x, ${spriteName}.y, ${x}, -(${y}))\n`;
-  }
-  return '';
+
+  const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
+  const spriteName = `scene.getSprite(${spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"'})`;
+  return `${spriteName}.rotation = Phaser.Math.Angle.Between(${spriteName}.x, ${spriteName}.y, ${x}, ${y})\n`;
+
 };
 
 const isTouching = {
@@ -287,6 +246,53 @@ javascriptGenerator.forBlock['isTouching'] = function (block, generator) {
   return [`false`, Order.NONE];
 };
 
+const moveWithArrows = {
+  type: 'moveWithArrows',
+  tooltip: 'Move a sprite with arrow keys',
+  helpUrl: '',
+  message0: 'move %1 with arrows vx:%2 vy:%3',
+  args0: [
+    {
+      type: 'input_value',
+      name: 'SPRITE',
+    },
+    {
+      type: 'input_value',
+      name: 'VX',
+    },
+    {
+      type: 'input_value',
+      name: 'VY',
+    },
+  ],
+  previousStatement: null,
+  nextStatement: null,
+  inputsInline: true,
+  colour: '%{BKY_SPRITES_HUE}',
+};
+
+javascriptGenerator.forBlock['moveWithArrows'] = function (block, generator) {
+  const VX = generator.valueToCode(block, 'VX', Order.NONE) || 0;
+  const VY = generator.valueToCode(block, 'VY', Order.NONE) || 0;
+  const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
+  const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
+  const spriteName = spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"';
+
+
+  return `if (${VX} != 0) {
+    if (scene.cursors.left.isDown) {scene.getSprite(${spriteName}).setVelocityX(-${VX});}
+    if (scene.cursors.right.isDown) {scene.getSprite(${spriteName}).setVelocityX(${VX});}
+    if (scene.getJustReleased(scene.cursors.left) || scene.getJustReleased(scene.cursors.right)) {scene.getSprite(${spriteName}).setVelocityX(0);}
+  }
+  if (${VY} != 0) {
+    if (scene.cursors.up.isDown) {scene.getSprite(${spriteName}).setVelocityY(-${VY});}
+    if (scene.cursors.down.isDown) {scene.getSprite(${spriteName}).setVelocityY(${VY});}
+    if (scene.getJustReleased(scene.cursors.up) || scene.getJustReleased(scene.cursors.down)) {scene.getSprite(${spriteName}).setVelocityY(0);}
+  }\n`;
+  
+
+};
+
 
 export const spriteBlocks = [
   setProperty,
@@ -294,5 +300,6 @@ export const spriteBlocks = [
   getProperty,
   setRotation,
   pointAtXY,
-  isTouching
+  isTouching,
+  moveWithArrows,
 ];
