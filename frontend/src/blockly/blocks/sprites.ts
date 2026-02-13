@@ -3,6 +3,10 @@ import { getSpriteDropdownOptions } from '@/blockly/spriteRegistry';
 import { useGeckodeStore } from '@/stores/geckodeStore';
 import { isIsolated } from '@/blockly/index';
 
+const needsFlip = (prop: string) => {
+  return prop === 'y' || prop === 'velocity.y';
+}
+
 const setProperty = {
   type: 'setProperty',
   tooltip: 'Set the property of a sprite',
@@ -13,10 +17,10 @@ const setProperty = {
       type: 'field_dropdown',
       name: 'PROPERTY',
       options: [
-        ['x', 'X'],
-        ['y', 'Y'],
-        ['velocityX', 'VelocityX'],
-        ['velocityY', 'VelocityY'],
+        ['x', 'x'],
+        ['y', 'y'],
+        ['velocityX', 'velocity.x'],
+        ['velocityY', 'velocity.y'],
       ],
     },
     {
@@ -40,14 +44,8 @@ javascriptGenerator.forBlock['setProperty'] = function (block, generator) {
   const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
   const spriteName = spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"';
 
-
   const prop = block.getFieldValue('PROPERTY');
-  if (prop === 'Y' || prop === 'VelocityY') {
-    return `scene.getSprite(${spriteName}).set${prop}(-(${value}))\n`;
-  }
-  return `scene.getSprite(${spriteName}).set${prop}(${value})\n`;
-
-
+  return `scene.getSprite(${spriteName}).body.${prop} = ${needsFlip(prop) ? -value : value}\n`;
 };
 
 const changeProperty = {
@@ -85,18 +83,10 @@ javascriptGenerator.forBlock['changeProperty'] = function (block, generator) {
   const value = generator.valueToCode(block, 'VALUE', Order.NONE) || 0;
   const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
 
-
   const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
   const spriteName = spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"';
   const prop = block.getFieldValue('PROPERTY');
-  if (prop === 'y' || prop === 'velocity.y') {
-    return `scene.getSprite(${spriteName}).${prop} -= ${value}\n`;
-  }
-  return `scene.getSprite(${spriteName}).${prop} += ${value}\n`;
-
-  // TODO: verify that we should be using sprite.body instead of sprite.x (apparently .body is the physics body which
-  // is the top left of the sprite, rather than the center)
-
+  return `scene.getSprite(${spriteName}).body.${prop} += ${needsFlip(prop) ? -value : value}\n`;
 
 };
 
@@ -127,22 +117,11 @@ const getProperty = {
 
 javascriptGenerator.forBlock['getProperty'] = function (block, generator) {
   const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
-  if (
-    useGeckodeStore
-      .getState()
-      .spriteInstances.map((s) => s.id)
-      .includes(spriteKey) &&
-    !isIsolated(block)
-  ) {
-    const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
-    const spriteName = spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"';
-    const prop = block.getFieldValue('PROPERTY');
-    if (prop === 'y' || prop === 'velocity.y') {
-      return [`-(scene.getSprite(${spriteName}).${prop})`, Order.NONE];
-    }
-    return [`scene.getSprite(${spriteName}).${prop}`, Order.NONE];
-  }
-  return['', Order.NONE];
+
+  const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
+  const spriteName = spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"';
+  const prop = block.getFieldValue('PROPERTY');
+  return [`${needsFlip(prop) ? '-' : ''}scene.getSprite(${spriteName}).body.${prop}`, Order.NONE];
 };
 
 const setRotation = {
