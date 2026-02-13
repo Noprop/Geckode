@@ -3,7 +3,7 @@ import { InputBox, InputBoxRef } from '@/components/ui/inputs/InputBox';
 import { InfoCircledIcon } from '@radix-ui/react-icons';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useRef } from 'react';
-import { useEditorStore } from '@/stores/editorStore';
+import { useGeckodeStore } from '@/stores/geckodeStore';
 import { Button } from '@/components/ui/Button';
 
 interface Props {
@@ -13,7 +13,7 @@ interface Props {
 
 const VariableModal = ({ showVariableModal, setShowVariableModal }: Props) => {
   const showSnackbar = useSnackbar();
-  const workspace = useEditorStore((state) => state.blocklyWorkspace);
+  const workspace = useGeckodeStore((state) => state.blocklyWorkspace);
   const variableInputRef = useRef<InputBoxRef | null>(null);
 
   const handleClose = () => {

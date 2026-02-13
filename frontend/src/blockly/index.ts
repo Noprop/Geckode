@@ -11,7 +11,6 @@ import { developmentBlocks } from '@/blockly/blocks/development';
 import { ghostBlocks } from '@/blockly/blocks/ghosts';
 
 import { javascriptGenerator } from 'blockly/javascript';
-import { useEditorStore } from '@/stores/editorStore';
 
 type UpdateHandler = {
   spriteId: string;
@@ -23,14 +22,7 @@ type StartHandler = {
   functionName: string;
 };
 
-
-const customBlocks = [
-  ...spriteBlocks,
-  ...eventBlocks,
-  ...inputBlocks,
-  ...developmentBlocks,
-  ...ghostBlocks,
-];
+const customBlocks = [...spriteBlocks, ...eventBlocks, ...inputBlocks, ...developmentBlocks, ...ghostBlocks];
 
 let isRegistered = false;
 
@@ -45,32 +37,24 @@ export const registerBlockly = () => {
 };
 
 export function getUpdateRegistry(generator: any): UpdateHandler[] {
-  if (!generator.updateHandlers) {
-    generator.updateHandlers = [];
-  }
+  if (!generator.updateHandlers) generator.updateHandlers = [];
   return generator.updateHandlers;
 }
 
 export function getStartRegistry(generator: any): StartHandler[] {
-  if (!generator.startHandlers) {
-    generator.startHandlers = [];
-  }
+  if (!generator.startHandlers) generator.startHandlers = [];
   return generator.startHandlers;
 }
 
 export function isIsolated(block: Blockly.Block): boolean {
   let currentBlock: Blockly.Block | null = block;
-  
+
+  // Traverse up to the parent block
   while (currentBlock) {
-    // Check if current block is an onUpdate block
-    if (currentBlock.type === 'onUpdate' || currentBlock.type === 'onStart') {
-      return false;
-    }
-    
-    // Traverse up to the parent block
+    if (currentBlock.type === 'onUpdate' || currentBlock.type === 'onStart') return false;
     currentBlock = currentBlock.getSurroundParent();
   }
-  
+
   return true;
 }
 

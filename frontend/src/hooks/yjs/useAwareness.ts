@@ -6,12 +6,12 @@ import { applyClientBlockProperties } from "@/lib/blockly/blocks";
 import * as Blockly from "blockly/core";
 import { toPublicUser } from "@/lib/types/api/users";
 import { useUser } from "@/contexts/UserContext";
-import { useEditorStore } from "@/stores/editorStore";
+import { useGeckodeStore } from "@/stores/geckodeStore";
 
 export const useAwareness = (
   documentName: string,
 ) => {
-  const { blocklyWorkspace } = useEditorStore();
+  const { blocklyWorkspace } = useGeckodeStore();
   const { doc, awareness } = useYjs(documentName);
   const user = useUser();
   const [clients, setClients] = useState<Client[]>([]);

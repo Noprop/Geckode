@@ -4,20 +4,20 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 import StartGame from "@/phaser/phaserConfig";
 import { EventBus } from '@/phaser/EventBus';
 import type EditorScene from '@/phaser/scenes/EditorScene';
-import { useEditorStore } from '@/stores/editorStore';
+import { useGeckodeStore } from '@/stores/geckodeStore';
 import GameScene from '@/phaser/scenes/GameScene';
 
 const PhaserGame = () => {
-  const isConverting = useEditorStore((state) => state.isConverting);
+  const isConverting = useGeckodeStore((state) => state.isConverting);
   const phaserRef = useRef<Phaser.Game | null>(null);
 
   useLayoutEffect(() => {
     // start the Phaser game before React renders the first frame
     if (!phaserRef.current) {
       phaserRef.current = StartGame('game-container');
-      useEditorStore.getState().setPhaserGame(phaserRef.current);
+      useGeckodeStore.getState().setPhaserGame(phaserRef.current);
     }
-    const handler = (scene: EditorScene | GameScene) => useEditorStore.getState().setPhaserScene(scene);
+    const handler = (scene: EditorScene | GameScene) => useGeckodeStore.getState().setPhaserScene(scene);
 
     EventBus.on('current-scene-ready', handler);
     return () => void EventBus.off('current-scene-ready', handler);
@@ -25,9 +25,9 @@ const PhaserGame = () => {
 
   useEffect(() => {
     const handler = (scene: EditorScene | GameScene) => {
-      useEditorStore.getState().setPhaserScene(scene);
+      useGeckodeStore.getState().setPhaserScene(scene);
       // Send current pause state to newly ready scene (listener is already set up)
-      const isEditorScene = useEditorStore.getState().isEditorScene;
+      const isEditorScene = useGeckodeStore.getState().isEditorScene;
       EventBus.emit('editor-scene-changed', isEditorScene);
     };
 
@@ -61,13 +61,13 @@ const PhaserGame = () => {
   }, []);
 
   return (
-    <div className="relative">
+    <div className="relative flex justify-center">
       <div
         id="game-container"
         tabIndex={0}
         className="rounded-md outline-none border-2 border-transparent focus:border-primary-green transition-all duration-200"
         style={{
-          width: '484px',
+          width: '450px',
           height: '360px',
           overflow: 'hidden',
         }}

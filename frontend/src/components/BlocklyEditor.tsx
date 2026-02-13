@@ -1,20 +1,85 @@
 "use client";
 
-import { useEffect, useRef, forwardRef, useImperativeHandle, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as Blockly from "blockly/core";
 import { registerBlockly } from "@/blockly/index";
 import getToolbox from "@/blockly/toolbox";
-import { variableCategoryCallback } from '@/blockly/callbacks';
-import { Geckode } from '@/blockly/theme';
-import { useEditorStore } from '@/stores/editorStore';
-import VariableModal from './VariableModal';
-import { useParams } from 'next/navigation';
-import projectsApi from '@/lib/api/handlers/projects';
-import starterWorkspace from '@/blockly/workspaces/starter';
-import starterWorkspaceNewProject from '@/blockly/workspaces/starterNewProject';
-import { useSpriteStore } from '@/stores/spriteStore';
+import { variableCategoryCallback } from "@/blockly/callbacks";
+import { Geckode } from "@/blockly/theme";
+import { useGeckodeStore } from "@/stores/geckodeStore";
+import VariableModal from "./VariableModal";
+import { useParams } from "next/navigation";
+import projectsApi from "@/lib/api/handlers/projects";
+import starterWorkspace from "@/blockly/workspaces/starter";
+import starterWorkspaceNewProject from "@/blockly/workspaces/starterNewProject";
+import EditorScene from "@/phaser/scenes/EditorScene";
 
 registerBlockly();
+
+function setupCustomZoomControls(container: HTMLDivElement) {
+  const customizeZoomControl = (
+    zoomGroup: SVGGElement,
+    iconPath: string,
+  ) => {
+    while (zoomGroup.firstChild) {
+      zoomGroup.removeChild(zoomGroup.firstChild);
+    }
+    const customImage = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "image",
+    );
+    customImage.setAttribute("href", iconPath);
+    customImage.setAttribute("width", "32");
+    customImage.setAttribute("height", "32");
+    customImage.setAttribute("x", "0");
+    customImage.setAttribute("y", "0");
+    zoomGroup.appendChild(customImage);
+  };
+
+  const customizeZoomControls = (el: Element) => {
+    const zoomIn = el.querySelector(".blocklyZoomIn") as SVGGElement | null;
+    const zoomOut = el.querySelector(".blocklyZoomOut") as SVGGElement | null;
+    const zoomReset = el.querySelector(
+      ".blocklyZoomReset",
+    ) as SVGGElement | null;
+
+    if (zoomIn) customizeZoomControl(zoomIn, "/zoom-plus.svg");
+    if (zoomOut) customizeZoomControl(zoomOut, "/zoom-minus.svg");
+    if (zoomReset) zoomReset.style.display = "none";
+  };
+
+  const existingZoomIn = container.querySelector(".blocklyZoomIn");
+  if (existingZoomIn) {
+    customizeZoomControls(container);
+    return;
+  }
+
+  const observer = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      for (const node of mutation.addedNodes) {
+        if (node instanceof Element) {
+          const hasZoom =
+            node.classList?.contains("blocklyZoom") ||
+            node.querySelector?.(".blocklyZoom");
+          if (hasZoom) {
+            customizeZoomControls(container);
+            observer.disconnect();
+            return;
+          }
+        }
+      }
+    }
+  });
+
+  observer.observe(container, { childList: true, subtree: true });
+
+  setTimeout(() => {
+    observer.disconnect();
+    if (container.querySelector(".blocklyZoomIn")) {
+      customizeZoomControls(container);
+    }
+  }, 500);
+}
 
 const BlocklyEditor = () => {
   const { projectID } = useParams();
@@ -22,236 +87,111 @@ const BlocklyEditor = () => {
 
   const blocklyInjectionRef = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<Blockly.WorkspaceSvg | null>(null);
-  const spriteId = useEditorStore((state) => state.spriteId);
 
-  const [showVariableModal, setShowVariableModal] = useState<boolean>(false);
+  // Reactive selectors – values that affect rendering / effects
+  const currentSpriteId = useGeckodeStore((s) => s.getCurrentSpriteId());
 
+  const setBlocklyWorkspaceRef = useGeckodeStore((s) => s.setBlocklyWorkspaceRef);
+  const updateUndoRedoState = useGeckodeStore((s) => s.updateUndoRedoState);
+
+  const [showVariableModal, setShowVariableModal] = useState(false);
+
+  // ── Update toolbox when selected sprite changes ──
   useEffect(() => {
     if (!workspaceRef.current) return;
-
     const workspace = workspaceRef.current;
-    const toolbox = workspace.getToolbox();
-    if (!toolbox) return;
-
-    // Update the toolbox with fresh spriteId
     const newToolbox = getToolbox();
+
     workspace.updateToolbox(newToolbox as Blockly.utils.toolbox.ToolboxDefinition);
-  }, [spriteId]);
+  }, [currentSpriteId]);
 
+  // ── Blockly initialisation ──
   useEffect(() => {
-    // inject Blockly into the div
-    if (blocklyInjectionRef.current && !workspaceRef.current) {
-      // This avoids the weird bumping between blocks that caused desync
-      Blockly.BlockSvg.prototype.bumpNeighbours = function() {};
+    if (!blocklyInjectionRef.current || workspaceRef.current) return;
 
-      const blocklyOptions: Blockly.BlocklyOptions = {
-        toolbox: getToolbox() as Blockly.utils.toolbox.ToolboxDefinition,
-        sounds: false,
-        renderer: 'zelos',
-        readOnly: false,
-        trashcan: false,
-        media: '/',
-        move: {
-          scrollbars: true,
-          drag: true,
-          wheel: true,
-        },
-        theme: Geckode,
-        zoom: {
-          controls: false,
-          wheel: true,
-          startScale: 0.75,
-          maxScale: 2.0,
-          minScale: 0.4,
-          scaleSpeed: 1.35,
-          pinch: true,
-        },
-        grid: {
-          spacing: 50,
-          length: 0.5,
-          colour: '#ccc',
-          snap: false,
-        },
-      };
+    // Avoid the weird bumping between blocks that caused desync
+    Blockly.BlockSvg.prototype.bumpNeighbours = function () { };
 
-      workspaceRef.current = Blockly.inject(blocklyInjectionRef.current as HTMLDivElement, blocklyOptions);
+    const blocklyOptions: Blockly.BlocklyOptions = {
+      toolbox: getToolbox() as Blockly.utils.toolbox.ToolboxDefinition,
+      sounds: false,
+      renderer: "zelos",
+      readOnly: false,
+      trashcan: false,
+      media: "/",
+      move: { scrollbars: true, drag: true, wheel: true },
+      theme: Geckode,
+      zoom: {
+        controls: false,
+        wheel: true,
+        startScale: 0.75,
+        maxScale: 2.0,
+        minScale: 0.4,
+        scaleSpeed: 1.35,
+        pinch: true,
+      },
+      grid: { spacing: 50, length: 0.5, colour: "#ccc", snap: false },
+    };
 
-      // Customize zoom controls to use custom +/- icons
-      const customizeZoomControl = (zoomGroup: SVGGElement, iconPath: string) => {
-        // Remove all existing children (images and clip-paths)
-        while (zoomGroup.firstChild) {
-          zoomGroup.removeChild(zoomGroup.firstChild);
-        }
+    workspaceRef.current = Blockly.inject(
+      blocklyInjectionRef.current,
+      blocklyOptions,
+    );
 
-        // Create a new image element with our custom SVG
-        const customImage = document.createElementNS('http://www.w3.org/2000/svg', 'image');
-        customImage.setAttribute('href', iconPath);
-        customImage.setAttribute('width', '32');
-        customImage.setAttribute('height', '32');
-        customImage.setAttribute('x', '0');
-        customImage.setAttribute('y', '0');
-        zoomGroup.appendChild(customImage);
-      };
+    setupCustomZoomControls(blocklyInjectionRef.current);
 
-      const customizeZoomControls = (container: Element) => {
-        const zoomIn = container.querySelector('.blocklyZoomIn') as SVGGElement | null;
-        const zoomOut = container.querySelector('.blocklyZoomOut') as SVGGElement | null;
-        const zoomReset = container.querySelector('.blocklyZoomReset') as SVGGElement | null;
-
-        if (zoomIn) {
-          customizeZoomControl(zoomIn, '/zoom-plus.svg');
-        }
-        if (zoomOut) {
-          customizeZoomControl(zoomOut, '/zoom-minus.svg');
-        }
-        // Hide the reset button - only show +/-
-        if (zoomReset) {
-          zoomReset.style.display = 'none';
-        }
-      };
-
-      // Look for existing zoom controls or observe for their creation
-      const blocklyContainer = blocklyInjectionRef.current;
-      const existingZoomIn = blocklyContainer.querySelector('.blocklyZoomIn');
-
-      if (existingZoomIn) {
-        customizeZoomControls(blocklyContainer);
-      } else {
-        // Observe for zoom controls being added to the DOM
-        const observer = new MutationObserver((mutations) => {
-          for (const mutation of mutations) {
-            for (const node of mutation.addedNodes) {
-              if (node instanceof Element) {
-                const hasZoomControls = node.classList?.contains('blocklyZoom') || node.querySelector?.('.blocklyZoom');
-                if (hasZoomControls) {
-                  customizeZoomControls(blocklyContainer);
-                  observer.disconnect();
-                  return;
-                }
-              }
-            }
-          }
-        });
-
-        observer.observe(blocklyContainer, {
-          childList: true,
-          subtree: true,
-        });
-
-        // Fallback timeout
-        setTimeout(() => {
-          observer.disconnect();
-          const zoomIn = blocklyContainer.querySelector('.blocklyZoomIn');
-          if (zoomIn) {
-            customizeZoomControls(blocklyContainer);
-          }
-        }, 500);
-      }
-
-      workspaceRef.current.registerButtonCallback('createVariableButton', () => {
+    // Variable modal callback
+    workspaceRef.current.registerButtonCallback(
+      "createVariableButton",
+      () => {
         setShowVariableModal(true);
         const flyout = workspaceRef.current?.getFlyout();
         if (flyout) flyout.autoClose = false;
-      });
+      },
+    );
 
-      workspaceRef.current.registerToolboxCategoryCallback('CUSTOM_VARIABLES', variableCategoryCallback);
+    workspaceRef.current.registerToolboxCategoryCallback(
+      "CUSTOM_VARIABLES",
+      variableCategoryCallback,
+    );
 
-      // Listen for workspace changes to update undo/redo state and trigger auto-convert
-      workspaceRef.current.addChangeListener((event) => {
-        // Update on any event that could affect undo/redo stacks
-        if (event.isUiEvent) return; // Skip UI-only events
-        // Get fresh reference from store to avoid stale closure
-        useEditorStore.getState().updateUndoRedoState();
+    // ── Change listener  ──
+    workspaceRef.current.addChangeListener((event) => {
+      if (event.isUiEvent) return;
+      useGeckodeStore.getState().updateUndoRedoState();
 
-        // Trigger auto-convert for code-affecting changes
-        // Skip events that don't record undo (e.g., during workspace load)
-        if (!event.recordUndo) return;
+      if (!event.recordUndo) return;
 
-        const convertableEvents = [
-          Blockly.Events.BLOCK_CREATE,
-          Blockly.Events.BLOCK_DELETE,
-          Blockly.Events.BLOCK_MOVE,
-          Blockly.Events.BLOCK_CHANGE,
-          Blockly.Events.VAR_CREATE,
-          Blockly.Events.VAR_DELETE,
-          Blockly.Events.VAR_RENAME,
-        ];
+      const convertableEvents = [
+        Blockly.Events.BLOCK_CREATE,
+        Blockly.Events.BLOCK_DELETE,
+        Blockly.Events.BLOCK_MOVE,
+        Blockly.Events.BLOCK_CHANGE,
+        Blockly.Events.VAR_CREATE,
+        Blockly.Events.VAR_DELETE,
+        Blockly.Events.VAR_RENAME,
+      ];
 
-        if (convertableEvents.includes(event.type as typeof Blockly.Events.BLOCK_CREATE))
-          useEditorStore.getState().scheduleConvert();
-      });
+      if (convertableEvents.includes(event.type as typeof Blockly.Events.BLOCK_CREATE))
+        useGeckodeStore.getState().scheduleConvert();
+    });
 
-      useEditorStore.getState().setBlocklyWorkspace(workspaceRef.current!);
+    // Register workspace & initial undo/redo (actions are stable refs)
+    setBlocklyWorkspaceRef(workspaceRef.current);
+    updateUndoRedoState();
 
-      // Initial update of undo/redo state
-      useEditorStore.getState().updateUndoRedoState();
-
-      if (!projectId) {
-        const loadPersistedOrDefault = () => {
-          let spriteId = useSpriteStore.getState().spriteInstances[0]?.id;
-
-          // no sprites - create a default front-facing sprite
-          if (!spriteId) {
-            spriteId = `id_${Date.now()}_${Math.round(Math.random() * 1e4)}`;
-            useSpriteStore.setState({
-              spriteInstances: [{
-                id: spriteId,
-                instanceId: spriteId,
-                textureName: 'hero-walk-front',
-                name: 'herowalkfront1',
-                x: 200,
-                y: 150,
-              }],
-            });
-          }
-
-          const persisted = useEditorStore.getState().spriteWorkspaces.get(spriteId);
-          Blockly.serialization.workspaces.load(
-            persisted ?? starterWorkspace,
-            workspaceRef.current!
-          );
-          useEditorStore.getState().setSpriteId(spriteId);
-          useEditorStore.getState().scheduleConvert();
-        };
-
-        // call immediately if hydrated, otherwise wait
-        if (useEditorStore.persist.hasHydrated()) {
-          loadPersistedOrDefault();
-        } else {
-          useEditorStore.persist.onFinishHydration(loadPersistedOrDefault);
-        }
-        return;
-      }
-
-      const fetchWorkspace = async () => {
-        projectsApi(projectId)
-          .get()
-          .then((project) => {
-            try {
-              Blockly.serialization.workspaces.load(
-                Object.keys(project.blocks).length ? project.blocks : starterWorkspaceNewProject,
-                workspaceRef.current!
-              );
-            } catch {
-              console.error('Failed to load workspace!');
-            }
-
-            useEditorStore.setState({
-              projectName: project.name,
-              phaserState: project.game_state,
-              spriteId: project.sprites[0]?.id ?? '',
-            });
-          });
-      };
-
-      fetchWorkspace();
+    // ── Workspace loading ──
+    if (!projectId) {
+      loadLocalWorkspace(workspaceRef.current);
+    } else {
+      loadRemoteWorkspace(projectId, workspaceRef.current);
     }
 
     return () => {
       try {
         workspaceRef.current?.dispose();
       } catch (error) {
-        console.warn('Failed to dispose Blockly workspace', error);
+        console.warn("Failed to dispose Blockly workspace", error);
       } finally {
         workspaceRef.current = null;
       }
@@ -260,10 +200,71 @@ const BlocklyEditor = () => {
 
   return (
     <>
-      <div ref={blocklyInjectionRef} id="blocklyDiv" className="h-full w-full min-h-80 scrollbar-hide" />
-      <VariableModal showVariableModal={showVariableModal} setShowVariableModal={setShowVariableModal} />
+      <div
+        ref={blocklyInjectionRef}
+        id="blocklyDiv"
+        className="h-full w-full min-h-80 scrollbar-hide"
+      />
+      <VariableModal
+        showVariableModal={showVariableModal}
+        setShowVariableModal={setShowVariableModal}
+      />
     </>
   );
 };
+
+// ── Workspace-loading helpers ──
+
+function loadLocalWorkspace(workspace: Blockly.WorkspaceSvg) {
+  const doLoad = () => {
+    // if spriteInstances.length === 1, and spriteWorkspaces is {} (default), then we need to
+    // load the start workspace. otherwise, just load the workspace for the selected sprite.
+    const { spriteInstances, spriteWorkspaces, selectedSpriteId, scheduleConvert } = useGeckodeStore.getState();
+    if (spriteInstances.length === 1 && Object.keys(spriteWorkspaces).length === 0) {
+      Blockly.serialization.workspaces.load(starterWorkspace, workspace);
+      useGeckodeStore.setState({ spriteWorkspaces: { [spriteInstances[0].id]: Blockly.serialization.workspaces.save(workspace) } });
+    } else if (selectedSpriteId) {
+      Blockly.serialization.workspaces.load(spriteWorkspaces[selectedSpriteId], workspace);
+    }
+    scheduleConvert();
+  };
+
+  if (useGeckodeStore.persist.hasHydrated()) {
+    doLoad();
+  } else {
+    useGeckodeStore.persist.onFinishHydration(doLoad);
+  }
+}
+
+function loadRemoteWorkspace(
+  projectId: number,
+  workspace: Blockly.WorkspaceSvg,
+) {
+  projectsApi(projectId)
+    .get()
+    .then((project) => {
+      try {
+        Blockly.serialization.workspaces.load(
+          Object.keys(project.blocks).length
+            ? project.blocks
+            : starterWorkspaceNewProject,
+          workspace,
+        );
+      } catch {
+        console.error("Failed to load workspace!");
+      }
+
+      const { setSelectedSpriteId } = useGeckodeStore.getState();
+
+      useGeckodeStore.setState({
+        projectName: project.name,
+        phaserState: project.game_state,
+      });
+
+      // Select the sprite matching the first project sprite
+      const firstSpriteId = project.sprites[0]?.id;
+      if (firstSpriteId) setSelectedSpriteId(firstSpriteId);
+    });
+}
 
 export default BlocklyEditor;

@@ -1,184 +1,330 @@
-import { useState, useEffect } from "react";
-import { useSpriteStore } from "@/stores/spriteStore";
-import { EyeOpenIcon, EyeNoneIcon } from "@radix-ui/react-icons";
-import type { SpriteInstance } from "@/blockly/spriteRegistry";
+import { EyeNoneIcon, EyeOpenIcon } from "@radix-ui/react-icons";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { EventBus } from "@/phaser/EventBus";
+import { useGeckodeStore } from "@/stores/geckodeStore";
+import {
+  buildFormValues,
+  FIELD_DEFAULTS,
+  iconClasses,
+  labelClasses,
+  numericInputClasses,
+  resolveBlurValue,
+  type SpriteFormValues,
+  textInputClasses,
+  visibilityButtonActiveClasses,
+  visibilityButtonBaseClasses,
+  visibilityButtonInactiveClasses,
+} from "./spritePositionUtils";
 
-// todo, move to constant/global variable
-const CENTER_X = 240;
-const CENTER_Y = 180;
+interface NumericFieldProps {
+  label: string;
+  icon?: string;
+  value: string;
+  disabled: boolean;
+  min?: string;
+  max?: string;
+  onChange: (value: string) => void;
+  onBlur: () => void;
+}
+
+function NumericField({
+  label,
+  icon,
+  value,
+  disabled,
+  min,
+  max,
+  onChange,
+  onBlur,
+}: NumericFieldProps) {
+  const id = `sprite-${label.toLowerCase().replace(/\s/g, "-")}`;
+  return (
+    <div className="flex items-center gap-1.5">
+      {icon ? <span className={iconClasses}>{icon}</span> : null}
+      <label htmlFor={id} className={labelClasses}>
+        {label}
+      </label>
+      <input
+        id={id}
+        type="number"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
+        disabled={disabled}
+        min={min}
+        max={max}
+        className={numericInputClasses}
+      />
+    </div>
+  );
+}
 
 const SpritePosition = () => {
-  const selectedSprite = useSpriteStore((state) => state.selectedSprite);
-  const selectedSpriteId = useSpriteStore((state) => state.selectedSpriteId);
-  const updateSprite = useSpriteStore((state) => state.updateSprite);
+  const selectedSpriteId = useGeckodeStore((s) => s.selectedSpriteId);
+  const selectedSprite = useGeckodeStore((s) =>
+    s.selectedSpriteId !== null
+      ? s.spriteInstances.find((i) => i.id === s.selectedSpriteId) ?? null
+      : null,
+  );
+  const updateSpriteInstance = useGeckodeStore((s) => s.updateSpriteInstance);
+  const setSelectedSpriteId = useGeckodeStore((s) => s.setSelectedSpriteId);
 
-  const [values, setValues] = useState({ name: '', x: '', y: '', size: '', direction: '', snapToGrid: false, visible: true });
+  const phaserGame = useGeckodeStore((s) => s.phaserGame);
+  const centerX = useMemo(
+    () => (phaserGame ? Math.round(phaserGame.scale.width / 2) : 80),
+    [phaserGame],
+  );
+  const centerY = useMemo(
+    () => (phaserGame ? Math.round(phaserGame.scale.height / 2) : 64),
+    [phaserGame],
+  );
+
+  const [values, setValues] = useState<SpriteFormValues>(() =>
+    buildFormValues(selectedSprite, centerX, centerY),
+  );
+
   useEffect(() => {
-    if (selectedSprite) {
-      setValues({
-        name: selectedSprite.name,
-        x: String(selectedSprite.x ?? CENTER_X),
-        y: String(selectedSprite.y ?? CENTER_Y),
-        size: String(selectedSprite.size ?? 100),
-        direction: String(selectedSprite.direction ?? 90),
-        snapToGrid: selectedSprite.snapToGrid ?? false,
-        visible: selectedSprite.visible ?? true
+    setValues(buildFormValues(selectedSprite, centerX, centerY));
+  }, [selectedSprite, centerX, centerY]);
+
+  useEffect(() => {
+    const handleDragStart = ({ id }: { id: string }) => {
+      setSelectedSpriteId(id);
+    };
+
+    const handleDragging = ({ x, y, }: { x: number; y: number; }) => {
+      setValues((prev) => ({
+        ...prev,
+        x: String(Math.round(x)),
+        y: String(Math.round(y)),
+      }));
+    };
+
+    const handleDragEnd = ({ id, x, y }: { id: string; x: number; y: number; }) => {
+      const { selectedSpriteId, updateSpriteInstance } = useGeckodeStore.getState();
+      if (selectedSpriteId !== id) return;
+      setValues((prev) => ({
+        ...prev,
+        x: String(Math.round(x)),
+        y: String(Math.round(y)),
+      }));
+      updateSpriteInstance(id, { x: Math.round(x), y: Math.round(y) });
+    };
+
+    EventBus.on("editor-sprite-drag-start", handleDragStart);
+    EventBus.on("editor-sprite-dragging", handleDragging);
+    EventBus.on("editor-sprite-drag-end", handleDragEnd);
+    return () => {
+      EventBus.off("editor-sprite-drag-start", handleDragStart);
+      EventBus.off("editor-sprite-dragging", handleDragging);
+      EventBus.off("editor-sprite-drag-end", handleDragEnd);
+    };
+  }, []);
+
+  const handleInputChange = useCallback(
+    (field: keyof SpriteFormValues, value: string) => {
+      setValues((prev) => ({ ...prev, [field]: value }));
+    },
+    [],
+  );
+
+  const handleBlurY = () => {
+    if (selectedSpriteId === null || !selectedSprite) return;
+    const rawValue = values.y;
+    const finalValue = resolveBlurValue(rawValue, "y", centerY);
+    if (selectedSprite.y !== finalValue) {
+      updateSpriteInstance(selectedSpriteId, { y: finalValue as number });
+    }
+  };
+
+  const handleBlurName = useCallback(() => {
+    if (selectedSpriteId === null || !selectedSprite) return;
+    const finalValue = resolveBlurValue(
+      values.name,
+      "name",
+      FIELD_DEFAULTS.name,
+    );
+    if (selectedSprite.name !== finalValue) {
+      updateSpriteInstance(selectedSpriteId, { name: finalValue as string });
+    }
+  }, [selectedSpriteId, selectedSprite, values.name, updateSpriteInstance]);
+
+  const handleBlurScaleX = useCallback(() => {
+    if (selectedSpriteId === null || !selectedSprite) return;
+    const finalValue = resolveBlurValue(
+      values.scaleX,
+      "scaleX",
+      FIELD_DEFAULTS.scaleX,
+    );
+    if (selectedSprite.scaleX !== finalValue) {
+      updateSpriteInstance(selectedSpriteId, { scaleX: finalValue as number });
+    }
+  }, [selectedSpriteId, selectedSprite, values.scaleX, updateSpriteInstance]);
+
+  const handleBlurScaleY = useCallback(() => {
+    if (selectedSpriteId === null || !selectedSprite) return;
+    const finalValue = resolveBlurValue(
+      values.scaleY,
+      "scaleY",
+      FIELD_DEFAULTS.scaleY,
+    );
+    if (selectedSprite.scaleY !== finalValue) {
+      updateSpriteInstance(selectedSpriteId, { scaleY: finalValue as number });
+    }
+  }, [selectedSpriteId, selectedSprite, values.scaleY, updateSpriteInstance]);
+
+  const handleBlurDirection = useCallback(() => {
+    if (selectedSpriteId === null || !selectedSprite) return;
+    const finalValue = resolveBlurValue(
+      values.direction,
+      "direction",
+      FIELD_DEFAULTS.direction,
+    );
+    if (selectedSprite.direction !== finalValue) {
+      updateSpriteInstance(selectedSpriteId, {
+        direction: finalValue as number,
       });
-    } else {
-      setValues({ name: '', x: '', y: '', size: '', direction: '', snapToGrid: false, visible: true });
     }
-  }, [selectedSpriteId]);
+  }, [
+    selectedSpriteId,
+    selectedSprite,
+    values.direction,
+    updateSpriteInstance,
+  ]);
 
-  const handleInputChange = (field: keyof typeof values, value: string) => {
-    setValues((prev) => ({ ...prev, [field]: value }));
-  };
-  const handleBlur = (field: keyof SpriteInstance, defaultValue: number | string) => {
-    if (!selectedSpriteId) return;
-    const rawValue = values[field as keyof typeof values];
-    
-    let finalValue: string | number;
-    if (field === 'name') {
-      finalValue = String(rawValue).trim() || String(defaultValue);
-    } else {
-      const parsed = parseFloat(String(rawValue));
-      finalValue = isNaN(parsed) ? defaultValue : parsed;
-    }
+  const handleToggle = useCallback(
+    (field: "snapToGrid" | "visible", value: boolean) => {
+      if (selectedSpriteId === null) return;
+      updateSpriteInstance(selectedSpriteId, { [field]: value });
+    },
+    [selectedSpriteId, updateSpriteInstance],
+  );
 
-    // Only update if value actually changed
-    if (selectedSprite && selectedSprite[field] !== finalValue) {
-      updateSprite(selectedSpriteId, { [field]: finalValue });
-    }
-  };
-  // For boolean/toggle fields (snapToGrid, visible) - update store immediately
-  const handleToggle = (field: keyof SpriteInstance, value: boolean) => {
-    if (!selectedSpriteId) return;
-    updateSprite(selectedSpriteId, { [field]: value });
-  };
+  const setVisible = useCallback(
+    (visible: boolean) => {
+      if (selectedSpriteId === null) return;
+      updateSpriteInstance(selectedSpriteId, { visible });
+    },
+    [selectedSpriteId, updateSpriteInstance],
+  );
+
+  const disabled = !selectedSprite;
 
   return (
     <div className="w-full pb-3 mb-3 border-b border-slate-300 dark:border-slate-600">
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs">
         <div className="flex items-center gap-2">
-          <label className="font-semibold text-slate-600 dark:text-slate-400">Sprite</label>
+          <label htmlFor="sprite-name" className={labelClasses}>
+            Sprite
+          </label>
           <input
+            id="sprite-name"
             type="text"
             value={values.name}
-            onChange={(e) => handleInputChange('name', e.target.value)}
-            onBlur={() => handleBlur('name', 'Sprite')}
-            disabled={!selectedSprite}
-            className="w-28 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs outline-none transition focus:border-primary-green focus:ring-2 focus:ring-primary-green/20 disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-600 dark:bg-dark-hover dark:text-slate-100 dark:disabled:bg-dark-tertiary dark:disabled:text-slate-500"
+            onChange={(e) => handleInputChange("name", e.target.value)}
+            onBlur={handleBlurName}
+            disabled={disabled}
+            className={textInputClasses}
             placeholder="—"
           />
         </div>
 
-        {/* X Position */}
-        <div className="flex items-center gap-1.5">
-          <span className="text-slate-500 dark:text-slate-400">↔</span>
-          <label className="text-slate-600 dark:text-slate-400">x</label>
-          <input
-            type="number"
-            value={values.x}
-            onChange={(e) => handleInputChange('x', e.target.value)}
-            onBlur={() => handleBlur('x', CENTER_X)}
-            disabled={!selectedSprite}
-            className="w-14 rounded-full border border-slate-300 bg-white px-2 py-1.5 text-xs text-center outline-none transition focus:border-primary-green focus:ring-2 focus:ring-primary-green/20 disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-600 dark:bg-dark-hover dark:text-slate-100 dark:disabled:bg-dark-tertiary dark:disabled:text-slate-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-          />
-        </div>
+        <NumericField
+          label="x"
+          icon="↔"
+          value={values.x}
+          disabled={disabled}
+          onChange={(v) => handleInputChange("x", v)}
+          onBlur={() => {
+            const rawValue = values.x;
+            const finalValue = resolveBlurValue(rawValue, "x", centerX);
+            if (selectedSprite!.x !== finalValue)
+              updateSpriteInstance(selectedSpriteId!, { x: finalValue as number });
+          }}
+        />
+        <NumericField
+          label="y"
+          icon="↕"
+          value={values.y}
+          disabled={disabled}
+          onChange={(v) => handleInputChange("y", v)}
+          onBlur={handleBlurY}
+        />
 
-        {/* Y Position */}
-        <div className="flex items-center gap-1.5">
-          <span className="text-slate-500 dark:text-slate-400">↕</span>
-          <label className="text-slate-600 dark:text-slate-400">y</label>
-          <input
-            type="number"
-            value={values.y}
-            onChange={(e) => handleInputChange('y', e.target.value)}
-            onBlur={() => handleBlur('y', CENTER_Y)}
-            disabled={!selectedSprite}
-            className="w-14 rounded-full border border-slate-300 bg-white px-2 py-1.5 text-xs text-center outline-none transition focus:border-primary-green focus:ring-2 focus:ring-primary-green/20 disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-600 dark:bg-dark-hover dark:text-slate-100 dark:disabled:bg-dark-tertiary dark:disabled:text-slate-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-          />
-        </div>
-
-        {/* Snap to Grid */}
-        <label className="flex cursor-pointer items-center gap-1.5">
+        {/* TODO: probably add this back in later */}
+        {/* <label className="flex cursor-pointer items-center gap-1.5">
           <input
             type="checkbox"
             checked={values.snapToGrid}
-            onChange={() => handleToggle('snapToGrid', !values.snapToGrid)}
-            disabled={!selectedSprite}
+            onChange={() => handleToggle("snapToGrid", !values.snapToGrid)}
+            disabled={disabled}
             className="h-3.5 w-3.5 accent-primary-green cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           />
-          <span className="font-semibold text-slate-600 dark:text-slate-400">Snap</span>
-        </label>
+          <span className={labelClasses}>Snap</span>
+        </label> */}
 
-        {/* Show/Hide Toggle */}
-        <div className="flex items-center gap-0">
-          <label className="font-semibold text-slate-600 dark:text-slate-400 mr-2">Show</label>
+        <fieldset className="flex items-center gap-0 border-0 p-0 m-0">
+          <legend className={`${labelClasses} mr-2 sr-only`}>
+            Show sprite
+          </legend>
+          <span className={`${labelClasses} mr-2`} aria-hidden>
+            Show
+          </span>
           <button
             type="button"
-            onClick={() => {
-              if (!selectedSpriteId) return;
-              updateSprite(selectedSpriteId, { visible: true });
-            }}
-            disabled={!selectedSprite}
-            className={`rounded-l-md p-1.5 border transition cursor-pointer ${
+            onClick={() => setVisible(true)}
+            disabled={disabled}
+            className={`${visibilityButtonBaseClasses} rounded-l-md ${
               selectedSprite?.visible !== false
-                ? 'border-primary-green bg-primary-green text-white'
-                : 'border-slate-300 bg-white text-slate-400 dark:border-slate-600 dark:bg-dark-hover dark:text-slate-500'
-            } disabled:opacity-50 disabled:cursor-not-allowed`}
+                ? visibilityButtonActiveClasses
+                : visibilityButtonInactiveClasses
+              }`}
             title="Show sprite"
           >
             <EyeOpenIcon className="h-4 w-4" />
           </button>
           <button
             type="button"
-            onClick={() => {
-              if (!selectedSpriteId) return;
-              updateSprite(selectedSpriteId, { visible: false });
-            }}
-            disabled={!selectedSprite}
-            className={`rounded-r-md p-1.5 border transition cursor-pointer ${
+            onClick={() => setVisible(false)}
+            disabled={disabled}
+            className={`${visibilityButtonBaseClasses} rounded-r-md ${
               selectedSprite?.visible === false
-                ? 'border-primary-green bg-primary-green text-white'
-                : 'border-slate-300 bg-white text-slate-400 dark:border-slate-600 dark:bg-dark-hover dark:text-slate-500'
-            } disabled:opacity-50 disabled:cursor-not-allowed`}
+                ? visibilityButtonActiveClasses
+                : visibilityButtonInactiveClasses
+              }`}
             title="Hide sprite"
           >
             <EyeNoneIcon className="h-4 w-4" />
           </button>
-        </div>
+        </fieldset>
 
-        {/* Size */}
-        <div className="flex items-center gap-2">
-          <label className="font-semibold text-slate-600 dark:text-slate-400">Size</label>
-          <input
-            type="number"
-            // value={'size' in editingValues ? editingValues.size : selectedSprite?.size ?? 100}
-            // onFocus={() => handleFocus('size', selectedSprite?.size ?? 100)}
-            onChange={(e) => handleInputChange('size', e.target.value)}
-            onBlur={() => handleBlur('size', 100)}
-            disabled={!selectedSprite}
-            min="1"
-            max="1000"
-            className="w-14 rounded-full border border-slate-300 bg-white px-2 py-1.5 text-xs text-center outline-none transition focus:border-primary-green focus:ring-2 focus:ring-primary-green/20 disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-600 dark:bg-dark-hover dark:text-slate-100 dark:disabled:bg-dark-tertiary dark:disabled:text-slate-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-          />
-        </div>
-
-        {/* Direction */}
-        <div className="flex items-center gap-2">
-          <label className="font-semibold text-slate-600 dark:text-slate-400">Direction</label>
-          <input
-            type="number"
-            // value={'direction' in editingValues ? editingValues.direction : selectedSprite?.direction ?? 90}
-            // onFocus={() => handleFocus('direction', selectedSprite?.direction ?? 90)}
-            onChange={(e) => handleInputChange('direction', e.target.value)}
-            onBlur={() => handleBlur('direction', 0)}
-            disabled={!selectedSprite}
-            min="-180"
-            max="180"
-            className="w-14 rounded-full border border-slate-300 bg-white px-2 py-1.5 text-xs text-center outline-none transition focus:border-primary-green focus:ring-2 focus:ring-primary-green/20 disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-600 dark:bg-dark-hover dark:text-slate-100 dark:disabled:bg-dark-tertiary dark:disabled:text-slate-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-          />
-        </div>
+        <NumericField
+          label="Scale X"
+          value={values.scaleX}
+          disabled={disabled}
+          min="-200"
+          max="200"
+          onChange={(v) => handleInputChange("scaleX", v)}
+          onBlur={handleBlurScaleX}
+        />
+        <NumericField
+          label="Scale Y"
+          value={values.scaleY}
+          disabled={disabled}
+          min="-200"
+          max="200"
+          onChange={(v) => handleInputChange("scaleY", v)}
+          onBlur={handleBlurScaleY}
+        />
+        <NumericField
+          label="Direction"
+          value={values.direction}
+          disabled={disabled}
+          min="-180"
+          max="180"
+          onChange={(v) => handleInputChange("direction", v)}
+          onBlur={handleBlurDirection}
+        />
       </div>
     </div>
   );
