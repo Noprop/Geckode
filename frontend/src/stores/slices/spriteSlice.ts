@@ -31,15 +31,15 @@ import {
 } from '../b64_textures';
 import type { AssetType, EditingSource, GeckodeStore, Scene, SpriteSlice, Tilemap } from './types';
 
-export const createEmptyTilemapData = (width: number, height: number): (string | null)[][] =>
+export const createEmptyTilemapData = (height: number, width: number): (string | null)[][] =>
   Array.from({ length: height }, () => Array.from({ length: width }, () => null));
 
 const createDefaultTilemap = (): Tilemap => ({
   id: 'tilemap_1',
   name: 'Tilemap 1',
+  height: 12,
   width: 16,
-  height: 16,
-  data: createEmptyTilemapData(16, 16),
+  data: createEmptyTilemapData(12, 16),
   base64: '',
 });
 
@@ -294,7 +294,7 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
     set({
       tilemaps: {
         ...get().tilemaps,
-        [tilemapId]: { ...tilemap, data: createEmptyTilemapData(tilemap.width, tilemap.height) },
+        [tilemapId]: { ...tilemap, data: createEmptyTilemapData(tilemap.height, tilemap.width) },
       },
     });
   },

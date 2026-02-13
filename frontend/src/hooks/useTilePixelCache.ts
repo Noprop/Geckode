@@ -133,8 +133,10 @@ export function rebuildPixelBuffer(
 ) {
   target.fill(0);
   const pixelWidth = w * tilePx;
-  for (let row = 0; row < h; row++) {
-    for (let col = 0; col < w; col++) {
+  const rows = Math.min(h, tilemapData.length);
+  for (let row = 0; row < rows; row++) {
+    const cols = Math.min(w, tilemapData[row].length);
+    for (let col = 0; col < cols; col++) {
       const key = tilemapData[row][col];
       if (key && cache[key]) {
         stampTileAt(target, cache[key], row, col, pixelWidth, tilePx);
