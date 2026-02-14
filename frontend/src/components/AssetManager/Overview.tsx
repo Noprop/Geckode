@@ -34,6 +34,7 @@ const AssetWorkspace = () => {
   const removeTileset = useGeckodeStore((s) => s.removeTileset);
   const setEditingAsset = useGeckodeStore((s) => s.setEditingAsset);
   const setIsSpriteModalOpen = useGeckodeStore((s) => s.setIsSpriteModalOpen);
+  const setSpriteModalContext = useGeckodeStore((s) => s.setSpriteModalContext);
 
   const selectedTileset = selectedAsset?.type === 'tilesets'
     ? tilesets.find((ts) => ts.id === selectedAsset.name) ?? null
@@ -48,7 +49,10 @@ const AssetWorkspace = () => {
   const handleEdit = () => {
     if (!selectedAsset) return;
     setEditingAsset(selectedAsset.name, selectedAsset.type, 'asset');
-    if (selectedAsset.type === 'textures') setIsSpriteModalOpen(true);
+    if (selectedAsset.type === 'textures') {
+      setSpriteModalContext('asset_manager', selectedAsset.name);
+      setIsSpriteModalOpen(true);
+    }
     else if (selectedAsset.type === 'tiles') setIsTileEditorModalOpen(true);
     else if (selectedAsset.type === 'tilesets') setIsTilesetEditorModalOpen(true);
   };
@@ -96,7 +100,10 @@ const AssetWorkspace = () => {
 
   const handleCreateNew = () => {
     setEditingAsset(null, activeTab, 'new');
-    if (activeTab === 'textures') setIsSpriteModalOpen(true);
+    if (activeTab === 'textures') {
+      setSpriteModalContext('asset_manager');
+      setIsSpriteModalOpen(true);
+    }
     else if (activeTab === 'tiles') setIsTileEditorModalOpen(true);
     else if (activeTab === 'tilesets') setIsTilesetEditorModalOpen(true);
   };
@@ -139,7 +146,10 @@ const AssetWorkspace = () => {
             if (!asset) return;
             setSelectedAsset(asset);
             setEditingAsset(asset.name, asset.type, 'asset');
-            if (asset.type === 'textures') setIsSpriteModalOpen(true);
+            if (asset.type === 'textures') {
+              setSpriteModalContext('asset_manager', asset.name);
+              setIsSpriteModalOpen(true);
+            }
             else if (asset.type === 'tiles') setIsTileEditorModalOpen(true);
             else if (asset.type === 'tilesets') setIsTilesetEditorModalOpen(true);
           }}

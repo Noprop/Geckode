@@ -29,7 +29,7 @@ import {
   tntTile,
   waterTile,
 } from '../b64_textures';
-import type { AssetType, EditingSource, GeckodeStore, Scene, SpriteSlice, Tilemap, Tileset } from './types';
+import type { AssetType, EditingSource, GeckodeStore, Scene, SpriteSlice, SpriteModalMode, Tilemap, Tileset } from './types';
 
 export const createEmptyTilemapData = (height: number, width: number): (string | null)[][] =>
   Array.from({ length: height }, () => Array.from({ length: width }, () => null));
@@ -159,9 +159,21 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
   editingSource: null,
   editingAssetName: null,
   editingAssetType: null,
+  spriteModalMode: null,
+  spriteModalSaveTargetTextureName: null,
 
   /* ── Modal / Selection ── */
   setIsSpriteModalOpen: (isOpen: boolean) => set({ isSpriteModalOpen: isOpen }),
+  setSpriteModalContext: (mode: SpriteModalMode, saveTargetTextureName: string | null = null) =>
+    set({
+      spriteModalMode: mode,
+      spriteModalSaveTargetTextureName: saveTargetTextureName,
+    }),
+  clearSpriteModalContext: () =>
+    set({
+      spriteModalMode: null,
+      spriteModalSaveTargetTextureName: null,
+    }),
   setSelectedSpriteId: (newId: string | null) => {
     const { blocklyWorkspace, spriteWorkspaces, selectedSpriteId: prevId } = get();
     if (newId === prevId) return;
@@ -454,6 +466,8 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
       editingSource: null,
       editingAssetName: null,
       editingAssetType: null,
+      spriteModalMode: null,
+      spriteModalSaveTargetTextureName: null,
       tilemaps: { tilemap_1: createDefaultTilemap(DEFAULT_TILESET_ID) },
       scenes: [{ id: 'scene_1', name: 'Scene 1', tilemapId: 'tilemap_1' }],
       activeTilemapId: 'tilemap_1',

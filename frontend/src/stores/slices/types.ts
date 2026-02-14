@@ -47,6 +47,7 @@ export type TilemapTool = 'place' | 'eraser' | 'bucket' | 'line' | 'rectangle' |
 
 export type AssetType = 'textures' | 'tiles' | 'tilesets' | 'animations' | 'backgrounds';
 export type EditingSource = 'new' | 'asset' | 'library';
+export type SpriteModalMode = 'phaser_add' | 'phaser_edit' | 'asset_manager';
 
 export interface SpriteState {
   spriteInstances: SpriteInstance[];
@@ -75,12 +76,16 @@ export interface SpriteState {
   editingSource: EditingSource | null;
   editingAssetName: string | null;
   editingAssetType: AssetType | null;
+  spriteModalMode: SpriteModalMode | null;
+  spriteModalSaveTargetTextureName: string | null;
 }
 
 export interface SpriteActions {
   setSelectedSpriteId: (spriteId: string | null) => void;
   setIsSpriteModalOpen: (isOpen: boolean) => void;
   setEditingAsset: (name: string | null, type: AssetType, source: EditingSource) => void;
+  setSpriteModalContext: (mode: SpriteModalMode, saveTargetTextureName?: string | null) => void;
+  clearSpriteModalContext: () => void;
 
   /* Sprites */
   setSpriteInstances: (instances: SpriteInstance[]) => void;

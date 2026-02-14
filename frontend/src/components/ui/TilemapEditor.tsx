@@ -702,8 +702,8 @@ const TilemapEditor = () => {
           </div>
 
           {selectedTileset && (
-            <div className="rounded border border-slate-300 dark:border-slate-700 p-1">
-              <div className="grid grid-cols-5 max-h-[260px] overflow-y-auto">
+            <div>
+              <div className="grid grid-cols-5 gap-px max-h-[260px] overflow-y-auto">
                 {selectedTileset.data.map((row, rowIndex) =>
                   Array.from({ length: TILESET_WIDTH }, (_, colIndex) => {
                     const tileKey = row[colIndex] ?? null;
@@ -728,11 +728,7 @@ const TilemapEditor = () => {
                         }}
                         onDragLeave={() => setDragOverTilesetCell(null)}
                         onDrop={(e) => handleTilesetDrop(e, rowIndex, colIndex)}
-                        className={`relative aspect-square border transition-colors ${isSelected
-                          ? 'border-2 border-dashed border-primary-green'
-                          : 'border-slate-300 dark:border-slate-700'
-                          } ${isDragOver ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-slate-100 dark:bg-dark-tertiary'
-                          }`}
+                        className={`group relative aspect-square transition-colors cursor-pointer ${isDragOver ? 'bg-emerald-100 dark:bg-emerald-900/30' : ''}`}
                         title={tileKey ?? 'Empty'}
                       >
                         {tileKey && tileTextures[tileKey] ? (
@@ -743,6 +739,11 @@ const TilemapEditor = () => {
                             style={{ imageRendering: 'pixelated' }}
                           />
                         ) : null}
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/15 transition-colors pointer-events-none" />
+                        {isSelected && (<>
+                          <div className="absolute inset-0 border-3 border-solid border-white pointer-events-none" />
+                          <div className="absolute inset-0 border-3 border-dashed border-black pointer-events-none" />
+                        </>)}
                       </button>
                     );
                   }),
