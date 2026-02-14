@@ -25,8 +25,11 @@ export default class GameScene extends Phaser.Scene {
     S: Phaser.Input.Keyboard.Key;
     D: Phaser.Input.Keyboard.Key;
   };
+
   private justPressedKeys: Array<Phaser.Input.Keyboard.Key> = [];
   private justReleasedKeys: Array<Phaser.Input.Keyboard.Key> = [];
+  private started: boolean = false;
+
   private gameSprites = new Map<string, Phaser.Physics.Arcade.Sprite>();
   private static readonly GAME_SPRITE_BASE_DEPTH = Number.MAX_SAFE_INTEGER - 100;
   private gameLayer!: Phaser.GameObjects.Layer;
@@ -96,8 +99,8 @@ export default class GameScene extends Phaser.Scene {
     // Tell React which scene is active (will trigger pause state sync)
     EventBus.emit('current-scene-ready', this);
 
-    this.cameras.main.centerOn(0, 0);
-    this.startHook();
+    this.cameras.main.centerOn(this.scale.width/2, -this.scale.height/2);
+    this.started = false;
   }
 
   startHook() {}
@@ -106,6 +109,11 @@ export default class GameScene extends Phaser.Scene {
   update() {
     this.justPressedKeys = [];
     this.justReleasedKeys = [];
+
+    if (!this.started) {
+      this.started = true;
+      this.startHook();
+    }
 
     this.updateHook();
   }
@@ -237,6 +245,9 @@ export default class GameScene extends Phaser.Scene {
     const { id, x, y, textureName, scaleX, scaleY, visible, direction, physics } = instance;
     console.log('[GameScene] addGameSprite called', textureName, x, y, id, physics);
     const sprite = this.physics.add.sprite(x, this.toWorldY(y), 'sprite-' + textureName);
+    const w = sprite.displayWidth;
+    const h = sprite.displayHeight;
+    sprite.body.setOffset(w * 0.5, h * 0.5);
     sprite.setName(id);
     sprite.setData('gameSpriteId', id);
     sprite.setDepth(GameScene.GAME_SPRITE_BASE_DEPTH);

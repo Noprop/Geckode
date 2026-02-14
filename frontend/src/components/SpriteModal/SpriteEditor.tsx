@@ -108,16 +108,19 @@ const SpriteEditor = () => {
   // --- Drawing tools (inline per user preference) ---
   const paintAt = (x: number, y: number, color: string) => {
     const { gridWidth: w, gridHeight: h, brushSize: size } = drawStateRef.current;
-    const rgba = Display.Color.HexStringToColor(color);
+    const pixelColor = color === '' ? null : (() => {
+      const rgba = Display.Color.HexStringToColor(color);
+      return { r: rgba.red, g: rgba.green, b: rgba.blue, a: rgba.alpha };
+    })();
     const offset = Math.floor(size / 2);
     const layer1 = outputPixelsRef.current;
-
+  
     for (let dy = 0; dy < size; dy += 1) {
       for (let dx = 0; dx < size; dx += 1) {
         const px = Math.max(0, Math.min(w - 1, x + dx - offset));
         const py = Math.max(0, Math.min(h - 1, y + dy - offset));
         const idx = (py * w + px) * 4;
-        setPixel(layer1, idx, { r: rgba.red, g: rgba.green, b: rgba.blue, a: rgba.alpha });
+        setPixel(layer1, idx, pixelColor);
       }
     }
     requestRender();
@@ -126,7 +129,10 @@ const SpriteEditor = () => {
   const floodFill = (startX: number, startY: number, fillColor: string) => {
     const { gridWidth: w, gridHeight: h } = drawStateRef.current;
     const layer1 = outputPixelsRef.current;
-    const fillRgba = Display.Color.HexStringToColor(fillColor);
+    const fillPixelColor = fillColor === '' ? null : (() => {
+      const fillRgba = Display.Color.HexStringToColor(fillColor);
+      return { r: fillRgba.red, g: fillRgba.green, b: fillRgba.blue, a: fillRgba.alpha };
+    })();
 
     const startIdx = (startY * w + startX) * 4;
     const targetR = layer1[startIdx];
@@ -134,8 +140,11 @@ const SpriteEditor = () => {
     const targetB = layer1[startIdx + 2];
     const targetA = layer1[startIdx + 3];
 
-    if (fillRgba) {
-      if (targetR === fillRgba.red && targetG === fillRgba.green && targetB === fillRgba.blue && targetA === fillRgba.alpha) return;
+    if (fillPixelColor) {
+      if (targetR === fillPixelColor.r &&
+        targetG === fillPixelColor.g &&
+        targetB === fillPixelColor.b &&
+        targetA === fillPixelColor.a) return;
     } else {
       if (targetA === 0) return;
     }
@@ -154,7 +163,7 @@ const SpriteEditor = () => {
         layer1[idx + 2] !== targetB || layer1[idx + 3] !== targetA) continue;
 
       visited.add(pixelIndex);
-      setPixel(layer1, idx, { r: fillRgba.red, g: fillRgba.green, b: fillRgba.blue, a: fillRgba.alpha });
+      setPixel(layer1, idx, fillPixelColor);
 
       queue.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
     }
@@ -183,7 +192,10 @@ const SpriteEditor = () => {
   const applyBrush = (pixels: { x: number; y: number }[], color: string, layer: Uint8ClampedArray) => {
     const { brushSize: size, gridWidth: w, gridHeight: h } = drawStateRef.current;
     const offset = Math.floor(size / 2);
-    const rgba = Display.Color.HexStringToColor(color);
+    const pixelColor = color === '' ? null : (() => {
+      const rgba = Display.Color.HexStringToColor(color);
+      return { r: rgba.red, g: rgba.green, b: rgba.blue, a: rgba.alpha };
+    })();
 
     for (const p of pixels) {
       for (let dy = 0; dy < size; dy++) {
@@ -191,7 +203,7 @@ const SpriteEditor = () => {
           const px = Math.max(0, Math.min(w - 1, p.x + dx - offset));
           const py = Math.max(0, Math.min(h - 1, p.y + dy - offset));
           const idx = (py * w + px) * 4;
-          setPixel(layer, idx, { r: rgba.red, g: rgba.green, b: rgba.blue, a: rgba.alpha });
+          setPixel(layer, idx, pixelColor);
         }
       }
     }
@@ -257,7 +269,7 @@ const SpriteEditor = () => {
     saveToHistory();
 
     if (['pen', 'eraser'].includes(activeTool)) {
-      paintAt(position.x, position.y, color);
+      paintAt(position.x, position.y, activeTool === 'pen' ? color : '');
       ds.isDrawing = true;
     } else if (['rectangle', 'line', 'oval'].includes(activeTool)) {
       ds.shapeStart = position;
@@ -298,14 +310,12 @@ const SpriteEditor = () => {
     }
 
     // Paint for pen and eraser
-    if (ds.activeTool === 'pen') {
+    if (ds.activeTool === 'pen' || ds.activeTool === 'eraser') {
       if (prev && (Math.abs(position.x - prev.x) > 1 || Math.abs(position.y - prev.y) > 1)) {
-        getLinePixels(prev.x, prev.y, position.x, position.y).forEach(p => paintAt(p.x, p.y, color));
+        getLinePixels(prev.x, prev.y, position.x, position.y).forEach(p => paintAt(p.x, p.y, ds.activeTool === 'pen' ? color : ''));
       } else {
-        paintAt(position.x, position.y, color);
+        paintAt(position.x, position.y, ds.activeTool === 'pen' ? color : '');
       }
-    } else if (ds.activeTool === 'eraser') {
-      paintAt(position.x, position.y, '');
     }
   };
 
