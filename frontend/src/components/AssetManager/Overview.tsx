@@ -27,12 +27,21 @@ const AssetWorkspace = () => {
   const [isTilesetEditorModalOpen, setIsTilesetEditorModalOpen] = useState(false);
 
   const assets = useGeckodeStore((s) => s[activeTab]);
+  const tilesets = useGeckodeStore((s) => s.tilesets);
   const addAsset = useGeckodeStore((s) => s.addAsset);
   const removeAsset = useGeckodeStore((s) => s.removeAsset);
+  const addTileset = useGeckodeStore((s) => s.addTileset);
+  const removeTileset = useGeckodeStore((s) => s.removeTileset);
   const setEditingAsset = useGeckodeStore((s) => s.setEditingAsset);
   const setIsSpriteModalOpen = useGeckodeStore((s) => s.setIsSpriteModalOpen);
+  const setSpriteModalContext = useGeckodeStore((s) => s.setSpriteModalContext);
 
-  const rawValue = selectedAsset ? assets[selectedAsset.name] : null;
+  const selectedTileset = selectedAsset?.type === 'tilesets'
+    ? tilesets.find((ts) => ts.id === selectedAsset.name) ?? null
+    : null;
+  const rawValue = selectedAsset?.type === 'tilesets'
+    ? selectedTileset
+    : (selectedAsset ? (assets as Record<string, string>)[selectedAsset.name] : null);
   const selectedBase64 = rawValue
     ? (typeof rawValue === 'string' ? rawValue : (rawValue as Tileset).base64Preview)
     : null;
@@ -40,13 +49,33 @@ const AssetWorkspace = () => {
   const handleEdit = () => {
     if (!selectedAsset) return;
     setEditingAsset(selectedAsset.name, selectedAsset.type, 'asset');
-    if (selectedAsset.type === 'textures') setIsSpriteModalOpen(true);
+    if (selectedAsset.type === 'textures') {
+      setSpriteModalContext('asset_manager', selectedAsset.name);
+      setIsSpriteModalOpen(true);
+    }
     else if (selectedAsset.type === 'tiles') setIsTileEditorModalOpen(true);
     else if (selectedAsset.type === 'tilesets') setIsTilesetEditorModalOpen(true);
   };
 
   const handleDuplicate = () => {
     if (!selectedAsset || !selectedBase64) return;
+    if (selectedAsset.type === 'tilesets') {
+      const source = tilesets.find((ts) => ts.id === selectedAsset.name);
+      if (!source) return;
+      const existingNames = Object.fromEntries(tilesets.map((ts) => [ts.name, '']));
+      const duplicatedName = createUniqueTextureName(source.name, existingNames);
+      const existingIds = Object.fromEntries(tilesets.map((ts) => [ts.id, '']));
+      const duplicatedId = createUniqueTextureName(`tileset_${Date.now()}`, existingIds);
+      const duplicatedTileset: Tileset = {
+        ...source,
+        id: duplicatedId,
+        name: duplicatedName,
+        data: source.data.map((row) => [...row]),
+      };
+      addTileset(duplicatedTileset);
+      setSelectedAsset({ name: duplicatedId, type: 'tilesets' });
+      return;
+    }
     const all = useGeckodeStore.getState()[selectedAsset.type];
     const nameMap = Object.fromEntries(Object.keys(all).map(k => [k, '']));
     const newName = createUniqueTextureName(selectedAsset.name, nameMap);
@@ -61,13 +90,20 @@ const AssetWorkspace = () => {
 
   const handleDelete = () => {
     if (!selectedAsset) return;
-    removeAsset(selectedAsset.name, selectedAsset.type);
+    if (selectedAsset.type === 'tilesets') {
+      removeTileset(selectedAsset.name);
+    } else {
+      removeAsset(selectedAsset.name, selectedAsset.type);
+    }
     setSelectedAsset(null);
   };
 
   const handleCreateNew = () => {
     setEditingAsset(null, activeTab, 'new');
-    if (activeTab === 'textures') setIsSpriteModalOpen(true);
+    if (activeTab === 'textures') {
+      setSpriteModalContext('asset_manager');
+      setIsSpriteModalOpen(true);
+    }
     else if (activeTab === 'tiles') setIsTileEditorModalOpen(true);
     else if (activeTab === 'tilesets') setIsTilesetEditorModalOpen(true);
   };
@@ -75,9 +111,11 @@ const AssetWorkspace = () => {
   // Auto-select first item when nothing is selected
   useEffect(() => {
     if (selectedAsset) return;
-    const firstKey = Object.keys(assets)[0];
+    const firstKey = activeTab === 'tilesets'
+      ? tilesets[0]?.id
+      : Object.keys(assets as Record<string, string>)[0];
     if (firstKey) setSelectedAsset({ name: firstKey, type: activeTab });
-  }, [selectedAsset, activeTab, assets]);
+  }, [selectedAsset, activeTab, assets, tilesets]);
 
   return (
     <div className="flex-1 min-h-0 flex flex-col w-full h-full">
@@ -96,7 +134,9 @@ const AssetWorkspace = () => {
           onTabChange={(tab) => {
             setActiveTab(tab);
             const tabAssets = useGeckodeStore.getState()[tab];
-            const firstKey = Object.keys(tabAssets)[0];
+            const firstKey = tab === 'tilesets'
+              ? (tabAssets as Tileset[])[0]?.id
+              : Object.keys(tabAssets as Record<string, string>)[0];
             setSelectedAsset(firstKey ? { name: firstKey, type: tab } : null);
           }}
           selectedAsset={selectedAsset}
@@ -106,7 +146,10 @@ const AssetWorkspace = () => {
             if (!asset) return;
             setSelectedAsset(asset);
             setEditingAsset(asset.name, asset.type, 'asset');
-            if (asset.type === 'textures') setIsSpriteModalOpen(true);
+            if (asset.type === 'textures') {
+              setSpriteModalContext('asset_manager', asset.name);
+              setIsSpriteModalOpen(true);
+            }
             else if (asset.type === 'tiles') setIsTileEditorModalOpen(true);
             else if (asset.type === 'tilesets') setIsTilesetEditorModalOpen(true);
           }}
