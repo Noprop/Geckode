@@ -18,10 +18,11 @@ const config = {
   backgroundColor: '#707090',
   scene: [EditorScene, GameScene],
   physics: {
-    default: 'arcade',
-    arcade: {
+    default: 'matter',
+    matter: {
       gravity: { x: 0, y: 0 },
       debug: false,
+      setBounds: false,
     },
   },
 } satisfies Phaser.Types.Core.GameConfig;

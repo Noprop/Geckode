@@ -50,7 +50,7 @@ vi.mock("@/blockly/workspaces/starter", () => ({
 vi.mock("phaser", () => ({
   Scene: class {},
   Game: class {},
-  Physics: { Arcade: { Sprite: class {} } },
+  Physics: { Arcade: { Sprite: class {} }, Matter: { Sprite: class {} } },
 }));
 
 import { useGeckodeStore } from "../geckodeStore";
