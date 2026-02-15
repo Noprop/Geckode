@@ -30,13 +30,14 @@ export interface Tilemap {
   width: number;
   height: number;
   data: (string | null)[][];
+  tilesetId: string;
   base64: string;
 }
 
 export interface Tileset {
   id: string;
   name: string;
-  data: (string | null)[][];  // 5x5 grid of tile keys
+  data: (string | null)[][];  // 5xN grid of tile keys (fixed width of 5)
   base64Preview: string;
 }
 
@@ -46,13 +47,14 @@ export type TilemapTool = 'place' | 'eraser' | 'bucket' | 'line' | 'rectangle' |
 
 export type AssetType = 'textures' | 'tiles' | 'tilesets' | 'animations' | 'backgrounds';
 export type EditingSource = 'new' | 'asset' | 'library';
+export type SpriteModalMode = 'phaser_add' | 'phaser_edit' | 'asset_manager';
 
 export interface SpriteState {
   spriteInstances: SpriteInstance[];
 
   textures: Record<string, string>;
   tiles: Record<string, string>;
-  tilesets: Record<string, Tileset>;
+  tilesets: Tileset[];
   animations: Record<string, string>;
   backgrounds: Record<string, string>;
 
@@ -74,12 +76,16 @@ export interface SpriteState {
   editingSource: EditingSource | null;
   editingAssetName: string | null;
   editingAssetType: AssetType | null;
+  spriteModalMode: SpriteModalMode | null;
+  spriteModalSaveTargetTextureName: string | null;
 }
 
 export interface SpriteActions {
   setSelectedSpriteId: (spriteId: string | null) => void;
   setIsSpriteModalOpen: (isOpen: boolean) => void;
   setEditingAsset: (name: string | null, type: AssetType, source: EditingSource) => void;
+  setSpriteModalContext: (mode: SpriteModalMode, saveTargetTextureName?: string | null) => void;
+  clearSpriteModalContext: () => void;
 
   /* Sprites */
   setSpriteInstances: (instances: SpriteInstance[]) => void;
@@ -106,6 +112,7 @@ export interface SpriteActions {
   setTilemapData: (tilemapId: string, data: (string | null)[][]) => void;
   resizeTilemap: (tilemapId: string, newWidth: number, newHeight: number) => void;
   setActiveTilemapId: (id: string | null) => void;
+  setTilemapTilesetId: (tilemapId: string, tilesetId: string) => void;
   clearTilemap: (tilemapId: string) => void;
   setScenes: (scenes: Scene[]) => void;
 

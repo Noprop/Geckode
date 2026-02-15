@@ -2,10 +2,17 @@ import { useGeckodeStore } from '@/stores/geckodeStore';
 
 const PhaserSceneList = () => {
   const setIsSpriteModalOpen = useGeckodeStore((state) => state.setIsSpriteModalOpen);
+  const setSpriteModalContext = useGeckodeStore((state) => state.setSpriteModalContext);
   const scenes = useGeckodeStore((s) => s.scenes);
   const tilemaps = useGeckodeStore((s) => s.tilemaps);
 
   const handleSceneClick = () => {
+    useGeckodeStore.setState({
+      editingSource: 'new',
+      editingAssetName: null,
+      editingAssetType: 'textures',
+    });
+    setSpriteModalContext('phaser_add');
     setIsSpriteModalOpen(true);
   };
 

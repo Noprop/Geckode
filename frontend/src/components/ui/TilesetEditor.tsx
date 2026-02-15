@@ -11,13 +11,18 @@ import TileEditorModal from '@/components/TileModal/TileEditorModal';
 
 const TILE_PX = 16;
 const GRID_W = 5;
-const GRID_H = 5;
-const PIXEL_W = GRID_W * TILE_PX;
-const PIXEL_H = GRID_H * TILE_PX;
+const DEFAULT_GRID_H = 5;
 const TILES_PER_PAGE = 9;
 
-const createEmptyGrid = (): (string | null)[][] =>
-  Array.from({ length: GRID_H }, () => Array.from({ length: GRID_W }, () => null));
+const createEmptyGrid = (rows = DEFAULT_GRID_H): (string | null)[][] =>
+  Array.from({ length: rows }, () => Array.from({ length: GRID_W }, () => null));
+
+const normalizeGrid = (grid: (string | null)[][]): (string | null)[][] => {
+  const rowCount = Math.max(DEFAULT_GRID_H, grid.length || 0);
+  return Array.from({ length: rowCount }, (_, row) =>
+    Array.from({ length: GRID_W }, (_, col) => grid[row]?.[col] ?? null),
+  );
+};
 
 const TilesetEditor = ({ onClose }: { onClose: () => void }) => {
   const [selectedTileKey, setSelectedTileKey] = useState<string | null>(null);
@@ -63,6 +68,7 @@ const TilesetEditor = ({ onClose }: { onClose: () => void }) => {
   const tileKeys = Object.keys(tileTextures);
   const totalPages = Math.max(1, Math.ceil(tileKeys.length / TILES_PER_PAGE));
   const pagedTileKeys = tileKeys.slice(tilePage * TILES_PER_PAGE, (tilePage + 1) * TILES_PER_PAGE);
+  const gridHeight = Math.max(DEFAULT_GRID_H, gridRef.current.length);
 
   // ── History ──
   const saveToHistory = useCallback(() => {
@@ -102,9 +108,9 @@ const TilesetEditor = ({ onClose }: { onClose: () => void }) => {
   // ── Load existing tileset when editing ──
   useEffect(() => {
     if (!editingSource || !editingAssetName || editingAssetType !== 'tilesets') return;
-    const tileset = tilesets[editingAssetName];
+    const tileset = tilesets.find((ts) => ts.id === editingAssetName);
     if (!tileset) return;
-    gridRef.current = tileset.data.map(r => [...r]);
+    gridRef.current = normalizeGrid(tileset.data);
     setTilesetName(tileset.name);
     undoStackRef.current = [];
     redoStackRef.current = [];
@@ -159,13 +165,16 @@ const TilesetEditor = ({ onClose }: { onClose: () => void }) => {
   // ── Generate preview base64 ──
   const generatePreviewBase64 = useCallback((): string => {
     if (!isReady) return '';
+    const normalizedGrid = normalizeGrid(gridRef.current);
+    const pixelW = GRID_W * TILE_PX;
+    const pixelH = normalizedGrid.length * TILE_PX;
     const off = document.createElement('canvas');
-    off.width = PIXEL_W;
-    off.height = PIXEL_H;
+    off.width = pixelW;
+    off.height = pixelH;
     const ctx = off.getContext('2d')!;
-    const buf = new Uint8ClampedArray(PIXEL_W * PIXEL_H * 4);
-    rebuildPixelBuffer(buf, gridRef.current, tilePixelsRef.current, GRID_W, GRID_H, TILE_PX);
-    const imgData = ctx.createImageData(PIXEL_W, PIXEL_H);
+    const buf = new Uint8ClampedArray(pixelW * pixelH * 4);
+    rebuildPixelBuffer(buf, normalizedGrid, tilePixelsRef.current, GRID_W, normalizedGrid.length, TILE_PX);
+    const imgData = ctx.createImageData(pixelW, pixelH);
     imgData.data.set(buf);
     ctx.putImageData(imgData, 0, 0);
     return off.toDataURL('image/png');
@@ -181,7 +190,7 @@ const TilesetEditor = ({ onClose }: { onClose: () => void }) => {
     const tileset: Tileset = {
       id,
       name: tilesetName,
-      data: gridRef.current.map(r => [...r]),
+      data: normalizeGrid(gridRef.current),
       base64Preview,
     };
 
@@ -305,19 +314,19 @@ const TilesetEditor = ({ onClose }: { onClose: () => void }) => {
         <div className="flex-1" />
       </div>
 
-      {/* Main area — 5x5 CSS grid */}
+      {/* Main area — 5xN CSS grid */}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
         <div className="relative flex-1 flex items-center justify-center bg-light-whiteboard dark:bg-dark-whiteboard p-4 overflow-auto min-h-0">
           <div
             className="grid gap-1"
             style={{
               gridTemplateColumns: `repeat(${GRID_W}, 1fr)`,
-              gridTemplateRows: `repeat(${GRID_H}, 1fr)`,
+              gridTemplateRows: `repeat(${gridHeight}, 1fr)`,
               width: 'min(400px, 60vh)',
-              height: 'min(400px, 60vh)',
+              aspectRatio: `${GRID_W} / ${gridHeight}`,
             }}
           >
-            {Array.from({ length: GRID_H }, (_, row) =>
+            {Array.from({ length: gridHeight }, (_, row) =>
               Array.from({ length: GRID_W }, (_, col) => {
                 const tileKey = gridRef.current[row]?.[col];
                 const isDragOver = dragOverCell?.row === row && dragOverCell?.col === col;

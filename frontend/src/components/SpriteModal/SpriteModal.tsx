@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Cross2Icon, Pencil2Icon, ImageIcon, ArchiveIcon } from '@radix-ui/react-icons';
 import SpriteLibrary from './SpriteLibrary';
 import SpriteAssets from './SpriteAssets';
@@ -12,9 +12,11 @@ type TabId = 'library' | 'editor' | 'assets';
 const SpriteModal = () => {
   const [activeTab, setActiveTab] = useState<TabId>('editor');
   const setIsSpriteModalOpen = useGeckodeStore((state) => state.setIsSpriteModalOpen);
+  const clearSpriteModalContext = useGeckodeStore((state) => state.clearSpriteModalContext);
   const isSpriteModalOpen = useGeckodeStore((state) => state.isSpriteModalOpen);
   const handleClose = () => {
     useGeckodeStore.setState({ editingSource: null, editingAssetName: null, editingAssetType: null });
+    clearSpriteModalContext();
     setIsSpriteModalOpen(false);
   };
 

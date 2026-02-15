@@ -21,11 +21,22 @@ const AssetList = ({ filter, activeTab, onTabChange, selectedAsset, onSelectAsse
   const assets = useGeckodeStore((s) => s[filter]);
 
   const entries = useMemo(
-    () => Object.entries(assets).map(([name, val]) => ({
-      name,
-      base64: typeof val === 'string' ? val : (val as Tileset).base64Preview,
-      type: filter,
-    })),
+    () => {
+      if (filter === 'tilesets') {
+        return (assets as Tileset[]).map((tileset) => ({
+          name: tileset.id,
+          label: tileset.name,
+          base64: tileset.base64Preview,
+          type: filter,
+        }));
+      }
+      return Object.entries(assets as Record<string, string>).map(([name, val]) => ({
+        name,
+        label: name,
+        base64: val,
+        type: filter,
+      }));
+    },
     [assets, filter],
   );
 
@@ -83,13 +94,13 @@ const AssetList = ({ filter, activeTab, onTabChange, selectedAsset, onSelectAsse
               <div className="relative flex aspect-square items-center justify-center bg-white dark:bg-slate-900">
                 <img
                   src={entry.base64}
-                  alt={entry.name}
+                  alt={entry.label}
                   className="h-14 object-contain drop-shadow-sm"
                   style={{ imageRendering: 'pixelated' }}
                 />
               </div>
               <div className="flex items-center justify-between px-2 py-1.5">
-                <div className="truncate text-[11px] font-semibold">{entry.name}</div>
+                <div className="truncate text-[11px] font-semibold">{entry.label}</div>
               </div>
             </button>
           ))}
