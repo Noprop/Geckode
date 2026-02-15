@@ -8,6 +8,8 @@ import Phaser from "./PhaserPanel/Phaser";
 
 import AssetWorkspace from "./AssetManager/Overview";
 import TilemapEditor from "@/components/ui/TilemapEditor";
+import { useParams } from "next/navigation";
+import { useWorkspaceSync } from "@/hooks/yjs/useWorkspaceSync";
 
 // disable for now
 // import { useBlockSync } from "@/hooks/yjs/useBlockSync";
@@ -22,12 +24,12 @@ import TilemapEditor from "@/components/ui/TilemapEditor";
 // };
 
 const ProjectView = () => {
+  const { projectID } = useParams();
   const { view } = useWorkspaceView();
   const { undoWorkspace, redoWorkspace, canUndo, canRedo } = useGeckodeStore();
 
-  // disable for now 
-  // useBlockSync(documentName);
-  // useVariableSync(documentName);
+  const projectId = String(projectID ?? '');
+  useWorkspaceSync(projectId);
 
   useEffect(() => {
     return () => {

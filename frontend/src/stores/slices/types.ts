@@ -74,15 +74,14 @@ export interface SpriteActions {
 
   /* Sprites */
   setSpriteInstances: (instances: SpriteInstance[]) => void;
-  removeSpriteInstance: (spriteId: string) => void;
-  updateSpriteInstance: (spriteId: string, updates: Partial<SpriteInstance>) => void;
+  removeSpriteInstance: (spriteId: string, syncAfter?: boolean) => void;
+  updateSpriteInstance: (spriteId: string, updates: Partial<SpriteInstance>, syncAfter?: boolean) => void;
   updateInstanceOrder: (spriteIdx: number, newIdx: number) => void;
-  saveSprite: (params: { spriteName: string; base64Image: string }) => string;
+  saveSprite: (params: { spriteName: string; base64Image: string; syncAfter?: boolean; }) => string;
 
   /* Assets */
-  addAsset: (name: string, base64Image: string, type: AssetType) => void;
-  updateAsset: (name: string, base64Image: string, type: AssetType) => void;
-  removeAsset: (name: string, type: AssetType) => void;
+  setAsset: (name: string, base64Image: string, type: AssetType, syncAfter?: boolean) => void;
+  removeAsset: (name: string, type: AssetType, syncAfter?: boolean) => void;
 
   /* Tilemaps */
   updateTilemapCell: (tilemapId: string, row: number, col: number, tileKey: string | null) => void;
@@ -127,7 +126,7 @@ export interface EditorState {
   convertTimeoutId: ReturnType<typeof setTimeout> | null;
 
   // Workspace state
-  spriteWorkspaces: Record<string, Blockly.serialization.workspaceComments.State>;
+  spriteWorkspaces: Record<string, Blockly.Workspace>;
   spriteOutputs: Record<string, WorkspaceOutputType>;
 }
 

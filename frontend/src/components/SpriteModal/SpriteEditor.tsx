@@ -12,6 +12,7 @@ import { useCanvasZoom } from '@/hooks/useCanvasZoom';
 import { usePixelCanvas, createPixelArray } from '@/hooks/usePixelCanvas';
 import { createUniqueSpriteName, createUniqueTextureName } from '@/stores/slices/spriteSlice';
 import type { SpriteInstance } from '@/blockly/spriteRegistry';
+import { addSpriteSync } from '@/hooks/yjs/useWorkspaceSync';
 export type Tool = 'pen' | 'eraser' | 'bucket' | 'rectangle' | 'line' | 'oval' | 'rectangle-selection' | 'pan-tool' | 'color-picker';
 
 // Convert RGBA values at index to hex (returns '' for transparent)
@@ -365,48 +366,42 @@ const SpriteEditor = () => {
     const base64Image = offscreen.toDataURL('image/png');
 
     if (currentEditingSource === 'asset') {
-      useGeckodeStore.getState().updateAsset(currentEditingAssetName!, base64Image, 'textures');
+      useGeckodeStore.getState().setAsset(currentEditingAssetName!, base64Image, 'textures');
       await phaserScene.updateSpriteTextureAsync(currentEditingAssetName!, base64Image);
-      useGeckodeStore.setState({ editingSource: null, editingAssetName: null, editingAssetType: null });
-      setIsSpriteModalOpen(false);
-      return;
+    } else {
+      const newSpriteName = createUniqueSpriteName(spriteName, spriteInstances);
+      const newTextureName = createUniqueTextureName(spriteName, textures);
+
+      const newSprite: SpriteInstance = {
+        name: newSpriteName,
+        textureName: newTextureName,
+        id: `id_${Date.now()}`,
+        x: 0,
+        y: 0,
+        visible: true,
+        scaleX: 1,
+        scaleY: 1,
+        direction: 0,
+        snapToGrid: true,
+      };
+
+      // add texture to state, and phaser
+      useGeckodeStore.getState().setAsset(newTextureName, base64Image, 'textures');
+      await phaserScene.loadSpriteTextureAsync(newTextureName, base64Image);
+      phaserScene.createSprite(newSprite);
+
+      // add sprite to state, save workspace for current sprite, and switch to new sprite
+      useGeckodeStore.setState((s) => ({
+        spriteInstances: [...spriteInstances, newSprite],
+        selectedSpriteId: newSprite.id,
+        spriteWorkspaces: {
+          ...s.spriteWorkspaces,
+          [newSprite.id]: new Blockly.Workspace(),
+        },
+      }));
+
+      addSpriteSync(newSprite);
     }
-
-    const newSpriteName = createUniqueSpriteName(spriteName, spriteInstances);
-    const newTextureName = createUniqueTextureName(spriteName, textures);
-
-    const newSprite: SpriteInstance = {
-      name: newSpriteName,
-      textureName: newTextureName,
-      id: `id_${Date.now()}`,
-      x: 0,
-      y: 0,
-      visible: true,
-      scaleX: 1,
-      scaleY: 1,
-      direction: 0,
-      snapToGrid: true,
-    };
-
-    // add texture to state, and phaser
-    useGeckodeStore.getState().addAsset(newTextureName, base64Image, 'textures');
-    await phaserScene.loadSpriteTextureAsync(newTextureName, base64Image);
-    phaserScene.createSprite(newSprite);
-
-    // add sprite to state, save workspace for current sprite, and switch to new sprite
-    const { selectedSpriteId, spriteWorkspaces, blocklyWorkspace } = useGeckodeStore.getState();
-    useGeckodeStore.setState({
-      spriteInstances: [...spriteInstances, newSprite],
-      selectedSpriteId: newSprite.id,
-      spriteWorkspaces: {
-        ...spriteWorkspaces,
-        [newSprite.id]: {},
-        ...(selectedSpriteId && blocklyWorkspace
-          ? { [selectedSpriteId]: Blockly.serialization.workspaces.save(blocklyWorkspace) }
-          : {}),
-      },
-    });
-    Blockly.serialization.workspaces.load({}, useGeckodeStore.getState().blocklyWorkspace!);
 
     useGeckodeStore.setState({ editingSource: null, editingAssetName: null, editingAssetType: null });
     setIsSpriteModalOpen(false);

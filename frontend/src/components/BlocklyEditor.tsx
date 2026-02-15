@@ -82,14 +82,12 @@ function setupCustomZoomControls(container: HTMLDivElement) {
 }
 
 const BlocklyEditor = () => {
-  const { projectID } = useParams();
-  const projectId = projectID ? Number(projectID) : null;
-
   const blocklyInjectionRef = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<Blockly.WorkspaceSvg | null>(null);
+  const prevSpriteIdRef = useRef<string | null>(null);
 
   // Reactive selectors – values that affect rendering / effects
-  const currentSpriteId = useGeckodeStore((s) => s.getCurrentSpriteId());
+  const selectedSpriteId = useGeckodeStore((s) => s.selectedSpriteId);
 
   const setBlocklyWorkspaceRef = useGeckodeStore((s) => s.setBlocklyWorkspaceRef);
   const updateUndoRedoState = useGeckodeStore((s) => s.updateUndoRedoState);
@@ -99,11 +97,42 @@ const BlocklyEditor = () => {
   // ── Update toolbox when selected sprite changes ──
   useEffect(() => {
     if (!workspaceRef.current) return;
-    const workspace = workspaceRef.current;
-    const newToolbox = getToolbox();
 
-    workspace.updateToolbox(newToolbox as Blockly.utils.toolbox.ToolboxDefinition);
-  }, [currentSpriteId]);
+    const storeState = useGeckodeStore.getState();
+    const newWorkspace = storeState.spriteWorkspaces[selectedSpriteId ?? ''];
+
+    if (!newWorkspace) {
+      prevSpriteIdRef.current = null;
+      workspaceRef.current.clear();
+      workspaceRef.current.clearUndo();
+      return;
+    };
+
+    const newToolbox = getToolbox();
+    workspaceRef.current?.updateToolbox(newToolbox as Blockly.utils.toolbox.ToolboxDefinition);
+
+    Blockly.Events.disable();
+
+    // Save the current workspace to the corresponding sprite
+    if (prevSpriteIdRef.current) {
+      Blockly.serialization.workspaces.load(
+        Blockly.serialization.workspaces.save(workspaceRef.current),
+        storeState.spriteWorkspaces[prevSpriteIdRef.current],
+      );
+    }
+
+    // Load the newly selected sprite's workspace into the main workspace
+    Blockly.serialization.workspaces.load(
+      Blockly.serialization.workspaces.save(newWorkspace),
+      workspaceRef.current,
+    );
+
+    workspaceRef.current.clearUndo();
+
+    Blockly.Events.enable();
+
+    prevSpriteIdRef.current = selectedSpriteId;
+  }, [workspaceRef, selectedSpriteId]);
 
   // ── Blockly initialisation ──
   useEffect(() => {
@@ -181,11 +210,11 @@ const BlocklyEditor = () => {
     updateUndoRedoState();
 
     // ── Workspace loading ──
-    if (!projectId) {
-      loadLocalWorkspace(workspaceRef.current);
-    } else {
-      loadRemoteWorkspace(projectId, workspaceRef.current);
-    }
+    // if (!projectId) {
+    //   loadLocalWorkspace(workspaceRef.current);
+    // } else {
+    //   loadRemoteWorkspace(projectId, workspaceRef.current);
+    // }
 
     return () => {
       try {
@@ -216,24 +245,24 @@ const BlocklyEditor = () => {
 // ── Workspace-loading helpers ──
 
 function loadLocalWorkspace(workspace: Blockly.WorkspaceSvg) {
-  const doLoad = () => {
-    // if spriteInstances.length === 1, and spriteWorkspaces is {} (default), then we need to
-    // load the start workspace. otherwise, just load the workspace for the selected sprite.
-    const { spriteInstances, spriteWorkspaces, selectedSpriteId, scheduleConvert } = useGeckodeStore.getState();
-    if (spriteInstances.length === 1 && Object.keys(spriteWorkspaces).length === 0) {
-      Blockly.serialization.workspaces.load(starterWorkspace, workspace);
-      useGeckodeStore.setState({ spriteWorkspaces: { [spriteInstances[0].id]: Blockly.serialization.workspaces.save(workspace) } });
-    } else if (selectedSpriteId) {
-      Blockly.serialization.workspaces.load(spriteWorkspaces[selectedSpriteId], workspace);
-    }
-    scheduleConvert();
-  };
+  // const doLoad = () => {
+  //   // if spriteInstances.length === 1, and spriteWorkspaces is {} (default), then we need to
+  //   // load the start workspace. otherwise, just load the workspace for the selected sprite.
+  //   const { spriteInstances, spriteWorkspaces, selectedSpriteId, scheduleConvert } = useGeckodeStore.getState();
+  //   if (spriteInstances.length === 1 && Object.keys(spriteWorkspaces).length === 0) {
+  //     Blockly.serialization.workspaces.load(starterWorkspace, workspace);
+  //     useGeckodeStore.setState({ spriteWorkspaces: { [spriteInstances[0].id]: Blockly.serialization.workspaces.save(workspace) } });
+  //   } else if (selectedSpriteId) {
+  //     Blockly.serialization.workspaces.load(spriteWorkspaces[selectedSpriteId], workspace);
+  //   }
+  //   scheduleConvert();
+  // };
 
-  if (useGeckodeStore.persist.hasHydrated()) {
-    doLoad();
-  } else {
-    useGeckodeStore.persist.onFinishHydration(doLoad);
-  }
+  // if (useGeckodeStore.persist.hasHydrated()) {
+  //   doLoad();
+  // } else {
+  //   useGeckodeStore.persist.onFinishHydration(doLoad);
+  // }
 }
 
 function loadRemoteWorkspace(

@@ -63,7 +63,7 @@ export const createEditorSlice: StateCreator<
   },
 
   generateCode: () => {
-    const { blocklyWorkspace, spriteWorkspaces, spriteOutputs, selectedSpriteId: spriteId } = get();
+    const { blocklyWorkspace, spriteOutputs, selectedSpriteId: spriteId } = get();
     if (!blocklyWorkspace || !spriteId) return;
 
     const code = javascriptGenerator.workspaceToCode(blocklyWorkspace);
@@ -77,10 +77,6 @@ export const createEditorSlice: StateCreator<
     console.log('generateCode spriteId: ', spriteId);
     console.log('generateCode spriteOutputs: ', JSON.stringify(spriteOutputs, null, 2));
     console.log('generateCode workspace code: \n', code);
-
-    // save workspace state
-    const state = Blockly.serialization.workspaces.save(blocklyWorkspace);
-    set({ spriteWorkspaces: { ...get().spriteWorkspaces, [spriteId]: state } });
   },
 
   scheduleConvert: () => {
@@ -176,7 +172,7 @@ export const createEditorSlice: StateCreator<
       throw new Error("toggleEditor() - Phaser scene is not set.");
 
     if (isEditorScene) {
-      const outputs = spriteInstances.map((s) => get().spriteOutputs[s.id]);
+      const outputs = spriteInstances.map((s) => spriteOutputs[s.id]);
       const allUpdateHandlers = outputs
         .flatMap((o) => o?.updateHandlers)
         .filter(Boolean);

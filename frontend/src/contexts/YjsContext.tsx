@@ -33,7 +33,7 @@ export const YjsProvider = ({ children }: { children: React.ReactNode }) => {
       url: "ws://localhost:1234",
       name: name,
       document: ydoc,
-      token: authApi.getAccessToken,
+      token: name.length === 0 ? () => '' : authApi.getAccessToken,
     });
     instances.current.set(name, { doc: provider.document, provider });
   };

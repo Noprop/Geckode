@@ -133,20 +133,23 @@ export default class EditorScene extends Phaser.Scene {
     return this.updateTextureAsync("tile-" + name, base64Image);
   }
   public async updateTextureAsync(name: string, base64Image: string): Promise<void> {
-    if (!this.textures.exists(name)) return this.loadTextureAsync(name, base64Image);
-
     // Collect every sprite using this texture and hide it so Phaser
     // won't try to render a destroyed GL texture between frames.
     const affected: Phaser.Physics.Arcade.Sprite[] = [];
     for (const sprite of this.editorSprites.values()) {
-      if (sprite.texture.key === name) {
+      if (sprite.texture.key === name && sprite.visible) {
+        console.log('sprite texture fix', sprite.name);
         sprite.setVisible(false);
         affected.push(sprite);
       }
     }
 
-    this.textures.remove(name);
+    if (this.textures.exists(name)) {
+      this.textures.remove(name);
+    }
+
     await this.loadTextureAsync(name, base64Image);
+    console.log('after sync update texture');
 
     for (const sprite of affected) {
       sprite.setTexture(name);

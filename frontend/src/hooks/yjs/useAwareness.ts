@@ -28,7 +28,7 @@ export const useAwareness = (
   useEffect(() => {
     if (!blocklyWorkspace) return;
 
-    awareness.setLocalStateField('user', toPublicUser(user!));
+    awareness.setLocalStateField('user', documentName.length === 0 ? null : toPublicUser(user!));
 
     const handleUpdate = ({ added, updated, removed }: Record<string, Array<any>>) => {
       if (added.length || removed.length) {
@@ -45,9 +45,11 @@ export const useAwareness = (
         updated.forEach(clientId => {
           if (clientId === doc.clientID) return;
 
-          const currentBlockDragState = awareness.getStates().get(clientId)?.blockDrag;
+          const clientAwareness = awareness.getStates().get(clientId);
+          const spriteId = clientAwareness?.selectedSpriteId;
+          const currentBlockDragState = clientAwareness?.blockDrag;
 
-          if (currentBlockDragState) {
+          if (spriteId === useGeckodeStore.getState().selectedSpriteId && currentBlockDragState) {
             applyBlocklyEvent(
               Object.assign(
                 {},

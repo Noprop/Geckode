@@ -30,6 +30,8 @@ import {
   waterTile,
 } from '../b64_textures';
 import type { AssetType, EditingSource, GeckodeStore, Scene, SpriteSlice, Tilemap } from './types';
+import { addSpriteSync, deleteSpriteSync, updateSpriteSync } from '@/hooks/yjs/useWorkspaceSync';
+import { deleteAssetSync, setAssetSync } from '@/hooks/yjs/useAssetSync';
 
 export const createEmptyTilemapData = (height: number, width: number): (string | null)[][] =>
   Array.from({ length: height }, () => Array.from({ length: width }, () => null));
@@ -61,29 +63,8 @@ export const createUniqueSpriteName = (name: string, instances: { name: string }
 };
 
 export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> = (set, get) => ({
-  spriteInstances: [
-    {
-      name: 'gavin',
-      id: `id_${Date.now()}`,
-      textureName: 'gavin',
-      x: 50,
-      y: 50,
-      visible: true,
-      scaleX: 1,
-      scaleY: 1,
-      direction: 0,
-      snapToGrid: true,
-      physics: {
-        enabled: false,
-        drag: 0.01,
-        gravityY: 1,
-        bounce: 0.5,
-        collideWorldBounds: true,
-      },
-    },
-  ],
-
-  textures: { gavin: gavin },
+  spriteInstances: [],
+  textures: {},
   tiles: {
     grass: grassTile,
     dirt: dirtTile,
@@ -135,40 +116,20 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
   /* ── Modal / Selection ── */
   setIsSpriteModalOpen: (isOpen: boolean) => set({ isSpriteModalOpen: isOpen }),
   setSelectedSpriteId: (newId: string | null) => {
-    const { blocklyWorkspace, spriteWorkspaces, selectedSpriteId: prevId } = get();
+    const { selectedSpriteId: prevId } = get();
     if (newId === prevId) return;
-    if (!blocklyWorkspace) return;
-
-    // Save current workspace for the previously selected sprite
-    if (prevId) {
-      set({
-        spriteWorkspaces: {
-          ...spriteWorkspaces,
-          [prevId]: Blockly.serialization.workspaces.save(blocklyWorkspace),
-        },
-      });
-    }
-
-    // Load workspace for the newly selected sprite
-    const state = newId && get().spriteWorkspaces[newId];
-    if (!state) {
-      Blockly.serialization.workspaces.load({}, blocklyWorkspace);
-    } else {
-      Blockly.serialization.workspaces.load(state, blocklyWorkspace);
-    }
 
     set({ selectedSpriteId: newId });
     console.log(`sprite ${newId} workspace loaded`);
   },
   setSpriteInstances: (instances: SpriteInstance[]) => set({ spriteInstances: instances }),
-  removeSpriteInstance: (spriteId: string) => {
-    const { spriteInstances, selectedSpriteId, spriteWorkspaces, blocklyWorkspace, phaserScene } = get();
+  removeSpriteInstance: (spriteId: string, syncAfter: boolean = true) => {
+    const { spriteInstances, selectedSpriteId, spriteWorkspaces, phaserScene } = get();
     const remaining = spriteInstances.filter((instance) => instance.id !== spriteId);
-    phaserScene!.removeSprite(spriteId);
 
-    if (selectedSpriteId === spriteId && remaining.length > 0) {
-      Blockly.serialization.workspaces.load(spriteWorkspaces[spriteInstances[0].id], blocklyWorkspace!);
-    }
+    if (phaserScene instanceof EditorScene) phaserScene.removeSprite(spriteId);
+
+    spriteWorkspaces[spriteId]?.dispose();
 
     set({
       spriteInstances: remaining,
@@ -182,19 +143,28 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
         ? (remaining[0]?.id ?? null)
         : selectedSpriteId,
     });
+
+    if (syncAfter) {
+      deleteSpriteSync(spriteId);
+    }
   },
 
-  updateSpriteInstance: (spriteId: string, updates: Partial<SpriteInstance>) => {
+  updateSpriteInstance: (spriteId: string, updates: Partial<SpriteInstance>, syncAfter: boolean = true) => {
     const { phaserGame, phaserScene } = get();
     if (!phaserGame || !phaserScene) throw new Error('Game is not ready yet.');
-    if (!(phaserScene instanceof EditorScene)) throw new Error('Should not be able to update sprite from game scene.');
-    phaserScene.updateSprite(spriteId, updates);
+    if (phaserScene instanceof EditorScene) {
+      phaserScene.updateSprite(spriteId, updates);
+    }
 
     set((state) => ({
       spriteInstances: state.spriteInstances.map((instance) =>
         instance.id === spriteId ? { ...instance, ...updates } : instance,
       ),
     }));
+
+    if (syncAfter) {
+      updateSpriteSync(spriteId, updates);
+    }
   },
 
   updateInstanceOrder: (spriteIdx: number, newIdx: number) => {
@@ -205,8 +175,8 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
     set({ spriteInstances: updatedInstances });
   },
 
-  saveSprite: ({ spriteName, base64Image }) => {
-    const { editingSource, editingAssetName, textures } = get();
+  saveSprite: ({ spriteName, base64Image, syncAfter = true }) => {
+    const { editingSource, editingAssetName, textures, spriteWorkspaces } = get();
     let textureName: string;
 
     if (editingSource === 'asset' && editingAssetName) {
@@ -228,18 +198,38 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
       direction: 0,
       snapToGrid: true,
     };
-    set({ spriteInstances: [...get().spriteInstances, instance] });
+
+    set({
+      spriteInstances: [...get().spriteInstances, instance],
+      spriteWorkspaces: {
+        ...spriteWorkspaces,
+        [instance.id]: new Blockly.Workspace(),
+      },
+    });
+
+    if (syncAfter) {
+      addSpriteSync(instance);
+    }
     return textureName;
   },
 
   /* ── Assets ── */
   setEditingAsset: (name: string | null, type: AssetType, source: EditingSource) => { set({ editingSource: source, editingAssetName: name, editingAssetType: type }) },
 
-  addAsset: (name: string, base64Image: string, type: AssetType) => { set({ [type]: { ...get()[type], [name]: base64Image } }); },
-  updateAsset: (name: string, base64Image: string, type: AssetType) => { set({ [type]: { ...get()[type], [name]: base64Image } }); },
-  removeAsset: (name: string, type: AssetType) => {
+  setAsset: (name: string, base64Image: string, type: AssetType, syncAfter: boolean = true) => {
+    set({ [type]: { ...get()[type], [name]: base64Image } });
+
+    if (syncAfter) {
+      setAssetSync(name, base64Image, type);
+    }
+  },
+  removeAsset: (name: string, type: AssetType, syncAfter: boolean = true) => {
     const { [name]: _, ...rest } = get()[type];
     set({ [type]: rest });
+
+    if (syncAfter) {
+      deleteAssetSync(name, type);
+    }
   },
 
   /* ── Tilemaps ── */
