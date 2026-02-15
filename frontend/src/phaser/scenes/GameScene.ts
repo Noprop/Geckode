@@ -131,28 +131,14 @@ export default class GameScene extends Phaser.Scene {
   // ─── Custom Physics ──────────────────────────────────────────────────
 
   /**
-   * Run one physics step: resolve movement first using current velocities,
-   * then apply gravity & drag for the next frame.
+   * Run one physics step: apply gravity & drag, then resolve movement
+   * with AABB chain-collision on each axis.
+   *
+   * Drag is applied BEFORE movement so that drag=0 zeroes velocity
+   * immediately — even user-set velocity — preventing any movement.
    */
   private physicsStep() {
-    // 1. Resolve movements using current velocities
-    for (const sprite of this.gameSprites.values()) {
-      if (sprite.getData('isStatic')) continue;
-      const vx: number = sprite.getData('vx') || 0;
-      if (vx !== 0) {
-        this.resolveAxisMovement(sprite, vx, 'x');
-      }
-    }
-
-    for (const sprite of this.gameSprites.values()) {
-      if (sprite.getData('isStatic')) continue;
-      const vy: number = sprite.getData('vy') || 0;
-      if (vy !== 0) {
-        this.resolveAxisMovement(sprite, vy, 'y');
-      }
-    }
-
-    // 2. Apply gravity and drag for NEXT frame
+    // 1. Apply gravity and drag BEFORE movement
     for (const sprite of this.gameSprites.values()) {
       if (sprite.getData('isStatic')) continue;
 
@@ -163,7 +149,7 @@ export default class GameScene extends Phaser.Scene {
       const gravityY: number = sprite.getData('gravityY') || 0;
       vy += gravityY;
 
-      // Apply air drag — physics.drag is a keep-ratio (0.99 = keep 99%)
+      // Apply air drag — drag is a keep-ratio (0.99 = keep 99%)
       const drag: number = sprite.getData('drag') || 0;
       if (drag > 0 && drag < 1) {
         vx *= drag;
@@ -172,7 +158,7 @@ export default class GameScene extends Phaser.Scene {
         if (Math.abs(vx) < 0.01) vx = 0;
         if (Math.abs(vy) < 0.01) vy = 0;
       } else if (drag === 0) {
-        // drag = 0 means no keepness → instant stop (like frictionAir = 1)
+        // drag = 0 → lose all velocity immediately
         vx = 0;
         vy = 0;
       }
@@ -180,6 +166,32 @@ export default class GameScene extends Phaser.Scene {
 
       sprite.setData('vx', vx);
       sprite.setData('vy', vy);
+    }
+
+    // 2. Resolve movement.
+    // processedX/Y tracks sprites already moved (prevents double-movement
+    // from imparted velocity). Each resolveAxisMovement call gets a FRESH
+    // chain set so pushed sprites are still visible as blockers to others.
+    const processedX = new Set<Phaser.GameObjects.Sprite>();
+    for (const sprite of this.gameSprites.values()) {
+      if (sprite.getData('isStatic') || processedX.has(sprite)) continue;
+      const vx: number = sprite.getData('vx') || 0;
+      if (vx !== 0) {
+        const chain = new Set<Phaser.GameObjects.Sprite>();
+        this.resolveAxisMovement(sprite, vx, 'x', chain);
+        for (const s of chain) processedX.add(s);
+      }
+    }
+
+    const processedY = new Set<Phaser.GameObjects.Sprite>();
+    for (const sprite of this.gameSprites.values()) {
+      if (sprite.getData('isStatic') || processedY.has(sprite)) continue;
+      const vy: number = sprite.getData('vy') || 0;
+      if (vy !== 0) {
+        const chain = new Set<Phaser.GameObjects.Sprite>();
+        this.resolveAxisMovement(sprite, vy, 'y', chain);
+        for (const s of chain) processedY.add(s);
+      }
     }
   }
 
@@ -316,8 +328,18 @@ export default class GameScene extends Phaser.Scene {
     let minPushed = Math.abs(remainDelta);
     for (const blocker of blockers) {
       if (blocker === 'worldBound') { minPushed = 0; break; }
-      const pushed = this.resolveAxisMovement(blocker as Phaser.GameObjects.Sprite, remainDelta, axis, visited);
+      const blockerSprite = blocker as Phaser.GameObjects.Sprite;
+      const pushed = this.resolveAxisMovement(blockerSprite, remainDelta, axis, visited);
       minPushed = Math.min(minPushed, Math.abs(pushed));
+
+      // Impart pusher's velocity onto pushed object, scaled by its drag.
+      // drag=1 → full transfer, drag=0 → no transfer (stops when released).
+      // The shared visited set prevents the blocker from moving again this
+      // frame, so the imparted velocity only takes effect next frame.
+      const blockerDrag: number = blockerSprite.getData('drag') || 0;
+      const pusherVel: number = sprite.getData(axis === 'x' ? 'vx' : 'vy') || 0;
+      if (axis === 'x') blockerSprite.setData('vx', pusherVel * blockerDrag);
+      else blockerSprite.setData('vy', pusherVel * blockerDrag);
     }
 
     const actualPush = sign * minPushed;
