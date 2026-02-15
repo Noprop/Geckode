@@ -66,7 +66,7 @@ export default class GameScene extends Phaser.Scene {
     this.tilemap = null;
     this.groundLayer = null;
     this.gameSprites.clear();
-    this.physics.world.setBounds(-128, -96, 256, 192);
+    this.physics.world.setBounds(0, -this.scale.height, this.scale.width, this.scale.height);
 
     // Create the tilemap first (sits below everything)
     // this.createTilemap();
@@ -263,9 +263,11 @@ export default class GameScene extends Phaser.Scene {
     // Apply physics settings if enabled
     if (physics?.enabled) {
       sprite.setDrag(physics.drag);
+      sprite.setDamping(true);
       sprite.setGravityY(physics.gravityY);
       sprite.setBounce(physics.bounce);
       sprite.setCollideWorldBounds(physics.collideWorldBounds);
+      sprite.body.setImmovable(physics.anchored);
 
       // Add collision with ground if tilemap exists
       if (this.groundLayer) {

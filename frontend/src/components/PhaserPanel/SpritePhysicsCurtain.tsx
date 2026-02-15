@@ -12,6 +12,7 @@ interface SpritePhysicsCurtainProps {
 
 const DEFAULT_PHYSICS: SpritePhysics = {
   enabled: false,
+  anchored: false,
   gravityY: 300,
   bounce: 0.2,
   drag: 0.99,
@@ -45,6 +46,7 @@ const SpritePhysicsCurtain = ({ isExpanded, onToggle }: SpritePhysicsCurtainProp
   const physics = selectedSprite?.physics;
   const enabled = physics?.enabled ?? DEFAULT_PHYSICS.enabled;
   const collideWorldBounds = physics?.collideWorldBounds ?? DEFAULT_PHYSICS.collideWorldBounds;
+  const anchored = physics?.anchored ?? DEFAULT_PHYSICS.anchored;
 
   const [values, setValues] = useState<PhysicsFormValues>(() => buildPhysicsFormValues(physics));
 
@@ -161,6 +163,18 @@ const SpritePhysicsCurtain = ({ isExpanded, onToggle }: SpritePhysicsCurtainProp
                 className="h-3.5 w-3.5 accent-primary-green cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               />
               <span className={labelClasses}>World Bounds</span>
+            </label>
+
+            {/* Anchored */}
+            <label className="flex cursor-pointer items-center gap-1.5">
+              <input
+                type="checkbox"
+                checked={anchored}
+                onChange={() => handleToggleField('anchored', !anchored)}
+                disabled={fieldsDisabled}
+                className="h-3.5 w-3.5 accent-primary-green cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+              <span className={labelClasses}>Anchored</span>
             </label>
 
             {/* Gravity Y */}
