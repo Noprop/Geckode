@@ -741,8 +741,7 @@ const TilemapEditor = () => {
                         ) : null}
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/15 transition-colors pointer-events-none" />
                         {isSelected && (<>
-                          <div className="absolute inset-0 border-3 border-solid border-white pointer-events-none" />
-                          <div className="absolute inset-0 border-3 border-dashed border-black pointer-events-none" />
+                          <div className="absolute inset-0 pointer-events-none" />
                         </>)}
                       </button>
                     );

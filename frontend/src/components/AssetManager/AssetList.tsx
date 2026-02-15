@@ -92,12 +92,18 @@ const AssetList = ({ filter, activeTab, onTabChange, selectedAsset, onSelectAsse
               }`}
             >
               <div className="relative flex aspect-square items-center justify-center bg-white dark:bg-slate-900">
-                <img
-                  src={entry.base64}
-                  alt={entry.label}
-                  className="h-14 object-contain drop-shadow-sm"
-                  style={{ imageRendering: 'pixelated' }}
-                />
+                {entry.base64 ? (
+                  <img
+                    src={entry.base64}
+                    alt={entry.label}
+                    className="h-14 object-contain drop-shadow-sm"
+                    style={{ imageRendering: 'pixelated' }}
+                  />
+                ) : (
+                  <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500">
+                    No preview
+                  </span>
+                )}
               </div>
               <div className="flex items-center justify-between px-2 py-1.5">
                 <div className="truncate text-[11px] font-semibold">{entry.label}</div>
