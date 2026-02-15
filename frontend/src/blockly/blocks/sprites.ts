@@ -48,11 +48,11 @@ javascriptGenerator.forBlock['setProperty'] = function (block, generator) {
   const prop = block.getFieldValue('PROPERTY');
   const flippedValue = needsFlip(prop) ? `-(${value})` : `${value}`;
 
-  // For velocity, use safe methods that respect blocked sides (prevents springiness)
+  // For velocity, use scene methods to set custom physics velocity
   if (prop === 'velocityX') {
-    return `scene.safeSetVelocityX(scene.getSprite(${spriteName}), ${flippedValue})\n`;
+    return `scene.setVelocityX(scene.getSprite(${spriteName}), ${flippedValue})\n`;
   } else if (prop === 'velocityY') {
-    return `scene.safeSetVelocityY(scene.getSprite(${spriteName}), ${flippedValue})\n`;
+    return `scene.setVelocityY(scene.getSprite(${spriteName}), ${flippedValue})\n`;
   }
   return `scene.getSprite(${spriteName}).${prop} = ${flippedValue}\n`;
 };
@@ -93,11 +93,11 @@ javascriptGenerator.forBlock['changeProperty'] = function (block, generator) {
   const flippedValue = needsFlip(prop) ? `-(${value})` : `${value}`;
   const spriteRef = `scene.getSprite(${spriteName})`;
 
-  // For velocity, read current + add delta via safe methods that respect blocked sides
+  // For velocity, read current + add delta via scene methods
   if (prop === 'velocityX') {
-    return `scene.safeSetVelocityX(${spriteRef}, (${spriteRef}.body.velocity.x || 0) + ${flippedValue})\n`;
+    return `scene.setVelocityX(${spriteRef}, scene.getVelocityX(${spriteRef}) + ${flippedValue})\n`;
   } else if (prop === 'velocityY') {
-    return `scene.safeSetVelocityY(${spriteRef}, (${spriteRef}.body.velocity.y || 0) + ${flippedValue})\n`;
+    return `scene.setVelocityY(${spriteRef}, scene.getVelocityY(${spriteRef}) + ${flippedValue})\n`;
   }
   return `${spriteRef}.${prop} += ${flippedValue}\n`;
 
@@ -132,11 +132,11 @@ javascriptGenerator.forBlock['getProperty'] = function (block, generator) {
   const flipSign = needsFlip(prop) ? '-' : '';
   const spriteRef = `scene.getSprite(${spriteName})`;
 
-  // For velocity, read from Matter body
+  // For velocity, read from custom physics data via scene
   if (prop === 'velocityX') {
-    return [`${flipSign}(${spriteRef}.body.velocity.x || 0)`, Order.NONE];
+    return [`${flipSign}scene.getVelocityX(${spriteRef})`, Order.NONE];
   } else if (prop === 'velocityY') {
-    return [`${flipSign}(${spriteRef}.body.velocity.y || 0)`, Order.NONE];
+    return [`${flipSign}scene.getVelocityY(${spriteRef})`, Order.NONE];
   }
   return [`${flipSign}${spriteRef}.${prop}`, Order.NONE];
 };
@@ -258,7 +258,7 @@ javascriptGenerator.forBlock['isTouching'] = function (block, generator) {
     const spriteName1 = `scene.getSprite(${spriteKey1 === currentSpriteId ? 'thisSprite' : '"' + spriteKey1 + '"'})`;
     const spriteName2 = `scene.getSprite(${spriteKey2 === currentSpriteId ? 'thisSprite' : '"' + spriteKey2 + '"'})`;
 
-    return [`scene.matter.overlap(${spriteName1}, [${spriteName2}])`, Order.NONE];
+    return [`scene.isTouching(${spriteName1}, ${spriteName2})`, Order.NONE];
   }
   return [`false`, Order.NONE];
 };

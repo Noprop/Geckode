@@ -50,6 +50,7 @@ vi.mock("@/blockly/workspaces/starter", () => ({
 vi.mock("phaser", () => ({
   Scene: class {},
   Game: class {},
+  GameObjects: { Sprite: class {} },
   Physics: { Arcade: { Sprite: class {} }, Matter: { Sprite: class {} } },
 }));
 
