@@ -7,6 +7,7 @@ import { createPhaserState } from "@/phaser/PhaserStateManager";
 import { EDITOR_SCENE_KEY, GAME_SCENE_KEY } from "@/phaser/sceneKeys";
 import EditorScene from "@/phaser/scenes/EditorScene";
 import type { EditorSlice, GeckodeStore } from "./types";
+import { projectNameSync } from "@/hooks/yjs/useProjectNameSync";
 
 const DEBOUNCE_MS = 400;
 
@@ -43,7 +44,13 @@ export const createEditorSlice: StateCreator<
   setPhaserScene: (phaserScene) => set({ phaserScene }),
   setPhaserGame: (phaserGame) => set({ phaserGame }),
   setProjectId: (projectId) => set({ projectId }),
-  setProjectName: (projectName) => set({ projectName }),
+  setProjectName: (projectName, syncAfter = true) => {
+    set({ projectName });
+
+    if (syncAfter) {
+      projectNameSync(projectName);
+    }
+  },
   setPhaserState: (phaserState) => set({ phaserState }),
 
   updateUndoRedoState: () => {

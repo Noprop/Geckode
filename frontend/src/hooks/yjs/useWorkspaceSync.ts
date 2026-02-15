@@ -9,6 +9,7 @@ import { useAssetSync } from "./useAssetSync";
 import EditorScene from "@/phaser/scenes/EditorScene";
 import * as Blockly from "blockly/core";
 import { Block } from "@/lib/types/yjs/blocks";
+import { useProjectNameSync } from "./useProjectNameSync";
 
 const createSpriteObserver = (id: string, spriteMap: Y.Map<SpriteInstance>) => {
   const spriteObserver = (event: Y.YMapEvent<SpriteInstance>, transaction: Y.Transaction) => {
@@ -38,6 +39,7 @@ export const useWorkspaceSync = (documentName: string) => {
 
   useBlockSync(documentName);
   useVariableSync(documentName);
+  useProjectNameSync(documentName);
   useAssetSync(documentName, "textures");
 
   useEffect(() => {

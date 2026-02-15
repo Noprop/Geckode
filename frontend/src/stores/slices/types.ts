@@ -136,7 +136,7 @@ export interface EditorActions {
   setPhaserScene: (phaserScene: EditorScene | GameScene) => void;
   setPhaserGame: (phaserGame: Phaser.Game) => void;
   setProjectId: (id: number) => void;
-  setProjectName: (name: string) => void;
+  setProjectName: (name: string, syncAfter?: boolean) => void;
   setPhaserState: (phaserState: PhaserExport | null) => void;
   updateUndoRedoState: () => void;
 
