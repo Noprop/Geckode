@@ -1,24 +1,53 @@
-'use client';
+"use client";
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type { DragEvent as ReactDragEvent, PointerEvent as ReactPointerEvent } from 'react';
-import { CopyIcon, EraserIcon, Pencil2Icon, TrashIcon } from '@radix-ui/react-icons';
-import { PencilIcon, BucketIcon, LineIcon, CircleIcon, ColorPickerIcon } from '@/components/icons';
-import { useGeckodeStore } from '@/stores/geckodeStore';
-import type { TilemapTool, Tileset } from '@/stores/geckodeStore';
-import { EventBus } from '@/phaser/EventBus';
-import { useCanvasZoom } from '@/hooks/useCanvasZoom';
-import { usePixelCanvas } from '@/hooks/usePixelCanvas';
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
+import {
+  DndContext,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import type { DragStartEvent, DragEndEvent } from "@dnd-kit/core";
+import {
+  CopyIcon,
+  EraserIcon,
+  Pencil2Icon,
+  TrashIcon,
+} from "@radix-ui/react-icons";
+import {
+  DroppableTileCell,
+  DraggableTile,
+  TileDragOverlay,
+  DragOverlay,
+} from "@/components/ui/tileset-dnd";
+import type { TileDragData } from "@/components/ui/tileset-dnd";
+import {
+  PencilIcon,
+  BucketIcon,
+  LineIcon,
+  CircleIcon,
+  ColorPickerIcon,
+} from "@/components/icons";
+import { useGeckodeStore } from "@/stores/geckodeStore";
+import type { TilemapTool, Tileset } from "@/stores/geckodeStore";
+import { EventBus } from "@/phaser/EventBus";
+import { useCanvasZoom } from "@/hooks/useCanvasZoom";
+import { usePixelCanvas } from "@/hooks/usePixelCanvas";
 import {
   useTilePixelCache,
   stampSolidColorAt,
   stampTileAtWithAlpha,
   rebuildPixelBuffer,
-} from '@/hooks/useTilePixelCache';
-import TileEditorModal from '@/components/TileModal/TileEditorModal';
-import { getLineCells, getRectangleCells, getOvalCells } from '@/lib/tileGridGeometry';
-import { createUniqueTextureName } from '@/stores/slices/spriteSlice';
-import { TILE_PX, TILESET_WIDTH } from '@/stores/slices/spriteSlice';
+} from "@/hooks/useTilePixelCache";
+import TileEditorModal from "@/components/TileModal/TileEditorModal";
+import {
+  getLineCells,
+  getRectangleCells,
+  getOvalCells,
+} from "@/lib/tileGridGeometry";
+import { createUniqueTextureName } from "@/stores/slices/spriteSlice";
+import { TILE_PX, TILESET_WIDTH } from "@/stores/slices/spriteSlice";
 
 // ── Tool button ──
 const ToolButton = ({
@@ -39,8 +68,8 @@ const ToolButton = ({
     onClick={onClick}
     className={`w-12 h-12 flex items-center justify-center rounded cursor-pointer transition ${
       activeTool === tool
-        ? 'bg-primary-green text-white'
-      : 'bg-slate-200 hover:bg-slate-300 dark:bg-dark-tertiary dark:hover:bg-dark-tertiary/80 text-slate-600 dark:text-slate-300'
+        ? "bg-primary-green text-white"
+        : "bg-slate-200 hover:bg-slate-300 dark:bg-dark-tertiary dark:hover:bg-dark-tertiary/80 text-slate-600 dark:text-slate-300"
     }`}
     title={title}
   >
@@ -49,12 +78,23 @@ const ToolButton = ({
 );
 
 const TilemapEditor = () => {
-  const [activeTool, setActiveTool] = useState<TilemapTool>('place');
-  const [selectedSingleTile, setSelectedSingleTile] = useState<string | null>(null);
-  const [selectedTilesetCell, setSelectedTilesetCell] = useState<{ row: number; col: number; tileKey: string } | null>(null);
-  const [dragOverTilesetCell, setDragOverTilesetCell] = useState<{ row: number; col: number } | null>(null);
+  const [activeTool, setActiveTool] = useState<TilemapTool>("place");
+  const [selectedSingleTile, setSelectedSingleTile] = useState<string | null>(
+    null,
+  );
+  const [selectedTilesetCell, setSelectedTilesetCell] = useState<{
+    row: number;
+    col: number;
+    tileKey: string;
+  } | null>(null);
+  const [activeDragData, setActiveDragData] = useState<TileDragData | null>(
+    null,
+  );
   const [brushSize, setBrushSize] = useState(1);
-  const [hoverCell, setHoverCell] = useState<{ row: number; col: number } | null>(null);
+  const [hoverCell, setHoverCell] = useState<{
+    row: number;
+    col: number;
+  } | null>(null);
   const [isTileEditorOpen, setIsTileEditorOpen] = useState(false);
   const [showCollidables, setShowCollidables] = useState(false);
   const minimapRef = useRef<HTMLCanvasElement>(null);
@@ -77,7 +117,9 @@ const TilemapEditor = () => {
   const tilemap = activeTilemapId ? tilemaps[activeTilemapId] : null;
 
   const selectedTileset: Tileset | null = tilemap
-    ? (tilesets.find((ts) => ts.id === tilemap.tilesetId) ?? tilesets[0] ?? null)
+    ? (tilesets.find((ts) => ts.id === tilemap.tilesetId) ??
+      tilesets[0] ??
+      null)
     : null;
 
   // Ensure active tilemap always points at a valid tileset.
@@ -97,10 +139,17 @@ const TilemapEditor = () => {
     }
 
     if (selectedTilesetCell) {
-      const currentTile = selectedTileset.data[selectedTilesetCell.row]?.[selectedTilesetCell.col] ?? null;
+      const currentTile =
+        selectedTileset.data[selectedTilesetCell.row]?.[
+          selectedTilesetCell.col
+        ] ?? null;
       if (currentTile) {
         if (currentTile !== selectedTilesetCell.tileKey) {
-          setSelectedTilesetCell({ row: selectedTilesetCell.row, col: selectedTilesetCell.col, tileKey: currentTile });
+          setSelectedTilesetCell({
+            row: selectedTilesetCell.row,
+            col: selectedTilesetCell.col,
+            tileKey: currentTile,
+          });
         }
         setSelectedSingleTile(currentTile);
         return;
@@ -119,19 +168,35 @@ const TilemapEditor = () => {
   const pixelW = gridWidthTiles * TILE_PX;
   const pixelH = gridHeightTiles * TILE_PX;
 
-  const { cellSize, zoomPercent, setZoom, isEditingZoom, setIsEditingZoom, canvasContainerRef, MIN_ZOOM_PERCENT, MAX_ZOOM_PERCENT } =
-    useCanvasZoom(pixelW, pixelH);
+  const {
+    cellSize,
+    zoomPercent,
+    setZoom,
+    isEditingZoom,
+    setIsEditingZoom,
+    canvasContainerRef,
+    MIN_ZOOM_PERCENT,
+    MAX_ZOOM_PERCENT,
+  } = useCanvasZoom(pixelW, pixelH);
 
-  const { canvasRef, outputPixelsRef, previewPixelsRef, requestRender, resetPixelArrays } =
-    usePixelCanvas(pixelW, pixelH, cellSize, 8, { enableKeyboardShortcuts: false });
+  const {
+    canvasRef,
+    outputPixelsRef,
+    previewPixelsRef,
+    requestRender,
+    resetPixelArrays,
+  } = usePixelCanvas(pixelW, pixelH, cellSize, 8, {
+    enableKeyboardShortcuts: false,
+  });
 
-  const { tilePixelsRef, tileAveragesRef, isReady } = useTilePixelCache(tileTextures);
+  const { tilePixelsRef, tileAveragesRef, isReady } =
+    useTilePixelCache(tileTextures);
 
   // ── Render minimap — one averaged-color block per tile ──
   const renderMinimap = useCallback(() => {
     const canvas = minimapRef.current;
     if (!canvas || !tilemap) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
     canvas.width = gridWidthTiles;
     canvas.height = gridHeightTiles;
@@ -152,12 +217,23 @@ const TilemapEditor = () => {
   useEffect(() => {
     if (!tilemap || !isReady) return;
     rebuildPixelBuffer(
-      outputPixelsRef.current, tilemap.data, tilePixelsRef.current,
-      tilemap.width, tilemap.height, TILE_PX,
+      outputPixelsRef.current,
+      tilemap.data,
+      tilePixelsRef.current,
+      tilemap.width,
+      tilemap.height,
+      TILE_PX,
     );
     requestRender();
     renderMinimap();
-  }, [tilemap, isReady, outputPixelsRef, tilePixelsRef, requestRender, renderMinimap]);
+  }, [
+    tilemap,
+    isReady,
+    outputPixelsRef,
+    tilePixelsRef,
+    requestRender,
+    renderMinimap,
+  ]);
 
   // ── Render collidable overlay ──
   useEffect(() => {
@@ -167,16 +243,21 @@ const TilemapEditor = () => {
     const h = pixelH * cellSize;
     canvas.width = w;
     canvas.height = h;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
     ctx.clearRect(0, 0, w, h);
-    const tileSizePx = (w / tilemap.width);
-    ctx.fillStyle = 'rgba(239, 68, 68, 0.3)';
+    const tileSizePx = w / tilemap.width;
+    ctx.fillStyle = "rgba(239, 68, 68, 0.3)";
     for (let row = 0; row < tilemap.height; row++) {
       for (let col = 0; col < tilemap.width; col++) {
         const key = tilemap.data[row]?.[col];
         if (key && tileCollidables[key]) {
-          ctx.fillRect(col * tileSizePx, row * tileSizePx, tileSizePx, tileSizePx);
+          ctx.fillRect(
+            col * tileSizePx,
+            row * tileSizePx,
+            tileSizePx,
+            tileSizePx,
+          );
         }
       }
     }
@@ -196,7 +277,7 @@ const TilemapEditor = () => {
     isDrawing: false,
     shapeStart: null as { row: number; col: number } | null,
     prevCell: null as { row: number; col: number } | null,
-    activeTool: 'place' as TilemapTool,
+    activeTool: "place" as TilemapTool,
     selectedSingleTile: null as string | null,
     brushSize: 1,
   });
@@ -218,102 +299,122 @@ const TilemapEditor = () => {
 
   const saveToHistory = useCallback(() => {
     if (!tilemap) return;
-    undoStackRef.current.push(tilemap.data.map(r => [...r]));
+    undoStackRef.current.push(tilemap.data.map((r) => [...r]));
     if (undoStackRef.current.length > MAX_HISTORY) undoStackRef.current.shift();
     redoStackRef.current = [];
-    setHistoryVersion(v => v + 1);
+    setHistoryVersion((v) => v + 1);
   }, [tilemap]);
 
   const undo = useCallback(() => {
-    if (!activeTilemapId || !tilemap || undoStackRef.current.length === 0) return;
-    redoStackRef.current.push(tilemap.data.map(r => [...r]));
+    if (!activeTilemapId || !tilemap || undoStackRef.current.length === 0)
+      return;
+    redoStackRef.current.push(tilemap.data.map((r) => [...r]));
     const prev = undoStackRef.current.pop();
     if (prev) setTilemapData(activeTilemapId, prev);
-    setHistoryVersion(v => v + 1);
+    setHistoryVersion((v) => v + 1);
   }, [activeTilemapId, tilemap, setTilemapData]);
 
   const redo = useCallback(() => {
-    if (!activeTilemapId || !tilemap || redoStackRef.current.length === 0) return;
-    undoStackRef.current.push(tilemap.data.map(r => [...r]));
+    if (!activeTilemapId || !tilemap || redoStackRef.current.length === 0)
+      return;
+    undoStackRef.current.push(tilemap.data.map((r) => [...r]));
     const next = redoStackRef.current.pop();
     if (next) setTilemapData(activeTilemapId, next);
-    setHistoryVersion(v => v + 1);
+    setHistoryVersion((v) => v + 1);
   }, [activeTilemapId, tilemap, setTilemapData]);
 
   // ── Cell from pointer event ──
-  const getCellFromEvent = useCallback((e: { clientX: number; clientY: number }) => {
-    const canvas = canvasRef.current;
-    if (!canvas || !tilemap) return null;
-    const rect = canvas.getBoundingClientRect();
-    const col = Math.floor((e.clientX - rect.left) / (rect.width / tilemap.width));
-    const row = Math.floor((e.clientY - rect.top) / (rect.height / tilemap.height));
-    if (col < 0 || col >= tilemap.width || row < 0 || row >= tilemap.height) return null;
-    return { row, col };
-  }, [canvasRef, tilemap]);
+  const getCellFromEvent = useCallback(
+    (e: { clientX: number; clientY: number }) => {
+      const canvas = canvasRef.current;
+      if (!canvas || !tilemap) return null;
+      const rect = canvas.getBoundingClientRect();
+      const col = Math.floor(
+        (e.clientX - rect.left) / (rect.width / tilemap.width),
+      );
+      const row = Math.floor(
+        (e.clientY - rect.top) / (rect.height / tilemap.height),
+      );
+      if (col < 0 || col >= tilemap.width || row < 0 || row >= tilemap.height)
+        return null;
+      return { row, col };
+    },
+    [canvasRef, tilemap],
+  );
 
   // ── Expand a cell by brush size ──
-  const expandBrush = useCallback((row: number, col: number, size: number) => {
-    if (size <= 1) return [{ row, col }];
-    const cells: { row: number; col: number }[] = [];
-    const offset = Math.floor(size / 2);
-    for (let dr = 0; dr < size; dr++) {
-      for (let dc = 0; dc < size; dc++) {
-        const r = row + dr - offset;
-        const c = col + dc - offset;
-        if (r >= 0 && r < gridHeightTiles && c >= 0 && c < gridWidthTiles) {
-          cells.push({ row: r, col: c });
+  const expandBrush = useCallback(
+    (row: number, col: number, size: number) => {
+      if (size <= 1) return [{ row, col }];
+      const cells: { row: number; col: number }[] = [];
+      const offset = Math.floor(size / 2);
+      for (let dr = 0; dr < size; dr++) {
+        for (let dc = 0; dc < size; dc++) {
+          const r = row + dr - offset;
+          const c = col + dc - offset;
+          if (r >= 0 && r < gridHeightTiles && c >= 0 && c < gridWidthTiles) {
+            cells.push({ row: r, col: c });
+          }
         }
       }
-    }
-    return cells;
-  }, [gridWidthTiles, gridHeightTiles]);
+      return cells;
+    },
+    [gridWidthTiles, gridHeightTiles],
+  );
 
   // ── Apply single cell placement (for pen / eraser drag with single tile) ──
-  const applySingleCell = useCallback((row: number, col: number) => {
-    if (!activeTilemapId || !tilemap) return;
-    const ds = drawStateRef.current;
-    const tileKey = ds.activeTool === 'eraser' ? null : ds.selectedSingleTile;
-    const cells = expandBrush(row, col, ds.brushSize);
-    for (const c of cells) {
-      if (tilemap.data[c.row][c.col] !== tileKey) {
-        updateTilemapCell(activeTilemapId, c.row, c.col, tileKey);
+  const applySingleCell = useCallback(
+    (row: number, col: number) => {
+      if (!activeTilemapId || !tilemap) return;
+      const ds = drawStateRef.current;
+      const tileKey = ds.activeTool === "eraser" ? null : ds.selectedSingleTile;
+      const cells = expandBrush(row, col, ds.brushSize);
+      for (const c of cells) {
+        if (tilemap.data[c.row][c.col] !== tileKey) {
+          updateTilemapCell(activeTilemapId, c.row, c.col, tileKey);
+        }
       }
-    }
-  }, [activeTilemapId, tilemap, updateTilemapCell, expandBrush]);
+    },
+    [activeTilemapId, tilemap, updateTilemapCell, expandBrush],
+  );
 
   // ── Flood fill on tile grid ──
-  const floodFill = useCallback((startRow: number, startCol: number, fillKey: string | null) => {
-    if (!activeTilemapId || !tilemap) return;
-    const w = tilemap.width;
-    const h = tilemap.height;
-    const target = tilemap.data[startRow][startCol];
-    if (target === fillKey) return;
+  const floodFill = useCallback(
+    (startRow: number, startCol: number, fillKey: string | null) => {
+      if (!activeTilemapId || !tilemap) return;
+      const w = tilemap.width;
+      const h = tilemap.height;
+      const target = tilemap.data[startRow][startCol];
+      if (target === fillKey) return;
 
-    const newData = tilemap.data.map(r => [...r]);
-    const queue: [number, number][] = [[startRow, startCol]];
-    const visited = new Set<number>();
+      const newData = tilemap.data.map((r) => [...r]);
+      const queue: [number, number][] = [[startRow, startCol]];
+      const visited = new Set<number>();
 
-    while (queue.length > 0) {
-      const [r, c] = queue.shift()!;
-      const idx = r * w + c;
-      if (visited.has(idx)) continue;
-      if (r < 0 || r >= h || c < 0 || c >= w) continue;
-      if (newData[r][c] !== target) continue;
+      while (queue.length > 0) {
+        const [r, c] = queue.shift()!;
+        const idx = r * w + c;
+        if (visited.has(idx)) continue;
+        if (r < 0 || r >= h || c < 0 || c >= w) continue;
+        if (newData[r][c] !== target) continue;
 
-      visited.add(idx);
-      newData[r][c] = fillKey;
-      queue.push([r + 1, c], [r - 1, c], [r, c + 1], [r, c - 1]);
-    }
+        visited.add(idx);
+        newData[r][c] = fillKey;
+        queue.push([r + 1, c], [r - 1, c], [r, c + 1], [r, c - 1]);
+      }
 
-    setTilemapData(activeTilemapId, newData);
-  }, [activeTilemapId, tilemap, setTilemapData]);
+      setTilemapData(activeTilemapId, newData);
+    },
+    [activeTilemapId, tilemap, setTilemapData],
+  );
 
   // ── Commit shape preview cells to store ──
   const commitPreview = useCallback(() => {
-    if (!activeTilemapId || !tilemap || previewCellsRef.current.length === 0) return;
+    if (!activeTilemapId || !tilemap || previewCellsRef.current.length === 0)
+      return;
     const ds = drawStateRef.current;
-    const tileKey = ds.activeTool === 'eraser' ? null : ds.selectedSingleTile;
-    const newData = tilemap.data.map(r => [...r]);
+    const tileKey = ds.activeTool === "eraser" ? null : ds.selectedSingleTile;
+    const newData = tilemap.data.map((r) => [...r]);
     for (const { row, col } of previewCellsRef.current) {
       if (row >= 0 && row < tilemap.height && col >= 0 && col < tilemap.width) {
         newData[row][col] = tileKey;
@@ -324,48 +425,108 @@ const TilemapEditor = () => {
   }, [activeTilemapId, tilemap, setTilemapData]);
 
   // ── Compute shape cells with brush expansion ──
-  const computeShapeCells = useCallback((start: { row: number; col: number }, end: { row: number; col: number }) => {
-    const ds = drawStateRef.current;
-    let baseCells: { row: number; col: number }[] = [];
-    if (ds.activeTool === 'line') {
-      baseCells = getLineCells(start.col, start.row, end.col, end.row);
-    } else if (ds.activeTool === 'rectangle') {
-      baseCells = getRectangleCells(start.col, start.row, end.col, end.row);
-    } else if (ds.activeTool === 'oval') {
-      baseCells = getOvalCells(start.col, start.row, end.col, end.row, gridWidthTiles, gridHeightTiles);
-    }
-
-    if (ds.brushSize <= 1) return baseCells;
-
-    // Expand each cell by brush size, deduplicate
-    const seen = new Set<string>();
-    const expanded: { row: number; col: number }[] = [];
-    for (const cell of baseCells) {
-      for (const ec of expandBrush(cell.row, cell.col, ds.brushSize)) {
-        const key = `${ec.row},${ec.col}`;
-        if (!seen.has(key)) { seen.add(key); expanded.push(ec); }
+  const computeShapeCells = useCallback(
+    (
+      start: { row: number; col: number },
+      end: { row: number; col: number },
+    ) => {
+      const ds = drawStateRef.current;
+      let baseCells: { row: number; col: number }[] = [];
+      if (ds.activeTool === "line") {
+        baseCells = getLineCells(start.col, start.row, end.col, end.row);
+      } else if (ds.activeTool === "rectangle") {
+        baseCells = getRectangleCells(start.col, start.row, end.col, end.row);
+      } else if (ds.activeTool === "oval") {
+        baseCells = getOvalCells(
+          start.col,
+          start.row,
+          end.col,
+          end.row,
+          gridWidthTiles,
+          gridHeightTiles,
+        );
       }
-    }
-    return expanded;
-  }, [gridWidthTiles, gridHeightTiles, expandBrush]);
+
+      if (ds.brushSize <= 1) return baseCells;
+
+      // Expand each cell by brush size, deduplicate
+      const seen = new Set<string>();
+      const expanded: { row: number; col: number }[] = [];
+      for (const cell of baseCells) {
+        for (const ec of expandBrush(cell.row, cell.col, ds.brushSize)) {
+          const key = `${ec.row},${ec.col}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            expanded.push(ec);
+          }
+        }
+      }
+      return expanded;
+    },
+    [gridWidthTiles, gridHeightTiles, expandBrush],
+  );
 
   // ── Write shape preview into previewPixelsRef ──
-  const updateShapePreview = useCallback((cells: { row: number; col: number }[]) => {
-    previewPixelsRef.current.fill(0);
-    const ds = drawStateRef.current;
-    const tileKey = ds.activeTool === 'eraser' ? null : ds.selectedSingleTile;
-    for (const { row, col } of cells) {
-      if (row < 0 || row >= gridHeightTiles || col < 0 || col >= gridWidthTiles) continue;
-      if (ds.activeTool === 'eraser') {
-        stampSolidColorAt(previewPixelsRef.current, row, col, pixelW, TILE_PX, 239, 68, 68, 90);
-      } else if (tileKey && tilePixelsRef.current[tileKey]) {
-        stampTileAtWithAlpha(previewPixelsRef.current, tilePixelsRef.current[tileKey], row, col, pixelW, TILE_PX, 128);
-      } else {
-        stampSolidColorAt(previewPixelsRef.current, row, col, pixelW, TILE_PX, 16, 185, 129, 77);
+  const updateShapePreview = useCallback(
+    (cells: { row: number; col: number }[]) => {
+      previewPixelsRef.current.fill(0);
+      const ds = drawStateRef.current;
+      const tileKey = ds.activeTool === "eraser" ? null : ds.selectedSingleTile;
+      for (const { row, col } of cells) {
+        if (
+          row < 0 ||
+          row >= gridHeightTiles ||
+          col < 0 ||
+          col >= gridWidthTiles
+        )
+          continue;
+        if (ds.activeTool === "eraser") {
+          stampSolidColorAt(
+            previewPixelsRef.current,
+            row,
+            col,
+            pixelW,
+            TILE_PX,
+            239,
+            68,
+            68,
+            90,
+          );
+        } else if (tileKey && tilePixelsRef.current[tileKey]) {
+          stampTileAtWithAlpha(
+            previewPixelsRef.current,
+            tilePixelsRef.current[tileKey],
+            row,
+            col,
+            pixelW,
+            TILE_PX,
+            128,
+          );
+        } else {
+          stampSolidColorAt(
+            previewPixelsRef.current,
+            row,
+            col,
+            pixelW,
+            TILE_PX,
+            16,
+            185,
+            129,
+            77,
+          );
+        }
       }
-    }
-    requestRender();
-  }, [previewPixelsRef, tilePixelsRef, pixelW, gridWidthTiles, gridHeightTiles, requestRender]);
+      requestRender();
+    },
+    [
+      previewPixelsRef,
+      tilePixelsRef,
+      pixelW,
+      gridWidthTiles,
+      gridHeightTiles,
+      requestRender,
+    ],
+  );
 
   // ── Pointer handlers ──
   const handlePointerDown = (e: ReactPointerEvent<HTMLCanvasElement>) => {
@@ -374,32 +535,32 @@ const TilemapEditor = () => {
     if (!cell || !tilemap) return;
     const ds = drawStateRef.current;
 
-    if (ds.activeTool === 'place') {
+    if (ds.activeTool === "place") {
       if (!ds.selectedSingleTile) return;
       saveToHistory();
       ds.isDrawing = true;
       ds.prevCell = cell;
       applySingleCell(cell.row, cell.col);
-    } else if (ds.activeTool === 'eraser') {
+    } else if (ds.activeTool === "eraser") {
       saveToHistory();
       ds.isDrawing = true;
       ds.prevCell = cell;
       applySingleCell(cell.row, cell.col);
-    } else if (['line', 'rectangle', 'oval'].includes(ds.activeTool)) {
+    } else if (["line", "rectangle", "oval"].includes(ds.activeTool)) {
       saveToHistory();
       ds.isDrawing = true;
       ds.shapeStart = cell;
       const cells = expandBrush(cell.row, cell.col, ds.brushSize);
       previewCellsRef.current = cells;
       updateShapePreview(cells);
-    } else if (ds.activeTool === 'bucket') {
+    } else if (ds.activeTool === "bucket") {
       saveToHistory();
       floodFill(cell.row, cell.col, ds.selectedSingleTile);
-    } else if (ds.activeTool === 'tile-picker') {
+    } else if (ds.activeTool === "tile-picker") {
       const tileKey = tilemap.data[cell.row][cell.col];
       if (tileKey) {
         setSelectedSingleTile(tileKey);
-        setActiveTool('place');
+        setActiveTool("place");
       }
     }
   };
@@ -411,19 +572,31 @@ const TilemapEditor = () => {
       const cell = getCellFromEvent(e);
       if (!cell) return;
 
-      if (ds.activeTool === 'place' || ds.activeTool === 'eraser') {
+      if (ds.activeTool === "place" || ds.activeTool === "eraser") {
         const prev = ds.prevCell;
         if (prev && prev.row === cell.row && prev.col === cell.col) return;
         ds.prevCell = cell;
 
         // Interpolate line between prev and current for fast drags
-        if (prev && (Math.abs(cell.row - prev.row) > 1 || Math.abs(cell.col - prev.col) > 1)) {
-          const lineCells = getLineCells(prev.col, prev.row, cell.col, cell.row);
+        if (
+          prev &&
+          (Math.abs(cell.row - prev.row) > 1 ||
+            Math.abs(cell.col - prev.col) > 1)
+        ) {
+          const lineCells = getLineCells(
+            prev.col,
+            prev.row,
+            cell.col,
+            cell.row,
+          );
           for (const lc of lineCells) applySingleCell(lc.row, lc.col);
         } else {
           applySingleCell(cell.row, cell.col);
         }
-      } else if (['line', 'rectangle', 'oval'].includes(ds.activeTool) && ds.shapeStart) {
+      } else if (
+        ["line", "rectangle", "oval"].includes(ds.activeTool) &&
+        ds.shapeStart
+      ) {
         const cells = computeShapeCells(ds.shapeStart, cell);
         previewCellsRef.current = cells;
         updateShapePreview(cells);
@@ -434,7 +607,10 @@ const TilemapEditor = () => {
       const ds = drawStateRef.current;
       if (!ds.isDrawing) return;
 
-      if (['line', 'rectangle', 'oval'].includes(ds.activeTool) && ds.shapeStart) {
+      if (
+        ["line", "rectangle", "oval"].includes(ds.activeTool) &&
+        ds.shapeStart
+      ) {
         commitPreview();
       }
 
@@ -446,11 +622,11 @@ const TilemapEditor = () => {
       requestRender();
     };
 
-    window.addEventListener('pointermove', handleMove);
-    window.addEventListener('pointerup', handleUp);
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleUp);
     return () => {
-      window.removeEventListener('pointermove', handleMove);
-      window.removeEventListener('pointerup', handleUp);
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleUp);
     };
   });
 
@@ -458,61 +634,71 @@ const TilemapEditor = () => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey;
-      if (mod && e.key === 'z' && !e.shiftKey) {
+      if (mod && e.key === "z" && !e.shiftKey) {
         e.preventDefault();
         undo();
-      } else if (mod && e.key === 'z' && e.shiftKey) {
+      } else if (mod && e.key === "z" && e.shiftKey) {
         e.preventDefault();
         redo();
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [undo, redo]);
 
   // ── Grid resize ──
-  const handleGridResize = (dimension: 'width' | 'height', value: string) => {
+  const handleGridResize = (dimension: "width" | "height", value: string) => {
     if (!activeTilemapId || !tilemap) return;
-    if (value === '') return;
+    if (value === "") return;
     const parsed = Math.max(1, Math.min(128, parseInt(value, 10)));
     if (Number.isNaN(parsed)) return;
-    const newW = dimension === 'width' ? parsed : tilemap.width;
-    const newH = dimension === 'height' ? parsed : tilemap.height;
+    const newW = dimension === "width" ? parsed : tilemap.width;
+    const newH = dimension === "height" ? parsed : tilemap.height;
     resizeTilemap(activeTilemapId, newW, newH);
   };
 
-  const handleSelectTilesetCell = useCallback((row: number, col: number) => {
-    if (!selectedTileset) return;
-    const tileKey = selectedTileset.data[row]?.[col] ?? null;
-    if (!tileKey) return;
-    setSelectedTilesetCell({ row, col, tileKey });
-    setSelectedSingleTile(tileKey);
-    if (activeTool === 'tile-picker') setActiveTool('place');
-  }, [selectedTileset, activeTool]);
+  const handleSelectTilesetCell = useCallback(
+    (row: number, col: number) => {
+      if (!selectedTileset) return;
+      const tileKey = selectedTileset.data[row]?.[col] ?? null;
+      if (!tileKey) return;
+      setSelectedTilesetCell({ row, col, tileKey });
+      setSelectedSingleTile(tileKey);
+      if (activeTool === "tile-picker") setActiveTool("place");
+    },
+    [selectedTileset, activeTool],
+  );
 
-  const updateActiveTilesetData = useCallback((updater: (data: (string | null)[][]) => (string | null)[][] | null) => {
-    if (!selectedTileset) return;
-    const draft = selectedTileset.data.map((row) => [...row]);
-    const nextData = updater(draft);
-    if (!nextData) return;
-    updateTileset(selectedTileset.id, {
-      ...selectedTileset,
-      data: normalizeTilesetData(nextData),
-    });
-  }, [selectedTileset, updateTileset]);
+  const updateActiveTilesetData = useCallback(
+    (updater: (data: (string | null)[][]) => (string | null)[][] | null) => {
+      if (!selectedTileset) return;
+      const draft = selectedTileset.data.map((row) => [...row]);
+      const nextData = updater(draft);
+      if (!nextData) return;
+      updateTileset(selectedTileset.id, {
+        ...selectedTileset,
+        data: normalizeTilesetData(nextData),
+      });
+    },
+    [selectedTileset, updateTileset],
+  );
 
   const handleDuplicateTile = useCallback(() => {
     const tileKey = selectedTilesetCell?.tileKey;
     if (!tileKey || !selectedTileset || !tileTextures[tileKey]) return;
 
     const duplicatedTileKey = createUniqueTextureName(tileKey, tileTextures);
-    addAsset(duplicatedTileKey, tileTextures[tileKey], 'tiles');
+    addAsset(duplicatedTileKey, tileTextures[tileKey], "tiles");
 
     updateActiveTilesetData((data) => {
       const empty = findFirstEmptyTilesetCell(data);
       if (empty) {
         data[empty.row][empty.col] = duplicatedTileKey;
-        setSelectedTilesetCell({ row: empty.row, col: empty.col, tileKey: duplicatedTileKey });
+        setSelectedTilesetCell({
+          row: empty.row,
+          col: empty.col,
+          tileKey: duplicatedTileKey,
+        });
         setSelectedSingleTile(duplicatedTileKey);
         return data;
       }
@@ -520,11 +706,21 @@ const TilemapEditor = () => {
       data.push(Array.from({ length: TILESET_WIDTH }, () => null));
       const nextRow = data.length - 1;
       data[nextRow][0] = duplicatedTileKey;
-      setSelectedTilesetCell({ row: nextRow, col: 0, tileKey: duplicatedTileKey });
+      setSelectedTilesetCell({
+        row: nextRow,
+        col: 0,
+        tileKey: duplicatedTileKey,
+      });
       setSelectedSingleTile(duplicatedTileKey);
       return data;
     });
-  }, [selectedTilesetCell, selectedTileset, tileTextures, addAsset, updateActiveTilesetData]);
+  }, [
+    selectedTilesetCell,
+    selectedTileset,
+    tileTextures,
+    addAsset,
+    updateActiveTilesetData,
+  ]);
 
   const handleDeleteTile = useCallback(() => {
     if (!selectedTilesetCell) return;
@@ -536,48 +732,59 @@ const TilemapEditor = () => {
     });
   }, [selectedTilesetCell, updateActiveTilesetData]);
 
-  const handleTilesetDragStart = useCallback((
-    e: ReactDragEvent<HTMLButtonElement>,
-    row: number,
-    col: number,
-    tileKey: string,
-  ) => {
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', JSON.stringify({ row, col, tileKey }));
+  // ── dnd-kit sensors & handlers for tileset panel ──
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  );
+
+  const handleTilesetDragStart = useCallback((event: DragStartEvent) => {
+    const data = event.active.data.current as TileDragData | undefined;
+    if (data) setActiveDragData(data);
   }, []);
 
-  const handleTilesetDrop = useCallback((e: ReactDragEvent<HTMLButtonElement>, destRow: number, destCol: number) => {
-    e.preventDefault();
-    setDragOverTilesetCell(null);
-    if (!selectedTileset) return;
+  const handleTilesetDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      setActiveDragData(null);
+      const { active, over } = event;
+      if (!over || !selectedTileset) return;
 
-    let payload: { row: number; col: number; tileKey: string } | null = null;
-    try {
-      payload = JSON.parse(e.dataTransfer.getData('text/plain'));
-    } catch {
-      payload = null;
-    }
-    if (!payload) return;
+      const srcData = active.data.current as TileDragData | undefined;
+      if (!srcData || srcData.row === undefined || srcData.col === undefined)
+        return;
 
-    updateActiveTilesetData((data) => {
-      const sourceTile = data[payload.row]?.[payload.col] ?? null;
-      if (!sourceTile || sourceTile !== payload.tileKey) return null;
-      if (!data[destRow]) return null;
-      if (payload.row === destRow && payload.col === destCol) return null;
+      // Parse destination cell id: "tileset-cell-{row}-{col}"
+      const parts = (over.id as string).split("-");
+      const destRow = parseInt(parts[2], 10);
+      const destCol = parseInt(parts[3], 10);
+      if (Number.isNaN(destRow) || Number.isNaN(destCol)) return;
+      if (srcData.row === destRow && srcData.col === destCol) return;
 
-      const destTile = data[destRow][destCol];
-      if (destTile !== null) {
-        const shouldOverwrite = window.confirm('This slot is already used. Overwrite this tile slot?');
-        if (!shouldOverwrite) return null;
-      }
+      updateActiveTilesetData((data) => {
+        const sourceTile = data[srcData.row!]?.[srcData.col!] ?? null;
+        if (!sourceTile || sourceTile !== srcData.tileKey) return null;
+        if (!data[destRow]) return null;
 
-      data[payload.row][payload.col] = null;
-      data[destRow][destCol] = sourceTile;
-      setSelectedTilesetCell({ row: destRow, col: destCol, tileKey: sourceTile });
-      setSelectedSingleTile(sourceTile);
-      return data;
-    });
-  }, [selectedTileset, updateActiveTilesetData]);
+        const destTile = data[destRow][destCol];
+        if (destTile !== null) {
+          const shouldOverwrite = window.confirm(
+            "This slot is already used. Overwrite this tile slot?",
+          );
+          if (!shouldOverwrite) return null;
+        }
+
+        data[srcData.row!][srcData.col!] = null;
+        data[destRow][destCol] = sourceTile;
+        setSelectedTilesetCell({
+          row: destRow,
+          col: destCol,
+          tileKey: sourceTile,
+        });
+        setSelectedSingleTile(sourceTile);
+        return data;
+      });
+    },
+    [selectedTileset, updateActiveTilesetData],
+  );
 
   if (!tilemap || !activeTilemapId) {
     return (
@@ -603,59 +810,114 @@ const TilemapEditor = () => {
               type="button"
               onClick={() => setBrushSize(size)}
               className={`h-9 flex items-center justify-center cursor-pointer transition ${
-                brushSize === size ? 'bg-primary-green' : 'bg-slate-200 hover:bg-slate-300 dark:bg-dark-tertiary dark:hover:bg-dark-tertiary/80'
+                brushSize === size
+                  ? "bg-primary-green"
+                  : "bg-slate-200 hover:bg-slate-300 dark:bg-dark-tertiary dark:hover:bg-dark-tertiary/80"
               }`}
               title={`${size}x${size} brush`}
             >
-              <div className="bg-white" style={{ width: size * 3 + 2, height: size * 3 + 2 }} />
+              <div
+                className="bg-white"
+                style={{ width: size * 3 + 2, height: size * 3 + 2 }}
+              />
             </button>
           ))}
         </div>
 
         {/* Minimap */}
         <div className="flex flex-col gap-1">
-          <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wide font-semibold px-0.5">Minimap</span>
+          <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wide font-semibold px-0.5">
+            Minimap
+          </span>
           <canvas
             ref={minimapRef}
             className="w-full rounded border border-gray-400"
-            style={{ imageRendering: 'pixelated', aspectRatio: `${gridWidthTiles} / ${gridHeightTiles}` }}
+            style={{
+              imageRendering: "pixelated",
+              aspectRatio: `${gridWidthTiles} / ${gridHeightTiles}`,
+            }}
           />
         </div>
 
         {/* Tools grid — matches EditorTools layout */}
         <div className="grid grid-cols-4 gap-2 w-fit mx-auto">
-          <ToolButton tool="place" activeTool={activeTool} onClick={() => setActiveTool('place')} title="Place tile (pen)">
+          <ToolButton
+            tool="place"
+            activeTool={activeTool}
+            onClick={() => setActiveTool("place")}
+            title="Place tile (pen)"
+          >
             <PencilIcon className="w-5 h-5" />
           </ToolButton>
-          <ToolButton tool="eraser" activeTool={activeTool} onClick={() => setActiveTool('eraser')} title="Eraser">
+          <ToolButton
+            tool="eraser"
+            activeTool={activeTool}
+            onClick={() => setActiveTool("eraser")}
+            title="Eraser"
+          >
             <EraserIcon className="w-5 h-5" />
           </ToolButton>
-          <ToolButton tool="bucket" activeTool={activeTool} onClick={() => setActiveTool('bucket')} title="Bucket fill">
+          <ToolButton
+            tool="bucket"
+            activeTool={activeTool}
+            onClick={() => setActiveTool("bucket")}
+            title="Bucket fill"
+          >
             <BucketIcon className="w-5 h-5" />
           </ToolButton>
-          <ToolButton tool="line" activeTool={activeTool} onClick={() => setActiveTool('line')} title="Line tool">
+          <ToolButton
+            tool="line"
+            activeTool={activeTool}
+            onClick={() => setActiveTool("line")}
+            title="Line tool"
+          >
             <LineIcon className="w-5 h-5" />
           </ToolButton>
-          <ToolButton tool="rectangle" activeTool={activeTool} onClick={() => setActiveTool('rectangle')} title="Rectangle tool">
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <ToolButton
+            tool="rectangle"
+            activeTool={activeTool}
+            onClick={() => setActiveTool("rectangle")}
+            title="Rectangle tool"
+          >
+            <svg
+              className="w-5 h-5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <rect x="3" y="3" width="18" height="18" rx="1" />
             </svg>
           </ToolButton>
-          <ToolButton tool="oval" activeTool={activeTool} onClick={() => setActiveTool('oval')} title="Oval tool">
+          <ToolButton
+            tool="oval"
+            activeTool={activeTool}
+            onClick={() => setActiveTool("oval")}
+            title="Oval tool"
+          >
             <CircleIcon className="w-5 h-5" />
           </ToolButton>
-          <ToolButton tool="tile-picker" activeTool={activeTool} onClick={() => setActiveTool('tile-picker')} title="Tile picker">
+          <ToolButton
+            tool="tile-picker"
+            activeTool={activeTool}
+            onClick={() => setActiveTool("tile-picker")}
+            title="Tile picker"
+          >
             <ColorPickerIcon className="w-5 h-5" />
           </ToolButton>
         </div>
 
         {/* Tileset panel */}
         <div className="flex flex-col gap-2 min-h-0">
-          <span className="text-sm text-slate-600 dark:text-slate-300 font-semibold px-0.5">Tileset</span>
+          <span className="text-sm text-slate-600 dark:text-slate-300 font-semibold px-0.5">
+            Tileset
+          </span>
           <div className="flex items-center gap-1">
             <select
               value={tilemap.tilesetId}
-              onChange={(e) => setTilemapTilesetId(activeTilemapId, e.target.value)}
+              onChange={(e) =>
+                setTilemapTilesetId(activeTilemapId, e.target.value)
+              }
               className="w-1/2 h-7 px-2 rounded bg-white border border-slate-200 dark:bg-dark-tertiary dark:border-slate-600 text-xs text-slate-700 dark:text-slate-200 outline-none focus:border-primary-green"
               title="Active tilemap tileset"
             >
@@ -672,7 +934,11 @@ const TilemapEditor = () => {
                 disabled={!selectedTilesetCell}
                 onClick={() => {
                   if (!selectedTilesetCell?.tileKey) return;
-                  setEditingAsset(selectedTilesetCell.tileKey, 'tiles', 'asset');
+                  setEditingAsset(
+                    selectedTilesetCell.tileKey,
+                    "tiles",
+                    "asset",
+                  );
                   setIsTileEditorOpen(true);
                 }}
                 className="h-7 flex items-center justify-center rounded-sm bg-transparent hover:bg-slate-200/60 dark:hover:bg-dark-tertiary/60 text-slate-700 dark:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-green/50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition"
@@ -702,53 +968,68 @@ const TilemapEditor = () => {
           </div>
 
           {selectedTileset && (
-            <div>
+            <DndContext
+              sensors={sensors}
+              onDragStart={handleTilesetDragStart}
+              onDragEnd={handleTilesetDragEnd}
+            >
               <div className="grid grid-cols-5 gap-px max-h-[260px] overflow-y-auto">
                 {selectedTileset.data.map((row, rowIndex) =>
                   Array.from({ length: TILESET_WIDTH }, (_, colIndex) => {
                     const tileKey = row[colIndex] ?? null;
-                    const isSelected = selectedTilesetCell?.row === rowIndex
-                      && selectedTilesetCell?.col === colIndex
-                      && selectedTilesetCell?.tileKey === tileKey
-                      && tileKey !== null;
-                    const isDragOver = dragOverTilesetCell?.row === rowIndex && dragOverTilesetCell?.col === colIndex;
+                    const cellId = `tileset-cell-${rowIndex}-${colIndex}`;
+                    const isSelected =
+                      selectedTilesetCell?.row === rowIndex &&
+                      selectedTilesetCell?.col === colIndex &&
+                      selectedTilesetCell?.tileKey === tileKey &&
+                      tileKey !== null;
                     return (
-                      <button
-                        key={`${rowIndex}-${colIndex}`}
-                        type="button"
-                        draggable={Boolean(tileKey)}
-                        onClick={() => handleSelectTilesetCell(rowIndex, colIndex)}
-                        onDragStart={(e) => {
-                          if (!tileKey) return;
-                          handleTilesetDragStart(e, rowIndex, colIndex, tileKey);
-                        }}
-                        onDragOver={(e) => {
-                          e.preventDefault();
-                          setDragOverTilesetCell({ row: rowIndex, col: colIndex });
-                        }}
-                        onDragLeave={() => setDragOverTilesetCell(null)}
-                        onDrop={(e) => handleTilesetDrop(e, rowIndex, colIndex)}
-                        className={`group relative aspect-square transition-colors cursor-pointer ${isDragOver ? 'bg-emerald-100 dark:bg-emerald-900/30' : ''}`}
-                        title={tileKey ?? 'Empty'}
+                      <DroppableTileCell
+                        key={cellId}
+                        id={cellId}
+                        className="group relative aspect-square transition-colors cursor-pointer"
+                        onClick={() =>
+                          handleSelectTilesetCell(rowIndex, colIndex)
+                        }
                       >
                         {tileKey && tileTextures[tileKey] ? (
-                          <img
-                            src={tileTextures[tileKey]}
-                            alt={tileKey}
-                            className="w-full h-full object-cover pointer-events-none"
-                            style={{ imageRendering: 'pixelated' }}
-                          />
+                          <DraggableTile
+                            id={`tileset-drag-${rowIndex}-${colIndex}`}
+                            data={{
+                              tileKey,
+                              row: rowIndex,
+                              col: colIndex,
+                              source: "grid",
+                            }}
+                            className="w-full h-full"
+                          >
+                            <img
+                              src={tileTextures[tileKey]}
+                              alt={tileKey}
+                              className="w-full h-full object-cover pointer-events-none"
+                              style={{ imageRendering: "pixelated" }}
+                            />
+                          </DraggableTile>
                         ) : null}
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/15 transition-colors pointer-events-none" />
-                        {isSelected && (<>
+                        {isSelected && (
                           <div className="absolute inset-0 pointer-events-none" />
-                        </>)}
-                      </button>
+                        )}
+                      </DroppableTileCell>
                     );
                   }),
                 )}
               </div>
-            </div>
+              <DragOverlay dropAnimation={null}>
+                {activeDragData?.tileKey &&
+                tileTextures[activeDragData.tileKey] ? (
+                  <TileDragOverlay
+                    tileKey={activeDragData.tileKey}
+                    textureSrc={tileTextures[activeDragData.tileKey]}
+                  />
+                ) : null}
+              </DragOverlay>
+            </DndContext>
           )}
 
           {/* Show collidables checkbox */}
@@ -759,7 +1040,9 @@ const TilemapEditor = () => {
               onChange={(e) => setShowCollidables(e.target.checked)}
               className="accent-primary-green w-3.5 h-3.5 cursor-pointer"
             />
-            <span className="text-xs text-slate-500 dark:text-slate-400">Show collidables</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400">
+              Show collidables
+            </span>
           </label>
         </div>
 
@@ -775,7 +1058,7 @@ const TilemapEditor = () => {
           <div className="absolute top-2 right-2 z-10 flex gap-1.5">
             <button
               type="button"
-              onClick={() => EventBus.emit('update-tilemap')}
+              onClick={() => EventBus.emit("update-tilemap")}
               className="px-3 h-7 flex items-center justify-center rounded bg-emerald-600/80 hover:bg-emerald-600 text-white text-xs font-medium cursor-pointer transition"
               title="Save tilemap to scene"
             >
@@ -783,7 +1066,10 @@ const TilemapEditor = () => {
             </button>
             <button
               type="button"
-              onClick={() => { saveToHistory(); clearTilemap(activeTilemapId); }}
+              onClick={() => {
+                saveToHistory();
+                clearTilemap(activeTilemapId);
+              }}
               className="px-3 h-7 flex items-center justify-center rounded bg-red-600/80 hover:bg-red-600 text-white text-xs font-medium cursor-pointer transition"
               title="Clear tilemap"
             >
@@ -797,7 +1083,7 @@ const TilemapEditor = () => {
               style={{
                 width: pixelW * cellSize,
                 height: pixelH * cellSize,
-                imageRendering: 'pixelated',
+                imageRendering: "pixelated",
               }}
               onPointerDown={handlePointerDown}
               onPointerMove={(e) => setHoverCell(getCellFromEvent(e))}
@@ -824,7 +1110,15 @@ const TilemapEditor = () => {
               className="w-7 h-7 flex items-center justify-center rounded bg-slate-200/80 hover:bg-slate-300 dark:bg-dark-tertiary/80 dark:hover:bg-dark-tertiary text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition"
               title="Undo (Ctrl+Z)"
             >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                className="w-4 h-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <path d="M3 7h10a5 5 0 0 1 0 10H9" />
                 <path d="M3 7l4-4M3 7l4 4" />
               </svg>
@@ -836,7 +1130,15 @@ const TilemapEditor = () => {
               className="w-7 h-7 flex items-center justify-center rounded bg-slate-200/80 hover:bg-slate-300 dark:bg-dark-tertiary/80 dark:hover:bg-dark-tertiary text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition"
               title="Redo (Ctrl+Shift+Z)"
             >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                className="w-4 h-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <path d="M21 7H11a5 5 0 0 0 0 10h4" />
                 <path d="M21 7l-4-4M21 7l-4 4" />
               </svg>
@@ -852,20 +1154,22 @@ const TilemapEditor = () => {
               key={`w-${tilemap.width}`}
               type="number"
               defaultValue={tilemap.width}
-              onBlur={(e) => handleGridResize('width', e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+              onBlur={(e) => handleGridResize("width", e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
               min={1}
               max={128}
               className="w-10 h-6 px-1 text-xs text-slate-700 dark:text-slate-300 text-center bg-white border border-slate-200 dark:bg-dark-tertiary dark:border-slate-600 rounded outline-none focus:border-primary-green [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               title="Grid width (tiles)"
             />
-            <span className="text-slate-500 dark:text-slate-400 text-xs">x</span>
+            <span className="text-slate-500 dark:text-slate-400 text-xs">
+              x
+            </span>
             <input
               key={`h-${tilemap.height}`}
               type="number"
               defaultValue={tilemap.height}
-              onBlur={(e) => handleGridResize('height', e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+              onBlur={(e) => handleGridResize("height", e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
               min={1}
               max={128}
               className="w-10 h-6 px-1 text-xs text-slate-700 dark:text-slate-300 text-center bg-white border border-slate-200 dark:bg-dark-tertiary dark:border-slate-600 rounded outline-none focus:border-primary-green [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
@@ -873,12 +1177,14 @@ const TilemapEditor = () => {
             />
             <span className="text-slate-300 dark:text-slate-600 mx-1">|</span>
             <span className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">
-              {hoverCell ? `${hoverCell.col}, ${hoverCell.row}` : '\u2014'}
+              {hoverCell ? `${hoverCell.col}, ${hoverCell.row}` : "\u2014"}
             </span>
           </div>
 
           {/* Center: tilemap name */}
-          <span className="text-xs text-slate-500 dark:text-slate-400 font-medium truncate px-2">{tilemap.name}</span>
+          <span className="text-xs text-slate-500 dark:text-slate-400 font-medium truncate px-2">
+            {tilemap.name}
+          </span>
 
           {/* Right: zoom controls */}
           <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
@@ -889,7 +1195,13 @@ const TilemapEditor = () => {
               className="w-6 h-6 flex items-center justify-center rounded bg-slate-200 hover:bg-slate-300 dark:bg-dark-tertiary dark:hover:bg-dark-tertiary/80 disabled:opacity-40 disabled:cursor-not-allowed text-slate-600 dark:text-slate-300 cursor-pointer transition"
               title="Zoom out"
             >
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                className="w-3.5 h-3.5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <circle cx="11" cy="11" r="8" />
                 <path d="M21 21l-4.35-4.35M8 11h6" />
               </svg>
@@ -903,7 +1215,9 @@ const TilemapEditor = () => {
                   setIsEditingZoom(false);
                 }}
                 onKeyDown={(e) =>
-                  e.key === 'Enter' ? e.currentTarget.blur() : e.key === 'Escape' && setIsEditingZoom(false)
+                  e.key === "Enter"
+                    ? e.currentTarget.blur()
+                    : e.key === "Escape" && setIsEditingZoom(false)
                 }
                 className="w-12 h-6 px-1 text-xs text-slate-700 dark:text-slate-300 text-center bg-white border border-slate-200 dark:bg-dark-tertiary dark:border-slate-600 rounded outline-none focus:border-primary-green [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 autoFocus
@@ -926,7 +1240,13 @@ const TilemapEditor = () => {
               className="w-6 h-6 flex items-center justify-center rounded bg-slate-200 hover:bg-slate-300 dark:bg-dark-tertiary dark:hover:bg-dark-tertiary/80 disabled:opacity-40 disabled:cursor-not-allowed text-slate-600 dark:text-slate-300 cursor-pointer transition"
               title="Zoom in"
             >
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                className="w-3.5 h-3.5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <circle cx="11" cy="11" r="8" />
                 <path d="M21 21l-4.35-4.35M11 8v6M8 11h6" />
               </svg>
@@ -945,7 +1265,9 @@ function normalizeTilesetData(data: (string | null)[][]): (string | null)[][] {
   );
 }
 
-function findFirstTileCell(tileset: Tileset): { row: number; col: number; tileKey: string } | null {
+function findFirstTileCell(
+  tileset: Tileset,
+): { row: number; col: number; tileKey: string } | null {
   for (let row = 0; row < tileset.data.length; row++) {
     for (let col = 0; col < TILESET_WIDTH; col++) {
       const tileKey = tileset.data[row]?.[col] ?? null;
@@ -957,7 +1279,9 @@ function findFirstTileCell(tileset: Tileset): { row: number; col: number; tileKe
   return null;
 }
 
-function findFirstEmptyTilesetCell(data: (string | null)[][]): { row: number; col: number } | null {
+function findFirstEmptyTilesetCell(
+  data: (string | null)[][],
+): { row: number; col: number } | null {
   for (let row = 0; row < data.length; row++) {
     for (let col = 0; col < TILESET_WIDTH; col++) {
       if ((data[row]?.[col] ?? null) === null) {
