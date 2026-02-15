@@ -67,7 +67,7 @@ const ProjectView = () => {
         </div>
 
         {view === "blocks" && (
-          <div className="absolute bottom-8 right-[30px] flex items-center gap-2.5 z-9999 pointer-events-auto">
+          <div className="absolute bottom-8 right-[30px] flex items-center gap-2.5 z-20 pointer-events-auto">
             <button
               onClick={undoWorkspace}
               disabled={!canUndo}

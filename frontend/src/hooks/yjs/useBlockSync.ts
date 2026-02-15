@@ -79,7 +79,7 @@ const createBlockEventsListener = (
   }, ydoc.clientID);
 };
 
-const blocksMapChangesHandler = (
+export const blocksMapChangesHandler = (
   workspace: Blockly.Workspace,
   blocksMap: Y.Map<Block>,
   keys: Map<string, {
@@ -326,19 +326,6 @@ const blocksMapChangesHandler = (
   Blockly.Events.enable();
 };
 
-const createBlocksMapObserver = (
-  workspace: Blockly.Workspace,
-  blocksMap: Y.Map<Block>,
-) => (event: Y.YMapEvent<Block>, transaction: Y.Transaction) => {
-  if (transaction.origin === ydoc.clientID) return; // Don't apply any events from self
-
-  blocksMapChangesHandler(
-    workspace,
-    blocksMap,
-    event.changes.keys,
-  );
-};
-
 export const useBlockSync = (documentName: string) => {
   const blocklyWorkspace = useGeckodeStore((s) => s.blocklyWorkspace);
   const selectedSpriteId = useGeckodeStore((s) => s.selectedSpriteId);
@@ -371,49 +358,8 @@ export const useBlockSync = (documentName: string) => {
 
     blocklyWorkspace.addChangeListener(blocklyEventsListener);
 
-    const blocksMaps = spriteInstances.map((instance, index) => {
-      const workspace = workspaces.get(index);
-      if (!workspace) return;
-      const blocksMap = workspace.get('blocks');
-      if (blocksMap) return [instance.id, blocksMap];
-    }).filter((x) => x) as [string, Y.Map<Block>][];
-
-    const blocksMapObservers = blocksMaps.map(([id, blocksMap]) =>
-      [
-        blocksMap,
-        createBlocksMapObserver(
-          id === selectedSpriteId ? blocklyWorkspace : spriteWorkspaces[id],
-          blocksMap,
-        ),
-      ] as [Y.Map<Block>, () => void]
-    );
-
-    blocksMapObservers.forEach(([blocksMap, observer]) => {
-      console.log('setting up blocksMap observer', blocksMap);
-      blocksMap.observe(observer);
-    });
-
-    // This fixes a weird issue where it doesn't get the inital changes
-    // blocksMaps.forEach(([id, blocksMap]) => {
-    //   console.log('calling initial blocksMap', id, Array.from(blocksMap.keys()));
-    //   blocksMapChangesHandler(
-    //     spriteWorkspaces[id],
-    //     blocksMap,
-    //     new Map(Array.from(blocksMap.keys()).map((key) => [
-    //       key,
-    //       {
-    //         action: "add",
-    //         oldValue: undefined,
-    //       },
-    //     ])),
-    //   );
-    // });
-
     return () => {
       blocklyWorkspace.removeChangeListener(blocklyEventsListener);
-      blocksMapObservers.forEach(([blocksMap, observer]) => {
-        blocksMap.unobserve(observer);
-      });
     }
   }, [blocklyWorkspace, spriteInstances, selectedSpriteId, spriteWorkspaces]);
 };

@@ -104,34 +104,36 @@ const BlocklyEditor = () => {
     if (!newWorkspace) {
       prevSpriteIdRef.current = null;
       workspaceRef.current.clear();
-      workspaceRef.current.clearUndo();
-      return;
-    };
+    } else {
+      const newToolbox = getToolbox();
+      workspaceRef.current?.updateToolbox(newToolbox as Blockly.utils.toolbox.ToolboxDefinition);
 
-    const newToolbox = getToolbox();
-    workspaceRef.current?.updateToolbox(newToolbox as Blockly.utils.toolbox.ToolboxDefinition);
+      Blockly.Events.disable();
 
-    Blockly.Events.disable();
+      // Save the current workspace to the corresponding sprite
+      if (prevSpriteIdRef.current && prevSpriteIdRef.current in storeState.spriteWorkspaces) {
+        Blockly.serialization.workspaces.load(
+          Blockly.serialization.workspaces.save(workspaceRef.current),
+          storeState.spriteWorkspaces[prevSpriteIdRef.current],
+        );
+      }
 
-    // Save the current workspace to the corresponding sprite
-    if (prevSpriteIdRef.current) {
+      // Load the newly selected sprite's workspace into the main workspace
       Blockly.serialization.workspaces.load(
-        Blockly.serialization.workspaces.save(workspaceRef.current),
-        storeState.spriteWorkspaces[prevSpriteIdRef.current],
+        Blockly.serialization.workspaces.save(newWorkspace),
+        workspaceRef.current,
       );
+
+      Blockly.Events.enable();
+
+      prevSpriteIdRef.current = selectedSpriteId;
     }
 
-    // Load the newly selected sprite's workspace into the main workspace
-    Blockly.serialization.workspaces.load(
-      Blockly.serialization.workspaces.save(newWorkspace),
-      workspaceRef.current,
-    );
-
     workspaceRef.current.clearUndo();
-
-    Blockly.Events.enable();
-
-    prevSpriteIdRef.current = selectedSpriteId;
+    useGeckodeStore.setState({
+      canRedo: false,
+      canUndo: false,
+    });
   }, [workspaceRef, selectedSpriteId]);
 
   // ── Blockly initialisation ──
