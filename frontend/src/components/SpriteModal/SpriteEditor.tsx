@@ -8,6 +8,7 @@ import { useGeckodeStore } from '@/stores/geckodeStore';
 import EditorTools from './EditorTools';
 import { Display } from 'phaser';
 import EditorScene from '@/phaser/scenes/EditorScene';
+import GameScene from '@/phaser/scenes/GameScene';
 import { useCanvasZoom } from '@/hooks/useCanvasZoom';
 import { usePixelCanvas, createPixelArray } from '@/hooks/usePixelCanvas';
 import { createUniqueSpriteName, createUniqueTextureName } from '@/stores/slices/spriteSlice';
@@ -348,7 +349,7 @@ const SpriteEditor = () => {
 
   // --- Save / Load ---
   const addSpriteToGame = async () => {
-    if (!(phaserScene instanceof EditorScene)) throw new Error('Phaser scene is not an EditorScene.');
+    if (!phaserScene) throw new Error('Phaser scene is not ready.');
 
     // Read editing state from the live store to avoid stale closure values
     // (the component may have unmounted/remounted when switching tabs)
@@ -365,9 +366,16 @@ const SpriteEditor = () => {
     ctx.putImageData(imageData, 0, 0);
     const base64Image = offscreen.toDataURL('image/png');
 
+    const isEditorScene = phaserScene instanceof EditorScene;
+
     if (currentEditingSource === 'asset') {
+      // Update texture in store (will sync to other clients)
       useGeckodeStore.getState().setAsset(currentEditingAssetName!, base64Image, 'textures');
-      await phaserScene.updateSpriteTextureAsync(currentEditingAssetName!, base64Image);
+      
+      // Only update Phaser if in EditorScene - GameScene will pick up changes when user switches back
+      if (isEditorScene) {
+        await phaserScene.updateSpriteTextureAsync(currentEditingAssetName!, base64Image);
+      }
     } else {
       const newSpriteName = createUniqueSpriteName(spriteName, spriteInstances);
       const newTextureName = createUniqueTextureName(spriteName, textures);
@@ -385,12 +393,16 @@ const SpriteEditor = () => {
         snapToGrid: true,
       };
 
-      // add texture to state, and phaser
+      // Add texture to state (will sync to other clients)
       useGeckodeStore.getState().setAsset(newTextureName, base64Image, 'textures');
-      await phaserScene.loadSpriteTextureAsync(newTextureName, base64Image);
-      phaserScene.createSprite(newSprite);
+      
+      // Only manipulate Phaser sprites in EditorScene
+      if (isEditorScene) {
+        await phaserScene.loadSpriteTextureAsync(newTextureName, base64Image);
+        phaserScene.createSprite(newSprite);
+      }
 
-      // add sprite to state, save workspace for current sprite, and switch to new sprite
+      // Add sprite to state and sync (will be created in EditorScene when user switches back)
       useGeckodeStore.setState((s) => ({
         spriteInstances: [...spriteInstances, newSprite],
         selectedSpriteId: newSprite.id,

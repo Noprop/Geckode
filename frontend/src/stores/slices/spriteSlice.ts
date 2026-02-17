@@ -197,7 +197,8 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
       textureLoadingState: { ...get().textureLoadingState, [textureName]: 'pending' },
     });
 
-    // Load texture into Phaser if scene is ready
+    // Only load texture immediately if in EditorScene
+    // GameScene will pick up changes when user switches back
     if (phaserScene instanceof EditorScene) {
       phaserScene.loadSpriteTextureAsync(textureName, base64Image).then(() => {
         get().setTextureLoadState(textureName, 'loaded');
@@ -240,13 +241,15 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
   setAsset: (name: string, base64Image: string, type: AssetType, syncAfter: boolean = true) => {
     set({ [type]: { ...get()[type], [name]: base64Image } });
 
-    // If it's a texture, mark it as pending and load it
+    // If it's a texture, mark it as pending and load it only in EditorScene
     if (type === 'textures') {
       set((s) => ({
         textureLoadingState: { ...s.textureLoadingState, [name]: 'pending' },
       }));
 
       const { phaserScene } = get();
+      // Only load texture immediately if in EditorScene
+      // GameScene will pick up changes when user switches back
       if (phaserScene instanceof EditorScene) {
         phaserScene.loadSpriteTextureAsync(name, base64Image).then(() => {
           get().setTextureLoadState(name, 'loaded');

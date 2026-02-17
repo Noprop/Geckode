@@ -31,18 +31,31 @@ export default class EditorScene extends Phaser.Scene {
 
   // -- Phaser methods -- //
   preload() {
-    const { spriteInstances, textures } = useGeckodeStore.getState();
+    const { spriteInstances, textures, textureLoadingState } = useGeckodeStore.getState();
     for (const instance of spriteInstances) {
       console.log('preloading texture: ', instance.textureName);
       const base64Image = textures[instance.textureName];
-      if (!base64Image || this.textures.exists(instance.textureName)) continue;
-      this.load.image("sprite-" + instance.textureName, base64Image);
+      if (!base64Image) continue;
+      
+      const textureKey = "sprite-" + instance.textureName;
+      
+      // If texture exists but is marked as pending (changed while in GameScene), reload it
+      if (this.textures.exists(textureKey) && textureLoadingState[instance.textureName] === 'pending') {
+        console.log('Reloading updated texture: ', instance.textureName);
+        this.textures.remove(textureKey);
+      }
+      
+      // Load texture if it doesn't exist
+      if (!this.textures.exists(textureKey)) {
+        this.load.image(textureKey, base64Image);
+      }
     }
 
     for (const tile of Object.keys(useGeckodeStore.getState().tiles)) {
       const base64Image = useGeckodeStore.getState().tiles[tile];
-      if (!base64Image || this.textures.exists(tile)) continue;
-      this.load.image("tile-" + tile, base64Image);
+      const tileKey = "tile-" + tile;
+      if (!base64Image || this.textures.exists(tileKey)) continue;
+      this.load.image(tileKey, base64Image);
     }
   }
 
@@ -51,6 +64,15 @@ export default class EditorScene extends Phaser.Scene {
     this.tilemapLayer = null;
     this.gridGraphics = null;
     this.editorSprites.clear();
+    this.pendingSprites.clear();
+
+    // Mark all pending textures as loaded now that we've preloaded them
+    const { spriteInstances, textureLoadingState, setTextureLoadState } = useGeckodeStore.getState();
+    for (const instance of spriteInstances) {
+      if (textureLoadingState[instance.textureName] === 'pending') {
+        setTextureLoadState(instance.textureName, 'loaded');
+      }
+    }
 
     this.generateTilesetTexture();
 

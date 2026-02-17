@@ -57,12 +57,14 @@ export const useTextureSync = (documentName: string) => {
             },
           }));
 
-          // Trigger async texture loading in Phaser
+          // Only trigger texture loading in EditorScene
+          // GameScene will pick up changes when user switches back
           const { phaserScene, textureLoadingState } = useGeckodeStore.getState();
+          
           if (phaserScene instanceof EditorScene && textureLoadingState[key] !== 'loading') {
             useGeckodeStore.getState().setTextureLoadState(key, 'loading');
             phaserScene.loadSpriteTextureAsync(key, base64Image).then(() => {
-              console.log(`Texture ${key} loaded successfully, processing pending sprites`);
+              console.log(`Texture ${key} loaded successfully in EditorScene, processing pending sprites`);
               useGeckodeStore.getState().setTextureLoadState(key, 'loaded');
               
               // Process any pending sprites waiting for this texture
@@ -72,6 +74,7 @@ export const useTextureSync = (documentName: string) => {
               useGeckodeStore.getState().setTextureLoadState(key, 'error');
             });
           }
+          // If in GameScene, just store the texture - it will be applied when switching back to EditorScene
         }
       });
     };
