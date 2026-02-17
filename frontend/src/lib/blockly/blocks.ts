@@ -1,13 +1,18 @@
 import * as Blockly from "blockly/core";
 
-export const applyClientBlockProperties = (workspace: Blockly.Workspace, oldBlockId?: string, blockId?: string) => {
+export const applyClientBlockProperties = (
+  workspace: Blockly.Workspace,
+  colour: string,
+  oldBlockId?: string,
+  blockId?: string,
+) => {
   if (oldBlockId) {
     const block = workspace.getBlockById(oldBlockId) as Blockly.BlockSvg;
     if (!block) return;
     block.setMovable(true);
 
     const path = block.pathObject.svgPath || block.getSvgRoot();
-    path.classList.remove("stroke-red-500", "stroke-4");
+    path.classList.remove(`stroke-${colour}`, "stroke-4");
   }
   if (blockId) {
     const block = workspace.getBlockById(blockId) as Blockly.BlockSvg;
@@ -15,7 +20,7 @@ export const applyClientBlockProperties = (workspace: Blockly.Workspace, oldBloc
     block.setMovable(false);
 
     const path = block.pathObject.svgPath || block.getSvgRoot();
-    path.classList.add("stroke-red-500", "stroke-4");
+    path.classList.add(`stroke-${colour}`, "stroke-4");
   }
 };
 

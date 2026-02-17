@@ -1,12 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useYjs } from "./useYjs";
-import { Client } from "@/lib/types/yjs/awareness";
 import { applyBlocklyEvent } from "@/lib/blockly/events";
 import { applyClientBlockProperties } from "@/lib/blockly/blocks";
 import * as Blockly from "blockly/core";
 import { toPublicUser } from "@/lib/types/api/users";
 import { useUser } from "@/contexts/UserContext";
 import { useGeckodeStore } from "@/stores/geckodeStore";
+import { useLayoutStore } from "@/stores/layoutStore";
+import { getClientColourHex, getClientColourTailwind } from "@/lib/yjs/clients";
 
 export const useAwareness = (
   documentName: string,
@@ -14,7 +15,6 @@ export const useAwareness = (
   const { blocklyWorkspace } = useGeckodeStore();
   const { doc, awareness } = useYjs(documentName);
   const user = useUser();
-  const [clients, setClients] = useState<Client[]>([]);
   const dragPollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const stopBlockDragPolling = useCallback(() => {
@@ -28,17 +28,19 @@ export const useAwareness = (
   useEffect(() => {
     if (!blocklyWorkspace) return;
 
-    awareness.setLocalStateField('user', documentName.length === 0 ? null : toPublicUser(user!));
+    awareness.setLocalStateField('user', documentName.length === 0 ? undefined : toPublicUser(user!));
 
     const handleUpdate = ({ added, updated, removed }: Record<string, Array<any>>) => {
       if (added.length || removed.length) {
-        setClients(clients => [
-          ...clients.filter(({ id }) => !removed.includes(id)),
-          ...added.map(id => ({
-            id: id,
-            user: awareness.getStates().get(id)?.user,
-          }))
-        ]);
+        useLayoutStore.setState((s) => ({
+          clients: [
+            ...s.clients.filter(({ id }) => !removed.includes(id)),
+            ...added.map(id => ({
+              id: id,
+              user: awareness.getStates().get(id)?.user,
+            })),
+          ],
+        }));
       }
 
       if (updated.length) {
@@ -64,10 +66,14 @@ export const useAwareness = (
           }
 
           const currentBlockSelectionState = awareness.getStates().get(clientId)?.blockSelection;
+          const clientColour = getClientColourTailwind(
+            useLayoutStore.getState().clients.findIndex((client) => client.id === Number(clientId))
+          );
 
           if (currentBlockSelectionState) {
             applyClientBlockProperties(
               blocklyWorkspace,
+              clientColour,
               currentBlockSelectionState.oldBlockId,
               currentBlockSelectionState.blockId,
             );
@@ -124,5 +130,5 @@ export const useAwareness = (
     return () => stopBlockDragPolling();
   }, [stopBlockDragPolling]);
 
-  return { clients, stopBlockDragPolling };
+  return { stopBlockDragPolling };
 };

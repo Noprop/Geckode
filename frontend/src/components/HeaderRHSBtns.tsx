@@ -4,6 +4,7 @@ import {
   MoonIcon,
   PersonIcon,
   QuestionMarkCircledIcon,
+  Share1Icon,
   SunIcon,
 } from "@radix-ui/react-icons";
 import Link from "next/link";
@@ -13,6 +14,39 @@ import Image from "next/image";
 import { authApi } from "@/lib/api/auth";
 import { useUser } from "@/contexts/UserContext";
 import { useTheme } from "@/contexts/ThemeContext";
+
+interface HeaderButtonProps {
+  onClick?: React.MouseEventHandler<HTMLButtonElement>;
+  title?: string;
+  icon?: React.ComponentType<any>;
+  href?: string;
+}
+
+const HeaderButton = ({
+  onClick = () => {},
+  title,
+  icon: Icon,
+  href,
+}: HeaderButtonProps) => {
+  const icon = Icon ? <Icon className="w-5 h-5" /> : null;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex items-center justify-center w-9 h-9 rounded-full bg-white/15 text-white
+        hover:bg-white/25 transition-color cursor-pointer"
+      title={title}
+    >{
+      href
+        ? (
+          <Link
+            href={href}
+          >{icon}</Link>
+        ) : icon
+    }</button>
+  )
+};
 
 const HeaderRHSBtns = () => {
   const { resolvedTheme, toggleTheme } = useTheme();
@@ -26,10 +60,12 @@ const HeaderRHSBtns = () => {
   return (
     <>
       {" "}
-      <button
-        type="button"
+      <HeaderButton
+        title="Share Project"
+        icon={Share1Icon}
+      />
+      <HeaderButton
         onClick={toggleTheme}
-        className="flex items-center justify-center w-9 h-9 rounded-full bg-white/15 text-white hover:bg-white/25 transition-colors"
         title={
           !mounted
             ? "Loading theme..."
@@ -37,31 +73,23 @@ const HeaderRHSBtns = () => {
               ? "Switch to light mode"
               : "Switch to dark mode"
         }
-      >
-        {mounted ? (
-          resolvedTheme === "dark" ? (
-            <SunIcon className="w-5 h-5" />
-          ) : (
-            <MoonIcon className="w-5 h-5" />
-          )
-        ) : (
-          <div className="w-5 h-5" /> // Empty placeholder with same dimensions
-        )}
-      </button>
-      <Link
-        href="/projects"
-        className="flex items-center justify-center w-9 h-9 rounded-full bg-white/15 text-white hover:bg-white/25 transition-colors"
+        icon={
+          mounted
+            ? resolvedTheme === "dark"
+              ? SunIcon
+              : MoonIcon
+            : undefined
+        }
+      />
+      <HeaderButton
         title="Home"
-      >
-        <HomeIcon className="w-5 h-5" />
-      </Link>
-      <button
-        type="button"
-        className="flex items-center justify-center w-9 h-9 rounded-full bg-white/15 text-white hover:bg-white/25 transition-colors"
+        icon={HomeIcon}
+        href={"/projects"}
+      />
+      <HeaderButton
         title="Help"
-      >
-        <QuestionMarkCircledIcon className="w-5 h-5" />
-      </button>
+        icon={QuestionMarkCircledIcon}
+      />
       <DropDownButton
         className="flex items-center justify-center w-9 h-9 rounded-full bg-white/15 text-white hover:bg-white/25 transition-colors"
         title="User"
