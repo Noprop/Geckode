@@ -30,15 +30,24 @@ export interface Tilemap {
   width: number;
   height: number;
   data: (string | null)[][];
+  tilesetId: string;
   base64: string;
 }
 
-export type TilemapTool = 'place' | 'eraser' | 'bucket' | 'line' | 'rectangle' | 'oval' | 'tile-picker';
+export interface Tileset {
+  id: string;
+  name: string;
+  data: (string | null)[][];  // 5xN grid of tile keys (fixed width of 5)
+  base64Preview: string;
+}
+
+export type TilemapTool = 'place' | 'eraser' | 'bucket' | 'line' | 'rectangle' | 'oval' | 'tile-picker' | 'collidable';
 
 // ── Sprite Slice ──
 
 export type AssetType = 'textures' | 'tiles' | 'tilesets' | 'animations' | 'backgrounds';
 export type EditingSource = 'new' | 'asset' | 'library';
+export type SpriteModalMode = 'phaser_add' | 'phaser_edit' | 'asset_manager';
 
 export type TextureLoadState = 'pending' | 'loading' | 'loaded' | 'error';
 
@@ -47,7 +56,7 @@ export interface SpriteState {
 
   textures: Record<string, string>;
   tiles: Record<string, string>;
-  tilesets: Record<string, string>;
+  tilesets: Tileset[];
   animations: Record<string, string>;
   backgrounds: Record<string, string>;
 
@@ -60,6 +69,8 @@ export interface SpriteState {
   libaryAnimations: Record<string, string>;
   libaryBackgrounds: Record<string, string>;
 
+  tileCollidables: Record<string, boolean>;
+
   tilemaps: Record<string, Tilemap>;
   scenes: Scene[];
   activeTilemapId: string | null;
@@ -70,12 +81,16 @@ export interface SpriteState {
   editingSource: EditingSource | null;
   editingAssetName: string | null;
   editingAssetType: AssetType | null;
+  spriteModalMode: SpriteModalMode | null;
+  spriteModalSaveTargetTextureName: string | null;
 }
 
 export interface SpriteActions {
   setSelectedSpriteId: (spriteId: string | null) => void;
   setIsSpriteModalOpen: (isOpen: boolean) => void;
   setEditingAsset: (name: string | null, type: AssetType, source: EditingSource) => void;
+  setSpriteModalContext: (mode: SpriteModalMode, saveTargetTextureName?: string | null) => void;
+  clearSpriteModalContext: () => void;
 
   /* Sprites */
   setSpriteInstances: (instances: SpriteInstance[]) => void;
@@ -86,16 +101,25 @@ export interface SpriteActions {
 
   /* Assets */
   setAsset: (name: string, base64Image: string, type: AssetType, syncAfter?: boolean) => void;
-  removeAsset: (name: string, type: AssetType, syncAfter?: boolean) => void;
+  removeAsset: (name: string, type: Exclude<AssetType, 'tilesets'>, syncAfter?: boolean) => void;
 
   /* Texture Loading */
   setTextureLoadState: (textureName: string, state: TextureLoadState) => void;
+
+  /* Tilesets */
+  addTileset: (tileset: Tileset) => void;
+  updateTileset: (id: string, tileset: Tileset) => void;
+  removeTileset: (id: string) => void;
+
+  /* Tile collidables */
+  setTileCollidable: (tileKey: string, collidable: boolean) => void;
 
   /* Tilemaps */
   updateTilemapCell: (tilemapId: string, row: number, col: number, tileKey: string | null) => void;
   setTilemapData: (tilemapId: string, data: (string | null)[][]) => void;
   resizeTilemap: (tilemapId: string, newWidth: number, newHeight: number) => void;
   setActiveTilemapId: (id: string | null) => void;
+  setTilemapTilesetId: (tilemapId: string, tilesetId: string) => void;
   clearTilemap: (tilemapId: string) => void;
   setScenes: (scenes: Scene[]) => void;
 

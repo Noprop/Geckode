@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { PlusIcon } from '@radix-ui/react-icons';
 import { useGeckodeStore } from '@/stores/geckodeStore';
-import type { AssetType } from '@/stores/slices/types';
+import type { AssetType, Tileset } from '@/stores/slices/types';
 import { type SelectedAsset } from './Overview';
 import { TAB_CONFIG } from './Overview';
 
@@ -14,13 +14,29 @@ interface AssetListProps {
   selectedAsset: SelectedAsset;
   onSelectAsset: (asset: SelectedAsset) => void;
   onCreateNew: () => void;
+  onDoubleClickAsset?: (asset: SelectedAsset) => void;
 }
 
-const AssetList = ({ filter, activeTab, onTabChange, selectedAsset, onSelectAsset, onCreateNew }: AssetListProps) => {
+const AssetList = ({ filter, activeTab, onTabChange, selectedAsset, onSelectAsset, onCreateNew, onDoubleClickAsset }: AssetListProps) => {
   const assets = useGeckodeStore((s) => s[filter]);
 
   const entries = useMemo(
-    () => Object.entries(assets).map(([name, base64]) => ({ name, base64, type: filter })),
+    () => {
+      if (filter === 'tilesets') {
+        return (assets as Tileset[]).map((tileset) => ({
+          name: tileset.id,
+          label: tileset.name,
+          base64: tileset.base64Preview,
+          type: filter,
+        }));
+      }
+      return Object.entries(assets as Record<string, string>).map(([name, val]) => ({
+        name,
+        label: name,
+        base64: val,
+        type: filter,
+      }));
+    },
     [assets, filter],
   );
 
@@ -68,6 +84,7 @@ const AssetList = ({ filter, activeTab, onTabChange, selectedAsset, onSelectAsse
               type="button"
               key={`${entry.type}-${entry.name}`}
               onClick={() => onSelectAsset({ name: entry.name, type: entry.type })}
+              onDoubleClick={() => onDoubleClickAsset?.({ name: entry.name, type: entry.type })}
               className={`group relative flex w-[120px] cursor-pointer flex-col overflow-hidden rounded-md border bg-white shadow-sm transition dark:bg-dark-secondary ${
                 isSelected(entry)
                   ? 'border-primary-green ring-2 ring-primary-green/30'
@@ -75,15 +92,21 @@ const AssetList = ({ filter, activeTab, onTabChange, selectedAsset, onSelectAsse
               }`}
             >
               <div className="relative flex aspect-square items-center justify-center bg-white dark:bg-slate-900">
-                <img
-                  src={entry.base64}
-                  alt={entry.name}
-                  className="h-14 object-contain drop-shadow-sm"
-                  style={{ imageRendering: 'pixelated' }}
-                />
+                {entry.base64 ? (
+                  <img
+                    src={entry.base64}
+                    alt={entry.label}
+                    className="h-14 object-contain drop-shadow-sm"
+                    style={{ imageRendering: 'pixelated' }}
+                  />
+                ) : (
+                  <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500">
+                    No preview
+                  </span>
+                )}
               </div>
               <div className="flex items-center justify-between px-2 py-1.5">
-                <div className="truncate text-[11px] font-semibold">{entry.name}</div>
+                <div className="truncate text-[11px] font-semibold">{entry.label}</div>
               </div>
             </button>
           ))}

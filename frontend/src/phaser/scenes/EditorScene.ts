@@ -8,7 +8,7 @@ export default class EditorScene extends Phaser.Scene {
   public key: string;
   private readonly SPRITE_DEPTH = 10;
   private readonly TILE_SIZE = 16;
-  private editorSprites = new Map<string, Phaser.Physics.Arcade.Sprite>();
+  private editorSprites = new Map<string, Phaser.GameObjects.Sprite>();
   private pendingSprites = new Map<string, SpriteInstance>();
   private spriteLayer: Phaser.GameObjects.Layer | null = null;
   private tilemap: Phaser.Tilemaps.Tilemap | null = null;
@@ -18,8 +18,9 @@ export default class EditorScene extends Phaser.Scene {
   private gridGraphics: Phaser.GameObjects.Graphics | null = null;
   private handleUpdateTilemap: (() => void) | null = null;
 
+  private lastDragEmitTime = 0;
   private activeDrag: {
-    sprite: Phaser.Physics.Arcade.Sprite;
+    sprite: Phaser.GameObjects.Sprite;
     startPos: { x: number; y: number };
     currentPos: { x: number; y: number };
   } | null = null;
@@ -29,12 +30,17 @@ export default class EditorScene extends Phaser.Scene {
     this.key = EDITOR_SCENE_KEY;
   }
 
+  /** Store (positive-up) → Phaser (positive-down) */
+  private toWorldY(y: number): number { return -y; }
+  /** Phaser (positive-down) → Store (positive-up) */
+  private fromWorldY(y: number): number { return -y; }
+
   // -- Phaser methods -- //
   preload() {
-    const { spriteInstances, textures, textureLoadingState } = useGeckodeStore.getState();
+    const { spriteInstances, textures, textureLoadingState, libaryTextures } = useGeckodeStore.getState();
     for (const instance of spriteInstances) {
       console.log('preloading texture: ', instance.textureName);
-      const base64Image = textures[instance.textureName];
+      const base64Image = textures[instance.textureName] ?? libaryTextures[instance.textureName];
       if (!base64Image) continue;
       
       const textureKey = "sprite-" + instance.textureName;
@@ -106,8 +112,8 @@ export default class EditorScene extends Phaser.Scene {
       this.pendingSprites.set(instance.id, instance);
       
       // Try to load the texture
-      const { textures, textureLoadingState, setTextureLoadState } = useGeckodeStore.getState();
-      const base64Image = textures[instance.textureName];
+      const { textures, textureLoadingState, setTextureLoadState, libaryTextures } = useGeckodeStore.getState();
+      const base64Image = textures[instance.textureName] ?? libaryTextures[instance.textureName];
       
       if (base64Image && textureLoadingState[instance.textureName] !== 'loading') {
         setTextureLoadState(instance.textureName, 'loading');
@@ -149,7 +155,7 @@ export default class EditorScene extends Phaser.Scene {
     if (!this.spriteLayer) return;
     
     const textureKey = 'sprite-' + instance.textureName;
-    const sprite = this.physics.add.sprite(instance.x, instance.y, textureKey);
+    const sprite = this.add.sprite(instance.x, this.toWorldY(instance.y), textureKey);
     sprite.setData('spriteId', instance.id);
     sprite.setDepth(this.SPRITE_DEPTH);
     sprite.setScale(instance.scaleX, instance.scaleY);
@@ -180,7 +186,10 @@ export default class EditorScene extends Phaser.Scene {
     if (!sprite) return;
 
     console.log('setting sprite position: ', updates.x, updates.y);
-    sprite.setPosition(updates.x ?? sprite.x, updates.y ?? sprite.y);
+    sprite.setPosition(
+      updates.x ?? sprite.x,
+      updates.y !== undefined ? this.toWorldY(updates.y) : sprite.y,
+    );
 
     if (updates.visible !== undefined) sprite.setVisible(updates.visible);
     if (updates.scaleX !== undefined || updates.scaleY !== undefined) {
@@ -214,7 +223,7 @@ export default class EditorScene extends Phaser.Scene {
   public async updateTextureAsync(name: string, base64Image: string): Promise<void> {
     // Collect every sprite using this texture and hide it so Phaser
     // won't try to render a destroyed GL texture between frames.
-    const affected: Phaser.Physics.Arcade.Sprite[] = [];
+    const affected: Phaser.GameObjects.Sprite[] = [];
     for (const sprite of this.editorSprites.values()) {
       if (sprite.texture.key === name && sprite.visible) {
         console.log('sprite texture fix', sprite.name);
@@ -252,14 +261,14 @@ export default class EditorScene extends Phaser.Scene {
 
     for (let x = gridSpacing; x < width; x += gridSpacing) {
       this.gridGraphics.beginPath();
-      this.gridGraphics.moveTo(x, 0);
-      this.gridGraphics.lineTo(x, height);
+      this.gridGraphics.moveTo(x, -height);
+      this.gridGraphics.lineTo(x, 0);
       this.gridGraphics.strokePath();
     }
     for (let y = gridSpacing; y < height; y += gridSpacing) {
       this.gridGraphics.beginPath();
-      this.gridGraphics.moveTo(0, y);
-      this.gridGraphics.lineTo(width, y);
+      this.gridGraphics.moveTo(0, -y);
+      this.gridGraphics.lineTo(width, -y);
       this.gridGraphics.strokePath();
     }
 
@@ -393,7 +402,7 @@ export default class EditorScene extends Phaser.Scene {
     EventBus.on('update-tilemap', this.handleUpdateTilemap);
 
     // may have to adjust this down the line for tilemaps
-    this.input.on('dragstart', (_pointer: Phaser.Input.Pointer, sprite: Phaser.Physics.Arcade.Sprite) => {
+    this.input.on('dragstart', (_pointer: Phaser.Input.Pointer, sprite: Phaser.GameObjects.Sprite) => {
       this.activeDrag = {
         sprite,
         startPos: { x: sprite.x, y: sprite.y },
@@ -403,14 +412,20 @@ export default class EditorScene extends Phaser.Scene {
       EventBus.emit('editor-sprite-drag-start', { id: sprite.getData('spriteId') });
     });
 
-    this.input.on('drag', (pointer: Phaser.Input.Pointer, sprite: Phaser.Physics.Arcade.Sprite) => {
+    this.input.on('drag', (_pointer: Phaser.Input.Pointer, sprite: Phaser.GameObjects.Sprite, dragX: number, dragY: number) => {
       if (!this.activeDrag) return;
-      sprite.setPosition(pointer.worldX, pointer.worldY);
-      this.activeDrag.currentPos = { x: pointer.worldX, y: pointer.worldY };
-      EventBus.emit('editor-sprite-dragging', {
-        x: pointer.worldX,
-        y: pointer.worldY,
-      });
+      sprite.setPosition(dragX, dragY);
+      this.activeDrag.currentPos = { x: dragX, y: dragY };
+
+      // throttle to 50ms ~20fps
+      const now = performance.now();
+      if (now - this.lastDragEmitTime > 50) {
+        this.lastDragEmitTime = now;
+        EventBus.emit('editor-sprite-dragging', {
+          x: dragX,
+          y: this.fromWorldY(dragY),
+        });
+      }
     });
 
     this.input.on('gameout', (_time: number, event: MouseEvent) => {
@@ -434,24 +449,28 @@ export default class EditorScene extends Phaser.Scene {
       EventBus.emit('editor-sprite-dragging', {
         id: this.activeDrag.sprite.getData('spriteId'),
         x: worldPoint.x,
-        y: worldPoint.y,
+        y: this.fromWorldY(worldPoint.y),
       });
     });
 
-    this.input.on('dragend', (pointer: Phaser.Input.Pointer, sprite: Phaser.Physics.Arcade.Sprite) => {
+    this.input.on('dragend', (_pointer: Phaser.Input.Pointer, sprite: Phaser.GameObjects.Sprite) => {
       if (!this.activeDrag) return;
-      if (pointer.x >= 0 && pointer.x <= this.scale.width && pointer.y >= 0 && pointer.y <= this.scale.height) {
+      const { currentPos, startPos } = this.activeDrag;
+      const width = this.scale.width;
+      const height = this.scale.height;
+      const inBounds = currentPos.x >= 0 && currentPos.x <= width && currentPos.y >= -height && currentPos.y <= 0;
+      if (inBounds) {
         EventBus.emit('editor-sprite-drag-end', {
           id: sprite.getData('spriteId'),
-          x: pointer.worldX,
-          y: pointer.worldY,
+          x: currentPos.x,
+          y: this.fromWorldY(currentPos.y),
         });
       } else {
-        sprite.setPosition(this.activeDrag.startPos.x, this.activeDrag.startPos.y);
+        sprite.setPosition(startPos.x, startPos.y);
         EventBus.emit('editor-sprite-drag-end', {
           id: sprite.getData('spriteId'),
-          x: this.activeDrag.startPos.x,
-          y: this.activeDrag.startPos.y,
+          x: startPos.x,
+          y: this.fromWorldY(startPos.y),
         });
       }
       this.activeDrag = null;

@@ -19,6 +19,7 @@ export type SpriteInstance = SpriteDefinition & {
 
 export type SpritePhysics = {
   enabled: boolean;
+  anchored: boolean;
   gravityY: number;
   bounce: number;
   drag: number;

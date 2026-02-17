@@ -25,6 +25,11 @@ export default class GameScene extends Phaser.Scene {
     S: Phaser.Input.Keyboard.Key;
     D: Phaser.Input.Keyboard.Key;
   };
+
+  private justPressedKeys: Array<Phaser.Input.Keyboard.Key> = [];
+  private justReleasedKeys: Array<Phaser.Input.Keyboard.Key> = [];
+  private started: boolean = false;
+
   private gameSprites = new Map<string, Phaser.Physics.Arcade.Sprite>();
   private static readonly GAME_SPRITE_BASE_DEPTH = Number.MAX_SAFE_INTEGER - 100;
   private gameLayer!: Phaser.GameObjects.Layer;
@@ -48,6 +53,11 @@ export default class GameScene extends Phaser.Scene {
     this.key = GAME_SCENE_KEY;
   }
 
+  /** Store (positive-up) → Phaser (positive-down) */
+  private toWorldY(y: number): number { return -y; }
+  /** Phaser (positive-down) → Store (positive-up) */
+  private fromWorldY(y: number): number { return -y; }
+
   preload() {
     this.generateTilesetTexture();
   }
@@ -59,7 +69,7 @@ export default class GameScene extends Phaser.Scene {
     this.tilemap = null;
     this.groundLayer = null;
     this.gameSprites.clear();
-    this.physics.world.setBounds(-128, -96, 256, 192);
+    this.physics.world.setBounds(0, -this.scale.height, this.scale.width, this.scale.height);
 
     // Store textures for later access
     this.texturesData = data.textures || {};
@@ -98,8 +108,8 @@ export default class GameScene extends Phaser.Scene {
     // Tell React which scene is active (will trigger pause state sync)
     EventBus.emit('current-scene-ready', this);
 
-    this.cameras.main.centerOn(0, 0);
-    this.startHook();
+    this.cameras.main.centerOn(this.scale.width/2, -this.scale.height/2);
+    this.started = false;
   }
 
   private async loadAllTextures(instances: SpriteInstance[], textures: Record<string, string>): Promise<void> {
@@ -134,7 +144,19 @@ export default class GameScene extends Phaser.Scene {
   }
 
   startHook() {}
-  update() {}
+  updateHook() {}
+
+  update() {
+    this.justPressedKeys = [];
+    this.justReleasedKeys = [];
+
+    if (!this.started) {
+      this.started = true;
+      this.startHook();
+    }
+
+    this.updateHook();
+  }
 
   private generateTilesetTexture(): void {
     const tileSize = GameScene.TILE_SIZE;
@@ -262,10 +284,13 @@ export default class GameScene extends Phaser.Scene {
   public addGameSprite(instance: SpriteInstance) {
     const { id, x, y, textureName, scaleX, scaleY, visible, direction, physics } = instance;
     console.log('[GameScene] addGameSprite called', textureName, x, y, id, physics);
-    
+  
     // Use the proper texture key with 'sprite-' prefix
     const textureKey = 'sprite-' + textureName;
-    const sprite = this.physics.add.sprite(x, y, textureKey);
+    const sprite = this.physics.add.sprite(x, this.toWorldY(y), textureKey);
+    const w = sprite.displayWidth;
+    const h = sprite.displayHeight;
+    sprite.body.setOffset(w * 0.5, h * 0.5);
     sprite.setName(id);
     sprite.setData('gameSpriteId', id);
     sprite.setDepth(GameScene.GAME_SPRITE_BASE_DEPTH);
@@ -280,11 +305,12 @@ export default class GameScene extends Phaser.Scene {
 
     // Apply physics settings if enabled
     if (physics?.enabled) {
-      sprite.setDamping(true);
       sprite.setDrag(physics.drag);
+      sprite.setDamping(true);
       sprite.setGravityY(physics.gravityY);
       sprite.setBounce(physics.bounce);
       sprite.setCollideWorldBounds(physics.collideWorldBounds);
+      sprite.body.setImmovable(physics.anchored);
 
       // Add collision with ground if tilemap exists
       if (this.groundLayer) {
@@ -356,4 +382,56 @@ export default class GameScene extends Phaser.Scene {
       throw new Error(`runScript failed: ${message}`);
     }
   }
+
+  public getJustPressed(key: Phaser.Input.Keyboard.Key) {
+    if (this.justPressedKeys.includes(key)) {
+      return true;
+    }
+    if (Phaser.Input.Keyboard.JustDown(key)) {
+      this.justPressedKeys.push(key);
+      return true;
+    }
+    return false;
+  }
+
+  public getJustReleased(key: Phaser.Input.Keyboard.Key) {
+    if (this.justReleasedKeys.includes(key)) {
+      return true;
+    }
+    if (Phaser.Input.Keyboard.JustUp(key)) {
+      this.justReleasedKeys.push(key);
+      return true;
+    }
+    return false;
+  }
+
+  private moveWithArrows(spriteName: string, vx: number, vy: number){
+    const sprite = this.getSprite(spriteName);
+    if (sprite) {
+      if (vx != 0) {
+        if (this.cursors.left.isDown && this.cursors.right.isDown) {
+          sprite.setVelocityX(0);
+        } else if (this.cursors.left.isDown) {
+          sprite.setVelocityX(-vx);
+        } else if (this.cursors.right.isDown) {
+          sprite.setVelocityX(vx);
+        } else if (this.getJustReleased(this.cursors.left) || this.getJustReleased(this.cursors.right)) {
+          sprite.setVelocityX(0);
+        }
+      }
+      if (vy != 0) {
+        if (this.cursors.up.isDown && this.cursors.down.isDown) {
+          sprite.setVelocityY(0);
+        } else if (this.cursors.up.isDown) {
+          sprite.setVelocityY(-vy);
+        } else if (this.cursors.down.isDown) {
+          sprite.setVelocityY(vy);
+        } else if (this.getJustReleased(this.cursors.up) || this.getJustReleased(this.cursors.down)) {
+          sprite.setVelocityY(0);
+        }
+      }
+    }
+  }
+
+
 }

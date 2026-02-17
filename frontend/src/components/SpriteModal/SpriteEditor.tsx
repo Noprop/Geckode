@@ -8,7 +8,6 @@ import { useGeckodeStore } from '@/stores/geckodeStore';
 import EditorTools from './EditorTools';
 import { Display } from 'phaser';
 import EditorScene from '@/phaser/scenes/EditorScene';
-import GameScene from '@/phaser/scenes/GameScene';
 import { useCanvasZoom } from '@/hooks/useCanvasZoom';
 import { usePixelCanvas, createPixelArray } from '@/hooks/usePixelCanvas';
 import { createUniqueSpriteName, createUniqueTextureName } from '@/stores/slices/spriteSlice';
@@ -60,16 +59,19 @@ const SpriteEditor = () => {
   const [activeTool, setActiveTool] = useState<Tool>('pen');
   const [gridWidth, setGridWidth] = useState(16);
   const [gridHeight, setGridHeight] = useState(16);
+  const [isCanvasDirty, setIsCanvasDirty] = useState(false);
 
   // --- Zustand selectors ---
   const setIsSpriteModalOpen = useGeckodeStore((s) => s.setIsSpriteModalOpen);
-  const saveSprite = useGeckodeStore((s) => s.saveSprite);
+  const clearSpriteModalContext = useGeckodeStore((s) => s.clearSpriteModalContext);
+  const setAsset = useGeckodeStore((s) => s.setAsset);
   const libaryTextures = useGeckodeStore((s) => s.libaryTextures);
   const textures = useGeckodeStore((s) => s.textures);
   const editingSource = useGeckodeStore((s) => s.editingSource);
   const editingAssetName = useGeckodeStore((s) => s.editingAssetName);
+  const spriteModalMode = useGeckodeStore((s) => s.spriteModalMode);
+  const spriteModalSaveTargetTextureName = useGeckodeStore((s) => s.spriteModalSaveTargetTextureName);
   const phaserScene = useGeckodeStore((s) => s.phaserScene);
-  const spriteInstances = useGeckodeStore((s) => s.spriteInstances);
 
   // --- Custom hooks ---
   const { cellSize, zoomPercent, setZoom, isEditingZoom, setIsEditingZoom, canvasContainerRef, MIN_ZOOM_PERCENT, MAX_ZOOM_PERCENT } = useCanvasZoom(gridWidth, gridHeight);
@@ -106,29 +108,39 @@ const SpriteEditor = () => {
     setPrimaryColor(secondaryColor);
     setSecondaryColor(primaryColor);
   };
+  const markCanvasDirty = () => {
+    setIsCanvasDirty(true);
+  };
 
   // --- Drawing tools (inline per user preference) ---
   const paintAt = (x: number, y: number, color: string) => {
     const { gridWidth: w, gridHeight: h, brushSize: size } = drawStateRef.current;
-    const rgba = Display.Color.HexStringToColor(color);
+    const pixelColor = color === '' ? null : (() => {
+      const rgba = Display.Color.HexStringToColor(color);
+      return { r: rgba.red, g: rgba.green, b: rgba.blue, a: rgba.alpha };
+    })();
     const offset = Math.floor(size / 2);
     const layer1 = outputPixelsRef.current;
-
+  
     for (let dy = 0; dy < size; dy += 1) {
       for (let dx = 0; dx < size; dx += 1) {
         const px = Math.max(0, Math.min(w - 1, x + dx - offset));
         const py = Math.max(0, Math.min(h - 1, y + dy - offset));
         const idx = (py * w + px) * 4;
-        setPixel(layer1, idx, { r: rgba.red, g: rgba.green, b: rgba.blue, a: rgba.alpha });
+        setPixel(layer1, idx, pixelColor);
       }
     }
     requestRender();
+    markCanvasDirty();
   };
 
   const floodFill = (startX: number, startY: number, fillColor: string) => {
     const { gridWidth: w, gridHeight: h } = drawStateRef.current;
     const layer1 = outputPixelsRef.current;
-    const fillRgba = Display.Color.HexStringToColor(fillColor);
+    const fillPixelColor = fillColor === '' ? null : (() => {
+      const fillRgba = Display.Color.HexStringToColor(fillColor);
+      return { r: fillRgba.red, g: fillRgba.green, b: fillRgba.blue, a: fillRgba.alpha };
+    })();
 
     const startIdx = (startY * w + startX) * 4;
     const targetR = layer1[startIdx];
@@ -136,8 +148,11 @@ const SpriteEditor = () => {
     const targetB = layer1[startIdx + 2];
     const targetA = layer1[startIdx + 3];
 
-    if (fillRgba) {
-      if (targetR === fillRgba.red && targetG === fillRgba.green && targetB === fillRgba.blue && targetA === fillRgba.alpha) return;
+    if (fillPixelColor) {
+      if (targetR === fillPixelColor.r &&
+        targetG === fillPixelColor.g &&
+        targetB === fillPixelColor.b &&
+        targetA === fillPixelColor.a) return;
     } else {
       if (targetA === 0) return;
     }
@@ -156,11 +171,12 @@ const SpriteEditor = () => {
         layer1[idx + 2] !== targetB || layer1[idx + 3] !== targetA) continue;
 
       visited.add(pixelIndex);
-      setPixel(layer1, idx, { r: fillRgba.red, g: fillRgba.green, b: fillRgba.blue, a: fillRgba.alpha });
+      setPixel(layer1, idx, fillPixelColor);
 
       queue.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
     }
     requestRender();
+    markCanvasDirty();
   };
 
   // Bresenham's line algorithm
@@ -185,7 +201,10 @@ const SpriteEditor = () => {
   const applyBrush = (pixels: { x: number; y: number }[], color: string, layer: Uint8ClampedArray) => {
     const { brushSize: size, gridWidth: w, gridHeight: h } = drawStateRef.current;
     const offset = Math.floor(size / 2);
-    const rgba = Display.Color.HexStringToColor(color);
+    const pixelColor = color === '' ? null : (() => {
+      const rgba = Display.Color.HexStringToColor(color);
+      return { r: rgba.red, g: rgba.green, b: rgba.blue, a: rgba.alpha };
+    })();
 
     for (const p of pixels) {
       for (let dy = 0; dy < size; dy++) {
@@ -193,7 +212,7 @@ const SpriteEditor = () => {
           const px = Math.max(0, Math.min(w - 1, p.x + dx - offset));
           const py = Math.max(0, Math.min(h - 1, p.y + dy - offset));
           const idx = (py * w + px) * 4;
-          setPixel(layer, idx, { r: rgba.red, g: rgba.green, b: rgba.blue, a: rgba.alpha });
+          setPixel(layer, idx, pixelColor);
         }
       }
     }
@@ -259,7 +278,7 @@ const SpriteEditor = () => {
     saveToHistory();
 
     if (['pen', 'eraser'].includes(activeTool)) {
-      paintAt(position.x, position.y, color);
+      paintAt(position.x, position.y, activeTool === 'pen' ? color : '');
       ds.isDrawing = true;
     } else if (['rectangle', 'line', 'oval'].includes(activeTool)) {
       ds.shapeStart = position;
@@ -300,14 +319,12 @@ const SpriteEditor = () => {
     }
 
     // Paint for pen and eraser
-    if (ds.activeTool === 'pen') {
+    if (ds.activeTool === 'pen' || ds.activeTool === 'eraser') {
       if (prev && (Math.abs(position.x - prev.x) > 1 || Math.abs(position.y - prev.y) > 1)) {
-        getLinePixels(prev.x, prev.y, position.x, position.y).forEach(p => paintAt(p.x, p.y, color));
+        getLinePixels(prev.x, prev.y, position.x, position.y).forEach(p => paintAt(p.x, p.y, ds.activeTool === 'pen' ? color : ''));
       } else {
-        paintAt(position.x, position.y, color);
+        paintAt(position.x, position.y, ds.activeTool === 'pen' ? color : '');
       }
-    } else if (ds.activeTool === 'eraser') {
-      paintAt(position.x, position.y, '');
     }
   };
 
@@ -330,6 +347,7 @@ const SpriteEditor = () => {
 
       applyBrush(pixels, color, outputPixelsRef.current);
       previewPixelsRef.current = createPixelArray(ds.gridWidth, ds.gridHeight);
+      markCanvasDirty();
     }
 
     ds.isDrawing = false;
@@ -347,76 +365,121 @@ const SpriteEditor = () => {
     };
   }, []);
 
-  // --- Save / Load ---
-  const addSpriteToGame = async () => {
-    if (!phaserScene) throw new Error('Phaser scene is not ready.');
+  const closeSpriteModal = () => {
+    useGeckodeStore.setState({ editingSource: null, editingAssetName: null, editingAssetType: null });
+    clearSpriteModalContext();
+    setIsSpriteModalOpen(false);
+  };
 
-    // Read editing state from the live store to avoid stale closure values
-    // (the component may have unmounted/remounted when switching tabs)
-    const { editingSource: currentEditingSource, editingAssetName: currentEditingAssetName } = useGeckodeStore.getState();
-
-    const w = gridWidth;
-    const h = gridHeight;
+  const createBase64FromCanvas = () => {
     const offscreen = document.createElement('canvas');
-    offscreen.width = w;
-    offscreen.height = h;
+    offscreen.width = gridWidth;
+    offscreen.height = gridHeight;
     const ctx = offscreen.getContext('2d')!;
-    const imageData = ctx.createImageData(w, h);
+    const imageData = ctx.createImageData(gridWidth, gridHeight);
     imageData.data.set(outputPixelsRef.current);
     ctx.putImageData(imageData, 0, 0);
-    const base64Image = offscreen.toDataURL('image/png');
+    return offscreen.toDataURL('image/png');
+  };
 
-    const isEditorScene = phaserScene instanceof EditorScene;
+  const createAndInsertSprite = (textureName: string) => {
+    if (!phaserScene) throw new Error('Phaser scene is not ready.');
 
-    if (currentEditingSource === 'asset') {
-      // Update texture in store (will sync to other clients)
-      useGeckodeStore.getState().setAsset(currentEditingAssetName!, base64Image, 'textures');
-      
-      // Only update Phaser if in EditorScene - GameScene will pick up changes when user switches back
-      if (isEditorScene) {
-        await phaserScene.updateSpriteTextureAsync(currentEditingAssetName!, base64Image);
-      }
-    } else {
-      const newSpriteName = createUniqueSpriteName(spriteName, spriteInstances);
-      const newTextureName = createUniqueTextureName(spriteName, textures);
+    const { spriteInstances: currentInstances } = useGeckodeStore.getState();
+    const newSpriteName = createUniqueSpriteName(spriteName, currentInstances);
 
-      const newSprite: SpriteInstance = {
-        name: newSpriteName,
-        textureName: newTextureName,
-        id: `id_${Date.now()}`,
-        x: 0,
-        y: 0,
-        visible: true,
-        scaleX: 1,
-        scaleY: 1,
-        direction: 0,
-        snapToGrid: true,
-      };
-
-      // Add texture to state (will sync to other clients)
-      useGeckodeStore.getState().setAsset(newTextureName, base64Image, 'textures');
-      
-      // Only manipulate Phaser sprites in EditorScene
-      if (isEditorScene) {
-        await phaserScene.loadSpriteTextureAsync(newTextureName, base64Image);
-        phaserScene.createSprite(newSprite);
-      }
-
-      // Add sprite to state and sync (will be created in EditorScene when user switches back)
-      useGeckodeStore.setState((s) => ({
-        spriteInstances: [...spriteInstances, newSprite],
-        selectedSpriteId: newSprite.id,
-        spriteWorkspaces: {
-          ...s.spriteWorkspaces,
-          [newSprite.id]: new Blockly.Workspace(),
-        },
-      }));
-
-      addSpriteSync(newSprite);
+    const newSprite: SpriteInstance = {
+      name: newSpriteName,
+      textureName: textureName,
+      id: `id_${Date.now()}`,
+      x: 0,
+      y: 0,
+      visible: true,
+      scaleX: 1,
+      scaleY: 1,
+      direction: 0,
+      snapToGrid: true,
+    };
+    
+    // Only manipulate Phaser sprites in EditorScene
+    if (phaserScene instanceof EditorScene) {
+      phaserScene.createSprite(newSprite);
     }
 
-    useGeckodeStore.setState({ editingSource: null, editingAssetName: null, editingAssetType: null });
-    setIsSpriteModalOpen(false);
+    // Add sprite to state and sync (will be created in EditorScene when user switches back)
+    useGeckodeStore.setState((s) => ({
+      spriteInstances: [...s.spriteInstances, newSprite],
+      selectedSpriteId: newSprite.id,
+      spriteWorkspaces: {
+        ...s.spriteWorkspaces,
+        [newSprite.id]: new Blockly.Workspace(),
+      },
+    }));
+
+    addSpriteSync(newSprite);
+  };
+
+  const handlePrimaryAction = async () => {
+    const base64Image = createBase64FromCanvas();
+    const {
+      editingSource: currentEditingSource,
+      editingAssetName: currentEditingAssetName,
+      spriteModalMode: currentSpriteModalMode,
+      spriteModalSaveTargetTextureName: currentSaveTargetTextureName,
+      textures: currentTextures,
+    } = useGeckodeStore.getState();
+    const isEditorScene = phaserScene instanceof EditorScene;
+
+    if (!phaserScene) throw new Error('Phaser scene is not ready.');
+
+    if (currentSpriteModalMode === 'phaser_edit') {
+      const targetTextureName = currentSaveTargetTextureName ?? currentEditingAssetName;
+      if (!targetTextureName) return;
+      setAsset(targetTextureName, base64Image, 'textures');
+      if (isEditorScene) {
+        await phaserScene.updateSpriteTextureAsync(targetTextureName, base64Image);
+      }
+      closeSpriteModal();
+      return;
+    }
+
+    if (currentSpriteModalMode === 'asset_manager') {
+      const targetTextureName =
+        currentSaveTargetTextureName ??
+        (currentEditingSource === 'asset' ? currentEditingAssetName : null);
+      if (targetTextureName) {
+        setAsset(targetTextureName, base64Image, 'textures');
+        if (isEditorScene) {
+          await phaserScene.updateSpriteTextureAsync(targetTextureName, base64Image);
+        }
+      } else {
+        const newTextureName = createUniqueTextureName(spriteName, {...currentTextures, ...libaryTextures});
+        setAsset(newTextureName, base64Image, 'textures');
+      }
+      closeSpriteModal();
+      return;
+    }
+
+    if (currentEditingSource === 'library' && currentEditingAssetName && !isCanvasDirty) {
+      const libraryTextureBase64 = libaryTextures[currentEditingAssetName];
+      if (!libraryTextureBase64) return;
+      console.log('texture name added library: ', currentEditingAssetName);
+      if (isEditorScene) {
+        await phaserScene.loadSpriteTextureAsync(currentEditingAssetName, libraryTextureBase64);
+      }
+      createAndInsertSprite(currentEditingAssetName);
+      closeSpriteModal();
+      return;
+    }
+
+    const newTextureName = createUniqueTextureName(spriteName, {...currentTextures, ...libaryTextures});
+    setAsset(newTextureName, base64Image, 'textures');
+    console.log('texture name added new: ', newTextureName);
+    if (isEditorScene) {
+      await phaserScene.loadSpriteTextureAsync(newTextureName, base64Image);
+    }
+    createAndInsertSprite(newTextureName);
+    closeSpriteModal();
   };
 
   // Load existing texture when editing from library or asset (use offscreen canvas to avoid checkerboard in pixel data)
@@ -431,7 +494,7 @@ const SpriteEditor = () => {
     const textureInfo =
       editingSource === "library"
         ? libaryTextures[editingAssetName]
-        : textures[editingAssetName];
+        : textures[editingAssetName] ?? libaryTextures[editingAssetName];
     if (!textureInfo) return;
 
     const img = new Image();
@@ -452,22 +515,43 @@ const SpriteEditor = () => {
       resetPixelArrays(width, height);
       outputPixelsRef.current = new Uint8ClampedArray(imageData.data);
       setSpriteName(editingAssetName);
+      setIsCanvasDirty(false);
       requestRender();
     };
     img.src = textureInfo;
   }, [editingSource, editingAssetName, libaryTextures, textures]);
 
   // --- Grid resize handler (used by uncontrolled inputs) ---
-  const handleGridResize = (dimension: 'width' | 'height', value: string, fallback: number) => {
+  const handleGridResize = (dimension: 'width' | 'height', value: string) => {
     if (value === '') return;
     const parsed = Math.max(1, Math.min(1024, parseInt(value, 10)));
     if (Number.isNaN(parsed)) return;
     const newW = dimension === 'width' ? parsed : gridWidth;
     const newH = dimension === 'height' ? parsed : gridHeight;
+    if (newW === gridWidth && newH === gridHeight) return;
     resetPixelArrays(newW, newH);
+    markCanvasDirty();
     if (dimension === 'width') setGridWidth(parsed);
     else setGridHeight(parsed);
   };
+
+  const handleClearCanvas = () => {
+    clearCanvas();
+    markCanvasDirty();
+  };
+
+  const isSaveMode = spriteModalMode === 'phaser_edit' || spriteModalMode === 'asset_manager';
+  const isAddMode = spriteModalMode === 'phaser_add';
+  const isSaveDisabled =
+    isSaveMode &&
+    spriteModalMode === 'asset_manager' &&
+    editingSource === 'library' &&
+    !isCanvasDirty;
+  const isMissingEditTarget =
+    spriteModalMode === 'phaser_edit' &&
+    !spriteModalSaveTargetTextureName &&
+    !editingAssetName;
+  const isPrimaryActionDisabled = isSaveDisabled || isMissingEditTarget;
 
   return (
     <div className="flex-1 min-h-0 flex border-t border-slate-200 bg-slate-800 dark:border-slate-700">
@@ -574,7 +658,7 @@ const SpriteEditor = () => {
             key={`w-${gridWidth}`}
             type="number"
             defaultValue={gridWidth}
-            onBlur={(e) => handleGridResize('width', e.target.value, gridWidth)}
+            onBlur={(e) => handleGridResize('width', e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
             min={1}
             max={1024}
@@ -587,7 +671,7 @@ const SpriteEditor = () => {
             key={`h-${gridHeight}`}
             type="number"
             defaultValue={gridHeight}
-            onBlur={(e) => handleGridResize('height', e.target.value, gridHeight)}
+            onBlur={(e) => handleGridResize('height', e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
             min={1}
             max={1024}
@@ -606,7 +690,7 @@ const SpriteEditor = () => {
         >
           <button
             type="button"
-            onClick={clearCanvas}
+            onClick={handleClearCanvas}
             className="absolute top-2 right-2 z-10 px-3 h-7 flex items-center justify-center rounded bg-red-600/80 hover:bg-red-600 text-white text-xs font-medium cursor-pointer transition"
             title="Clear canvas"
           >
@@ -694,10 +778,15 @@ const SpriteEditor = () => {
           />
           <Button
             className="btn-confirm h-9 px-4"
-            onClick={addSpriteToGame}
-            title={editingSource === 'asset' ? "Save changes" : "Add to game"}
+            onClick={handlePrimaryAction}
+            disabled={isPrimaryActionDisabled}
+            title={
+              isSaveMode
+                ? (isSaveDisabled ? 'Make a canvas edit before saving' : 'Save changes')
+                : (isAddMode ? 'Add to game' : 'Primary action')
+            }
           >
-            {editingSource === 'asset' ? 'Save' : 'Add to Game'}
+            {isSaveMode ? 'Save' : 'Add to Game'}
           </Button>
         </div>
       </div>

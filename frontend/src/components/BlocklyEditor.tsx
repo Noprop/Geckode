@@ -105,13 +105,10 @@ const BlocklyEditor = () => {
 
       Blockly.Events.disable();
 
-      let variables = undefined;
+      const prevWorkspaceJson = Blockly.serialization.workspaces.save(workspaceRef.current);
 
       // Save the current workspace to the corresponding sprite
       if (prevSpriteIdRef.current && prevSpriteIdRef.current in storeState.spriteWorkspaces) {
-        const prevWorkspaceJson = Blockly.serialization.workspaces.save(workspaceRef.current);
-        variables = prevWorkspaceJson.variables;
-
         Blockly.serialization.workspaces.load(
           prevWorkspaceJson,
           storeState.spriteWorkspaces[prevSpriteIdRef.current],
@@ -122,7 +119,7 @@ const BlocklyEditor = () => {
       Blockly.serialization.workspaces.load(
         {
           blocks: Blockly.serialization.workspaces.save(newWorkspace).blocks,
-          variables: variables,
+          variables: prevWorkspaceJson.variables,
         },
         workspaceRef.current,
       );
