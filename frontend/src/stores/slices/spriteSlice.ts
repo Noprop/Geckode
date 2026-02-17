@@ -93,6 +93,8 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
   animations: {},
   backgrounds: {},
 
+  textureLoadingState: {},
+
   libaryTextures: {
     'hero-walk-front': heroWalkFront1,
     'hero-walk-back': heroWalkBack1,
@@ -182,7 +184,7 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
   },
 
   saveSprite: ({ spriteName, base64Image, syncAfter = true }) => {
-    const { editingSource, editingAssetName, textures, spriteWorkspaces } = get();
+    const { editingSource, editingAssetName, textures, spriteWorkspaces, phaserScene } = get();
     let textureName: string;
 
     if (editingSource === 'asset' && editingAssetName) {
@@ -190,7 +192,20 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
     } else {
       textureName = createUniqueTextureName(spriteName, textures);
     }
-    set({ textures: { ...get().textures, [textureName]: base64Image } });
+    set({ 
+      textures: { ...get().textures, [textureName]: base64Image },
+      textureLoadingState: { ...get().textureLoadingState, [textureName]: 'pending' },
+    });
+
+    // Load texture into Phaser if scene is ready
+    if (phaserScene instanceof EditorScene) {
+      phaserScene.loadSpriteTextureAsync(textureName, base64Image).then(() => {
+        get().setTextureLoadState(textureName, 'loaded');
+      }).catch((err) => {
+        console.error(`Failed to load texture ${textureName}:`, err);
+        get().setTextureLoadState(textureName, 'error');
+      });
+    }
 
     const instance: SpriteInstance = {
       name: createUniqueSpriteName(spriteName, get().spriteInstances),
@@ -225,6 +240,23 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
   setAsset: (name: string, base64Image: string, type: AssetType, syncAfter: boolean = true) => {
     set({ [type]: { ...get()[type], [name]: base64Image } });
 
+    // If it's a texture, mark it as pending and load it
+    if (type === 'textures') {
+      set((s) => ({
+        textureLoadingState: { ...s.textureLoadingState, [name]: 'pending' },
+      }));
+
+      const { phaserScene } = get();
+      if (phaserScene instanceof EditorScene) {
+        phaserScene.loadSpriteTextureAsync(name, base64Image).then(() => {
+          get().setTextureLoadState(name, 'loaded');
+        }).catch((err) => {
+          console.error(`Failed to load texture ${name}:`, err);
+          get().setTextureLoadState(name, 'error');
+        });
+      }
+    }
+
     if (syncAfter) {
       setAssetSync(name, base64Image, type);
     }
@@ -236,6 +268,16 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
     if (syncAfter) {
       deleteAssetSync(name, type);
     }
+  },
+
+  /* ── Texture Loading ── */
+  setTextureLoadState: (textureName: string, state) => {
+    set((s) => ({
+      textureLoadingState: {
+        ...s.textureLoadingState,
+        [textureName]: state,
+      },
+    }));
   },
 
   /* ── Tilemaps ── */
@@ -321,6 +363,7 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
       tilesets: {},
       animations: {},
       backgrounds: {},
+      textureLoadingState: {},
       libaryTextures: {
         'hero-walk-front': heroWalkFront1,
         'hero-walk-back': heroWalkBack1,

@@ -9,6 +9,7 @@ export default class EditorScene extends Phaser.Scene {
   private readonly SPRITE_DEPTH = 10;
   private readonly TILE_SIZE = 16;
   private editorSprites = new Map<string, Phaser.Physics.Arcade.Sprite>();
+  private pendingSprites = new Map<string, SpriteInstance>();
   private spriteLayer: Phaser.GameObjects.Layer | null = null;
   private tilemap: Phaser.Tilemaps.Tilemap | null = null;
   private tilemapLayer: Phaser.Tilemaps.TilemapLayer | null = null;
@@ -74,7 +75,59 @@ export default class EditorScene extends Phaser.Scene {
   // -- Sprite management -- //
   public createSprite(instance: SpriteInstance) {
     if (!this.spriteLayer) return;
-    const sprite = this.physics.add.sprite(instance.x, instance.y, 'sprite-' +instance.textureName);
+    
+    const textureKey = 'sprite-' + instance.textureName;
+    
+    // Check if texture exists in Phaser
+    if (!this.textures.exists(textureKey)) {
+      console.log(`Texture ${instance.textureName} not loaded yet, deferring sprite ${instance.id}`);
+      this.pendingSprites.set(instance.id, instance);
+      
+      // Try to load the texture
+      const { textures, textureLoadingState, setTextureLoadState } = useGeckodeStore.getState();
+      const base64Image = textures[instance.textureName];
+      
+      if (base64Image && textureLoadingState[instance.textureName] !== 'loading') {
+        setTextureLoadState(instance.textureName, 'loading');
+        this.loadSpriteTextureAsync(instance.textureName, base64Image).then(() => {
+          console.log(`Texture ${instance.textureName} loaded, creating pending sprites`);
+          setTextureLoadState(instance.textureName, 'loaded');
+          
+          // Create all sprites waiting for this texture
+          this.processPendingSpritesForTexture(instance.textureName);
+        }).catch((err) => {
+          console.error(`Failed to load texture ${instance.textureName}:`, err);
+          setTextureLoadState(instance.textureName, 'error');
+        });
+      }
+      return;
+    }
+    
+    this.createSpriteInternal(instance);
+  }
+
+  public processPendingSpritesForTexture(textureName: string) {
+    const spritesToCreate: SpriteInstance[] = [];
+    
+    // Find all pending sprites that use this texture
+    for (const [id, instance] of this.pendingSprites.entries()) {
+      if (instance.textureName === textureName) {
+        spritesToCreate.push(instance);
+        this.pendingSprites.delete(id);
+      }
+    }
+    
+    // Create all sprites that were waiting for this texture
+    for (const instance of spritesToCreate) {
+      this.createSpriteInternal(instance);
+    }
+  }
+
+  private createSpriteInternal(instance: SpriteInstance) {
+    if (!this.spriteLayer) return;
+    
+    const textureKey = 'sprite-' + instance.textureName;
+    const sprite = this.physics.add.sprite(instance.x, instance.y, textureKey);
     sprite.setData('spriteId', instance.id);
     sprite.setDepth(this.SPRITE_DEPTH);
     sprite.setScale(instance.scaleX, instance.scaleY);
@@ -88,13 +141,17 @@ export default class EditorScene extends Phaser.Scene {
   }
   public removeSprite(id: string) {
     const sprite = this.editorSprites.get(id);
-    if (!sprite) return;
-    sprite.destroy();
-    this.editorSprites.delete(id);
+    if (sprite) {
+      sprite.destroy();
+      this.editorSprites.delete(id);
+    }
+    // Also remove from pending if it was never created
+    this.pendingSprites.delete(id);
   }
   public removeSprites() {
     for (const sprite of this.editorSprites.values()) sprite.destroy();
     this.editorSprites.clear();
+    this.pendingSprites.clear();
   }
   public updateSprite(id: string, updates: Partial<SpriteInstance>): void {
     const sprite = this.editorSprites.get(id);

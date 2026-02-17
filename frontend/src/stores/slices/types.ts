@@ -40,6 +40,8 @@ export type TilemapTool = 'place' | 'eraser' | 'bucket' | 'line' | 'rectangle' |
 export type AssetType = 'textures' | 'tiles' | 'tilesets' | 'animations' | 'backgrounds';
 export type EditingSource = 'new' | 'asset' | 'library';
 
+export type TextureLoadState = 'pending' | 'loading' | 'loaded' | 'error';
+
 export interface SpriteState {
   spriteInstances: SpriteInstance[];
 
@@ -48,6 +50,9 @@ export interface SpriteState {
   tilesets: Record<string, string>;
   animations: Record<string, string>;
   backgrounds: Record<string, string>;
+
+  // Track texture loading state for Phaser
+  textureLoadingState: Record<string, TextureLoadState>;
 
   libaryTextures: Record<string, string>;
   libaryTiles: Record<string, string>;
@@ -82,6 +87,9 @@ export interface SpriteActions {
   /* Assets */
   setAsset: (name: string, base64Image: string, type: AssetType, syncAfter?: boolean) => void;
   removeAsset: (name: string, type: AssetType, syncAfter?: boolean) => void;
+
+  /* Texture Loading */
+  setTextureLoadState: (textureName: string, state: TextureLoadState) => void;
 
   /* Tilemaps */
   updateTilemapCell: (tilemapId: string, row: number, col: number, tileKey: string | null) => void;

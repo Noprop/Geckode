@@ -40,6 +40,9 @@ export default class GameScene extends Phaser.Scene {
   private tilemap: Phaser.Tilemaps.Tilemap | null = null;
   private groundLayer: Phaser.Tilemaps.TilemapLayer | null = null;
 
+  // Store textures data for loading in create
+  private texturesData: Record<string, string> = {};
+
   constructor() {
     super(GAME_SCENE_KEY);
     this.key = GAME_SCENE_KEY;
@@ -49,7 +52,7 @@ export default class GameScene extends Phaser.Scene {
     this.generateTilesetTexture();
   }
 
-  create(data: { spriteInstances: SpriteInstance[]; textures: Record<string, string>; code: string }) {
+  async create(data: { spriteInstances: SpriteInstance[]; textures: Record<string, string>; code: string }) {
     console.log('[GameScene] create called', data);
 
     // Reset tilemap state
@@ -57,6 +60,12 @@ export default class GameScene extends Phaser.Scene {
     this.groundLayer = null;
     this.gameSprites.clear();
     this.physics.world.setBounds(-128, -96, 256, 192);
+
+    // Store textures for later access
+    this.texturesData = data.textures || {};
+
+    // Load all sprite textures before creating sprites
+    await this.loadAllTextures(data.spriteInstances, data.textures);
 
     // Create the tilemap first (sits below everything)
     // this.createTilemap();
@@ -91,6 +100,37 @@ export default class GameScene extends Phaser.Scene {
 
     this.cameras.main.centerOn(0, 0);
     this.startHook();
+  }
+
+  private async loadAllTextures(instances: SpriteInstance[], textures: Record<string, string>): Promise<void> {
+    // Get unique texture names needed by sprites
+    const textureNames = new Set(instances.map(inst => inst.textureName));
+    
+    // Load each texture that doesn't already exist
+    const loadPromises: Promise<void>[] = [];
+    
+    for (const textureName of textureNames) {
+      const base64Image = textures[textureName];
+      if (base64Image) {
+        const textureKey = 'sprite-' + textureName;
+        if (!this.textures.exists(textureKey)) {
+          console.log(`[GameScene] Loading texture: ${textureName}`);
+          loadPromises.push(this.loadTextureAsync(textureKey, base64Image));
+        }
+      }
+    }
+    
+    // Wait for all textures to load
+    await Promise.all(loadPromises);
+    console.log('[GameScene] All textures loaded');
+  }
+
+  private loadTextureAsync(key: string, base64Image: string): Promise<void> {
+    return new Promise<void>((resolve) => {
+      this.load.once('complete', () => resolve());
+      this.load.image(key, base64Image);
+      this.load.start();
+    });
   }
 
   startHook() {}
@@ -222,7 +262,10 @@ export default class GameScene extends Phaser.Scene {
   public addGameSprite(instance: SpriteInstance) {
     const { id, x, y, textureName, scaleX, scaleY, visible, direction, physics } = instance;
     console.log('[GameScene] addGameSprite called', textureName, x, y, id, physics);
-    const sprite = this.physics.add.sprite(x, y, textureName);
+    
+    // Use the proper texture key with 'sprite-' prefix
+    const textureKey = 'sprite-' + textureName;
+    const sprite = this.physics.add.sprite(x, y, textureKey);
     sprite.setName(id);
     sprite.setData('gameSpriteId', id);
     sprite.setDepth(GameScene.GAME_SPRITE_BASE_DEPTH);
