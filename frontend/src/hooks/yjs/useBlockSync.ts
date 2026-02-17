@@ -1,5 +1,5 @@
 import * as Blockly from "blockly/core";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useYjs } from "./useYjs";
 import { Block } from "@/lib/types/yjs/blocks";
 import { getBlocksFromSerializedBlock, serializeBlock } from "@/lib/blockly/serialization";
@@ -80,6 +80,7 @@ const createBlockEventsListener = (
 };
 
 export const blocksMapChangesHandler = (
+  spriteId: string,
   workspace: Blockly.Workspace,
   blocksMap: Y.Map<Block>,
   keys: Map<string, {
@@ -324,6 +325,8 @@ export const blocksMapChangesHandler = (
   });
 
   Blockly.Events.enable();
+
+  useGeckodeStore.getState().markSpriteAsUpdated(spriteId);
 };
 
 export const useBlockSync = (documentName: string) => {
@@ -332,12 +335,8 @@ export const useBlockSync = (documentName: string) => {
   const spriteWorkspaces = useGeckodeStore((s) => s.spriteWorkspaces);
   const spriteInstances = useGeckodeStore((s) => s.spriteInstances);
   const { doc, awareness } = useYjs(documentName);
-  const { clients, stopBlockDragPolling } = useAwareness(documentName);
+  const { stopBlockDragPolling } = useAwareness(documentName);
   const workspaces = doc.getArray<Y.Map<any>>('workspaces');
-
-  useEffect(() => {
-    console.log('clients', clients);
-  }, [clients]);
 
   useEffect(() => {
     awareness.setLocalStateField('selectedSpriteId', selectedSpriteId);

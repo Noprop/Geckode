@@ -123,6 +123,7 @@ export const useWorkspaceSync = (documentName: string) => {
             if (!(blocksMap instanceof Y.Map)) return;
 
             blocksMapChangesHandler(
+              id,
               storeState.spriteWorkspaces[id],
               blocksMap,
               new Map(Array.from(blocksMap.keys()).map((key) => [
@@ -135,7 +136,7 @@ export const useWorkspaceSync = (documentName: string) => {
             );
           });
         } else if (event.path[1] === "sprite") {
-          const spriteMap = workspaces.get(event.path[0] as number);
+          const spriteMap = workspaces.get(event.path[0] as number)?.get(event.path[1]);
           if (!(spriteMap instanceof Y.Map)) return;
 
           const updates: Partial<SpriteInstance> = {};
@@ -147,7 +148,7 @@ export const useWorkspaceSync = (documentName: string) => {
 
           storeState.updateSpriteInstance(spriteMap.get('id'), updates, false);
         } else if (event.path[1] === "blocks") {
-          const blocksMap = workspaces.get(event.path[0] as number).get('blocks');
+          const blocksMap = workspaces.get(event.path[0] as number)?.get(event.path[1]);
           if (!(blocksMap instanceof Y.Map)) return;
 
           const spriteId = storeState.spriteInstances[event.path[0] as number].id;
@@ -156,6 +157,7 @@ export const useWorkspaceSync = (documentName: string) => {
           console.log('workspace is Blockly.Workspace');
 
           blocksMapChangesHandler(
+            spriteId,
             storeState.selectedSpriteId === spriteId ? blocklyWorkspace : workspace,
             blocksMap,
             event.changes.keys,

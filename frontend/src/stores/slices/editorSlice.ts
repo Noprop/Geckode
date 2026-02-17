@@ -30,11 +30,11 @@ export const createEditorSlice: StateCreator<
   canRedo: false,
   isConverting: false,
   isEditorScene: true,
-  convertTimeoutId: null,
 
   // Workspace state
   spriteWorkspaces: {},
   spriteOutputs: {},
+  spriteIdsUpdated: [],
 
   getCurrentSpriteId: () => {
     return get().selectedSpriteId ?? undefined;
@@ -70,48 +70,25 @@ export const createEditorSlice: StateCreator<
   },
 
   generateCode: () => {
-    const { blocklyWorkspace, spriteOutputs, selectedSpriteId: spriteId } = get();
-    if (!blocklyWorkspace || !spriteId) return;
-
-    const code = javascriptGenerator.workspaceToCode(blocklyWorkspace);
-    const output = {
-      code: code,
-      updateHandlers: (javascriptGenerator as any).updateHandlers ?? [],
-      startHandlers: (javascriptGenerator as any).startHandlers ?? [],
-    };
-
-    set({ spriteOutputs: { ...get().spriteOutputs, [spriteId]: output } });
-    console.log('generateCode spriteId: ', spriteId);
-    console.log('generateCode spriteOutputs: ', JSON.stringify(spriteOutputs, null, 2));
-    console.log('generateCode workspace code: \n', code);
-  },
-
-  scheduleConvert: () => {
-    const { convertTimeoutId } = get();
-    set({ isConverting: true });
-
-    if (convertTimeoutId) clearTimeout(convertTimeoutId);
-    const attemptConvert = () => {
-      const { phaserScene, blocklyWorkspace, generateCode } = get();
-
-      if (!phaserScene || !blocklyWorkspace) {
-        set({ convertTimeoutId: setTimeout(attemptConvert, 100) });
-        return;
-      }
-
-      generateCode();
-      set({ isConverting: false, convertTimeoutId: null });
-    };
-
-    set({ convertTimeoutId: setTimeout(attemptConvert, DEBOUNCE_MS) });
-  },
-
-  cancelScheduledConvert: () => {
-    const { convertTimeoutId } = get();
-    if (convertTimeoutId) {
-      clearTimeout(convertTimeoutId);
-      set({ convertTimeoutId: null });
-    }
+    set((s) => ({
+      spriteOutputs: {
+        ...s.spriteOutputs,
+        ...Object.fromEntries(s.spriteIdsUpdated.map((id) => {
+          const code = javascriptGenerator.workspaceToCode(
+            id === s.selectedSpriteId ? s.blocklyWorkspace! : s.spriteWorkspaces[id]
+          );
+          return [
+            id,
+            {
+              code: code,
+              updateHandlers: (javascriptGenerator as any).updateHandlers ?? [],
+              startHandlers: (javascriptGenerator as any).startHandlers ?? [],
+            },
+          ];
+        })),
+      },
+      spriteIdsUpdated: [],
+    }));
   },
 
   saveProject: async (showSnackbar) => {
@@ -260,5 +237,11 @@ export const createEditorSlice: StateCreator<
     });
 
     console.log("[editorStore] Project reset to default state");
+  },
+
+  markSpriteAsUpdated: (id: string) => {
+    set((s) => ({
+      spriteIdsUpdated: Array.from(new Set([...s.spriteIdsUpdated, id])),
+    }));
   },
 });

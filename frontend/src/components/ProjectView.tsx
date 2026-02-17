@@ -10,6 +10,7 @@ import AssetWorkspace from "./AssetManager/Overview";
 import TilemapEditor from "@/components/ui/TilemapEditor";
 import { useParams } from "next/navigation";
 import { useWorkspaceSync } from "@/hooks/yjs/useWorkspaceSync";
+import useMultiDebounce from "@/hooks/useMultiDebounce";
 
 // disable for now
 // import { useBlockSync } from "@/hooks/yjs/useBlockSync";
@@ -26,17 +27,36 @@ import { useWorkspaceSync } from "@/hooks/yjs/useWorkspaceSync";
 const ProjectView = () => {
   const { projectID } = useParams();
   const { view } = useWorkspaceView();
-  const { undoWorkspace, redoWorkspace, canUndo, canRedo } = useGeckodeStore();
+  const { undoWorkspace, redoWorkspace, canUndo, canRedo, spriteIdsUpdated, isEditorScene } = useGeckodeStore();
+  const debouncedEditorChanges = useMultiDebounce({
+    values: { spriteIdsUpdated, isEditorScene },
+    delays: {
+      isEditorScene: 100,
+    },
+    defaultDelay: 400,
+  });
 
-  const projectId = String(projectID ?? '');
-  useWorkspaceSync(projectId);
+  useWorkspaceSync(String(projectID ?? ''));
 
+  // This handles generating the code after any changes
   useEffect(() => {
-    return () => {
-      // Cancel any pending auto-convert on unmount
-      useGeckodeStore.getState().cancelScheduledConvert();
+    console.log('debouncing editor changes to generate code');
+    if (!debouncedEditorChanges.isEditorScene || !debouncedEditorChanges.spriteIdsUpdated.length) return;
+
+    useGeckodeStore.setState({ isConverting: true });
+    useGeckodeStore.getState().generateCode();
+
+    // This timeout is to visually show that the code actual did generate (at least useful during development)
+    const timeoutFunc = () => {
+      useGeckodeStore.setState({ isConverting: false });
     };
-  }, []);
+    const timeout = setTimeout(timeoutFunc, 100);
+
+    return () => {
+      clearTimeout(timeout);
+      timeoutFunc();
+    };
+  }, [debouncedEditorChanges]);
 
   return (
     <div className="flex h-[calc(100vh-4rem)]">

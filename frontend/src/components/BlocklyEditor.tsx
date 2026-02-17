@@ -8,11 +8,6 @@ import { variableCategoryCallback } from "@/blockly/callbacks";
 import { Geckode } from "@/blockly/theme";
 import { useGeckodeStore } from "@/stores/geckodeStore";
 import VariableModal from "./VariableModal";
-import { useParams } from "next/navigation";
-import projectsApi from "@/lib/api/handlers/projects";
-import starterWorkspace from "@/blockly/workspaces/starter";
-import starterWorkspaceNewProject from "@/blockly/workspaces/starterNewProject";
-import EditorScene from "@/phaser/scenes/EditorScene";
 
 registerBlockly();
 
@@ -189,7 +184,9 @@ const BlocklyEditor = () => {
     // ── Change listener  ──
     workspaceRef.current.addChangeListener((event) => {
       if (event.isUiEvent) return;
-      useGeckodeStore.getState().updateUndoRedoState();
+
+      const storeState = useGeckodeStore.getState();
+      storeState.updateUndoRedoState();
 
       if (!event.recordUndo) return;
 
@@ -203,20 +200,17 @@ const BlocklyEditor = () => {
         Blockly.Events.VAR_RENAME,
       ];
 
-      if (convertableEvents.includes(event.type as typeof Blockly.Events.BLOCK_CREATE))
-        useGeckodeStore.getState().scheduleConvert();
+      if (
+        convertableEvents.includes(event.type as typeof Blockly.Events.BLOCK_CREATE) &&
+        storeState.selectedSpriteId
+      ) {
+        storeState.markSpriteAsUpdated(storeState.selectedSpriteId);
+      }
     });
 
     // Register workspace & initial undo/redo (actions are stable refs)
     setBlocklyWorkspaceRef(workspaceRef.current);
     updateUndoRedoState();
-
-    // ── Workspace loading ──
-    // if (!projectId) {
-    //   loadLocalWorkspace(workspaceRef.current);
-    // } else {
-    //   loadRemoteWorkspace(projectId, workspaceRef.current);
-    // }
 
     return () => {
       try {
@@ -243,59 +237,5 @@ const BlocklyEditor = () => {
     </>
   );
 };
-
-// ── Workspace-loading helpers ──
-
-function loadLocalWorkspace(workspace: Blockly.WorkspaceSvg) {
-  // const doLoad = () => {
-  //   // if spriteInstances.length === 1, and spriteWorkspaces is {} (default), then we need to
-  //   // load the start workspace. otherwise, just load the workspace for the selected sprite.
-  //   const { spriteInstances, spriteWorkspaces, selectedSpriteId, scheduleConvert } = useGeckodeStore.getState();
-  //   if (spriteInstances.length === 1 && Object.keys(spriteWorkspaces).length === 0) {
-  //     Blockly.serialization.workspaces.load(starterWorkspace, workspace);
-  //     useGeckodeStore.setState({ spriteWorkspaces: { [spriteInstances[0].id]: Blockly.serialization.workspaces.save(workspace) } });
-  //   } else if (selectedSpriteId) {
-  //     Blockly.serialization.workspaces.load(spriteWorkspaces[selectedSpriteId], workspace);
-  //   }
-  //   scheduleConvert();
-  // };
-
-  // if (useGeckodeStore.persist.hasHydrated()) {
-  //   doLoad();
-  // } else {
-  //   useGeckodeStore.persist.onFinishHydration(doLoad);
-  // }
-}
-
-function loadRemoteWorkspace(
-  projectId: number,
-  workspace: Blockly.WorkspaceSvg,
-) {
-  projectsApi(projectId)
-    .get()
-    .then((project) => {
-      try {
-        Blockly.serialization.workspaces.load(
-          Object.keys(project.blocks).length
-            ? project.blocks
-            : starterWorkspaceNewProject,
-          workspace,
-        );
-      } catch {
-        console.error("Failed to load workspace!");
-      }
-
-      const { setSelectedSpriteId } = useGeckodeStore.getState();
-
-      useGeckodeStore.setState({
-        projectName: project.name,
-        phaserState: project.game_state,
-      });
-
-      // Select the sprite matching the first project sprite
-      const firstSpriteId = project.sprites[0]?.id;
-      if (firstSpriteId) setSelectedSpriteId(firstSpriteId);
-    });
-}
 
 export default BlocklyEditor;

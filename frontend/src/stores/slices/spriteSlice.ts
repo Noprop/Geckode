@@ -124,14 +124,14 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
   },
   setSpriteInstances: (instances: SpriteInstance[]) => set({ spriteInstances: instances }),
   removeSpriteInstance: (spriteId: string, syncAfter: boolean = true) => {
-    const { spriteInstances, selectedSpriteId, spriteWorkspaces, phaserScene } = get();
+    const { spriteInstances, spriteWorkspaces, phaserScene } = get();
     const remaining = spriteInstances.filter((instance) => instance.id !== spriteId);
 
     if (phaserScene instanceof EditorScene) phaserScene.removeSprite(spriteId);
 
     spriteWorkspaces[spriteId]?.dispose();
 
-    set({
+    set((s) => ({
       spriteInstances: remaining,
       spriteWorkspaces: {
         ...Object.fromEntries(
@@ -139,10 +139,16 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
             .filter(([id]) => id !== spriteId)
         ),
       },
-      selectedSpriteId: selectedSpriteId === spriteId
+      spriteOutputs: {
+        ...Object.fromEntries(
+          Object.entries(s.spriteOutputs)
+            .filter(([id]) => id !== spriteId)
+        ),
+      },
+      selectedSpriteId: s.selectedSpriteId === spriteId
         ? (remaining[0]?.id ?? null)
-        : selectedSpriteId,
-    });
+        : s.selectedSpriteId,
+    }));
 
     if (syncAfter) {
       deleteSpriteSync(spriteId);

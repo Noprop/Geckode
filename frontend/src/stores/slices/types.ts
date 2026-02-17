@@ -123,11 +123,11 @@ export interface EditorState {
   canRedo: boolean;
   isConverting: boolean;
   isEditorScene: boolean;
-  convertTimeoutId: ReturnType<typeof setTimeout> | null;
 
   // Workspace state
   spriteWorkspaces: Record<string, Blockly.Workspace>;
   spriteOutputs: Record<string, WorkspaceOutputType>;
+  spriteIdsUpdated: string[];
 }
 
 export interface EditorActions {
@@ -145,14 +145,13 @@ export interface EditorActions {
 
   // Editor Actions
   generateCode: () => void;
-  scheduleConvert: () => void;
-  cancelScheduledConvert: () => void;
   saveProject: (showSnackbar: (msg: string, type: 'success' | 'error') => void) => Promise<void>;
   exportWorkspaceState: () => void;
   undoWorkspace: () => void;
   redoWorkspace: () => void;
   toggleEditor: () => void;
   resetProject: () => void;
+  markSpriteAsUpdated: (id: string) => void;
 }
 
 export type EditorSlice = EditorState & EditorActions;
