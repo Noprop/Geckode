@@ -70,22 +70,20 @@ export const createEditorSlice: StateCreator<
   },
 
   generateCode: () => {
+    console.log('generating code for sprites:', get().spriteIdsUpdated);
     set((s) => ({
       spriteOutputs: {
         ...s.spriteOutputs,
-        ...Object.fromEntries(s.spriteIdsUpdated.map((id) => {
-          const code = javascriptGenerator.workspaceToCode(
-            id === s.selectedSpriteId ? s.blocklyWorkspace! : s.spriteWorkspaces[id]
-          );
-          return [
-            id,
-            {
-              code: code,
-              updateHandlers: (javascriptGenerator as any).updateHandlers ?? [],
-              startHandlers: (javascriptGenerator as any).startHandlers ?? [],
-            },
-          ];
-        })),
+        ...Object.fromEntries(s.spriteIdsUpdated.map((id) => [
+          id,
+          {
+            code: javascriptGenerator.workspaceToCode(
+              id === s.selectedSpriteId ? s.blocklyWorkspace! : s.spriteWorkspaces[id]
+            ),
+            updateHandlers: (javascriptGenerator as any).updateHandlers ?? [],
+            startHandlers: (javascriptGenerator as any).startHandlers ?? [],
+          },
+        ])),
       },
       spriteIdsUpdated: [],
     }));

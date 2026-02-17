@@ -105,17 +105,25 @@ const BlocklyEditor = () => {
 
       Blockly.Events.disable();
 
+      let variables = undefined;
+
       // Save the current workspace to the corresponding sprite
       if (prevSpriteIdRef.current && prevSpriteIdRef.current in storeState.spriteWorkspaces) {
+        const prevWorkspaceJson = Blockly.serialization.workspaces.save(workspaceRef.current);
+        variables = prevWorkspaceJson.variables;
+
         Blockly.serialization.workspaces.load(
-          Blockly.serialization.workspaces.save(workspaceRef.current),
+          prevWorkspaceJson,
           storeState.spriteWorkspaces[prevSpriteIdRef.current],
         );
       }
 
       // Load the newly selected sprite's workspace into the main workspace
       Blockly.serialization.workspaces.load(
-        Blockly.serialization.workspaces.save(newWorkspace),
+        {
+          blocks: Blockly.serialization.workspaces.save(newWorkspace).blocks,
+          variables: variables,
+        },
         workspaceRef.current,
       );
 
@@ -200,11 +208,21 @@ const BlocklyEditor = () => {
         Blockly.Events.VAR_RENAME,
       ];
 
+      // Keep track of which sprites have been updated
       if (
         convertableEvents.includes(event.type as typeof Blockly.Events.BLOCK_CREATE) &&
         storeState.selectedSpriteId
       ) {
         storeState.markSpriteAsUpdated(storeState.selectedSpriteId);
+      }
+
+      // When a variable is deleted, delete it from all sprite workspaces
+      if (event.type === Blockly.Events.VAR_DELETE) {
+        Object.values(storeState.spriteWorkspaces).forEach((workspace) => {
+          const variableMap = workspace.getVariableMap();
+          const variable = variableMap.getVariableById((event as Blockly.Events.VarDelete).varId ?? '');
+          if (variable) workspace.getVariableMap().deleteVariable(variable);
+        });
       }
     });
 

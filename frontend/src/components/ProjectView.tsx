@@ -40,7 +40,7 @@ const ProjectView = () => {
 
   // This handles generating the code after any changes
   useEffect(() => {
-    console.log('debouncing editor changes to generate code');
+    console.log('debouncing editor changes to generate code', debouncedEditorChanges.spriteIdsUpdated);
     if (!debouncedEditorChanges.isEditorScene || !debouncedEditorChanges.spriteIdsUpdated.length) return;
 
     useGeckodeStore.setState({ isConverting: true });
