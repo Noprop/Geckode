@@ -13,6 +13,7 @@ import { usePixelCanvas, createPixelArray } from "@/hooks/usePixelCanvas";
 import { createUniqueSpriteName, createUniqueTextureName } from "@/stores/slices/spriteSlice";
 import type { SpriteInstance } from "@/blockly/spriteRegistry";
 import { useSnackbar } from "@/hooks/useSnackbar";
+import projectsApi from "@/lib/api/handlers/projects";
 export type Tool =
   | "pen"
   | "eraser"
@@ -418,6 +419,11 @@ const SpriteEditor = () => {
     const base64Image = offscreen.toDataURL("image/png");
 
     if (currentEditingSource === "asset") {
+      // update sprite on backend, if project doesn't exist, resume as normal
+
+      var success = true;
+      //if (projectId) projectsApi(projectId).assetsApi.list({name: "bob"}).
+
       useGeckodeStore.getState().updateAsset(currentEditingAssetName!, base64Image, "textures");
       await phaserScene.updateSpriteTextureAsync(currentEditingAssetName!, base64Image);
       useGeckodeStore.setState({ editingSource: null, editingAssetName: null, editingAssetType: null });
@@ -441,10 +447,28 @@ const SpriteEditor = () => {
       snapToGrid: true,
     };
 
+    // upload texture to backend, if there is no project, resume as normal
+    var success = true;
+
+    if (projectId)
+      projectsApi(projectId)
+        .assetsApi.create({
+          name: newTextureName,
+          asset: base64Image,
+          asset_type: "textures",
+        })
+        .then((res) => {
+          useGeckodeStore.getState().addAssetId(res.name, res.id); // log the Id
+        })
+        .catch(() => (success = false));
+
     // add texture to state, and phaser
-    useGeckodeStore.getState().addAsset(newTextureName, base64Image, "textures");
-    await phaserScene.loadSpriteTextureAsync(newTextureName, base64Image);
-    phaserScene.createSprite(newSprite);
+    if (success) {
+      useGeckodeStore.getState().addAsset(newTextureName, base64Image, "textures");
+      await phaserScene.loadSpriteTextureAsync(newTextureName, base64Image);
+      phaserScene.createSprite(newSprite);
+      showSnackbar(`Created texture "${newTextureName}"`, "success");
+    }
 
     // add sprite to state, save workspace for current sprite, and switch to new sprite
     const { selectedSpriteId, spriteWorkspaces, blocklyWorkspace } = useGeckodeStore.getState();

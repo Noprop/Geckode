@@ -49,6 +49,7 @@ export interface SpriteState {
   tilesets: Record<string, string>;
   animations: Record<string, string>;
   backgrounds: Record<string, string>;
+  assetIds: Record<string, string | number>; // stores ids with names as keys. names are unique per project 
 
   libaryTextures: Record<string, string>;
   libaryTiles: Record<string, string>;
@@ -84,6 +85,11 @@ export interface SpriteActions {
   addAsset: (name: string, base64Image: string, type: AssetType) => void;
   updateAsset: (name: string, base64Image: string, type: AssetType) => void;
   removeAsset: (name: string, type: AssetType) => void;
+
+  // for storing IDs of assets on the backend
+  addAssetId: (name: string, id: string|number) => void;
+  updateAssetId: (oldName: string,  newName: string) => void;
+  removeAssetId: (name: string) => void;
 
   addLibraryAsset: (name: string, base64Image: string, type: LibraryAssetType) => void;
   updateLibraryAsset: (name: string, base64Image: string, type: LibraryAssetType) => void;

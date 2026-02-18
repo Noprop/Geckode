@@ -115,6 +115,7 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
   tilesets: {},
   animations: {},
   backgrounds: {},
+  assetIds: {},
 
   libaryTextures: {
     'hero-walk-front': heroWalkFront1,
@@ -253,6 +254,19 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
     set({ [type]: rest });
   },
 
+  /* Asset Ids */
+  addAssetId: (name: string, id: string|number) => {
+    set({["assetIds"]: { ...get()["assetIds"], [name] : id }})
+  },
+  updateAssetId: (oldName: string,  newName: string) => { // assign id to newName and delete the old name record
+    const { [oldName]: id, ...rest } = get()["assetIds"];
+    set({ ["assetIds"]: {...rest, [newName]: id} });
+  },
+  removeAssetId: (name: string) => {
+    const { [name]: _, ...rest } = get()["assetIds"];
+    set({ ["assetIds"]: rest });
+  },
+
   /* ── Tilemaps ── */
   setActiveTilemapId: (id: string | null) => set({ activeTilemapId: id }),
   updateTilemapCell: (tilemapId: string, row: number, col: number, tileKey: string | null) => {
@@ -372,6 +386,7 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
       libaryTilesets: {},
       libaryAnimations: {},
       libaryBackgrounds: {},  
+      assetIds: {}
     });
   },
 });

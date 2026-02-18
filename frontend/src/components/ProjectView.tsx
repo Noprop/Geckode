@@ -28,8 +28,20 @@ import { extractAxiosErrMsg } from "@/lib/api/axios";
 
 const ProjectView = () => {
   const { view } = useWorkspaceView();
-  const { undoWorkspace, redoWorkspace, canUndo, canRedo, addAsset, addLibraryAsset, setProjectId, resetAssetsOnly } =
-    useGeckodeStore();
+  const {
+    undoWorkspace,
+    redoWorkspace,
+    canUndo,
+    canRedo,
+    addAsset,
+    addLibraryAsset,
+    setProjectId,
+    resetAssetsOnly,
+    addAssetId,
+    assetIds,
+    updateAssetId,
+    removeAssetId,
+  } = useGeckodeStore();
   const prjId = Number(useParams().projectID);
   const showSnackbar = useSnackbar();
 
@@ -50,19 +62,20 @@ const ProjectView = () => {
         setProjectId(prjId);
 
         projectsApi(prjId)
-          .assetsApi.list({ texture_type: "textures" })
+          .assetsApi.list({ asset_type: "textures" })
           .then((res) => {
-            for (var tex of res.results) {
-              addAsset(tex.name, tex.texture, "textures");
+            for (var asset of res.results) {
+              addAsset(asset.name, asset.asset, "textures");
+              addAssetId(asset.id, asset.name);
             }
           })
           .catch((err) => showSnackbar(extractAxiosErrMsg(err, "Failed to get project assets!"), "error"));
 
         assetsApi
-          .list({ texture_type: "textures" })
+          .list({ asset_type: "textures" })
           .then((res) => {
-            for (var tex of res.results) {
-              addLibraryAsset(tex.name, tex.texture, "libaryTextures");
+            for (var asset of res.results) {
+              addLibraryAsset(asset.name, asset.asset, "libaryTextures");
             }
           })
           .catch((err) => showSnackbar(extractAxiosErrMsg(err, "Failed to get library assets!"), "error"));
