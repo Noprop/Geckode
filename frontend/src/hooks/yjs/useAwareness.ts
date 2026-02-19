@@ -7,13 +7,13 @@ import { toPublicUser } from "@/lib/types/api/users";
 import { useUser } from "@/contexts/UserContext";
 import { useGeckodeStore } from "@/stores/geckodeStore";
 import { useLayoutStore } from "@/stores/layoutStore";
-import { getClientColourHex, getClientColourTailwind } from "@/lib/yjs/clients";
+import { getClientColourTailwind } from "@/lib/yjs/clients";
 
 export const useAwareness = (
   documentName: string,
 ) => {
   const { blocklyWorkspace } = useGeckodeStore();
-  const { doc, awareness } = useYjs(documentName);
+  const { doc, awareness, onSynced } = useYjs(documentName);
   const user = useUser();
   const dragPollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -117,14 +117,29 @@ export const useAwareness = (
       }
     }
 
+    onSynced(() => {
+      // Load initial awareness states
+      const states = awareness.getStates();
+      const initialClients = Array.from(states.entries())
+        .filter(([id]) => id !== doc.clientID)
+        .map(([id, state]) => ({
+          id: id,
+          user: state.user,
+        }));
+
+      if (initialClients.length > 0) {
+        useLayoutStore.setState({ clients: initialClients });
+      }
+    });
+
     awareness.on("update", handleUpdate);
     blocklyWorkspace.addChangeListener(eventsListener);
 
     return () => {
       awareness.off("update", handleUpdate);
       blocklyWorkspace.removeChangeListener(eventsListener);
-    }
-  }, [awareness, blocklyWorkspace, dragPollingIntervalRef]);
+    };
+  }, [awareness, blocklyWorkspace, doc, user, dragPollingIntervalRef, onSynced]);
 
   useEffect(() => {
     return () => stopBlockDragPolling();

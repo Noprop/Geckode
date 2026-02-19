@@ -10,7 +10,7 @@ export const useVariableSync = (
   documentName: string,
 ) => {
   const { blocklyWorkspace } = useGeckodeStore();
-  const { doc } = useYjs(documentName);
+  const { doc, isSynced, onSynced } = useYjs(documentName);
   const variablesMap = doc.getMap<Variable>('variables');
   const blocksMap = doc.getMap<Block>('blocks');
 
@@ -152,12 +152,41 @@ export const useVariableSync = (
   useEffect(() => {
     if (!blocklyWorkspace) return;
 
-    blocklyWorkspace.addChangeListener(blockEventsListener);
-    variablesMap.observe(variablesMapObserver);
+    const handleSync = () => {
+      // Load initial variables
+      const variableMap = blocklyWorkspace.getVariableMap();
+      variablesMap.forEach((variableData, key) => {
+        try {
+          variableMap.createVariable(
+            variableData.name,
+            variableData.type,
+            key,
+          );
+        } catch {}
+      });
 
-    return () => {
-      blocklyWorkspace.removeChangeListener(blockEventsListener);
-      variablesMap.unobserve(variablesMapObserver);
+      // Set up observers for future changes
+      blocklyWorkspace.addChangeListener(blockEventsListener);
+      variablesMap.observe(variablesMapObserver);
+
+      return () => {
+        blocklyWorkspace.removeChangeListener(blockEventsListener);
+        variablesMap.unobserve(variablesMapObserver);
+      };
     };
-  }, [blocklyWorkspace]);
+
+    // Register sync callback
+    const cleanup = onSynced(handleSync);
+
+    // If already synced, call immediately
+    if (isSynced()) {
+      const observerCleanup = handleSync();
+      return () => {
+        cleanup();
+        observerCleanup?.();
+      };
+    }
+
+    return cleanup;
+  }, [blocklyWorkspace, doc, variablesMap, blockEventsListener, variablesMapObserver, onSynced, isSynced]);
 };
