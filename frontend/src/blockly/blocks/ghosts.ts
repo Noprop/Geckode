@@ -19,7 +19,7 @@ const angleGhost = {
       name: "VALUE",
       clockwise: true,
       offset: 90,
-      value: 90,
+      value: 0,
       symbol: ""
     }
   ],

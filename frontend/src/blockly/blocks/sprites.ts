@@ -170,7 +170,7 @@ javascriptGenerator.forBlock['setRotation'] = function (block, generator) {
   const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
   return `scene.getSprite(${
     spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"'
-  }).angle = (${value}-90) % 360\n`;
+  }).angle = (${value}) % 360\n`;
 
 };
 
