@@ -169,6 +169,20 @@ const getToolbox = () => {
           },
           {
             kind: 'block',
+            type: 'movementDirection',
+            inputs: {
+              SPRITE: {
+                shadow: {
+                  type: 'spriteGhost',
+                  fields: {
+                    SPRITE: spriteId,
+                  },
+                },
+              },
+            },
+          },
+          {
+            kind: 'block',
             type: 'isTouching',
             inputs: {
               SPRITE1: {

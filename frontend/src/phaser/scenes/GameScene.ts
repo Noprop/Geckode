@@ -677,7 +677,7 @@ export default class GameScene extends Phaser.Scene {
 
   // ─── Input helpers ───────────────────────────────────────────────────
 
-  public getJustPressed(key: Phaser.Input.Keyboard.Key) {
+  private getJustPressed(key: Phaser.Input.Keyboard.Key) {
     if (this.justPressedKeys.includes(key)) {
       return true;
     }
@@ -688,7 +688,7 @@ export default class GameScene extends Phaser.Scene {
     return false;
   }
 
-  public getJustReleased(key: Phaser.Input.Keyboard.Key) {
+  private getJustReleased(key: Phaser.Input.Keyboard.Key) {
     if (this.justReleasedKeys.includes(key)) {
       return true;
     }
@@ -728,4 +728,24 @@ export default class GameScene extends Phaser.Scene {
       }
     }
   }
+
+  // Source - https://stackoverflow.com/q/35271222
+  // Posted by Matthew Spence, modified by community. See post 'Timeline' for change history
+  // Retrieved 2026-02-19, License - CC BY-SA 4.0
+
+  private getMovementAngle(spriteName: string){
+    const sprite = this.getSprite(spriteName);
+    if (sprite){
+        const x = this.getVelocityX(sprite)
+        const y = this.getVelocityY(sprite)
+        if (x==0 && y==0){
+          return 0
+        }
+        const angle = Math.atan2(y, x);
+        const degrees = 180 * angle / Math.PI;
+        return (90 + degrees) % 360;
+    }
+    return 0
+    }
+
 }
