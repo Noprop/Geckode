@@ -14,6 +14,42 @@ const options = [
   ['angle', 'angle'],
 ]
 
+const goToXY = {
+  type: 'goToXY',
+  tooltip: 'Move a sprite to a position',
+  helpUrl: '',
+  message0: 'move %1 to x:%2 y:%3',
+  args0: [
+    {
+      type: 'input_value',
+      name: 'SPRITE',
+    },
+    {
+      type: 'input_value',
+      name: 'x',
+    },
+    {
+      type: 'input_value',
+      name: 'y',
+    },
+  ],
+  previousStatement: null,
+  nextStatement: null,
+  inputsInline: true,
+  colour: '%{BKY_SPRITES_HUE}',
+};
+
+javascriptGenerator.forBlock['goToXY'] = function (block, generator) {
+  const x = generator.valueToCode(block, 'x', Order.NONE) || 0;
+  const y = generator.valueToCode(block, 'y', Order.NONE) || 0;
+  const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
+  const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
+  const spriteName = spriteKey === currentSpriteId ? 'thisSprite' : spriteKey;
+
+
+  return `scene.getSprite(${spriteName}).x = ${x}\nscene.getSprite(${spriteName}).y = -${y}\n`;
+};
+
 const setProperty = {
   type: 'setProperty',
   tooltip: 'Set the property of a sprite',
@@ -327,6 +363,7 @@ javascriptGenerator.forBlock['makeClone'] = function (block, generator) {
 
 
 export const spriteBlocks = [
+  goToXY,
   setProperty,
   changeProperty,
   getProperty,

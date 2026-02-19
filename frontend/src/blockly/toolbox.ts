@@ -31,6 +31,36 @@ const getToolbox = () => {
         contents: [
           {
             kind: 'block',
+            type: 'goToXY',
+            inputs: {
+              SPRITE: {
+                shadow: {
+                  type: 'spriteGhost',
+                  fields: {
+                    SPRITE: spriteId,
+                  },
+                },
+              },
+              x: {
+                shadow: {
+                  type: 'math_number',
+                  fields: {
+                    NUM: 0,
+                  },
+                },
+              },
+              y: {
+                shadow: {
+                  type: 'math_number',
+                  fields: {
+                    NUM: 0,
+                  },
+                },
+              },
+            },
+          },
+          {
+            kind: 'block',
             type: 'setProperty',
             inputs: {
               SPRITE: {
