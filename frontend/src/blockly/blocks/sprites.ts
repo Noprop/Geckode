@@ -138,7 +138,7 @@ javascriptGenerator.forBlock['getProperty'] = function (block, generator) {
   } else if (prop === 'velocityY') {
     return [`${flipSign}scene.getVelocityY(${spriteRef})`, Order.NONE];
   }
-  return [`${flipSign}${spriteRef}.${prop}`, Order.NONE];
+  return [`(${flipSign}${spriteRef}.${prop})`, Order.NONE];
 };
 
 const setRotation = {
