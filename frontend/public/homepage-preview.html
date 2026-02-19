@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1440" />
+  <title>Geckode – Homepage Preview</title>
+  <script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: "Helvetica Neue", "Segoe UI", sans-serif;
+      width: 1440px;
+      background: #f5f5f7;
+    }
+
+    /* ── 1. Header ── */
+    header {
+      width: 1440px;
+      height: 64px;
+      background: #25A76F;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 64px;
+    }
+    .logo {
+      font-size: 22px;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: -0.5px;
+    }
+    .logo span { color: #a7f1cd; }
+    .nav-actions { display: flex; gap: 12px; align-items: center; }
+    .btn-outline {
+      padding: 8px 20px;
+      border: 2px solid #ffffff;
+      background: transparent;
+      color: #ffffff;
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .btn-filled-white {
+      padding: 8px 20px;
+      border: none;
+      background: #ffffff;
+      color: #25A76F;
+      font-size: 14px;
+      font-weight: 700;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    /* ── 2. Hero ── */
+    .hero {
+      width: 1440px;
+      height: 640px;
+      background: #f5f5f7;
+      display: flex;
+      align-items: center;
+      padding: 0 120px;
+      gap: 80px;
+    }
+    .hero-text { flex: 1; }
+    .hero-eyebrow {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #25A76F;
+      margin-bottom: 16px;
+    }
+    .hero-headline {
+      font-size: 72px;
+      font-weight: 800;
+      color: #151525;
+      line-height: 1.05;
+      letter-spacing: -2px;
+      margin-bottom: 24px;
+    }
+    .hero-headline em { color: #25A76F; font-style: normal; }
+    .hero-sub {
+      font-size: 20px;
+      color: #555570;
+      line-height: 1.6;
+      max-width: 520px;
+      margin-bottom: 40px;
+    }
+    .hero-ctas { display: flex; gap: 16px; }
+    .btn-primary {
+      padding: 16px 32px;
+      background: #25A76F;
+      color: #ffffff;
+      font-size: 16px;
+      font-weight: 700;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+    }
+    .btn-secondary {
+      padding: 16px 32px;
+      background: transparent;
+      color: #25A76F;
+      font-size: 16px;
+      font-weight: 700;
+      border-radius: 8px;
+      border: 2px solid #25A76F;
+      cursor: pointer;
+    }
+    .hero-visual {
+      width: 560px;
+      height: 400px;
+      background: linear-gradient(135deg, #975df5 0%, #6b3fd4 100%);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 32px 80px rgba(151, 93, 245, 0.35);
+    }
+    .hero-visual::before {
+      content: "";
+      position: absolute;
+      top: -60px; right: -60px;
+      width: 200px; height: 200px;
+      border-radius: 50%;
+      background: rgba(167, 241, 205, 0.2);
+    }
+    .hero-visual::after {
+      content: "";
+      position: absolute;
+      bottom: -40px; left: -40px;
+      width: 160px; height: 160px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+    }
+    .editor-mockup {
+      width: 480px;
+      height: 320px;
+      background: #1e1e3a;
+      border-radius: 12px;
+      overflow: hidden;
+      position: relative;
+      z-index: 1;
+    }
+    .editor-topbar {
+      height: 36px;
+      background: #151525;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 8px;
+    }
+    .dot { width: 12px; height: 12px; border-radius: 50%; }
+    .dot-red { background: #ff5f57; }
+    .dot-yellow { background: #febc2e; }
+    .dot-green { background: #28c840; }
+    .editor-body {
+      display: flex;
+      height: calc(100% - 36px);
+    }
+    .editor-sidebar {
+      width: 100px;
+      background: #252545;
+      padding: 12px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .block-chip {
+      height: 24px;
+      border-radius: 4px;
+      background: #975df5;
+      opacity: 0.8;
+    }
+    .block-chip:nth-child(2) { background: #25A76F; }
+    .block-chip:nth-child(3) { background: #f59e0b; width: 70%; }
+    .block-chip:nth-child(4) { background: #ef4444; width: 85%; }
+    .editor-canvas {
+      flex: 1;
+      background: #1a1a32;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .game-preview-placeholder {
+      width: 200px;
+      height: 180px;
+      background: #2d2d5a;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .play-icon {
+      width: 48px;
+      height: 48px;
+      background: #25A76F;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .play-triangle {
+      width: 0; height: 0;
+      border-top: 10px solid transparent;
+      border-bottom: 10px solid transparent;
+      border-left: 18px solid #ffffff;
+      margin-left: 4px;
+    }
+
+    /* ── 3. Features ── */
+    .features {
+      width: 1440px;
+      height: 480px;
+      background: #ffffff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 0 120px;
+      gap: 48px;
+    }
+    .section-title {
+      font-size: 40px;
+      font-weight: 800;
+      color: #151525;
+      text-align: center;
+      letter-spacing: -1px;
+    }
+    .features-grid {
+      display: flex;
+      gap: 32px;
+      width: 100%;
+    }
+    .feature-card {
+      flex: 1;
+      background: #ffffff;
+      border: 1px solid #e8e8f0;
+      border-radius: 16px;
+      padding: 40px 36px;
+      box-shadow: 0 4px 24px rgba(21, 21, 37, 0.06);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .feature-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+    }
+    .icon-purple { background: #f0e9ff; }
+    .icon-green { background: #e6f9f2; }
+    .icon-blue { background: #e8f0ff; }
+    .feature-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #151525;
+    }
+    .feature-body {
+      font-size: 15px;
+      color: #777790;
+      line-height: 1.6;
+    }
+
+    /* ── 4. CTA Banner ── */
+    .cta-banner {
+      width: 1440px;
+      height: 240px;
+      background: #25A76F;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 28px;
+    }
+    .cta-headline {
+      font-size: 44px;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: -1px;
+    }
+    .btn-white-cta {
+      padding: 16px 40px;
+      background: #ffffff;
+      color: #25A76F;
+      font-size: 17px;
+      font-weight: 700;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+    }
+
+    /* ── 5. Footer ── */
+    footer {
+      width: 1440px;
+      height: 80px;
+      background: #151525;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 64px;
+    }
+    .footer-copy {
+      font-size: 14px;
+      color: #777790;
+    }
+    .footer-links {
+      display: flex;
+      gap: 32px;
+    }
+    .footer-link {
+      font-size: 14px;
+      color: #777790;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 1. Header -->
+  <header>
+    <div class="logo">Gecko<span>de</span></div>
+    <div class="nav-actions">
+      <button class="btn-outline">Log in</button>
+      <button class="btn-filled-white">Sign up</button>
+    </div>
+  </header>
+
+  <!-- 2. Hero -->
+  <section class="hero">
+    <div class="hero-text">
+      <div class="hero-eyebrow">Visual Game Builder for Kids</div>
+      <h1 class="hero-headline">Build Games.<br/><em>Learn Code.</em></h1>
+      <p class="hero-sub">Geckode is a drag-and-drop platform that lets kids create 2D games without typing a single line of code.</p>
+      <div class="hero-ctas">
+        <button class="btn-primary">Get Started for Free</button>
+        <button class="btn-secondary">See How It Works</button>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="editor-mockup">
+        <div class="editor-topbar">
+          <div class="dot dot-red"></div>
+          <div class="dot dot-yellow"></div>
+          <div class="dot dot-green"></div>
+        </div>
+        <div class="editor-body">
+          <div class="editor-sidebar">
+            <div class="block-chip"></div>
+            <div class="block-chip"></div>
+            <div class="block-chip"></div>
+            <div class="block-chip"></div>
+          </div>
+          <div class="editor-canvas">
+            <div class="game-preview-placeholder">
+              <div class="play-icon">
+                <div class="play-triangle"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. Features -->
+  <section class="features">
+    <h2 class="section-title">Why Geckode?</h2>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon icon-purple">🧩</div>
+        <div class="feature-title">Drag &amp; Drop Blocks</div>
+        <div class="feature-body">No syntax errors. Just ideas. Build game logic visually with Blockly-powered snap-together blocks.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon icon-green">▶️</div>
+        <div class="feature-title">Real-time Preview</div>
+        <div class="feature-body">See your game run instantly. Every block change updates the live game preview in real time.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon icon-blue">🤝</div>
+        <div class="feature-title">Share &amp; Collaborate</div>
+        <div class="feature-body">Work with classmates on projects. Invite teammates via organizations and build together.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. CTA Banner -->
+  <section class="cta-banner">
+    <h2 class="cta-headline">Ready to start building?</h2>
+    <button class="btn-white-cta">Create Your First Game</button>
+  </section>
+
+  <!-- 5. Footer -->
+  <footer>
+    <span class="footer-copy">© 2026 Geckode</span>
+    <div class="footer-links">
+      <a href="#" class="footer-link">Privacy</a>
+      <a href="#" class="footer-link">Terms</a>
+    </div>
+  </footer>
+
+</body>
+</html>
