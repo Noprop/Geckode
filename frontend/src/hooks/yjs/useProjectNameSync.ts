@@ -2,7 +2,7 @@ import { useGeckodeStore } from "@/stores/geckodeStore";
 import { useYjs } from "./useYjs";
 import { useEffect } from "react";
 import * as Y from "yjs";
-import { ydoc } from "@/lib/types/yjs/document";
+import { getYDoc } from "./useWorkspaceSync";
 
 export const useProjectNameSync = (documentName: string) => {
   const { doc, isSynced, onSynced } = useYjs(documentName);
@@ -45,10 +45,13 @@ export const useProjectNameSync = (documentName: string) => {
 };
 
 export const projectNameSync = (projectName: string) => {
-  const projectNameText = ydoc.getText('projectName');
+  const doc = getYDoc();
+  if (!doc) return;
 
-  ydoc.transact(() => {
+  const projectNameText = doc.getText('projectName');
+
+  doc.transact(() => {
     projectNameText.delete(0, projectNameText.length);
     projectNameText.insert(0, projectName);
-  }, ydoc.clientID);
+  }, doc.clientID);
 };

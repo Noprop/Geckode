@@ -167,7 +167,7 @@ export interface EditorActions {
   setBlocklyWorkspaceRef: (blocklyWorkspace: Blockly.WorkspaceSvg) => void;
   setPhaserScene: (phaserScene: EditorScene | GameScene) => void;
   setPhaserGame: (phaserGame: Phaser.Game) => void;
-  setProjectId: (id: number) => void;
+  setProjectId: (id: number | null) => void;
   setProjectName: (name: string, syncAfter?: boolean) => void;
   setPhaserState: (phaserState: PhaserExport | null) => void;
   updateUndoRedoState: () => void;

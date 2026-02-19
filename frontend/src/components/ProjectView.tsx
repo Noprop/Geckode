@@ -27,7 +27,7 @@ import useMultiDebounce from "@/hooks/useMultiDebounce";
 const ProjectView = () => {
   const { projectID } = useParams();
   const { view } = useWorkspaceView();
-  const { undoWorkspace, redoWorkspace, canUndo, canRedo, spriteIdsUpdated, isEditorScene } = useGeckodeStore();
+  const { undoWorkspace, redoWorkspace, canUndo, canRedo, spriteIdsUpdated, isEditorScene, setProjectId } = useGeckodeStore();
   const debouncedEditorChanges = useMultiDebounce({
     values: { spriteIdsUpdated, isEditorScene },
     delays: {
@@ -35,6 +35,12 @@ const ProjectView = () => {
     },
     defaultDelay: 400,
   });
+
+  // Keep store projectId in sync with route so Yjs documentRegistry resolves the right doc
+  useEffect(() => {
+    setProjectId(projectID != null ? Number(projectID) : null);
+    return () => setProjectId(null);
+  }, [projectID, setProjectId]);
 
   useWorkspaceSync(String(projectID ?? ''));
 

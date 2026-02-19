@@ -4,15 +4,15 @@ import * as Y from 'yjs';
 import { useEffect, useContext } from "react";
 import { blocksMapChangesHandler, useBlockSync } from "./useBlockSync";
 import { useVariableSync } from "./useVariableSync";
-import { ydoc } from "@/lib/types/yjs/document";
+import { documentRegistry } from "@/lib/types/yjs/documents";
 import { useAssetSync } from "./useAssetSync";
 import EditorScene from "@/phaser/scenes/EditorScene";
 import * as Blockly from "blockly/core";
 import { useProjectNameSync } from "./useProjectNameSync";
 
-const createSpriteObserver = (id: string, spriteMap: Y.Map<SpriteInstance>) => {
+const createSpriteObserver = (id: string, spriteMap: Y.Map<SpriteInstance>, doc: Y.Doc) => {
   const spriteObserver = (event: Y.YMapEvent<SpriteInstance>, transaction: Y.Transaction) => {
-    if (transaction.origin === ydoc.clientID) return;
+    if (transaction.origin === doc.clientID) return;
 
     const updates: Partial<SpriteInstance> = {};
 
@@ -56,7 +56,7 @@ const loadInitialWorkspaces = (
     spriteWorkspaces[spriteId] = new Blockly.Workspace();
 
     // Set up observer for sprite changes
-    spriteUnobservers[spriteId] = createSpriteObserver(spriteId, spriteMap);
+    spriteUnobservers[spriteId] = createSpriteObserver(spriteId, spriteMap, doc);
 
     // Create Phaser sprite if scene is available
     if (storeState.phaserScene instanceof EditorScene) {
@@ -265,11 +265,19 @@ export const useWorkspaceSync = (documentName: string) => {
   }, [workspaces, blocklyWorkspace, doc, isSynced, onSynced]);
 };
 
+export function getYDoc(): Y.Doc | undefined {
+  const projectId = useGeckodeStore.getState().projectId;
+  return documentRegistry.get(String(projectId ?? ''));
+}
+
 export const addSpriteSync = (instance: SpriteInstance) => {
-  const workspaces = ydoc.getArray<Y.Map<any>>('workspaces');
+  const doc = getYDoc();
+  if (!doc) return;
+
+  const workspaces = doc.getArray<Y.Map<any>>('workspaces');
   if (!workspaces) return;
 
-  ydoc.transact(() => {
+  doc.transact(() => {
     const wrapperMap = new Y.Map<any>();
     const instanceMap = new Y.Map<SpriteInstance>();
 
@@ -277,7 +285,7 @@ export const addSpriteSync = (instance: SpriteInstance) => {
       instanceMap.set(key, value as any);
     });
 
-    spriteUnobservers[instance.id] = createSpriteObserver(instance.id, instanceMap);
+    spriteUnobservers[instance.id] = createSpriteObserver(instance.id, instanceMap, doc);
 
     wrapperMap.set('sprite', instanceMap);
     wrapperMap.set('blocks', new Y.Map());
@@ -285,11 +293,14 @@ export const addSpriteSync = (instance: SpriteInstance) => {
     console.log('pushing new ymap to workspaces');
 
     workspaces.push([wrapperMap]);
-  }, ydoc.clientID);
+  }, doc.clientID);
 };
 
 export const updateSpriteSync = (id: string, instance: Partial<SpriteInstance>) => {
-  const workspaces = ydoc.getArray<Y.Map<any>>('workspaces');
+  const doc = getYDoc();
+  if (!doc) return;
+
+  const workspaces = doc.getArray<Y.Map<any>>('workspaces');
   if (!workspaces) return;
 
   const instanceMap = workspaces.get(
@@ -297,26 +308,29 @@ export const updateSpriteSync = (id: string, instance: Partial<SpriteInstance>) 
   )?.get('sprite');
   if (!instanceMap) return;
 
-  ydoc.transact(() => {
+  doc.transact(() => {
     Object.entries(instance).forEach(([key, value]) => {
       instanceMap.set(key, value as any);
     });
-  }, ydoc.clientID);
+  }, doc.clientID);
 };
 
 export const deleteSpriteSync = (id: string) => {
-  const workspaces = ydoc.getArray<Y.Map<any>>('workspaces');
+  const doc = getYDoc();
+  if (!doc) return;
+
+  const workspaces = doc.getArray<Y.Map<any>>('workspaces');
   if (!workspaces) return;
 
   spriteUnobservers[id]?.();
   delete spriteUnobservers[id];
 
-  ydoc.transact(() => {
+  doc.transact(() => {
     for (let i = 0; i < workspaces.length; i++) {
       if (workspaces.get(i).get('sprite').get('id') === id) {
         workspaces.delete(i);
         break;
       }
     }
-  }, ydoc.clientID);
+  }, doc.clientID);
 };

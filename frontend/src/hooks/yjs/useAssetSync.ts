@@ -2,9 +2,9 @@ import { useGeckodeStore } from "@/stores/geckodeStore";
 import { useYjs } from "./useYjs"
 import { useEffect } from "react";
 import * as Y from 'yjs';
-import { ydoc } from "@/lib/types/yjs/document";
 import { AssetType } from "@/stores/slices/types";
 import EditorScene from "@/phaser/scenes/EditorScene";
+import { getYDoc } from "./useWorkspaceSync";
 
 export const useAssetSync = (documentName: string, assetType: AssetType) => {
   const { doc, isSynced, onSynced } = useYjs(documentName);
@@ -68,19 +68,25 @@ export const useAssetSync = (documentName: string, assetType: AssetType) => {
 }
 
 export const setAssetSync = (name: string, base64Image: string, type: string) => {
-  const assetsMap = ydoc.getMap<string>(type);
+  const doc = getYDoc();
+  if (!doc) return;
+
+  const assetsMap = doc.getMap<string>(type);
   if (!assetsMap) return;
 
-  ydoc.transact(() => {
+  doc.transact(() => {
     assetsMap.set(name, base64Image);
-  }, ydoc.clientID);
+  }, doc.clientID);
 };
 
 export const deleteAssetSync = (name: string, type: string) => {
-  const assetsMap = ydoc.getMap<string>(type);
+  const doc = getYDoc();
+  if (!doc) return;
+
+  const assetsMap = doc.getMap<string>(type);
   if (!assetsMap) return;
 
-  ydoc.transact(() => {
+  doc.transact(() => {
     assetsMap.delete(name);
-  }, ydoc.clientID);
+  }, doc.clientID);
 };

@@ -7,12 +7,11 @@ import { useAwareness } from "./useAwareness";
 import { connectBlocks, moveBlockByCoordinates } from "@/lib/blockly/blocks";
 import { useGeckodeStore } from '@/stores/geckodeStore';
 import * as Y from 'yjs';
-import { ydoc } from "@/lib/types/yjs/document";
-
 const createBlockEventsListener = (
   workspace: Blockly.Workspace,
   blocksMap: Y.Map<Block>,
   stopBlockDragPolling: () => void,
+  doc: Y.Doc,
 ) => (event: Blockly.Events.Abstract) => {
   if (!workspace) return;
 
@@ -35,11 +34,11 @@ const createBlockEventsListener = (
     if (deleteEvent.wasShadow) return;
 
     console.log('remove blocks from yjs', deleteEvent.ids);
-    ydoc.transact(() => {
+    doc.transact(() => {
       (deleteEvent.ids ?? []).forEach((id) => {
         blocksMap.delete(id);
       });
-    }, ydoc.clientID);
+    }, doc.clientID);
 
     return;
   }
@@ -50,7 +49,7 @@ const createBlockEventsListener = (
     const prevData = blocksMap.get(moveEvent.blockId ?? '');
     if (!prevData || prevData?.isShadow) return;
 
-    ydoc.transact(() => {
+    doc.transact(() => {
       blocksMap.set(moveEvent.blockId!, {
         ...prevData,
         parentId: moveEvent.newParentId,
@@ -58,7 +57,7 @@ const createBlockEventsListener = (
         x: moveEvent.newCoordinate?.x,
         y: moveEvent.newCoordinate?.y,
       });
-    }, ydoc.clientID);
+    }, doc.clientID);
 
     return;
   }
@@ -72,11 +71,11 @@ const createBlockEventsListener = (
   );
   console.log('blocks created/updated', blocks);
 
-  ydoc.transact(() => {
+  doc.transact(() => {
     Object.keys(blocks).forEach((id) => {
       blocksMap.set(id, blocks[id]);
     });
-  }, ydoc.clientID);
+  }, doc.clientID);
 };
 
 export const blocksMapChangesHandler = (
@@ -353,6 +352,7 @@ export const useBlockSync = (documentName: string) => {
       blocklyWorkspace,
       currentBlocksMap,
       stopBlockDragPolling,
+      doc,
     ) : () => {};
 
     blocklyWorkspace.addChangeListener(blocklyEventsListener);
