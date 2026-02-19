@@ -174,7 +174,7 @@ const getToolbox = () => {
                 shadow: {
                   type: 'math_number',
                   fields: {
-                    NUM: 50,
+                    NUM: 2,
                   },
                 },
               },
@@ -182,7 +182,31 @@ const getToolbox = () => {
                 shadow: {
                   type: 'math_number',
                   fields: {
-                    NUM: 50,
+                    NUM: 2,
+                  },
+                },
+              },
+            },
+          },
+          {
+            kind: 'block',
+            type: 'variables_set',
+            fields: {
+              VAR: { name: 'clone' },
+            },
+            inputs: {
+              VALUE: {
+                block: {
+                  type: 'makeClone',
+                  inputs: {
+                    SPRITE: {
+                      shadow: {
+                        type: 'spriteGhost',
+                        fields: {
+                          SPRITE: spriteId,
+                        },
+                      },
+                    },
                   },
                 },
               },
