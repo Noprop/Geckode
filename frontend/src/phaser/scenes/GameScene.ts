@@ -43,6 +43,10 @@ export default class GameScene extends Phaser.Scene {
   /** World boundary rectangle for collision. */
   private worldBounds = { left: 0, top: 0, right: 0, bottom: 0 };
 
+  /** Clone registry: maps original sprite ID → array of clone IDs. */
+  private cloneRegistry = new Map<string, string[]>();
+  private cloneCounter = 0;
+
   // Tilemap properties
   private static readonly TILE_SIZE = 16;
   private tilemap: Phaser.Tilemaps.Tilemap | null = null;
@@ -72,6 +76,8 @@ export default class GameScene extends Phaser.Scene {
     this.tilemap = null;
     this.groundLayer = null;
     this.gameSprites.clear();
+    this.cloneRegistry.clear();
+    this.cloneCounter = 0;
 
     // Set world bounds for our custom collision system
     this.worldBounds = {
@@ -185,24 +191,27 @@ export default class GameScene extends Phaser.Scene {
       let vx: number = sprite.getData('vx') || 0;
       let vy: number = sprite.getData('vy') || 0;
 
-      // Apply gravity
-      const gravityY: number = sprite.getData('gravityY') || 0;
-      vy += gravityY;
+      // Only apply gravity/drag to sprites with physics enabled
+      if (sprite.getData('hasPhysics')) {
+        // Apply gravity
+        const gravityY: number = sprite.getData('gravityY') || 0;
+        vy += gravityY;
 
-      // Apply air drag — drag is a keep-ratio (0.99 = keep 99%)
-      const drag: number = sprite.getData('drag') || 0;
-      if (drag > 0 && drag < 1) {
-        vx *= drag;
-        vy *= drag;
-        // Zero out tiny residuals
-        if (Math.abs(vx) < 0.01) vx = 0;
-        if (Math.abs(vy) < 0.01) vy = 0;
-      } else if (drag === 0) {
-        // drag = 0 → lose all velocity immediately
-        vx = 0;
-        vy = 0;
+        // Apply air drag — drag is a keep-ratio (0.99 = keep 99%)
+        const drag: number = sprite.getData('drag') || 0;
+        if (drag > 0 && drag < 1) {
+          vx *= drag;
+          vy *= drag;
+          // Zero out tiny residuals
+          if (Math.abs(vx) < 0.01) vx = 0;
+          if (Math.abs(vy) < 0.01) vy = 0;
+        } else if (drag === 0) {
+          // drag = 0 → lose all velocity immediately
+          vx = 0;
+          vy = 0;
+        }
+        // drag >= 1 means no drag at all
       }
-      // drag >= 1 means no drag at all
 
       sprite.setData('vx', vx);
       sprite.setData('vy', vy);
@@ -249,6 +258,13 @@ export default class GameScene extends Phaser.Scene {
     if (delta === 0 || sprite.getData('isStatic')) return 0;
     visited.add(sprite);
 
+    // Non-solid sprites move freely — no collision checks
+    if (!sprite.getData('isSolid')) {
+      if (axis === 'x') sprite.x += delta;
+      else sprite.y += delta;
+      return delta;
+    }
+
     const hw = sprite.displayWidth / 2;
     const hh = sprite.displayHeight / 2;
 
@@ -259,6 +275,7 @@ export default class GameScene extends Phaser.Scene {
     // Check other game sprites
     for (const other of this.gameSprites.values()) {
       if (other === sprite || visited.has(other)) continue;
+      if (!other.getData('isSolid')) continue;
 
       const ohw = other.displayWidth / 2;
       const ohh = other.displayHeight / 2;
@@ -561,14 +578,18 @@ export default class GameScene extends Phaser.Scene {
     sprite.setData('vy', 0);
 
     if (physics?.enabled) {
+      sprite.setData('hasPhysics', true);
+      sprite.setData('isSolid', true);
       sprite.setData('isStatic', physics.anchored);
       sprite.setData('gravityY', physics.gravityY || 0);
       sprite.setData('bounce', physics.bounce || 0);
       sprite.setData('drag', physics.drag || 0);
       sprite.setData('collideWorldBounds', physics.collideWorldBounds ?? true);
     } else {
-      // No physics = static (doesn't move, but still blocks others)
-      sprite.setData('isStatic', true);
+      // No physics — can still move via velocity, but no collision
+      sprite.setData('hasPhysics', false);
+      sprite.setData('isSolid', false);
+      sprite.setData('isStatic', false);
       sprite.setData('gravityY', 0);
       sprite.setData('bounce', 0);
       sprite.setData('drag', 0);
@@ -591,6 +612,67 @@ export default class GameScene extends Phaser.Scene {
 
   public getSprite(id: string) {
     return this.gameSprites.get(id);
+  }
+
+  // ─── Cloning ────────────────────────────────────────────────────────
+
+  /** Clone a sprite, copying its texture, transform, and all data properties. */
+  public cloneSprite(originalId: string): string | null {
+    const original = this.gameSprites.get(originalId);
+    if (!original) return null;
+
+    const cloneId = `${originalId}_clone_${this.cloneCounter++}`;
+
+    const clone = this.add.sprite(original.x, original.y, original.texture.key);
+    clone.setName(cloneId);
+    clone.setDepth(original.depth);
+    clone.setScale(original.scaleX, original.scaleY);
+    clone.setVisible(original.visible);
+    clone.setAngle(original.angle);
+
+    // Copy ALL data properties dynamically
+    const allData = original.data.getAll();
+    for (const [key, value] of Object.entries(allData)) {
+      clone.setData(key, value);
+    }
+
+    // Override clone-specific fields
+    clone.setData('gameSpriteId', cloneId);
+    clone.setData('isClone', true);
+    clone.setData('cloneParentId', originalId);
+
+    this.gameLayer.add(clone);
+    this.gameSprites.set(cloneId, clone);
+
+    // Register in clone registry
+    if (!this.cloneRegistry.has(originalId)) {
+      this.cloneRegistry.set(originalId, []);
+    }
+    this.cloneRegistry.get(originalId)!.push(cloneId);
+
+    return cloneId;
+  }
+
+  /** Returns [spriteId, ...cloneIds] for iterating a sprite and its clones. */
+  public getSpriteAndClones(spriteId: string): string[] {
+    const clones = this.cloneRegistry.get(spriteId) ?? [];
+    return [spriteId, ...clones];
+  }
+
+  /** Delete a clone, removing it from the scene and registry. */
+  public deleteClone(cloneId: string): void {
+    const sprite = this.gameSprites.get(cloneId);
+    if (!sprite || !sprite.getData('isClone')) return;
+
+    const parentId = sprite.getData('cloneParentId') as string;
+    const clones = this.cloneRegistry.get(parentId);
+    if (clones) {
+      const idx = clones.indexOf(cloneId);
+      if (idx !== -1) clones.splice(idx, 1);
+    }
+
+    sprite.destroy();
+    this.gameSprites.delete(cloneId);
   }
 
   // ─── Script execution ────────────────────────────────────────────────
@@ -635,7 +717,7 @@ export default class GameScene extends Phaser.Scene {
 
   // ─── Input helpers ───────────────────────────────────────────────────
 
-  public getJustPressed(key: Phaser.Input.Keyboard.Key) {
+  private getJustPressed(key: Phaser.Input.Keyboard.Key) {
     if (this.justPressedKeys.includes(key)) {
       return true;
     }
@@ -646,7 +728,7 @@ export default class GameScene extends Phaser.Scene {
     return false;
   }
 
-  public getJustReleased(key: Phaser.Input.Keyboard.Key) {
+  private getJustReleased(key: Phaser.Input.Keyboard.Key) {
     if (this.justReleasedKeys.includes(key)) {
       return true;
     }
@@ -686,4 +768,24 @@ export default class GameScene extends Phaser.Scene {
       }
     }
   }
+
+  // Source - https://stackoverflow.com/q/35271222
+  // Posted by Matthew Spence, modified by community. See post 'Timeline' for change history
+  // Retrieved 2026-02-19, License - CC BY-SA 4.0
+
+  private getMovementAngle(spriteName: string){
+    const sprite = this.getSprite(spriteName);
+    if (sprite){
+        const x = this.getVelocityX(sprite)
+        const y = this.getVelocityY(sprite)
+        if (x==0 && y==0){
+          return 0
+        }
+        const angle = Math.atan2(y, x);
+        const degrees = 180 * angle / Math.PI;
+        return (90 + degrees) % 360;
+    }
+    return 0
+    }
+
 }
