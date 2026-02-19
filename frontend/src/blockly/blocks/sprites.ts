@@ -44,8 +44,7 @@ javascriptGenerator.forBlock['goToXY'] = function (block, generator) {
   const y = generator.valueToCode(block, 'y', Order.NONE) || 0;
   const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
   const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
-  const spriteName = spriteKey === currentSpriteId ? 'thisSprite' : spriteKey;
-
+  const spriteName = spriteKey === `"${currentSpriteId}"` ? 'thisSprite' : spriteKey;
 
   return `scene.getSprite(${spriteName}).x = ${x}\nscene.getSprite(${spriteName}).y = -${y}\n`;
 };
@@ -80,7 +79,7 @@ javascriptGenerator.forBlock['setProperty'] = function (block, generator) {
   const value = generator.valueToCode(block, 'VALUE', Order.NONE) || 0;
   const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
   const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
-  const spriteName = spriteKey === currentSpriteId ? 'thisSprite' : spriteKey;
+  const spriteName = spriteKey === `"${currentSpriteId}"` ? 'thisSprite' : spriteKey;
 
   const prop = block.getFieldValue('PROPERTY');
   const flippedValue = needsFlip(prop) ? `-(${value})` : `${value}`;
@@ -125,7 +124,7 @@ javascriptGenerator.forBlock['changeProperty'] = function (block, generator) {
   const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
 
   const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
-  const spriteName = spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"';
+  const spriteName = spriteKey === `"${currentSpriteId}"` ? 'thisSprite' : spriteKey;
   const prop = block.getFieldValue('PROPERTY');
   const flippedValue = needsFlip(prop) ? `-(${value})` : `${value}`;
   const spriteRef = `scene.getSprite(${spriteName})`;
@@ -164,16 +163,16 @@ javascriptGenerator.forBlock['getProperty'] = function (block, generator) {
   const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
 
   const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
-  const spriteName = spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"';
+  const spriteName = spriteKey === `"${currentSpriteId}"` ? 'thisSprite' : spriteKey;
   const prop = block.getFieldValue('PROPERTY');
   const flipSign = needsFlip(prop) ? '-' : '';
   const spriteRef = `scene.getSprite(${spriteName})`;
 
   // For velocity, read from custom physics data via scene
   if (prop === 'velocityX') {
-    return [`${flipSign}scene.getVelocityX(${spriteRef})`, Order.NONE];
+    return [`(${flipSign}scene.getVelocityX(${spriteRef}))`, Order.NONE];
   } else if (prop === 'velocityY') {
-    return [`${flipSign}scene.getVelocityY(${spriteRef})`, Order.NONE];
+    return [`(${flipSign}scene.getVelocityY(${spriteRef}))`, Order.NONE];
   }
   return [`(${flipSign}${spriteRef}.${prop})`, Order.NONE];
 };
@@ -206,7 +205,7 @@ javascriptGenerator.forBlock['setRotation'] = function (block, generator) {
 
   const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
   return `scene.getSprite(${
-    spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"'
+    spriteKey === `"${currentSpriteId}"` ? 'thisSprite' : spriteKey
   }).angle = (${value}) % 360\n`;
 
 };
@@ -250,7 +249,7 @@ javascriptGenerator.forBlock['pointAtXY'] = function (block, generator) {
   
 
   const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
-  const spriteName = `scene.getSprite(${spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"'})`;
+  const spriteName = `scene.getSprite(${spriteKey === currentSpriteId ? 'thisSprite' : spriteKey})`;
   return `${spriteName}.rotation = -Phaser.Math.Angle.Between(${spriteName}.x, -${spriteName}.y, ${x}, ${y}) + (Math.PI/2)\n`;
 
 };
@@ -274,7 +273,7 @@ const movementDirection = {
 javascriptGenerator.forBlock['movementDirection'] = function (block, generator) {
   const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
   const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
-  const spriteName = spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"';
+  const spriteName = spriteKey === `"${currentSpriteId}"` ? 'thisSprite' : spriteKey;
 
   return [`scene.getMovementAngle(${spriteName})`, Order.NONE];
 
@@ -317,8 +316,8 @@ javascriptGenerator.forBlock['isTouching'] = function (block, generator) {
     !isIsolated(block)
   ) {
     const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
-    const spriteName1 = `scene.getSprite(${spriteKey1 === currentSpriteId ? 'thisSprite' : '"' + spriteKey1 + '"'})`;
-    const spriteName2 = `scene.getSprite(${spriteKey2 === currentSpriteId ? 'thisSprite' : '"' + spriteKey2 + '"'})`;
+    const spriteName1 = `scene.getSprite(${spriteKey1 === currentSpriteId ? 'thisSprite' : spriteKey1})`;
+    const spriteName2 = `scene.getSprite(${spriteKey2 === currentSpriteId ? 'thisSprite' : spriteKey2})`;
 
     return [`scene.isTouching(${spriteName1}, ${spriteName2})`, Order.NONE];
   }
@@ -355,7 +354,7 @@ javascriptGenerator.forBlock['moveWithArrows'] = function (block, generator) {
   const VY = generator.valueToCode(block, 'VY', Order.NONE) || 0;
   const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
   const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
-  const spriteName = spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"';
+  const spriteName = spriteKey === `"${currentSpriteId}"` ? 'thisSprite' : spriteKey;
 
 
   return `scene.moveWithArrows(${spriteName},${VX},${VY});\n`;
@@ -380,7 +379,7 @@ const makeClone = {
 javascriptGenerator.forBlock['makeClone'] = function (block, generator) {
   const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
   const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
-  const spriteName = spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"';
+  const spriteName = spriteKey === `"${currentSpriteId}"` ? 'thisSprite' : spriteKey;
 
   return [`scene.cloneSprite(${spriteName})`, Order.NONE];
 };
