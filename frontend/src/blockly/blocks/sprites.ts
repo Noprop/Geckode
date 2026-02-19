@@ -11,6 +11,7 @@ const options = [
   ['y', 'y'],
   ['velocityX', 'velocityX'],
   ['velocityY', 'velocityY'],
+  ['angle', 'angle'],
 ]
 
 const setProperty = {
