@@ -21,12 +21,17 @@ export const CLIENT_COLOURS: ColorSelection[] = [
   ["cyan", "500"],
 ] as const;
 
+export const getClientColour = (i: number) => {
+  const index = i % CLIENT_COLOURS.length;
+  return CLIENT_COLOURS[index > -1 ? index : 0];
+};
+
 export const getClientColourHex = (i: number) => {
-  const [colour, shade] = CLIENT_COLOURS[i % CLIENT_COLOURS.length];
+  const [colour, shade] = getClientColour(i);
   return colors[colour][shade];
 };
 
 export const getClientColourTailwind = (i: number) => {
-  const [colour, shade] = CLIENT_COLOURS[i % CLIENT_COLOURS.length];
+  const [colour, shade] = getClientColour(i);
   return `${colour}-${shade}`;
 }
