@@ -1,4 +1,5 @@
 import { useGeckodeStore } from '@/stores/geckodeStore';
+import { Dir } from 'fs';
 
 const getToolbox = () => {
   const spriteId = useGeckodeStore.getState().getCurrentSpriteId() ?? '';
@@ -214,6 +215,33 @@ const getToolbox = () => {
                   fields: {
                     NUM: 2,
                   },
+                },
+              },
+            },
+          },
+          {
+            kind: 'block',
+            type: 'setVelocityInDir',
+            inputs: {
+              SPRITE: {
+                shadow: {
+                  type: 'spriteGhost',
+                  fields: {
+                    SPRITE: spriteId,
+                  },
+                },
+              },
+              VALUE: {
+                shadow: {
+                  type: 'math_number',
+                  fields: {
+                    NUM: 2,
+                  },
+                },
+              },
+              DIRECTION: {
+                shadow: {
+                  type: 'angleGhost',
                 },
               },
             },

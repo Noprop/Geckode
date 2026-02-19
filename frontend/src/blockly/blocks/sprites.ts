@@ -360,7 +360,44 @@ javascriptGenerator.forBlock['makeClone'] = function (block, generator) {
   return [`scene.cloneSprite(${spriteName})`, Order.NONE];
 };
 
+const setVelocityInDir = {
+  type: 'setVelocityInDir',
+  tooltip: 'Set the property of a sprite in a direction',
+  helpUrl: '',
+  message0: 'set velocity of %1 to %2 in direction %3',
+  args0: [
+    {
+      type: 'input_value',
+      name: 'SPRITE',
+    },
+    {
+      type: 'input_value',
+      name: 'VALUE',
+    },
+    {
+      type: 'input_value',
+      name: 'DIRECTION',
+    },
+  ],
+  previousStatement: null,
+  nextStatement: null,
+  inputsInline: true,
+  colour: '%{BKY_SPRITES_HUE}',
+};
 
+javascriptGenerator.forBlock['setVelocityInDir'] = function (block, generator) {
+  const value = generator.valueToCode(block, 'VALUE', Order.NONE) || 0;
+  const direction = generator.valueToCode(block, 'DIRECTION', Order.NONE) || 0;
+  const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
+  const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
+  const spriteName = spriteKey === currentSpriteId ? 'thisSprite' : spriteKey;
+
+  // For velocity, use scene methods to set custom physics velocity
+
+  return `scene.setVelocityX(scene.getSprite(${spriteName}), ${value} * Math.sin(${direction} * Math.PI / 180))\n
+  scene.setVelocityY(scene.getSprite(${spriteName}), -${value} * Math.cos(${direction} * Math.PI / 180))\n`;
+
+};
 
 export const spriteBlocks = [
   goToXY,
@@ -372,4 +409,5 @@ export const spriteBlocks = [
   isTouching,
   moveWithArrows,
   makeClone,
+  setVelocityInDir,
 ];
