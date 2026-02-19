@@ -171,9 +171,9 @@ javascriptGenerator.forBlock['getProperty'] = function (block, generator) {
 
   // For velocity, read from custom physics data via scene
   if (prop === 'velocityX') {
-    return [`${flipSign}scene.getVelocityX(${spriteRef})`, Order.NONE];
+    return [`(${flipSign}scene.getVelocityX(${spriteRef}))`, Order.NONE];
   } else if (prop === 'velocityY') {
-    return [`${flipSign}scene.getVelocityY(${spriteRef})`, Order.NONE];
+    return [`(${flipSign}scene.getVelocityY(${spriteRef}))`, Order.NONE];
   }
   return [`(${flipSign}${spriteRef}.${prop})`, Order.NONE];
 };
