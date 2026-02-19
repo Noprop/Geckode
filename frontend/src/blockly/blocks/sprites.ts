@@ -11,13 +11,50 @@ const options = [
   ['y', 'y'],
   ['velocityX', 'velocityX'],
   ['velocityY', 'velocityY'],
+  ['angle', 'angle'],
 ]
+
+const goToXY = {
+  type: 'goToXY',
+  tooltip: 'Move a sprite to a position',
+  helpUrl: '',
+  message0: 'set %1 position to x:%2 y:%3',
+  args0: [
+    {
+      type: 'input_value',
+      name: 'SPRITE',
+    },
+    {
+      type: 'input_value',
+      name: 'x',
+    },
+    {
+      type: 'input_value',
+      name: 'y',
+    },
+  ],
+  previousStatement: null,
+  nextStatement: null,
+  inputsInline: true,
+  colour: '%{BKY_SPRITES_HUE}',
+};
+
+javascriptGenerator.forBlock['goToXY'] = function (block, generator) {
+  const x = generator.valueToCode(block, 'x', Order.NONE) || 0;
+  const y = generator.valueToCode(block, 'y', Order.NONE) || 0;
+  const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
+  const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
+  const spriteName = spriteKey === currentSpriteId ? 'thisSprite' : spriteKey;
+
+
+  return `scene.getSprite(${spriteName}).x = ${x}\nscene.getSprite(${spriteName}).y = -${y}\n`;
+};
 
 const setProperty = {
   type: 'setProperty',
   tooltip: 'Set the property of a sprite',
   helpUrl: '',
-  message0: 'set %1 of %2 to %3',
+  message0: 'set %2 %1 to %3',
   args0: [
     {
       type: 'field_dropdown',
@@ -61,7 +98,7 @@ const changeProperty = {
   type: 'changeProperty',
   tooltip: 'Change the property of a sprite by a certain amount',
   helpUrl: '',
-  message0: 'change %1 of %2 by %3',
+  message0: 'change %2 %1 by %3',
   args0: [
     {
       type: 'field_dropdown',
@@ -170,7 +207,7 @@ javascriptGenerator.forBlock['setRotation'] = function (block, generator) {
   const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
   return `scene.getSprite(${
     spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"'
-  }).angle = (${value}-90) % 360\n`;
+  }).angle = (${value}) % 360\n`;
 
 };
 
@@ -214,7 +251,32 @@ javascriptGenerator.forBlock['pointAtXY'] = function (block, generator) {
 
   const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
   const spriteName = `scene.getSprite(${spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"'})`;
-  return `${spriteName}.rotation = Phaser.Math.Angle.Between(${spriteName}.x, ${spriteName}.y, ${x}, ${y})\n`;
+  return `${spriteName}.rotation = -Phaser.Math.Angle.Between(${spriteName}.x, -${spriteName}.y, ${x}, ${y}) + (Math.PI/2)\n`;
+
+};
+
+const movementDirection = {
+  type: "movementDirection",
+  tooltip: "Get the movement direction of a sprite",
+  helpUrl: "",
+  message0: "movement direction of %1",
+  args0: [
+    {
+      type: 'input_value',
+      name: 'SPRITE',
+    },
+  ],
+  output: null,
+  colour: "%{BKY_SPRITES_HUE}",
+  
+}
+
+javascriptGenerator.forBlock['movementDirection'] = function (block, generator) {
+  const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
+  const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
+  const spriteName = spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"';
+
+  return [`scene.getMovementAngle(${spriteName})`, Order.NONE];
 
 };
 
@@ -323,15 +385,55 @@ javascriptGenerator.forBlock['makeClone'] = function (block, generator) {
   return [`scene.cloneSprite(${spriteName})`, Order.NONE];
 };
 
+const setVelocityInDir = {
+  type: 'setVelocityInDir',
+  tooltip: 'Set the property of a sprite in a direction',
+  helpUrl: '',
+  message0: 'set velocity of %1 to %2 in direction %3',
+  args0: [
+    {
+      type: 'input_value',
+      name: 'SPRITE',
+    },
+    {
+      type: 'input_value',
+      name: 'VALUE',
+    },
+    {
+      type: 'input_value',
+      name: 'DIRECTION',
+    },
+  ],
+  previousStatement: null,
+  nextStatement: null,
+  inputsInline: true,
+  colour: '%{BKY_SPRITES_HUE}',
+};
 
+javascriptGenerator.forBlock['setVelocityInDir'] = function (block, generator) {
+  const value = generator.valueToCode(block, 'VALUE', Order.NONE) || 0;
+  const direction = generator.valueToCode(block, 'DIRECTION', Order.NONE) || 0;
+  const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
+  const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
+  const spriteName = spriteKey === currentSpriteId ? 'thisSprite' : spriteKey;
+
+  // For velocity, use scene methods to set custom physics velocity
+
+  return `scene.setVelocityX(scene.getSprite(${spriteName}), ${value} * Math.sin(${direction} * Math.PI / 180))\n
+  scene.setVelocityY(scene.getSprite(${spriteName}), -${value} * Math.cos(${direction} * Math.PI / 180))\n`;
+
+};
 
 export const spriteBlocks = [
+  goToXY,
   setProperty,
   changeProperty,
   getProperty,
   setRotation,
   pointAtXY,
+  movementDirection,
   isTouching,
   moveWithArrows,
   makeClone,
+  setVelocityInDir,
 ];

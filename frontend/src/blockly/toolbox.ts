@@ -1,4 +1,5 @@
 import { useGeckodeStore } from '@/stores/geckodeStore';
+import { Dir } from 'fs';
 
 const getToolbox = () => {
   const spriteId = useGeckodeStore.getState().getCurrentSpriteId() ?? '';
@@ -29,6 +30,36 @@ const getToolbox = () => {
         kind: 'category',
         name: 'Sprites',
         contents: [
+          {
+            kind: 'block',
+            type: 'goToXY',
+            inputs: {
+              SPRITE: {
+                shadow: {
+                  type: 'spriteGhost',
+                  fields: {
+                    SPRITE: spriteId,
+                  },
+                },
+              },
+              x: {
+                shadow: {
+                  type: 'math_number',
+                  fields: {
+                    NUM: 0,
+                  },
+                },
+              },
+              y: {
+                shadow: {
+                  type: 'math_number',
+                  fields: {
+                    NUM: 0,
+                  },
+                },
+              },
+            },
+          },
           {
             kind: 'block',
             type: 'setProperty',
@@ -138,6 +169,20 @@ const getToolbox = () => {
           },
           {
             kind: 'block',
+            type: 'movementDirection',
+            inputs: {
+              SPRITE: {
+                shadow: {
+                  type: 'spriteGhost',
+                  fields: {
+                    SPRITE: spriteId,
+                  },
+                },
+              },
+            },
+          },
+          {
+            kind: 'block',
             type: 'isTouching',
             inputs: {
               SPRITE1: {
@@ -184,6 +229,33 @@ const getToolbox = () => {
                   fields: {
                     NUM: 2,
                   },
+                },
+              },
+            },
+          },
+          {
+            kind: 'block',
+            type: 'setVelocityInDir',
+            inputs: {
+              SPRITE: {
+                shadow: {
+                  type: 'spriteGhost',
+                  fields: {
+                    SPRITE: spriteId,
+                  },
+                },
+              },
+              VALUE: {
+                shadow: {
+                  type: 'math_number',
+                  fields: {
+                    NUM: 2,
+                  },
+                },
+              },
+              DIRECTION: {
+                shadow: {
+                  type: 'angleGhost',
                 },
               },
             },
