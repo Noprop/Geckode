@@ -43,7 +43,7 @@ javascriptGenerator.forBlock['setProperty'] = function (block, generator) {
   const value = generator.valueToCode(block, 'VALUE', Order.NONE) || 0;
   const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
   const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
-  const spriteName = spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"';
+  const spriteName = spriteKey === currentSpriteId ? 'thisSprite' : spriteKey;
 
   const prop = block.getFieldValue('PROPERTY');
   const flippedValue = needsFlip(prop) ? `-(${value})` : `${value}`;
@@ -297,9 +297,32 @@ javascriptGenerator.forBlock['moveWithArrows'] = function (block, generator) {
 
 
   return `scene.moveWithArrows(${spriteName},${VX},${VY});\n`;
-  
 
 };
+
+const makeClone = {
+  type: 'makeClone',
+  tooltip: 'Create a clone of a sprite',
+  helpUrl: '',
+  message0: 'make clone of %1',
+  args0: [
+    {
+      type: 'input_value',
+      name: 'SPRITE',
+    },
+  ],
+  output: null,
+  colour: '%{BKY_SPRITES_HUE}',
+};
+
+javascriptGenerator.forBlock['makeClone'] = function (block, generator) {
+  const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
+  const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
+  const spriteName = spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"';
+
+  return [`scene.cloneSprite(${spriteName})`, Order.NONE];
+};
+
 
 
 export const spriteBlocks = [
@@ -310,4 +333,5 @@ export const spriteBlocks = [
   pointAtXY,
   isTouching,
   moveWithArrows,
+  makeClone,
 ];

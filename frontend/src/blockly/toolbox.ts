@@ -188,6 +188,30 @@ const getToolbox = () => {
               },
             },
           },
+          {
+            kind: 'block',
+            type: 'variables_set',
+            fields: {
+              VAR: { name: 'clone' },
+            },
+            inputs: {
+              VALUE: {
+                block: {
+                  type: 'makeClone',
+                  inputs: {
+                    SPRITE: {
+                      shadow: {
+                        type: 'spriteGhost',
+                        fields: {
+                          SPRITE: spriteId,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
 
 
 
