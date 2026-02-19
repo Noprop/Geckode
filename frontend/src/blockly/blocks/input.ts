@@ -4,7 +4,7 @@ const keyPressed = {
   type: "keyPressed",
   tooltip: "return \"true\" if a specific key is pressed ",
   helpUrl: "",
-  message0: "key %1 pressed %2",
+  message0: "key %1 %2",
   args0: [
     {
       type: "field_dropdown",
@@ -33,8 +33,22 @@ const keyPressed = {
       ]
     },
     {
-      type: "input_dummy",
-      name: "DUMMY"
+      type: "field_dropdown",
+      name: "PRESSED_TYPE",
+      options: [
+        [
+          "just pressed",
+          "just_pressed"
+        ],
+        [
+          "pressed",
+          "pressed"
+        ],
+        [
+          "released",
+          "released"
+        ],
+      ]
     }
   ],
   output: "Boolean",
@@ -42,7 +56,15 @@ const keyPressed = {
 }
 
 javascriptGenerator.forBlock['keyPressed'] = function (block, generator) {
-  const code = `scene.cursors.${block.getFieldValue('KEY')}.isDown`
+  if (block.getFieldValue('PRESSED_TYPE') == "pressed") {
+    const code = `scene.cursors.${block.getFieldValue('KEY')}.isDown`
+    return [code, Order.NONE];
+  } else if (block.getFieldValue('PRESSED_TYPE') == "just_pressed") {
+    const code = `scene.getJustPressed(scene.cursors.${block.getFieldValue('KEY')})`
+    return [code, Order.NONE];
+  }
+  
+  const code = `scene.getJustReleased(scene.cursors.${block.getFieldValue('KEY')})`
   return [code, Order.NONE];
 };
 

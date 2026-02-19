@@ -38,9 +38,6 @@ const ProjectView = () => {
     setProjectId,
     resetAssetsOnly,
     addAssetId,
-    assetIds,
-    updateAssetId,
-    removeAssetId,
   } = useGeckodeStore();
   const prjId = Number(useParams().projectID);
   const showSnackbar = useSnackbar();

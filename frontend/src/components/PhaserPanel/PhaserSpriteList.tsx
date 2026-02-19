@@ -6,11 +6,13 @@ import { Cross2Icon } from '@radix-ui/react-icons';
 const PhaserSpriteList = () => {
   const sprites = useGeckodeStore((state) => state.spriteInstances);
   const setIsSpriteModalOpen = useGeckodeStore((state) => state.setIsSpriteModalOpen);
+  const setSpriteModalContext = useGeckodeStore((state) => state.setSpriteModalContext);
   const selectedSpriteId = useGeckodeStore((state) => state.selectedSpriteId);
   const setSelectedSpriteId = useGeckodeStore((state) => state.setSelectedSpriteId);
   const removeSpriteInstance = useGeckodeStore((state) => state.removeSpriteInstance);
   const textures = useGeckodeStore((state) => state.textures);
   const libaryTextures = useGeckodeStore((state) => state.libaryTextures);
+  const isEditorScene = useGeckodeStore((state) => state.isEditorScene);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -28,9 +30,16 @@ const PhaserSpriteList = () => {
         <Button
           className="btn-confirm px-3 py-1 text-[11px]"
           onClick={() => {
-            useGeckodeStore.setState({ editingSource: 'new', isSpriteModalOpen: true });
+            useGeckodeStore.setState({
+              editingSource: 'new',
+              editingAssetName: null,
+              editingAssetType: 'textures',
+            });
+            setSpriteModalContext('phaser_add');
+            setIsSpriteModalOpen(true);
           }}
           title="Add new sprite"
+          disabled={!isEditorScene}
         >
           + Add
         </Button>
@@ -58,8 +67,9 @@ const PhaserSpriteList = () => {
                         editingSource: 'asset',
                         editingAssetName: sprite.textureName,
                         editingAssetType: 'textures',
-                        isSpriteModalOpen: true,
                       });
+                      setSpriteModalContext('phaser_edit', sprite.textureName);
+                      setIsSpriteModalOpen(true);
                     }}
                     onMouseEnter={() => setHoveredId(sprite.id)}
                     onMouseLeave={() => setHoveredId(null)}

@@ -15,6 +15,7 @@ export type {
   SpriteAddPayload,
   Tilemap,
   TilemapTool,
+  Tileset,
 } from "./slices/types";
 
 export const useGeckodeStore = create<GeckodeStore>()(
@@ -34,6 +35,7 @@ export const useGeckodeStore = create<GeckodeStore>()(
         libaryTextures: state.libaryTextures,
         tiles: state.tiles,
         tilesets: state.tilesets,
+        tileCollidables: state.tileCollidables,
         animations: state.animations,
         backgrounds: state.backgrounds,
         libaryTiles: state.libaryTiles,

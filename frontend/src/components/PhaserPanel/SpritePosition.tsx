@@ -27,7 +27,7 @@ interface NumericFieldProps {
   onBlur: () => void;
 }
 
-function NumericField({
+export function NumericField({
   label,
   icon,
   value,

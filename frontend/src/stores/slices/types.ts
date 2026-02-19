@@ -30,23 +30,32 @@ export interface Tilemap {
   width: number;
   height: number;
   data: (string | null)[][];
+  tilesetId: string;
   base64: string;
 }
 
-export type TilemapTool = 'place' | 'eraser' | 'bucket' | 'line' | 'rectangle' | 'oval' | 'tile-picker';
+export interface Tileset {
+  id: string;
+  name: string;
+  data: (string | null)[][];  // 5xN grid of tile keys (fixed width of 5)
+  base64Preview: string;
+}
+
+export type TilemapTool = 'place' | 'eraser' | 'bucket' | 'line' | 'rectangle' | 'oval' | 'tile-picker' | 'collidable';
 
 // ── Sprite Slice ──
 
 export type AssetType = 'textures' | 'tiles' | 'tilesets' | 'animations' | 'backgrounds';
 export type LibraryAssetType = 'libaryTextures' | 'libaryTiles' | 'libaryTilesets' | 'libaryAnimations' | 'libaryBackgrounds';
 export type EditingSource = 'new' | 'asset' | 'library';
+export type SpriteModalMode = 'phaser_add' | 'phaser_edit' | 'asset_manager';
 
 export interface SpriteState {
   spriteInstances: SpriteInstance[];
 
   textures: Record<string, string>;
   tiles: Record<string, string>;
-  tilesets: Record<string, string>;
+  tilesets: Tileset[];
   animations: Record<string, string>;
   backgrounds: Record<string, string>;
   assetIds: Record<string, string | number>; // stores ids with names as keys. names are unique per project 
@@ -56,6 +65,8 @@ export interface SpriteState {
   libaryTilesets: Record<string, string>;
   libaryAnimations: Record<string, string>;
   libaryBackgrounds: Record<string, string>;
+
+  tileCollidables: Record<string, boolean>;
 
   tilemaps: Record<string, Tilemap>;
   scenes: Scene[];
@@ -67,12 +78,16 @@ export interface SpriteState {
   editingSource: EditingSource | null;
   editingAssetName: string | null;
   editingAssetType: AssetType | null;
+  spriteModalMode: SpriteModalMode | null;
+  spriteModalSaveTargetTextureName: string | null;
 }
 
 export interface SpriteActions {
   setSelectedSpriteId: (spriteId: string | null) => void;
   setIsSpriteModalOpen: (isOpen: boolean) => void;
   setEditingAsset: (name: string | null, type: AssetType, source: EditingSource) => void;
+  setSpriteModalContext: (mode: SpriteModalMode, saveTargetTextureName?: string | null) => void;
+  clearSpriteModalContext: () => void;
 
   /* Sprites */
   setSpriteInstances: (instances: SpriteInstance[]) => void;
@@ -85,6 +100,14 @@ export interface SpriteActions {
   addAsset: (name: string, base64Image: string, type: AssetType) => void;
   updateAsset: (name: string, base64Image: string, type: AssetType) => void;
   removeAsset: (name: string, type: AssetType) => void;
+
+  /* Tilesets */
+  addTileset: (tileset: Tileset) => void;
+  updateTileset: (id: string, tileset: Tileset) => void;
+  removeTileset: (id: string) => void;
+
+  /* Tile collidables */
+  setTileCollidable: (tileKey: string, collidable: boolean) => void;
 
   // for storing IDs of assets on the backend
   addAssetId: (name: string, id: string|number) => void;
@@ -100,6 +123,7 @@ export interface SpriteActions {
   setTilemapData: (tilemapId: string, data: (string | null)[][]) => void;
   resizeTilemap: (tilemapId: string, newWidth: number, newHeight: number) => void;
   setActiveTilemapId: (id: string | null) => void;
+  setTilemapTilesetId: (tilemapId: string, tilesetId: string) => void;
   clearTilemap: (tilemapId: string) => void;
   setScenes: (scenes: Scene[]) => void;
 

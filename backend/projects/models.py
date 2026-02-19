@@ -128,7 +128,7 @@ class ProjectInvitation(Model):
 
 class Asset(Model):
     ASSET_TYPES = (
-        ('assets', 'used for assets'),
+        ('textures', 'used for textures'),
         ('tiles', 'used for tiles'),
         #('backgrounds', 'used for backgrounds'),
     )
