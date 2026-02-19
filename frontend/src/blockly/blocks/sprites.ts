@@ -1,11 +1,17 @@
 import { javascriptGenerator, Order } from "blockly/javascript";
-import { getSpriteDropdownOptions } from '@/blockly/spriteRegistry';
 import { useGeckodeStore } from '@/stores/geckodeStore';
 import { isIsolated } from '@/blockly/index';
 
 const needsFlip = (prop: string) => {
-  return prop === 'y' || prop === 'velocity.y';
+  return prop === 'y' || prop === 'velocityY';
 }
+
+const options = [
+  ['x', 'x'],
+  ['y', 'y'],
+  ['velocityX', 'velocityX'],
+  ['velocityY', 'velocityY'],
+]
 
 const setProperty = {
   type: 'setProperty',
@@ -16,12 +22,7 @@ const setProperty = {
     {
       type: 'field_dropdown',
       name: 'PROPERTY',
-      options: [
-        ['x', 'x'],
-        ['y', 'y'],
-        ['velocityX', 'velocity.x'],
-        ['velocityY', 'velocity.y'],
-      ],
+      options: options,
     },
     {
       type: 'input_value',
@@ -45,7 +46,15 @@ javascriptGenerator.forBlock['setProperty'] = function (block, generator) {
   const spriteName = spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"';
 
   const prop = block.getFieldValue('PROPERTY');
-  return `scene.getSprite(${spriteName}).body.${prop} = ${needsFlip(prop) ? -value : value}\n`;
+  const flippedValue = needsFlip(prop) ? `-(${value})` : `${value}`;
+
+  // For velocity, use scene methods to set custom physics velocity
+  if (prop === 'velocityX') {
+    return `scene.setVelocityX(scene.getSprite(${spriteName}), ${flippedValue})\n`;
+  } else if (prop === 'velocityY') {
+    return `scene.setVelocityY(scene.getSprite(${spriteName}), ${flippedValue})\n`;
+  }
+  return `scene.getSprite(${spriteName}).${prop} = ${flippedValue}\n`;
 };
 
 const changeProperty = {
@@ -57,12 +66,7 @@ const changeProperty = {
     {
       type: 'field_dropdown',
       name: 'PROPERTY',
-      options: [
-        ['x', 'x'],
-        ['y', 'y'],
-        ['velocityX', 'velocity.x'],
-        ['velocityY', 'velocity.y'],
-      ],
+      options: options,
     },
     {
       type: 'input_value',
@@ -86,7 +90,16 @@ javascriptGenerator.forBlock['changeProperty'] = function (block, generator) {
   const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
   const spriteName = spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"';
   const prop = block.getFieldValue('PROPERTY');
-  return `scene.getSprite(${spriteName}).body.${prop} += ${needsFlip(prop) ? -value : value}\n`;
+  const flippedValue = needsFlip(prop) ? `-(${value})` : `${value}`;
+  const spriteRef = `scene.getSprite(${spriteName})`;
+
+  // For velocity, read current + add delta via scene methods
+  if (prop === 'velocityX') {
+    return `scene.setVelocityX(${spriteRef}, scene.getVelocityX(${spriteRef}) + ${flippedValue})\n`;
+  } else if (prop === 'velocityY') {
+    return `scene.setVelocityY(${spriteRef}, scene.getVelocityY(${spriteRef}) + ${flippedValue})\n`;
+  }
+  return `${spriteRef}.${prop} += ${flippedValue}\n`;
 
 };
 
@@ -103,12 +116,7 @@ const getProperty = {
     {
       type: 'field_dropdown',
       name: 'PROPERTY',
-      options: [
-        ['x', 'x'],
-        ['y', 'y'],
-        ['velocityX', 'velocity.x'],
-        ['velocityY', 'velocity.y'],
-      ],
+      options: options,
     },
   ],
   output: null,
@@ -121,7 +129,16 @@ javascriptGenerator.forBlock['getProperty'] = function (block, generator) {
   const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
   const spriteName = spriteKey === currentSpriteId ? 'thisSprite' : '"' + spriteKey + '"';
   const prop = block.getFieldValue('PROPERTY');
-  return [`${needsFlip(prop) ? '-' : ''}scene.getSprite(${spriteName}).body.${prop}`, Order.NONE];
+  const flipSign = needsFlip(prop) ? '-' : '';
+  const spriteRef = `scene.getSprite(${spriteName})`;
+
+  // For velocity, read from custom physics data via scene
+  if (prop === 'velocityX') {
+    return [`${flipSign}scene.getVelocityX(${spriteRef})`, Order.NONE];
+  } else if (prop === 'velocityY') {
+    return [`${flipSign}scene.getVelocityY(${spriteRef})`, Order.NONE];
+  }
+  return [`${flipSign}${spriteRef}.${prop}`, Order.NONE];
 };
 
 const setRotation = {
@@ -241,7 +258,7 @@ javascriptGenerator.forBlock['isTouching'] = function (block, generator) {
     const spriteName1 = `scene.getSprite(${spriteKey1 === currentSpriteId ? 'thisSprite' : '"' + spriteKey1 + '"'})`;
     const spriteName2 = `scene.getSprite(${spriteKey2 === currentSpriteId ? 'thisSprite' : '"' + spriteKey2 + '"'})`;
 
-    return [`scene.physics.world.overlap(${spriteName1}, ${spriteName2})`, Order.NONE];
+    return [`scene.isTouching(${spriteName1}, ${spriteName2})`, Order.NONE];
   }
   return [`false`, Order.NONE];
 };

@@ -17,13 +17,6 @@ const config = {
   pixelArt: true,
   backgroundColor: '#707090',
   scene: [EditorScene, GameScene],
-  physics: {
-    default: 'arcade',
-    arcade: {
-      gravity: { x: 0, y: 0 },
-      debug: false,
-    },
-  },
 } satisfies Phaser.Types.Core.GameConfig;
 
 const StartGame = (parent: string | HTMLElement): Phaser.Game => {

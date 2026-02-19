@@ -17,7 +17,7 @@ const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor as
 
 export default class GameScene extends Phaser.Scene {
   public key: string;
-  public player!: Phaser.Physics.Arcade.Sprite;
+  public player!: Phaser.GameObjects.Sprite;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd!: {
     W: Phaser.Input.Keyboard.Key;
@@ -30,15 +30,18 @@ export default class GameScene extends Phaser.Scene {
   private justReleasedKeys: Array<Phaser.Input.Keyboard.Key> = [];
   private started: boolean = false;
 
-  private gameSprites = new Map<string, Phaser.Physics.Arcade.Sprite>();
+  private gameSprites = new Map<string, Phaser.GameObjects.Sprite>();
   private static readonly GAME_SPRITE_BASE_DEPTH = Number.MAX_SAFE_INTEGER - 100;
   private gameLayer!: Phaser.GameObjects.Layer;
   private activeDrag: {
-    sprite: Phaser.Physics.Arcade.Sprite;
+    sprite: Phaser.GameObjects.Sprite;
     start: { x: number; y: number };
     lastWorld: { x: number; y: number };
   } | null = null;
   private gridGraphics: Phaser.GameObjects.Graphics | null = null;
+
+  /** World boundary rectangle for collision. */
+  private worldBounds = { left: 0, top: 0, right: 0, bottom: 0 };
 
   // Tilemap properties
   private static readonly TILE_SIZE = 16;
@@ -69,7 +72,14 @@ export default class GameScene extends Phaser.Scene {
     this.tilemap = null;
     this.groundLayer = null;
     this.gameSprites.clear();
-    this.physics.world.setBounds(0, -this.scale.height, this.scale.width, this.scale.height);
+
+    // Set world bounds for our custom collision system
+    this.worldBounds = {
+      left: 0,
+      top: -this.scale.height,
+      right: this.scale.width,
+      bottom: 0,
+    };
 
     // Store textures for later access
     this.texturesData = data.textures || {};
@@ -96,9 +106,6 @@ export default class GameScene extends Phaser.Scene {
       console.log('[GameScene] creating sprite: ', instance.id, instance.textureName, instance.x, instance.y);
       this.addGameSprite(instance);
     }
-
-    // Set up collisions between sprites and tilemap
-    // this.setupTilemapCollisions();
 
     // Execute the Blockly-generated code
     if (data.code) {
@@ -156,7 +163,288 @@ export default class GameScene extends Phaser.Scene {
     }
 
     this.updateHook();
+
+    // Run our custom physics step after user code
+    this.physicsStep();
   }
+
+  // ─── Custom Physics ──────────────────────────────────────────────────
+
+  /**
+   * Run one physics step: apply gravity & drag, then resolve movement
+   * with AABB chain-collision on each axis.
+   *
+   * Drag is applied BEFORE movement so that drag=0 zeroes velocity
+   * immediately — even user-set velocity — preventing any movement.
+   */
+  private physicsStep() {
+    // 1. Apply gravity and drag BEFORE movement
+    for (const sprite of this.gameSprites.values()) {
+      if (sprite.getData('isStatic')) continue;
+
+      let vx: number = sprite.getData('vx') || 0;
+      let vy: number = sprite.getData('vy') || 0;
+
+      // Apply gravity
+      const gravityY: number = sprite.getData('gravityY') || 0;
+      vy += gravityY;
+
+      // Apply air drag — drag is a keep-ratio (0.99 = keep 99%)
+      const drag: number = sprite.getData('drag') || 0;
+      if (drag > 0 && drag < 1) {
+        vx *= drag;
+        vy *= drag;
+        // Zero out tiny residuals
+        if (Math.abs(vx) < 0.01) vx = 0;
+        if (Math.abs(vy) < 0.01) vy = 0;
+      } else if (drag === 0) {
+        // drag = 0 → lose all velocity immediately
+        vx = 0;
+        vy = 0;
+      }
+      // drag >= 1 means no drag at all
+
+      sprite.setData('vx', vx);
+      sprite.setData('vy', vy);
+    }
+
+    // 2. Resolve movement.
+    // processedX/Y tracks sprites already moved (prevents double-movement
+    // from imparted velocity). Each resolveAxisMovement call gets a FRESH
+    // chain set so pushed sprites are still visible as blockers to others.
+    const processedX = new Set<Phaser.GameObjects.Sprite>();
+    for (const sprite of this.gameSprites.values()) {
+      if (sprite.getData('isStatic') || processedX.has(sprite)) continue;
+      const vx: number = sprite.getData('vx') || 0;
+      if (vx !== 0) {
+        const chain = new Set<Phaser.GameObjects.Sprite>();
+        this.resolveAxisMovement(sprite, vx, 'x', chain);
+        for (const s of chain) processedX.add(s);
+      }
+    }
+
+    const processedY = new Set<Phaser.GameObjects.Sprite>();
+    for (const sprite of this.gameSprites.values()) {
+      if (sprite.getData('isStatic') || processedY.has(sprite)) continue;
+      const vy: number = sprite.getData('vy') || 0;
+      if (vy !== 0) {
+        const chain = new Set<Phaser.GameObjects.Sprite>();
+        this.resolveAxisMovement(sprite, vy, 'y', chain);
+        for (const s of chain) processedY.add(s);
+      }
+    }
+  }
+
+  /**
+   * Try to move `sprite` by `delta` pixels along `axis` ('x' or 'y').
+   * Handles chain-pushing of dynamic sprites and bouncing off static ones.
+   * Returns the actual distance moved.
+   */
+  private resolveAxisMovement(
+    sprite: Phaser.GameObjects.Sprite,
+    delta: number,
+    axis: 'x' | 'y',
+    visited: Set<Phaser.GameObjects.Sprite> = new Set(),
+  ): number {
+    if (delta === 0 || sprite.getData('isStatic')) return 0;
+    visited.add(sprite);
+
+    const hw = sprite.displayWidth / 2;
+    const hh = sprite.displayHeight / 2;
+
+    // Find ALL closest blockers in the movement direction
+    let closestGap = Math.abs(delta);
+    let blockers: (Phaser.GameObjects.Sprite | 'worldBound')[] = [];
+
+    // Check other game sprites
+    for (const other of this.gameSprites.values()) {
+      if (other === sprite || visited.has(other)) continue;
+
+      const ohw = other.displayWidth / 2;
+      const ohh = other.displayHeight / 2;
+
+      if (axis === 'x') {
+        // Must have Y overlap
+        if (sprite.y + hh <= other.y - ohh || sprite.y - hh >= other.y + ohh) continue;
+
+        let gap: number;
+        if (delta > 0) {
+          // Moving right: gap = other's left edge - sprite's right edge
+          gap = (other.x - ohw) - (sprite.x + hw);
+        } else {
+          // Moving left: gap = sprite's left edge - other's right edge
+          gap = (sprite.x - hw) - (other.x + ohw);
+        }
+
+        if (gap < -0.01) continue; // Already overlapping or behind us — skip
+        if (gap < 0) gap = 0;      // Touching — treat as 0 gap
+
+        if (gap < closestGap - 0.001) {
+          closestGap = gap;
+          blockers = [other];
+        } else if (Math.abs(gap - closestGap) < 0.001) {
+          blockers.push(other);
+        }
+      } else {
+        // Must have X overlap
+        if (sprite.x + hw <= other.x - ohw || sprite.x - hw >= other.x + ohw) continue;
+
+        let gap: number;
+        if (delta > 0) {
+          // Moving down (positive Y): gap = other's top - sprite's bottom
+          gap = (other.y - ohh) - (sprite.y + hh);
+        } else {
+          // Moving up (negative Y): gap = sprite's top - other's bottom
+          gap = (sprite.y - hh) - (other.y + ohh);
+        }
+
+        if (gap < -0.01) continue;
+        if (gap < 0) gap = 0;
+
+        if (gap < closestGap - 0.001) {
+          closestGap = gap;
+          blockers = [other];
+        } else if (Math.abs(gap - closestGap) < 0.001) {
+          blockers.push(other);
+        }
+      }
+    }
+
+    // Check world bounds (if collideWorldBounds is on for this sprite)
+    if (sprite.getData('collideWorldBounds')) {
+      let wbGap = Infinity;
+      if (axis === 'x') {
+        wbGap = delta > 0
+          ? this.worldBounds.right - (sprite.x + hw)
+          : (sprite.x - hw) - this.worldBounds.left;
+      } else {
+        wbGap = delta > 0
+          ? this.worldBounds.bottom - (sprite.y + hh)
+          : (sprite.y - hh) - this.worldBounds.top;
+      }
+      if (wbGap < 0) wbGap = 0;
+
+      if (wbGap < closestGap - 0.001) {
+        closestGap = wbGap;
+        blockers = ['worldBound'];
+      } else if (Math.abs(wbGap - closestGap) < 0.001) {
+        blockers.push('worldBound');
+      }
+    }
+
+    // If path is clear, move the full distance
+    if (blockers.length === 0 || closestGap >= Math.abs(delta) - 0.001) {
+      if (axis === 'x') sprite.x += delta;
+      else sprite.y += delta;
+      return delta;
+    }
+
+    // We hit something — move to contact point
+    const sign = delta > 0 ? 1 : -1;
+    const contactDelta = sign * closestGap;
+    const remainDelta = delta - contactDelta;
+
+    // Check if any blocker is static or world bound — blocks the whole push
+    const hasStaticBlocker = blockers.some(b =>
+      b === 'worldBound' || (b as Phaser.GameObjects.Sprite).getData('isStatic')
+    );
+
+    if (hasStaticBlocker) {
+      // Can't push — stop at contact, apply bounce
+      if (axis === 'x') {
+        sprite.x += contactDelta;
+        const bounce: number = sprite.getData('bounce') || 0;
+        sprite.setData('vx', -(sprite.getData('vx') || 0) * bounce);
+      } else {
+        sprite.y += contactDelta;
+        const bounce: number = sprite.getData('bounce') || 0;
+        sprite.setData('vy', -(sprite.getData('vy') || 0) * bounce);
+      }
+      return contactDelta;
+    }
+
+    // All blockers are dynamic — try to push each one
+    // The minimum push distance determines how far we can actually move
+    let minPushed = Math.abs(remainDelta);
+    for (const blocker of blockers) {
+      if (blocker === 'worldBound') { minPushed = 0; break; }
+      const blockerSprite = blocker as Phaser.GameObjects.Sprite;
+      const pushed = this.resolveAxisMovement(blockerSprite, remainDelta, axis, visited);
+      minPushed = Math.min(minPushed, Math.abs(pushed));
+
+      // Impart pusher's velocity onto pushed object, scaled by its drag.
+      // drag=1 → full transfer, drag=0 → no transfer (stops when released).
+      // The shared visited set prevents the blocker from moving again this
+      // frame, so the imparted velocity only takes effect next frame.
+      const blockerDrag: number = blockerSprite.getData('drag') || 0;
+      const pusherVel: number = sprite.getData(axis === 'x' ? 'vx' : 'vy') || 0;
+      if (axis === 'x') blockerSprite.setData('vx', pusherVel * blockerDrag);
+      else blockerSprite.setData('vy', pusherVel * blockerDrag);
+    }
+
+    const actualPush = sign * minPushed;
+    const totalMoved = contactDelta + actualPush;
+
+    if (axis === 'x') {
+      sprite.x += totalMoved;
+      if (Math.abs(actualPush) < Math.abs(remainDelta) - 0.001) {
+        const bounce: number = sprite.getData('bounce') || 0;
+        sprite.setData('vx', -(sprite.getData('vx') || 0) * bounce);
+      }
+    } else {
+      sprite.y += totalMoved;
+      if (Math.abs(actualPush) < Math.abs(remainDelta) - 0.001) {
+        const bounce: number = sprite.getData('bounce') || 0;
+        sprite.setData('vy', -(sprite.getData('vy') || 0) * bounce);
+      }
+    }
+
+    return totalMoved;
+  }
+
+  // ─── Sprite Velocity Accessors (called by generated Blockly code) ────
+
+  /** Set the X velocity of a sprite. */
+  public setVelocityX(sprite: Phaser.GameObjects.Sprite, vx: number) {
+    sprite.setData('vx', vx);
+  }
+
+  /** Set the Y velocity of a sprite. */
+  public setVelocityY(sprite: Phaser.GameObjects.Sprite, vy: number) {
+    sprite.setData('vy', vy);
+  }
+
+  /** Get the X velocity of a sprite. */
+  public getVelocityX(sprite: Phaser.GameObjects.Sprite): number {
+    return sprite.getData('vx') || 0;
+  }
+
+  /** Get the Y velocity of a sprite. */
+  public getVelocityY(sprite: Phaser.GameObjects.Sprite): number {
+    return sprite.getData('vy') || 0;
+  }
+
+  /** Check AABB overlap between two sprites (touching/overlapping). */
+  public isTouching(
+    sprite1: Phaser.GameObjects.Sprite,
+    sprite2: Phaser.GameObjects.Sprite,
+  ): boolean {
+    const hw1 = sprite1.displayWidth / 2;
+    const hh1 = sprite1.displayHeight / 2;
+    const hw2 = sprite2.displayWidth / 2;
+    const hh2 = sprite2.displayHeight / 2;
+
+    // Use a 1px tolerance so "touching" (adjacent) counts
+    const pad = 1;
+    return (
+      sprite1.x - hw1 < sprite2.x + hw2 + pad &&
+      sprite1.x + hw1 > sprite2.x - hw2 - pad &&
+      sprite1.y - hh1 < sprite2.y + hh2 + pad &&
+      sprite1.y + hh1 > sprite2.y - hh2 - pad
+    );
+  }
+
+  // ─── Tilemap helpers (unchanged) ─────────────────────────────────────
 
   private generateTilesetTexture(): void {
     const tileSize = GameScene.TILE_SIZE;
@@ -209,10 +497,6 @@ export default class GameScene extends Phaser.Scene {
     const mapWidth = Math.ceil(width / tileSize);
     const mapHeight = Math.ceil(height / tileSize);
 
-    // console.log('tileSize: ', tileSize);
-    // console.log('width: ', width, 'height: ', height);
-    // console.log('mapWidth: ', mapWidth, 'mapHeight: ', mapHeight);
-
     // Create tilemap data - simple ground at bottom 2 rows
     const mapData: number[][] = [];
     for (let y = 0; y < mapHeight; y++) {
@@ -253,80 +537,47 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
-  private setupTilemapCollisions(): void {
-    if (!this.groundLayer) return;
-
-    // Add collisions between all game sprites and the ground layer
-    for (const sprite of this.gameSprites.values()) {
-      // this.physics.add.collider(sprite, this.groundLayer);
-      // Enable gravity for sprites so they fall onto the ground
-      // sprite.setGravityY(3000);
-      // sprite.setCollideWorldBounds(true);
-    }
-  }
+  // ─── Scene management ────────────────────────────────────────────────
 
   public changeScene() {
     this.scene.start(EDITOR_SCENE_KEY as unknown as string);
   }
 
-  /**
-   * TODO: Implement pause handler
-   */
-  // private pauseHandler = (isPaused: boolean) => {
-  //   console.log('[MainMenu] editor-pause-changed received:', isPaused);
-  //   if (isPaused) {
-  //     this.showGrid();
-  //   } else {
-  //     this.hideGrid();
-  //   }
-  // };
+  // ─── Sprite management ───────────────────────────────────────────────
 
   public addGameSprite(instance: SpriteInstance) {
     const { id, x, y, textureName, scaleX, scaleY, visible, direction, physics } = instance;
     console.log('[GameScene] addGameSprite called', textureName, x, y, id, physics);
-  
-    // Use the proper texture key with 'sprite-' prefix
-    const textureKey = 'sprite-' + textureName;
-    const sprite = this.physics.add.sprite(x, this.toWorldY(y), textureKey);
-    const w = sprite.displayWidth;
-    const h = sprite.displayHeight;
-    sprite.body.setOffset(w * 0.5, h * 0.5);
+    const sprite = this.add.sprite(x, this.toWorldY(y), 'sprite-' + textureName);
     sprite.setName(id);
     sprite.setData('gameSpriteId', id);
     sprite.setDepth(GameScene.GAME_SPRITE_BASE_DEPTH);
     sprite.setScale(scaleX, scaleY);
     sprite.setVisible(visible);
     sprite.setAngle(direction);
-    sprite.setCollideWorldBounds(false);
+
+    // Initialize custom physics state
+    sprite.setData('vx', 0);
+    sprite.setData('vy', 0);
+
+    if (physics?.enabled) {
+      sprite.setData('isStatic', physics.anchored);
+      sprite.setData('gravityY', physics.gravityY || 0);
+      sprite.setData('bounce', physics.bounce || 0);
+      sprite.setData('drag', physics.drag || 0);
+      sprite.setData('collideWorldBounds', physics.collideWorldBounds ?? true);
+    } else {
+      // No physics = static (doesn't move, but still blocks others)
+      sprite.setData('isStatic', true);
+      sprite.setData('gravityY', 0);
+      sprite.setData('bounce', 0);
+      sprite.setData('drag', 0);
+      sprite.setData('collideWorldBounds', false);
+    }
 
     this.gameLayer.add(sprite);
     this.gameLayer.bringToTop(sprite);
     this.gameSprites.set(id, sprite);
-
-    // Apply physics settings if enabled
-    if (physics?.enabled) {
-      sprite.setDrag(physics.drag);
-      sprite.setDamping(true);
-      sprite.setGravityY(physics.gravityY);
-      sprite.setBounce(physics.bounce);
-      sprite.setCollideWorldBounds(physics.collideWorldBounds);
-      sprite.body.setImmovable(physics.anchored);
-
-      // Add collision with ground if tilemap exists
-      if (this.groundLayer) {
-        this.physics.add.collider(sprite, this.groundLayer);
-      }
-
-      // Add colliders with other sprites
-      for (const otherSprite of this.gameSprites.values()) {
-        if (otherSprite.getData('gameSpriteId') !== id) {
-          this.physics.add.collider(sprite, otherSprite);
-        }
-      }
-    } else {
-      // Disable physics body movement when physics is not enabled
-      sprite.body?.setAllowGravity(false);
-    }
 
     return sprite;
   }
@@ -341,6 +592,8 @@ export default class GameScene extends Phaser.Scene {
   public getSprite(id: string) {
     return this.gameSprites.get(id);
   }
+
+  // ─── Script execution ────────────────────────────────────────────────
 
   /**
    * Execute arbitrary JS in a constrained context.
@@ -358,9 +611,6 @@ export default class GameScene extends Phaser.Scene {
     // It returns an awaited result of the user's script.
     const argNames = Object.keys(ctx); // ['api','scene','phaser','console']
     const argValues = Object.values(ctx);
-
-    // console.log('[GameScene] runScript called', code);
-    // console.log('[GameScene] runScript called', argNames, argValues);
 
     // Wrap user code in an async IIFE so `await` works at top level.
     // Skip scene restart when paused (editor mode) to preserve grid
@@ -382,6 +632,8 @@ export default class GameScene extends Phaser.Scene {
       throw new Error(`runScript failed: ${message}`);
     }
   }
+
+  // ─── Input helpers ───────────────────────────────────────────────────
 
   public getJustPressed(key: Phaser.Input.Keyboard.Key) {
     if (this.justPressedKeys.includes(key)) {
@@ -405,33 +657,33 @@ export default class GameScene extends Phaser.Scene {
     return false;
   }
 
-  private moveWithArrows(spriteName: string, vx: number, vy: number){
+  // ─── Arrow-key movement (called from generated code) ─────────────────
+
+  private moveWithArrows(spriteName: string, vx: number, vy: number) {
     const sprite = this.getSprite(spriteName);
     if (sprite) {
       if (vx != 0) {
         if (this.cursors.left.isDown && this.cursors.right.isDown) {
-          sprite.setVelocityX(0);
+          sprite.setData('vx', 0);
         } else if (this.cursors.left.isDown) {
-          sprite.setVelocityX(-vx);
+          sprite.setData('vx', -vx);
         } else if (this.cursors.right.isDown) {
-          sprite.setVelocityX(vx);
+          sprite.setData('vx', vx);
         } else if (this.getJustReleased(this.cursors.left) || this.getJustReleased(this.cursors.right)) {
-          sprite.setVelocityX(0);
+          sprite.setData('vx', 0);
         }
       }
       if (vy != 0) {
         if (this.cursors.up.isDown && this.cursors.down.isDown) {
-          sprite.setVelocityY(0);
+          sprite.setData('vy', 0);
         } else if (this.cursors.up.isDown) {
-          sprite.setVelocityY(-vy);
+          sprite.setData('vy', -vy);
         } else if (this.cursors.down.isDown) {
-          sprite.setVelocityY(vy);
+          sprite.setData('vy', vy);
         } else if (this.getJustReleased(this.cursors.up) || this.getJustReleased(this.cursors.down)) {
-          sprite.setVelocityY(0);
+          sprite.setData('vy', 0);
         }
       }
     }
   }
-
-
 }
