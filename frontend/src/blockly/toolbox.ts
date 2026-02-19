@@ -174,7 +174,7 @@ const getToolbox = () => {
                 shadow: {
                   type: 'math_number',
                   fields: {
-                    NUM: 50,
+                    NUM: 2,
                   },
                 },
               },
@@ -182,7 +182,7 @@ const getToolbox = () => {
                 shadow: {
                   type: 'math_number',
                   fields: {
-                    NUM: 50,
+                    NUM: 2,
                   },
                 },
               },
