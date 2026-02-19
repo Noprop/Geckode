@@ -103,6 +103,7 @@ export const useWorkspaceSync = (documentName: string) => {
   useVariableSync(documentName);
   useProjectNameSync(documentName);
   useAssetSync(documentName, "textures");
+  useAssetSync(documentName, "tiles");
 
   // Wait for sync before setting up observers and loading initial data
   useEffect(() => {
