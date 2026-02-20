@@ -20,6 +20,16 @@ export const variableCategoryCallback = (workspace: Blockly.WorkspaceSvg): Block
       fields: {
         VAR: lastVar,
       },
+      inputs: {
+        VALUE: {
+          shadow: {
+            type: 'math_number',
+            fields: {
+              NUM: 0,
+            },
+          },
+        },
+      },
     });
 
     blocks.push({

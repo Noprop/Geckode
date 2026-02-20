@@ -187,7 +187,8 @@ export const useWorkspaceSync = (documentName: string) => {
                     ([id, _]) => !deletedSpriteIds.includes(id),
                   )
                 ),
-              }
+              },
+              spriteIdsUpdated: [...new Set([...s.spriteIdsUpdated, ...addedSpriteIds])],
             }));
 
             storeState = useGeckodeStore.getState();
