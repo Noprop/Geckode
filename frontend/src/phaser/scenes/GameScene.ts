@@ -119,7 +119,7 @@ export default class GameScene extends Phaser.Scene {
   startHook() {}
   updateHook() {}
 
-  update() {
+  update(_time: number, delta: number) {
     this.justPressedKeys = [];
     this.justReleasedKeys = [];
 
@@ -130,8 +130,8 @@ export default class GameScene extends Phaser.Scene {
 
     this.updateHook();
 
-    // Run our custom physics step after user code
-    this.physicsStep();
+    // Run our custom physics step after user code (dt in seconds)
+    this.physicsStep(delta / 1000);
   }
 
   // ─── Custom Physics ──────────────────────────────────────────────────
@@ -140,10 +140,13 @@ export default class GameScene extends Phaser.Scene {
    * Run one physics step: apply gravity & drag, then resolve movement
    * with AABB chain-collision on each axis.
    *
+   * Velocities are stored in **pixels per second**.
+   * `dt` is the frame duration in seconds (delta / 1000).
+   *
    * Drag is applied BEFORE movement so that drag=0 zeroes velocity
    * immediately — even user-set velocity — preventing any movement.
    */
-  private physicsStep() {
+  private physicsStep(dt: number) {
     // 1. Apply gravity and drag BEFORE movement
     for (const sprite of this.gameSprites.values()) {
       if (sprite.getData('isStatic')) continue;
@@ -153,15 +156,17 @@ export default class GameScene extends Phaser.Scene {
 
       // Only apply gravity/drag to sprites with physics enabled
       if (sprite.getData('hasPhysics')) {
-        // Apply gravity
+        // Apply gravity (gravityY is in px/s²)
         const gravityY: number = sprite.getData('gravityY') || 0;
-        vy += gravityY;
+        vy += gravityY * dt;
 
-        // Apply air drag — drag is a keep-ratio (0.99 = keep 99%)
+        // Apply air drag — drag is a keep-ratio (0.99 = keep 99% per frame at 60fps).
+        // Scale exponentially so behaviour is identical regardless of frame rate.
         const drag: number = sprite.getData('drag') || 0;
         if (drag > 0 && drag < 1) {
-          vx *= drag;
-          vy *= drag;
+          const dragFactor = Math.pow(drag, dt);
+          vx *= dragFactor;
+          vy *= dragFactor;
           // Zero out tiny residuals
           if (Math.abs(vx) < 0.01) vx = 0;
           if (Math.abs(vy) < 0.01) vy = 0;
@@ -177,7 +182,7 @@ export default class GameScene extends Phaser.Scene {
       sprite.setData('vy', vy);
     }
 
-    // 2. Resolve movement.
+    // 2. Resolve movement — convert velocity (px/s) to displacement (px) for this frame.
     // processedX/Y tracks sprites already moved (prevents double-movement
     // from imparted velocity). Each resolveAxisMovement call gets a FRESH
     // chain set so pushed sprites are still visible as blockers to others.
@@ -187,7 +192,7 @@ export default class GameScene extends Phaser.Scene {
       const vx: number = sprite.getData('vx') || 0;
       if (vx !== 0) {
         const chain = new Set<Phaser.GameObjects.Sprite>();
-        this.resolveAxisMovement(sprite, vx, 'x', chain);
+        this.resolveAxisMovement(sprite, vx * dt, 'x', chain);
         for (const s of chain) processedX.add(s);
       }
     }
@@ -198,7 +203,7 @@ export default class GameScene extends Phaser.Scene {
       const vy: number = sprite.getData('vy') || 0;
       if (vy !== 0) {
         const chain = new Set<Phaser.GameObjects.Sprite>();
-        this.resolveAxisMovement(sprite, vy, 'y', chain);
+        this.resolveAxisMovement(sprite, vy * dt, 'y', chain);
         for (const s of chain) processedY.add(s);
       }
     }
