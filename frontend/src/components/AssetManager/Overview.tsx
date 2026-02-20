@@ -8,6 +8,7 @@ import AssetList from './AssetList';
 import TextureDetailPanel from './DetailPanel';
 import TileEditorModal from '../TileModal/TileEditorModal';
 import TilesetEditorModal from '../TileModal/TilesetEditorModal';
+import { useSnackbar } from '@/hooks/useSnackbar';
 
 export type SelectedAsset = { name: string; type: AssetType } | null;
 
@@ -35,6 +36,8 @@ const AssetWorkspace = () => {
   const setEditingAsset = useGeckodeStore((s) => s.setEditingAsset);
   const setIsSpriteModalOpen = useGeckodeStore((s) => s.setIsSpriteModalOpen);
   const setSpriteModalContext = useGeckodeStore((s) => s.setSpriteModalContext);
+
+  const showSnackbar = useSnackbar();
 
   const selectedTileset = selectedAsset?.type === 'tilesets'
     ? tilesets.find((ts) => ts.id === selectedAsset.name) ?? null
@@ -93,6 +96,13 @@ const AssetWorkspace = () => {
     if (selectedAsset.type === 'tilesets') {
       removeTileset(selectedAsset.name);
     } else {
+      if (
+        selectedAsset.type === 'textures' &&
+        useGeckodeStore.getState().spriteInstances.some((sprite) => sprite.textureName === selectedAsset.name)
+      ) {
+        showSnackbar("A texture may only be deleted if no sprites are using it.", "error");
+        return;
+      }
       removeAsset(selectedAsset.name, selectedAsset.type);
     }
     setSelectedAsset(null);

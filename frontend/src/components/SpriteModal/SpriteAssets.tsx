@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { TrashIcon } from '@radix-ui/react-icons';
 import { useGeckodeStore } from '@/stores/geckodeStore';
+import { useSnackbar } from '@/hooks/useSnackbar';
 
 type TabId = 'library' | 'editor' | 'assets';
 
@@ -15,6 +16,7 @@ const SpriteAssets = ({ setActiveTab }: SpriteAssetsProps) => {
   const textures = useGeckodeStore((s) => s.textures);
   const setEditingAsset = useGeckodeStore((s) => s.setEditingAsset);
   const removeAsset = useGeckodeStore((s) => s.removeAsset);
+  const showSnackbar = useSnackbar();
 
   const filteredEntries = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -31,6 +33,10 @@ const SpriteAssets = ({ setActiveTab }: SpriteAssetsProps) => {
   const handleDelete = useCallback(
     (e: React.MouseEvent, textureName: string) => {
       e.stopPropagation();
+      if (useGeckodeStore.getState().spriteInstances.some((sprite) => sprite.textureName === textureName)) {
+        showSnackbar("A texture may only be deleted if no sprites are using it.", "error");
+        return;
+      }
       removeAsset(textureName, 'textures');
     },
     [removeAsset],
