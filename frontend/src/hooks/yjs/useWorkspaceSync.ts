@@ -42,11 +42,10 @@ const loadInitialWorkspaces = (
   const newSpriteInstances: SpriteInstance[] = [];
   const spriteWorkspaces: Record<string, Blockly.Workspace> = {};
 
-  // Load all existing workspaces from the document
+  // First pass: load all existing workspaces from the document
   for (let i = 0; i < workspaces.length; i++) {
     const workspace = workspaces.get(i);
     const spriteMap = workspace.get('sprite');
-    
     if (!(spriteMap instanceof Y.Map)) continue;
 
     const spriteInstance = spriteMap.toJSON() as SpriteInstance;
@@ -63,6 +62,27 @@ const loadInitialWorkspaces = (
       console.log('creating phaser sprite from initial load');
       storeState.phaserScene.createSprite(spriteInstance);
     }
+  }
+
+  // Add sprite instances to the store now so that the dropdowns are populated
+  if (newSpriteInstances.length > 0) {
+    console.log('loading initial sprite instances', newSpriteInstances);
+    useGeckodeStore.setState({
+      spriteInstances: newSpriteInstances,
+      spriteWorkspaces: {
+        ...storeState.spriteWorkspaces,
+        ...spriteWorkspaces,
+      },
+    });
+  }
+
+  // Second pass: load blocks for each sprite now that the dropdowns are populated
+  for (let i = 0; i < workspaces.length; i++) {
+    const workspace = workspaces.get(i);
+    const spriteMap = workspace.get('sprite');
+    if (!(spriteMap instanceof Y.Map)) continue;
+
+    const spriteId = spriteMap.get('id') as string;
 
     // Load blocks for this sprite
     const blocksMap = workspace.get('blocks');
@@ -80,17 +100,6 @@ const loadInitialWorkspaces = (
         ])),
       );
     }
-  }
-
-  if (newSpriteInstances.length > 0) {
-    console.log('loading initial sprite instances', newSpriteInstances);
-    useGeckodeStore.setState({
-      spriteInstances: newSpriteInstances,
-      spriteWorkspaces: {
-        ...storeState.spriteWorkspaces,
-        ...spriteWorkspaces,
-      },
-    });
   }
 };
 

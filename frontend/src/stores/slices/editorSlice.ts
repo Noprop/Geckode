@@ -148,12 +148,13 @@ export const createEditorSlice: StateCreator<
   },
 
   toggleEditor: () => {
-    const { isEditorScene, phaserScene, spriteInstances, spriteOutputs } =
-      get();
+    const { isEditorScene, phaserScene, spriteInstances, generateCode } = get();
     if (!phaserScene)
       throw new Error("toggleEditor() - Phaser scene is not set.");
 
     if (isEditorScene) {
+      generateCode();
+      const { spriteOutputs } = get();
       const outputs = spriteInstances.map((s) => spriteOutputs[s.id]);
       const allUpdateHandlers = outputs
         .flatMap((o) => o?.updateHandlers)

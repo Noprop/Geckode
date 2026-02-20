@@ -259,7 +259,7 @@ export const blocksMapChangesHandler = (
 
       const getShadowState = (id: string): Blockly.serialization.blocks.State => {
         const data = blocksMap.get(id);
-        if (!data) throw Error;
+        if (!data) throw Error(`Shadow block parent not found for id: ${id}`);
 
         const shadowState: Blockly.serialization.blocks.State = {
           id: id,
@@ -273,7 +273,7 @@ export const blocksMapChangesHandler = (
             shadow: getShadowState(childId),
           };
           const childData = blocksMap.get(childId);
-          if (!childData) throw Error;
+          if (!childData) throw Error(`Shadow block child not found for id: ${childId}`);
 
           if (childData?.inputName) {
             shadowState.inputs = {
