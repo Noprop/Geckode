@@ -72,6 +72,7 @@ const SpriteEditor = () => {
   const clearSpriteModalContext = useGeckodeStore((s) => s.clearSpriteModalContext);
   const addAsset = useGeckodeStore((s) => s.addAsset);
   const updateAsset = useGeckodeStore((s) => s.updateAsset);
+  const assetIds = useGeckodeStore((s) => s.assetIds);
   const addAssetId = useGeckodeStore((s) => s.addAssetId);
   const updateAssetId = useGeckodeStore((s) => s.updateAssetId);
   const libaryTextures = useGeckodeStore((s) => s.libaryTextures);
@@ -81,7 +82,6 @@ const SpriteEditor = () => {
   const spriteModalMode = useGeckodeStore((s) => s.spriteModalMode);
   const spriteModalSaveTargetTextureName = useGeckodeStore((s) => s.spriteModalSaveTargetTextureName);
   const phaserScene = useGeckodeStore((s) => s.phaserScene);
-  const assetIds = useGeckodeStore((s) => s.assetIds);
 
   // --- Custom hooks ---
   const {
@@ -471,10 +471,7 @@ const SpriteEditor = () => {
       snapToGrid: true,
     };
 
-    // add texture to state, and phaser
     phaserScene.createSprite(newSprite);
-
-    // add sprite to state, save workspace for current sprite, and switch to new sprite
     useGeckodeStore.setState({
       spriteInstances: [...currentInstances, newSprite],
       selectedSpriteId: newSprite.id,
@@ -513,7 +510,7 @@ const SpriteEditor = () => {
 
   const updateTextureInBackend = async (textureName: string, props: Partial<Asset>): Promise<boolean> => {
     var success: boolean = true; // if connected to backend, becomes false if request fails
-    if (projectId) {
+    if (projectId && textureName in assetIds) {
       const id = assetIds[textureName];
       await projectsApi(projectId)
         .assetsApi(id)

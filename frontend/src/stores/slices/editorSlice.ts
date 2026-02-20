@@ -184,10 +184,10 @@ export const createEditorSlice: StateCreator<
         .flatMap((o) => o?.startHandlers)
         .filter(Boolean);
       const updateBody = allUpdateHandlers
-        .map((h) => `  ${h?.functionName}('${h?.spriteId}');`)
+        .map((h) => `  for (const __id of scene.getSpriteAndClones('${h?.spriteId}')) ${h?.functionName}(__id);`)
         .join("\n");
       const startBody = allStartHandlers
-        .map((h) => `  ${h?.functionName}('${h?.spriteId}');`)
+        .map((h) => `  for (const __id of scene.getSpriteAndClones('${h?.spriteId}')) ${h?.functionName}(__id);`)
         .join("\n");
 
       const updateCode = `

@@ -101,14 +101,6 @@ export interface SpriteActions {
   updateAsset: (name: string, base64Image: string, type: AssetType) => void;
   removeAsset: (name: string, type: AssetType) => void;
 
-  /* Tilesets */
-  addTileset: (tileset: Tileset) => void;
-  updateTileset: (id: string, tileset: Tileset) => void;
-  removeTileset: (id: string) => void;
-
-  /* Tile collidables */
-  setTileCollidable: (tileKey: string, collidable: boolean) => void;
-
   // for storing IDs of assets on the backend
   addAssetId: (name: string, id: string|number) => void;
   updateAssetId: (oldName: string,  newName: string) => void;
@@ -117,6 +109,14 @@ export interface SpriteActions {
   addLibraryAsset: (name: string, base64Image: string, type: LibraryAssetType) => void;
   updateLibraryAsset: (name: string, base64Image: string, type: LibraryAssetType) => void;
   removeLibraryAsset: (name: string, type: LibraryAssetType) => void;
+
+  /* Tilesets */
+  addTileset: (tileset: Tileset) => void;
+  updateTileset: (id: string, tileset: Tileset) => void;
+  removeTileset: (id: string) => void;
+
+  /* Tile collidables */
+  setTileCollidable: (tileKey: string, collidable: boolean) => void;
 
   /* Tilemaps */
   updateTilemapCell: (tilemapId: string, row: number, col: number, tileKey: string | null) => void;

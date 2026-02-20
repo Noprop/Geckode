@@ -341,13 +341,6 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
     set({ tileCollidables: { ...get().tileCollidables, [tileKey]: collidable } });
   },
 
-  addLibraryAsset: (name: string, base64Image: string, type) => { set({ [type]: { ...get()[type], [name]: base64Image } }); },
-  updateLibraryAsset: (name: string, base64Image: string, type) => { set({ [type]: { ...get()[type], [name]: base64Image } }); },
-  removeLibraryAsset: (name: string, type) => {
-    const { [name]: _, ...rest } = get()[type];
-    set({ [type]: rest });
-  },
-
   /* Asset Ids */
   addAssetId: (name: string, id: string|number) => {
     set({["assetIds"]: { ...get()["assetIds"], [name] : id }})
@@ -359,6 +352,13 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
   removeAssetId: (name: string) => {
     const { [name]: _, ...rest } = get()["assetIds"];
     set({ ["assetIds"]: rest });
+  },
+
+  addLibraryAsset: (name: string, base64Image: string, type) => { set({ [type]: { ...get()[type], [name]: base64Image } }); },
+  updateLibraryAsset: (name: string, base64Image: string, type) => { set({ [type]: { ...get()[type], [name]: base64Image } }); },
+  removeLibraryAsset: (name: string, type) => {
+    const { [name]: _, ...rest } = get()[type];
+    set({ [type]: rest });
   },
 
   /* ── Tilemaps ── */
