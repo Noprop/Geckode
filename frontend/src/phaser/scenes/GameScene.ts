@@ -69,7 +69,7 @@ export default class GameScene extends Phaser.Scene {
     this.generateTilesetTexture();
   }
 
-  async create(data: { spriteInstances: SpriteInstance[]; textures: Record<string, string>; code: string }) {
+  create(data: { spriteInstances: SpriteInstance[]; textures: Record<string, string>; code: string }) {
     console.log('[GameScene] create called', data);
 
     // Reset tilemap state
@@ -89,9 +89,6 @@ export default class GameScene extends Phaser.Scene {
 
     // Store textures for later access
     this.texturesData = data.textures || {};
-
-    // Load all sprite textures before creating sprites
-    await this.loadAllTextures(data.spriteInstances, data.textures);
 
     // Create the tilemap first (sits below everything)
     // this.createTilemap();
@@ -123,29 +120,6 @@ export default class GameScene extends Phaser.Scene {
 
     this.cameras.main.centerOn(this.scale.width/2, -this.scale.height/2);
     this.started = false;
-  }
-
-  private async loadAllTextures(instances: SpriteInstance[], textures: Record<string, string>): Promise<void> {
-    // Get unique texture names needed by sprites
-    const textureNames = new Set(instances.map(inst => inst.textureName));
-    
-    // Load each texture that doesn't already exist
-    const loadPromises: Promise<void>[] = [];
-    
-    for (const textureName of textureNames) {
-      const base64Image = textures[textureName];
-      if (base64Image) {
-        const textureKey = 'sprite-' + textureName;
-        if (!this.textures.exists(textureKey)) {
-          console.log(`[GameScene] Loading texture: ${textureName}`);
-          loadPromises.push(this.loadTextureAsync(textureKey, base64Image));
-        }
-      }
-    }
-    
-    // Wait for all textures to load
-    await Promise.all(loadPromises);
-    console.log('[GameScene] All textures loaded');
   }
 
   private loadTextureAsync(key: string, base64Image: string): Promise<void> {
