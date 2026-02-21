@@ -7,8 +7,9 @@ import { useSnackbar } from '@/hooks/useSnackbar';
 import { Modal } from '@/components/ui/modals/Modal';
 
 export default function ProjectControls() {
+  
   const showSnackbar = useSnackbar();
-  const { projectName, setProjectName, saveProject, resetProject } = useGeckodeStore();
+  const { projectName, setProjectName, saveProject, persistence } = useGeckodeStore();
   const [showResetModal, setShowResetModal] = useState(false);
 
   const handleSave = () => {
@@ -20,9 +21,8 @@ export default function ProjectControls() {
   };
 
   const handleResetConfirm = () => {
-    resetProject();
-    setShowResetModal(false);
-    showSnackbar('Project reset to default state', 'success');
+    persistence?.clearData();
+    window.location.reload();
   };
 
   const handleResetCancel = () => {

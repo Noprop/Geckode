@@ -6,6 +6,7 @@ import type {
 import type { PhaserExport } from "@/phaser/PhaserStateManager";
 import type EditorScene from "@/phaser/scenes/EditorScene";
 import type GameScene from "@/phaser/scenes/GameScene";
+import { IndexeddbPersistence } from "y-indexeddb";
 
 // Re-export for consumers
 export type { SpriteDefinition, SpriteInstance };
@@ -160,6 +161,9 @@ export interface EditorState {
   spriteWorkspaces: Record<string, Blockly.Workspace>;
   spriteOutputs: Record<string, WorkspaceOutputType>;
   spriteIdsUpdated: string[];
+
+  // Other
+  persistence: IndexeddbPersistence | null;
 }
 
 export interface EditorActions {

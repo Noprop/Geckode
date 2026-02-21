@@ -1,7 +1,7 @@
 import { SpriteInstance, useGeckodeStore } from "@/stores/geckodeStore";
 import { useYjs } from "./useYjs";
 import * as Y from 'yjs';
-import { useEffect, useContext } from "react";
+import { useEffect } from "react";
 import { blocksMapChangesHandler, useBlockSync } from "./useBlockSync";
 import { useVariableSync } from "./useVariableSync";
 import { documentRegistry } from "@/lib/types/yjs/documents";
@@ -9,6 +9,8 @@ import { useAssetSync } from "./useAssetSync";
 import EditorScene from "@/phaser/scenes/EditorScene";
 import * as Blockly from "blockly/core";
 import { useProjectNameSync } from "./useProjectNameSync";
+import { starterSpriteWorkspaces, starterTextures } from "@/blockly/workspaces/starter";
+import { Block } from "@/lib/types/yjs/blocks";
 
 const createSpriteObserver = (id: string, spriteMap: Y.Map<SpriteInstance>, doc: Y.Doc) => {
   const spriteObserver = (event: Y.YMapEvent<SpriteInstance>, transaction: Y.Transaction) => {
@@ -35,8 +37,8 @@ const loadInitialWorkspaces = (
   workspaces: Y.Array<Y.Map<any>>,
   doc: Y.Doc,
   blocklyWorkspace: Blockly.Workspace | null
-) => {
-  if (!workspaces || !blocklyWorkspace || workspaces.length === 0) return;
+): boolean => {
+  if (!workspaces || !blocklyWorkspace || !workspaces.length) return false;
 
   const storeState = useGeckodeStore.getState();
   const newSpriteInstances: SpriteInstance[] = [];
@@ -101,10 +103,12 @@ const loadInitialWorkspaces = (
       );
     }
   }
+
+  return true;
 };
 
 export const useWorkspaceSync = (documentName: string) => {
-  const { doc, isSynced, onSynced } = useYjs(documentName);
+  const { doc, isSynced, onSynced, persistence } = useYjs(documentName);
   const blocklyWorkspace = useGeckodeStore((s) => s.blocklyWorkspace);
   const workspaces = doc.getArray<Y.Map<any>>('workspaces');
 
@@ -113,6 +117,12 @@ export const useWorkspaceSync = (documentName: string) => {
   useProjectNameSync(documentName);
   useAssetSync(documentName, "textures");
   useAssetSync(documentName, "tiles");
+
+  useEffect(() => {
+    useGeckodeStore.setState({
+      persistence,
+    });
+  }, [persistence]);
 
   // Wait for sync before setting up observers and loading initial data
   useEffect(() => {
@@ -127,7 +137,7 @@ export const useWorkspaceSync = (documentName: string) => {
       initialLoadComplete = true;
 
       // Load initial data after sync
-      loadInitialWorkspaces(workspaces, doc, blocklyWorkspace);
+      const hadInitialWorkspaces = loadInitialWorkspaces(workspaces, doc, blocklyWorkspace);
 
       // Now set up observer for future changes (only processes changes after this point)
       const workspacesDeepObserver = (events: Y.YEvent<any>[], transaction: Y.Transaction) => {
@@ -254,6 +264,33 @@ export const useWorkspaceSync = (documentName: string) => {
       };
 
       workspaces.observeDeep(workspacesDeepObserver);
+
+      if (!hadInitialWorkspaces && !useGeckodeStore.getState().projectId) {
+        const texturesMap = doc.getMap<string>('textures');
+        
+        Object.entries(starterTextures).forEach(([textureName, base64Image]) => {
+          texturesMap.set(textureName, base64Image);
+        });
+    
+        starterSpriteWorkspaces.forEach((workspace) => {
+          const spriteMap = new Y.Map<SpriteInstance>();
+          const blocksMap = new Y.Map<Block>();
+    
+          Object.entries(workspace.sprite).forEach(([key, value]) => {
+            spriteMap.set(key, value as any);
+          });
+    
+          Object.entries(workspace.blocks).forEach(([id, block]) => {
+            blocksMap.set(id, block);
+          });
+    
+          const workspaceMap = new Y.Map<any>();
+          workspaceMap.set('sprite', spriteMap);
+          workspaceMap.set('blocks', blocksMap);
+    
+          workspaces.push([workspaceMap]);
+        });
+      }
 
       observerCleanup = () => {
         workspaces.unobserveDeep(workspacesDeepObserver);

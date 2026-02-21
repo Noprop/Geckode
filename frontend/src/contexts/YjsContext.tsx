@@ -10,6 +10,7 @@ interface YjsContextType {
   getProvider: (name: string) => HocuspocusProvider;
   getDoc: (name: string) => Y.Doc;
   getAwareness: (name: string) => Awareness;
+  getPersistence: (name: string) => IndexeddbPersistence;
   isSynced: (name: string) => boolean;
   onSynced: (name: string, callback: () => void) => () => void;
 }
@@ -166,6 +167,10 @@ export const YjsProvider = ({ children }: { children: React.ReactNode }) => {
     return awareness;
   };
 
+  const getPersistence = (name: string) => {
+    return instances.current.get(name)!.persistence;
+  }
+
   const isSynced = (name: string) => instances.current.get(name)?.synced ?? false;
 
   const onSynced = (name: string, callback: () => void) => {
@@ -183,7 +188,7 @@ export const YjsProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <YjsContext.Provider value={{ getDoc, getProvider, getAwareness, isSynced, onSynced }}>
+    <YjsContext.Provider value={{ getDoc, getProvider, getAwareness, getPersistence, isSynced, onSynced }}>
       {children}
     </YjsContext.Provider>
   );

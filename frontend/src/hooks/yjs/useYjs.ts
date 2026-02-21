@@ -21,6 +21,7 @@ export const useYjs = (documentName: string) => {
     doc: context.getDoc(documentName),
     provider: context.getProvider(documentName),
     awareness: context.getAwareness(documentName),
+    persistence: context.getPersistence(documentName),
     isSynced,
     onSynced,
   };

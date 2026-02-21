@@ -1,15 +1,13 @@
 import * as Blockly from "blockly/core";
 import { javascriptGenerator } from "blockly/javascript";
 import type { StateCreator } from "zustand";
-import starterWorkspace from "@/blockly/workspaces/starter";
+import { starterWorkspace } from "@/blockly/workspaces/starter";
 import projectsApi from "@/lib/api/handlers/projects";
 import { createPhaserState } from "@/phaser/PhaserStateManager";
 import { EDITOR_SCENE_KEY, GAME_SCENE_KEY } from "@/phaser/sceneKeys";
 import EditorScene from "@/phaser/scenes/EditorScene";
 import type { EditorSlice, GeckodeStore } from "./types";
 import { projectNameSync } from "@/hooks/yjs/useProjectNameSync";
-
-const DEBOUNCE_MS = 400;
 
 export const createEditorSlice: StateCreator<
   GeckodeStore,
@@ -35,6 +33,9 @@ export const createEditorSlice: StateCreator<
   spriteWorkspaces: {},
   spriteOutputs: {},
   spriteIdsUpdated: [],
+
+  // Other
+  persistence: null,
 
   getCurrentSpriteId: () => {
     return get().selectedSpriteId ?? undefined;
@@ -211,14 +212,11 @@ export const createEditorSlice: StateCreator<
     // Reset sprite store first to get new sprite IDs
     resetSpriteStore();
 
-    // Get the new default sprite instance after reset
-    const { spriteInstances } = get();
-    const defaultSprite = spriteInstances[0];
-
     // Clear and reset Blockly workspace
     if (blocklyWorkspace) {
+      Blockly.Events.disable();
       blocklyWorkspace.clear();
-      Blockly.serialization.workspaces.load(starterWorkspace, blocklyWorkspace);
+      Blockly.Events.enable();
     }
 
     // Reset Phaser scene sprites if in editor mode
@@ -230,7 +228,7 @@ export const createEditorSlice: StateCreator<
     set({
       spriteWorkspaces: {},
       spriteOutputs: {},
-      selectedSpriteId: get().spriteInstances[0]?.id ?? null,
+      selectedSpriteId: null,
       canUndo: false,
       canRedo: false,
     });

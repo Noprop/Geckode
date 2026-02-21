@@ -7,6 +7,7 @@ import { useAwareness } from "./useAwareness";
 import { connectBlocks, moveBlockByCoordinates } from "@/lib/blockly/blocks";
 import { useGeckodeStore } from '@/stores/geckodeStore';
 import * as Y from 'yjs';
+
 const createBlockEventsListener = (
   workspace: Blockly.Workspace,
   blocksMap: Y.Map<Block>,
