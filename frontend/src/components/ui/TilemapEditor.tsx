@@ -130,6 +130,16 @@ const TilemapEditor = () => {
 
   const effectiveSingleTile: string | null = selectedSingleTile;
 
+  /** Number of tilemap cells that use the currently selected tile (will be cleared if tile is deleted). */
+  const tilemapCellsUsingSelectedTile =
+    tilemap && effectiveSingleTile
+      ? tilemap.data.reduce(
+        (acc, row) =>
+          acc + (row?.filter((cell) => cell === effectiveSingleTile).length ?? 0),
+        0,
+      )
+      : 0;
+
   const gridWidthTiles = tilemap?.width ?? 16;
   const gridHeightTiles = tilemap?.height ?? 16;
   const pixelW = gridWidthTiles * TILE_PX;
@@ -143,9 +153,11 @@ const TilemapEditor = () => {
 
   const { tilePixelsRef, tileAveragesRef, isReady } = useTilePixelCache(tileTextures);
 
-  const isTileEmpty =
-    !isReady || !effectiveSingleTile || !tileTextures[effectiveSingleTile] ||
-    tileAveragesRef.current[effectiveSingleTile]?.a === 0;
+  const isTileEmpty = !(
+    isReady &&
+    effectiveSingleTile &&
+    tileTextures[effectiveSingleTile]
+  );
 
   // ── Render minimap — one averaged-color block per tile ──
   const renderMinimap = useCallback(() => {
@@ -532,15 +544,28 @@ const TilemapEditor = () => {
 
   const handleDeleteTile = useCallback(() => {
     if (!effectiveSingleTile) return;
+    const tileToDelete = effectiveSingleTile;
+
     updateActiveTilesetData((data) => {
-      for (const row of data) {
-        for (let col = 0; col < row.length; col++) {
-          if (row[col] === effectiveSingleTile) { row[col] = null; return data; }
+      let found = false;
+      for (let r = 0; r < data.length; r++) {
+        for (let c = 0; c < (data[r]?.length ?? 0); c++) {
+          if (data[r][c] === tileToDelete) {
+            data[r][c] = null;
+            found = true;
+          }
         }
       }
-      return null;
+      return found ? data : null;
     });
-  }, [effectiveSingleTile, updateActiveTilesetData]);
+
+    if (activeTilemapId && tilemap) {
+      const newData = tilemap.data.map((row) =>
+        row.map((cell) => (cell === tileToDelete ? null : cell)),
+      );
+      setTilemapData(activeTilemapId, newData);
+    }
+  }, [effectiveSingleTile, updateActiveTilesetData, activeTilemapId, tilemap, setTilemapData]);
 
   const handleSwapTiles = useCallback(() => {
     setSelectedSingleTile(selectedSecondaryTile);
@@ -604,6 +629,22 @@ const TilemapEditor = () => {
         isOpen={isTileEditorOpen}
         onClose={() => setIsTileEditorOpen(false)}
       />
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete tile?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {tilemapCellsUsingSelectedTile > 0
+                ? <>This tile is used in <strong>{tilemapCellsUsingSelectedTile}</strong> {tilemapCellsUsingSelectedTile === 1 ? 'cell' : 'cells'} on the current tilemap. Deleting it will clear those cells.</>
+                : 'This tile is not used on the current tilemap.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteTile}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       {/* Left sidebar — brush size, tools, tileset palette */}
       <div className="w-[250px] flex flex-col gap-3 p-2 bg-light-secondary dark:bg-dark-secondary border-r border-slate-200 dark:border-slate-700">
         {/* Brush size */}
@@ -710,27 +751,6 @@ const TilemapEditor = () => {
               >
                 <Trash2Icon className="w-4 h-4 text-red-500" />
               </button>
-              <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete tile?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      {(() => {
-                        const count = tilemap
-                          ? tilemap.data.flat().filter((k) => k === effectiveSingleTile).length
-                          : 0;
-                        return count > 0
-                          ? <>This tile is used in <strong>{count}</strong> {count === 1 ? 'cell' : 'cells'} on the current tilemap. Deleting it will clear those cells.</>
-                          : 'This tile is not used on the current tilemap.';
-                      })()}
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDeleteTile}>Delete</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
             </div>
           </div>
 
@@ -738,10 +758,7 @@ const TilemapEditor = () => {
           <div className="flex gap-2 items-end">
             {/* Primary tile — larger */}
             <div
-              className={`w-10 h-10 shrink-0 overflow-hidden ${
-                effectiveSingleTile && tileTextures[effectiveSingleTile]
-                  ? '' : 'bg-slate-300 dark:bg-slate-600'
-              }`}
+              className={`w-10 h-10 shrink-0 overflow-hidden${effectiveSingleTile && tileTextures[effectiveSingleTile] ? '' : ' bg-slate-300 dark:bg-slate-600'}`}
               title="Primary tile (left-click to place)"
             >
               {effectiveSingleTile && tileTextures[effectiveSingleTile] && (
@@ -769,10 +786,7 @@ const TilemapEditor = () => {
               </button>
               {/* Secondary tile — smaller */}
               <div
-                className={`w-7 h-7 shrink-0 overflow-hidden ${
-                  selectedSecondaryTile && tileTextures[selectedSecondaryTile]
-                    ? '' : 'bg-slate-300 dark:bg-slate-600'
-                }`}
+                className={`w-7 h-7 shrink-0 overflow-hidden${selectedSecondaryTile && tileTextures[selectedSecondaryTile] ? '' : ' bg-slate-300 dark:bg-slate-600'}`}
                 title="Secondary tile (right-click to place)"
               >
                 {selectedSecondaryTile && tileTextures[selectedSecondaryTile] && (
