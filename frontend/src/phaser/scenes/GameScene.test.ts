@@ -376,13 +376,10 @@ describe('GameScene simultaneous multi-sprite push', () => {
     (scene as any).getClosestTileCollisionGap = vi.fn(() => null);
   });
 
-  it('pushes two stacked blocks when player edge touches the second block', () => {
-    // 16×16 sprites on a grid. Player aligned with blockA.
-    // BlockB sits directly above blockA — touching at the edge.
-    // Player bottom = 8, blockB top = -24+8 = ... let me use y positions:
-    //   player y=0  → extent [-8, 8]
-    //   blockA y=0  → extent [-8, 8]   (full overlap with player)
-    //   blockB y=-16 → extent [-24, -8] (touches player at y=-8)
+  it('skips edge-touching block above (strict overlap excludes zero-width contact)', () => {
+    // blockB y=-16 → extent [-24, -8], player extent [-8, 8].
+    // They share only the line y=-8 — strict overlap excludes this.
+    // Only blockA (full overlap) is pushed.
     const player = createSprite({
       x: 0, y: 0, width: 16, height: 16,
       data: { isSolid: true, isStatic: false, bounce: 0, vx: 100 },
@@ -402,16 +399,16 @@ describe('GameScene simultaneous multi-sprite push', () => {
       ['blockB', blockB],
     ]);
 
-    // gap to both blocks: (18-8)-(0+8) = 2, remain = 8
     (scene as any).resolveAxisMovement(player, 10, 'x');
 
     expect(blockA.x).toBe(26);
-    expect(blockB.x).toBe(26);
+    expect(blockB.x).toBe(18); // not pushed — edge-touching only
     expect(player.x).toBe(10);
   });
 
-  it('pushes two stacked blocks when player edge touches the block below', () => {
-    // Same layout but blockB is below — touching at y=8
+  it('skips edge-touching block below (strict overlap excludes zero-width contact)', () => {
+    // blockB y=16 → extent [8, 24], player extent [-8, 8].
+    // They share only the line y=8 — strict overlap excludes this.
     const player = createSprite({
       x: 0, y: 0, width: 16, height: 16,
       data: { isSolid: true, isStatic: false, bounce: 0, vx: 100 },
@@ -434,13 +431,13 @@ describe('GameScene simultaneous multi-sprite push', () => {
     (scene as any).resolveAxisMovement(player, 10, 'x');
 
     expect(blockA.x).toBe(26);
-    expect(blockB.x).toBe(26);
+    expect(blockB.x).toBe(18); // not pushed — edge-touching only
     expect(player.x).toBe(10);
   });
 
-  it('pushes two side-by-side blocks when player edge touches the second block (Y axis)', () => {
-    // Player moves downward (+Y in Phaser). Two blocks side by side on X,
-    // touching at the edge.
+  it('skips edge-touching side-by-side block on Y axis (strict overlap)', () => {
+    // blockB x=16 → extent [8, 24], player extent [-8, 8].
+    // They share only the line x=8 — strict overlap excludes this.
     const player = createSprite({
       x: 0, y: 0, width: 16, height: 16,
       data: { isSolid: true, isStatic: false, bounce: 0, vy: 100 },
@@ -463,7 +460,7 @@ describe('GameScene simultaneous multi-sprite push', () => {
     (scene as any).resolveAxisMovement(player, 10, 'y');
 
     expect(blockA.y).toBe(26);
-    expect(blockB.y).toBe(26);
+    expect(blockB.y).toBe(18); // not pushed — edge-touching only
     expect(player.y).toBe(10);
   });
 
@@ -494,7 +491,8 @@ describe('GameScene simultaneous multi-sprite push', () => {
     expect(player.x).toBe(10);
   });
 
-  it('stops at static block even when pushing a dynamic block simultaneously', () => {
+  it('ignores edge-touching static block, pushes dynamic block freely', () => {
+    // staticBlock y=-16 shares only the line y=-8 with player — strict overlap skips it.
     const player = createSprite({
       x: 0, y: 0, width: 16, height: 16,
       data: { isSolid: true, isStatic: false, bounce: 0.5, vx: 100 },
@@ -516,30 +514,29 @@ describe('GameScene simultaneous multi-sprite push', () => {
 
     (scene as any).resolveAxisMovement(player, 10, 'x');
 
-    // Static blocker in the set → player stops at contact (gap=2), bounces
-    expect(player.x).toBeCloseTo(2);
-    expect(dynamicBlock.x).toBe(18);
+    // Only dynamicBlock has real overlap → pushed freely
+    expect(player.x).toBe(10);
+    expect(dynamicBlock.x).toBe(26);
     expect(staticBlock.x).toBe(18);
-    expect(player.getData('vx')).toBeCloseTo(-50);
   });
 
-  it('limits push to the most constrained block', () => {
-    // blockedBlock is backed by a wall 4px away. freeBlock is unobstructed.
-    // Wall placed at y=-24 so it overlaps blockedBlock but NOT freeBlock.
+  it('limits push to the most constrained block (with real overlap)', () => {
+    // blockedBlock has real Y overlap with player, backed by a wall.
+    // freeBlock also has real overlap, unobstructed.
     const player = createSprite({
       x: 0, y: 0, width: 16, height: 16,
       data: { isSolid: true, isStatic: false, bounce: 0, vx: 100 },
     });
     const freeBlock = createSprite({
-      x: 18, y: 0, width: 16, height: 16,
+      x: 18, y: 3, width: 16, height: 16,
       data: { isSolid: true, isStatic: false, drag: 1 },
     });
     const blockedBlock = createSprite({
-      x: 18, y: -16, width: 16, height: 16,
+      x: 18, y: -3, width: 16, height: 16,
       data: { isSolid: true, isStatic: false, drag: 1, bounce: 0 },
     });
     const wall = createSprite({
-      x: 38, y: -24, width: 16, height: 16,
+      x: 38, y: -3, width: 16, height: 16,
       data: { isSolid: true, isStatic: true },
     });
 
@@ -552,10 +549,121 @@ describe('GameScene simultaneous multi-sprite push', () => {
 
     (scene as any).resolveAxisMovement(player, 10, 'x');
 
-    // gap = 2, remain = 8.
-    // blockedBlock hits wall at gap 4 → pushed only 4.
+    // gap to both blocks = 2, remain = 8.
+    // blockedBlock hits wall at gap (38-8)-(18+8) = 4 → pushed only 4.
     // freeBlock pushed full 8. minPushed = 4.
     expect(player.x).toBeCloseTo(6);
     expect(blockedBlock.x).toBeCloseTo(22);
+  });
+});
+
+describe('GameScene chain-push (iterative sweep)', () => {
+  let scene: GameScene;
+
+  beforeEach(() => {
+    scene = new GameScene();
+    (scene as any).worldBounds = { left: -200, top: -200, right: 200, bottom: 200 };
+    (scene as any).getClosestTileCollisionGap = vi.fn(() => null);
+  });
+
+  it('chain-pushes A into B when they are in a line', () => {
+    // Player → A → B, all 16×16, gap=2 between each
+    const player = createSprite({
+      x: 0, y: 0, width: 16, height: 16,
+      data: { isSolid: true, isStatic: false, bounce: 0, vx: 100 },
+    });
+    const blockA = createSprite({
+      x: 18, y: 0, width: 16, height: 16,
+      data: { isSolid: true, isStatic: false, drag: 1 },
+    });
+    const blockB = createSprite({
+      x: 36, y: 0, width: 16, height: 16,
+      data: { isSolid: true, isStatic: false, drag: 1 },
+    });
+
+    setSceneSprites(scene, [
+      ['player', player],
+      ['blockA', blockA],
+      ['blockB', blockB],
+    ]);
+
+    (scene as any).resolveAxisMovement(player, 10, 'x');
+
+    // gap to A = 2, player moves 2 to contact. remain = 8.
+    // A pushes into B: gap between A and B = 2, A moves 2 to contact B, remain = 6.
+    // B is free, pushed 6. A advances 6. Player advances 8 total after contact.
+    expect(player.x).toBe(10);
+    expect(blockA.x).toBe(26);
+    expect(blockB.x).toBe(42);
+  });
+
+  it('chain-pushes three blocks A → B → C', () => {
+    const player = createSprite({
+      x: 0, y: 0, width: 16, height: 16,
+      data: { isSolid: true, isStatic: false, bounce: 0, vx: 100 },
+    });
+    const blockA = createSprite({
+      x: 18, y: 0, width: 16, height: 16,
+      data: { isSolid: true, isStatic: false, drag: 1 },
+    });
+    const blockB = createSprite({
+      x: 36, y: 0, width: 16, height: 16,
+      data: { isSolid: true, isStatic: false, drag: 1 },
+    });
+    const blockC = createSprite({
+      x: 54, y: 0, width: 16, height: 16,
+      data: { isSolid: true, isStatic: false, drag: 1 },
+    });
+
+    setSceneSprites(scene, [
+      ['player', player],
+      ['blockA', blockA],
+      ['blockB', blockB],
+      ['blockC', blockC],
+    ]);
+
+    (scene as any).resolveAxisMovement(player, 10, 'x');
+
+    // gap to A = 2. After contact, remain = 8.
+    // A→B gap = 2. A contacts B, remain = 6. Push B with 6.
+    //   B→C gap = 2. B contacts C, remain = 4. Push C with 4.
+    //   C free → C.x = 58. B re-scans, clear → B.x = 38+4 = 42.
+    // A re-scans, clear → A.x = 20+6 = 26.
+    // Player re-scans, clear → player.x = 2+8 = 10.
+    expect(player.x).toBe(10);
+    expect(blockA.x).toBe(26);
+    expect(blockB.x).toBe(42);
+    expect(blockC.x).toBe(58);
+  });
+
+  it('chain stops at static wall and bounces back', () => {
+    const player = createSprite({
+      x: 0, y: 0, width: 16, height: 16,
+      data: { isSolid: true, isStatic: false, bounce: 0.5, vx: 100 },
+    });
+    const blockA = createSprite({
+      x: 18, y: 0, width: 16, height: 16,
+      data: { isSolid: true, isStatic: false, drag: 1, bounce: 0 },
+    });
+    const wall = createSprite({
+      x: 40, y: 0, width: 16, height: 16,
+      data: { isSolid: true, isStatic: true },
+    });
+
+    setSceneSprites(scene, [
+      ['player', player],
+      ['blockA', blockA],
+      ['wall', wall],
+    ]);
+
+    (scene as any).resolveAxisMovement(player, 10, 'x');
+
+    // gap to A = 2. After contact, remain = 8.
+    // A→wall gap = (40-8)-(18+8) = 6. A can only move 6 of 8.
+    // Push incomplete → player advances 2 + 6 = 8, bounces.
+    expect(player.x).toBeCloseTo(8);
+    expect(blockA.x).toBeCloseTo(24);
+    expect(wall.x).toBe(40);
+    expect(player.getData('vx')).toBeCloseTo(-50);
   });
 });
