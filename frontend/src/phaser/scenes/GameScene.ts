@@ -34,12 +34,6 @@ export default class GameScene extends Phaser.Scene {
   private gameSprites = new Map<string, Phaser.GameObjects.Sprite>();
   private static readonly GAME_SPRITE_BASE_DEPTH = Number.MAX_SAFE_INTEGER - 100;
   private gameLayer!: Phaser.GameObjects.Layer;
-  private activeDrag: {
-    sprite: Phaser.GameObjects.Sprite;
-    start: { x: number; y: number };
-    lastWorld: { x: number; y: number };
-  } | null = null;
-  private gridGraphics: Phaser.GameObjects.Graphics | null = null;
 
   /** World boundary rectangle for collision. */
   private worldBounds = { left: 0, top: 0, right: 0, bottom: 0 };
