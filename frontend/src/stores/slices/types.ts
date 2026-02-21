@@ -57,6 +57,7 @@ export interface SpriteState {
   textures: Record<string, string>;
   tiles: Record<string, string>;
   tilesets: Tileset[];
+  tileCollidables: Record<string, boolean>;
   animations: Record<string, string>;
   backgrounds: Record<string, string>;
 
@@ -69,7 +70,6 @@ export interface SpriteState {
   libaryAnimations: Record<string, string>;
   libaryBackgrounds: Record<string, string>;
 
-  tileCollidables: Record<string, boolean>;
 
   tilemaps: Record<string, Tilemap>;
   scenes: Scene[];

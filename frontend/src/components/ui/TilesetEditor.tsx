@@ -8,6 +8,7 @@ import {
   rebuildPixelBuffer,
 } from '@/hooks/useTilePixelCache';
 import TileEditorModal from '@/components/TileModal/TileEditorModal';
+import { ShieldBanIcon } from 'lucide-react';
 
 const TILE_PX = 16;
 const GRID_W = 5;
@@ -24,8 +25,11 @@ const normalizeGrid = (grid: (string | null)[][]): (string | null)[][] => {
   );
 };
 
+type TilesetTool = 'place' | 'collidable';
+
 const TilesetEditor = ({ onClose }: { onClose: () => void }) => {
   const [selectedTileKey, setSelectedTileKey] = useState<string | null>(null);
+  const [activeTool, setActiveTool] = useState<TilesetTool>('place');
   const [tilesetName, setTilesetName] = useState('myTileset');
   const [tilePage, setTilePage] = useState(0);
   const [isTileEditorOpen, setIsTileEditorOpen] = useState(false);
@@ -117,6 +121,14 @@ const TilesetEditor = ({ onClose }: { onClose: () => void }) => {
     setHistoryVersion(v => v + 1);
     bumpGrid();
   }, [editingSource, editingAssetName, editingAssetType, tilesets]);
+
+  // ── Collidable tool click ──
+  const handleCellClick = (row: number, col: number) => {
+    if (activeTool !== 'collidable') return;
+    const tileKey = gridRef.current[row]?.[col];
+    if (!tileKey) return;
+    setTileCollidable(tileKey, !tileCollidables[tileKey]);
+  };
 
   // ── Drag & Drop handlers ──
   const handleDragStart = (e: React.DragEvent, source: 'palette' | 'grid', tileKey: string, row?: number, col?: number) => {
@@ -229,13 +241,13 @@ const TilesetEditor = ({ onClose }: { onClose: () => void }) => {
                   type="button"
                   draggable
                   onDragStart={(e) => handleDragStart(e, 'palette', key)}
-                  onClick={() => setSelectedTileKey(key)}
+                  onClick={() => { setSelectedTileKey(key); setActiveTool('place'); }}
                   onDoubleClick={() => {
                     setEditingAsset(key, 'tiles', 'asset');
                     setIsTileEditorOpen(true);
                   }}
                   className={`aspect-square cursor-grab active:cursor-grabbing transition-colors overflow-hidden ${
-                    selectedTileKey === key
+                    (selectedTileKey === key && activeTool !== 'collidable')
                       ? 'border-2 border-primary-green'
                       : 'border-2 border-transparent hover:border-slate-400 dark:hover:border-slate-500'
                   }`}
@@ -294,26 +306,24 @@ const TilesetEditor = ({ onClose }: { onClose: () => void }) => {
           )}
         </div>
 
-        {/* Collidable toggle for selected tile */}
-        {selectedTileKey && (
+        {/* Tool buttons */}
+        <div className="flex flex-col gap-1 items-start">
+          <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold px-0.5">Tools</span>
           <button
             type="button"
-            onClick={() => setTileCollidable(selectedTileKey, !tileCollidables[selectedTileKey])}
+            onClick={() => { setActiveTool('collidable'); setSelectedTileKey(null); }}
             className={`flex items-center gap-2 px-3 py-2 rounded text-xs font-medium cursor-pointer transition ${
-              tileCollidables[selectedTileKey]
-                ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                : 'bg-slate-100 text-slate-600 dark:bg-dark-tertiary dark:text-slate-300'
+              activeTool === 'collidable'
+                ? 'bg-primary-green text-white'
+                : 'bg-slate-100 text-slate-600 dark:bg-dark-tertiary dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-dark-tertiary/80'
             }`}
+            style={{ minWidth: 0, width: 'auto', maxWidth: '100%' }}
+            title="Collidable tool — click tiles in the grid to toggle collision"
           >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
-            {tileCollidables[selectedTileKey] ? 'Collidable' : 'Not collidable'}
-            {tileCollidables[selectedTileKey] && (
-              <span className="w-2 h-2 rounded-full bg-red-500 ml-auto" />
-            )}
+            <ShieldBanIcon className="w-4 h-4" />
+            Collidable
           </button>
-        )}
+        </div>
 
         <div className="flex-1" />
       </div>
@@ -343,22 +353,27 @@ const TilesetEditor = ({ onClose }: { onClose: () => void }) => {
                         : tileKey
                           ? 'bg-slate-100 dark:bg-dark-tertiary'
                           : 'bg-slate-50 dark:bg-dark-tertiary/50 border-2 border-dashed border-slate-300 dark:border-slate-600'
-                    }`}
+                      } ${activeTool === 'collidable' && tileKey ? 'cursor-pointer' : ''}`}
                     onDragOver={(e) => handleDragOver(e, row, col)}
                     onDragLeave={handleDragLeave}
                     onDrop={(e) => handleDrop(e, row, col)}
                     onContextMenu={(e) => handleCellContextMenu(e, row, col)}
+                    onClick={() => handleCellClick(row, col)}
                   >
                     {tileKey && tileTextures[tileKey] ? (
                       <img
                         src={tileTextures[tileKey]}
                         alt={tileKey}
-                        draggable
+                        draggable={activeTool !== 'collidable'}
                         onDragStart={(e) => handleDragStart(e, 'grid', tileKey, row, col)}
-                        className="w-full h-full object-contain cursor-grab active:cursor-grabbing"
+                        className="w-full h-full object-contain pointer-events-none"
                         style={{ imageRendering: 'pixelated' }}
                       />
                     ) : null}
+                    {tileKey && tileCollidables[tileKey] && (
+                      <div className="absolute inset-0 bg-red-500/30 flex items-center justify-center rounded pointer-events-none">
+                      </div>
+                    )}
                   </div>
                 );
               })

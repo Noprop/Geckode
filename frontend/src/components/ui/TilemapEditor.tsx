@@ -636,7 +636,7 @@ const TilemapEditor = () => {
           <AlertDialogHeader>
             <AlertDialogTitle className="text-red-500 text-2xl">Delete Tile</AlertDialogTitle>
             <AlertDialogDescription>
-              There are {tilemapCellsUsingSelectedTile} tiles using this tile. Please confirm you want to delete it.
+              There are {tilemapCellsUsingSelectedTile} tiles using this tile. This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -645,6 +645,8 @@ const TilemapEditor = () => {
               onClick={() => {
                 handleDeleteTile();
                 setDeleteConfirmOpen(false);
+                undoStackRef.current = [];
+                redoStackRef.current = [];
               }}
             >
               Delete
