@@ -73,6 +73,7 @@ const TilemapEditor = () => {
   const updateTileset = useGeckodeStore((s) => s.updateTileset);
   const setEditingAsset = useGeckodeStore((s) => s.setEditingAsset);
   const tileCollidables = useGeckodeStore((s) => s.tileCollidables);
+  const setTileCollidable = useGeckodeStore((s) => s.setTileCollidable);
 
   const tilemap = activeTilemapId ? tilemaps[activeTilemapId] : null;
 
@@ -827,6 +828,27 @@ const TilemapEditor = () => {
             />
             <span className="text-xs text-slate-500 dark:text-slate-400">Show collidables</span>
           </label>
+
+          {/* Toggle collidable for selected tile */}
+          {effectiveSingleTile && (
+            <button
+              type="button"
+              onClick={() => setTileCollidable(effectiveSingleTile, !tileCollidables[effectiveSingleTile])}
+              className={`flex items-center gap-2 px-3 py-2 rounded text-xs font-medium cursor-pointer transition ${
+                tileCollidables[effectiveSingleTile]
+                  ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                  : 'bg-slate-100 text-slate-600 dark:bg-dark-tertiary dark:text-slate-300'
+              }`}
+            >
+              <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              </svg>
+              {tileCollidables[effectiveSingleTile] ? 'Collidable' : 'Not collidable'}
+              {tileCollidables[effectiveSingleTile] && (
+                <span className="w-2 h-2 rounded-full bg-red-500 ml-auto shrink-0" />
+              )}
+            </button>
+          )}
         </div>
 
         <div className="flex-1" />
