@@ -1,9 +1,11 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { PlusIcon } from '@radix-ui/react-icons';
 import { useGeckodeStore } from '@/stores/geckodeStore';
 import type { AssetType, Tileset } from '@/stores/slices/types';
+import { TILE_PX, TILESET_WIDTH } from '@/stores/slices/spriteSlice';
+import { useTilePixelCache, rebuildPixelBuffer } from '@/hooks/useTilePixelCache';
 import { type SelectedAsset } from './Overview';
 import { TAB_CONFIG } from './Overview';
 
@@ -19,6 +21,37 @@ interface AssetListProps {
 
 const AssetList = ({ filter, activeTab, onTabChange, selectedAsset, onSelectAsset, onCreateNew, onDoubleClickAsset }: AssetListProps) => {
   const assets = useGeckodeStore((s) => s[filter]);
+  const tileTextures = useGeckodeStore((s) => s.tiles);
+  const updateTileset = useGeckodeStore((s) => s.updateTileset);
+
+  const { tilePixelsRef, isReady } = useTilePixelCache(tileTextures);
+
+  // Auto-generate base64Preview for tilesets that don't have one (e.g. after fresh load)
+  useEffect(() => {
+    if (filter !== 'tilesets' || !isReady) return;
+    const tilesets = assets as Tileset[];
+    const needsPreview = tilesets.filter((ts) => !ts.base64Preview);
+    if (needsPreview.length === 0) return;
+
+    for (const tileset of needsPreview) {
+      const rows = Math.max(5, tileset.data.length);
+      const pixelW = TILESET_WIDTH * TILE_PX;
+      const pixelH = rows * TILE_PX;
+      const grid = Array.from({ length: rows }, (_, r) =>
+        Array.from({ length: TILESET_WIDTH }, (_, c) => tileset.data[r]?.[c] ?? null),
+      );
+      const buf = new Uint8ClampedArray(pixelW * pixelH * 4);
+      rebuildPixelBuffer(buf, grid, tilePixelsRef.current, TILESET_WIDTH, rows, TILE_PX);
+      const canvas = document.createElement('canvas');
+      canvas.width = pixelW;
+      canvas.height = pixelH;
+      const ctx = canvas.getContext('2d')!;
+      const imgData = ctx.createImageData(pixelW, pixelH);
+      imgData.data.set(buf);
+      ctx.putImageData(imgData, 0, 0);
+      updateTileset(tileset.id, { ...tileset, base64Preview: canvas.toDataURL('image/png') });
+    }
+  }, [filter, isReady, assets, tilePixelsRef, updateTileset]);
 
   const entries = useMemo(
     () => {
