@@ -543,8 +543,18 @@ const TilemapEditor = () => {
   }, [selectedTileset, updateTileset]);
 
   const handleDeleteTile = useCallback(() => {
-    if (!effectiveSingleTile) return;
+    if (!effectiveSingleTile || !activeTilemapId || !tilemap) return;
     const tileToDelete = effectiveSingleTile;
+
+    saveToHistory();
+
+    // Remove all placed instances from the tilemap
+    const newData = tilemap.data.map((row) =>
+      row.map((cell) => (cell === tileToDelete ? null : cell)),
+    );
+    setTilemapData(activeTilemapId, newData);
+
+    // Remove from tileset
     updateActiveTilesetData((data) => {
       let found = false;
       for (let r = 0; r < data.length; r++) {
@@ -557,7 +567,7 @@ const TilemapEditor = () => {
       }
       return found ? data : null;
     });
-  }, [effectiveSingleTile, updateActiveTilesetData]);
+  }, [effectiveSingleTile, activeTilemapId, tilemap, saveToHistory, setTilemapData, updateActiveTilesetData]);
 
   const handleSwapTiles = useCallback(() => {
     setSelectedSingleTile(selectedSecondaryTile);
