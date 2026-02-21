@@ -2,8 +2,18 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DragEvent as ReactDragEvent, PointerEvent as ReactPointerEvent } from 'react';
-import { EraserIcon, Pencil2Icon, TrashIcon } from '@radix-ui/react-icons';
+import { EraserIcon, Pencil2Icon } from '@radix-ui/react-icons';
 import { Trash2Icon } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { PencilIcon, BucketIcon, LineIcon, CircleIcon } from '@/components/icons';
 import { useGeckodeStore } from '@/stores/geckodeStore';
 import type { TilemapTool, Tileset } from '@/stores/geckodeStore';
@@ -57,6 +67,7 @@ const TilemapEditor = () => {
   const [brushSize, setBrushSize] = useState(1);
   const [hoverCell, setHoverCell] = useState<{ row: number; col: number } | null>(null);
   const [isTileEditorOpen, setIsTileEditorOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [showCollidables, setShowCollidables] = useState(false);
   const minimapRef = useRef<HTMLCanvasElement>(null);
   const collidableCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -131,6 +142,10 @@ const TilemapEditor = () => {
     usePixelCanvas(pixelW, pixelH, cellSize, 8, { enableKeyboardShortcuts: false });
 
   const { tilePixelsRef, tileAveragesRef, isReady } = useTilePixelCache(tileTextures);
+
+  const isTileEmpty =
+    !isReady || !effectiveSingleTile || !tileTextures[effectiveSingleTile] ||
+    tileAveragesRef.current[effectiveSingleTile]?.a === 0;
 
   // ── Render minimap — one averaged-color block per tile ──
   const renderMinimap = useCallback(() => {
@@ -516,14 +531,16 @@ const TilemapEditor = () => {
   }, [selectedTileset, updateTileset]);
 
   const handleDeleteTile = useCallback(() => {
-    if (!selectedTilesetCell) return;
-    const { row, col } = selectedTilesetCell;
+    if (!effectiveSingleTile) return;
     updateActiveTilesetData((data) => {
-      if (!data[row] || data[row][col] === null) return null;
-      data[row][col] = null;
-      return data;
+      for (const row of data) {
+        for (let col = 0; col < row.length; col++) {
+          if (row[col] === effectiveSingleTile) { row[col] = null; return data; }
+        }
+      }
+      return null;
     });
-  }, [selectedTilesetCell, updateActiveTilesetData]);
+  }, [effectiveSingleTile, updateActiveTilesetData]);
 
   const handleSwapTiles = useCallback(() => {
     setSelectedSingleTile(selectedSecondaryTile);
@@ -673,10 +690,10 @@ const TilemapEditor = () => {
             <div className="flex gap-1">
               <button
                 type="button"
-                disabled={!selectedTilesetCell}
+                disabled={isTileEmpty}
                 onClick={() => {
-                  if (!selectedTilesetCell?.tileKey) return;
-                  setEditingAsset(selectedTilesetCell.tileKey, 'tiles', 'asset');
+                  if (!effectiveSingleTile) return;
+                  setEditingAsset(effectiveSingleTile, 'tiles', 'asset');
                   setIsTileEditorOpen(true);
                 }}
                 className="w-7 h-7 flex items-center justify-center rounded-sm bg-transparent hover:bg-slate-200/60 dark:hover:bg-dark-tertiary/60 text-slate-700 dark:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-green/50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition"
@@ -686,13 +703,34 @@ const TilemapEditor = () => {
               </button>
               <button
                 type="button"
-                disabled={!selectedTilesetCell}
-                onClick={handleDeleteTile}
+                disabled={isTileEmpty}
+                onClick={() => setDeleteConfirmOpen(true)}
                 className="w-7 h-7 flex items-center justify-center rounded-sm bg-transparent hover:bg-slate-200/60 dark:hover:bg-dark-tertiary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-green/50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition"
                 title="Delete selected tile from tileset"
               >
                 <Trash2Icon className="w-4 h-4" />
               </button>
+              <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete tile?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {(() => {
+                        const count = tilemap
+                          ? tilemap.data.flat().filter((k) => k === effectiveSingleTile).length
+                          : 0;
+                        return count > 0
+                          ? <>This tile is used in <strong>{count}</strong> {count === 1 ? 'cell' : 'cells'} on the current tilemap. Deleting it will clear those cells.</>
+                          : 'This tile is not used on the current tilemap.';
+                      })()}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteTile}>Delete</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </div>
 
@@ -700,18 +738,11 @@ const TilemapEditor = () => {
           <div className="flex gap-2 items-end">
             {/* Primary tile — larger */}
             <div
-              className="w-10 h-10 shrink-0 overflow-hidden"
-              title="Primary tile (left-click to place)"
-              style={
+              className={`w-10 h-10 shrink-0 overflow-hidden ${
                 effectiveSingleTile && tileTextures[effectiveSingleTile]
-                  ? undefined
-                  : {
-                    backgroundImage: 'linear-gradient(45deg, #b0b0b0 25%, transparent 25%, transparent 75%, #b0b0b0 75%), linear-gradient(45deg, #b0b0b0 25%, transparent 25%, transparent 75%, #b0b0b0 75%)',
-                    backgroundSize: '8px 8px',
-                    backgroundPosition: '0 0, 4px 4px',
-                    backgroundColor: '#e0e0e0',
-                  }
-              }
+                  ? '' : 'bg-slate-300 dark:bg-slate-600'
+              }`}
+              title="Primary tile (left-click to place)"
             >
               {effectiveSingleTile && tileTextures[effectiveSingleTile] && (
                 <img
@@ -738,18 +769,11 @@ const TilemapEditor = () => {
               </button>
               {/* Secondary tile — smaller */}
               <div
-                className="w-7 h-7 shrink-0 overflow-hidden"
-                title="Secondary tile (right-click to place)"
-                style={
+                className={`w-7 h-7 shrink-0 overflow-hidden ${
                   selectedSecondaryTile && tileTextures[selectedSecondaryTile]
-                    ? undefined
-                    : {
-                      backgroundImage: 'linear-gradient(45deg, #b0b0b0 25%, transparent 25%, transparent 75%, #b0b0b0 75%), linear-gradient(45deg, #b0b0b0 25%, transparent 25%, transparent 75%, #b0b0b0 75%)',
-                      backgroundSize: '6px 6px',
-                      backgroundPosition: '0 0, 3px 3px',
-                      backgroundColor: '#e0e0e0',
-                    }
-                }
+                    ? '' : 'bg-slate-300 dark:bg-slate-600'
+                }`}
+                title="Secondary tile (right-click to place)"
               >
                 {selectedSecondaryTile && tileTextures[selectedSecondaryTile] && (
                   <img

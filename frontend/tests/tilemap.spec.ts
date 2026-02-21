@@ -186,4 +186,56 @@ test.describe('Tilemap Editor', () => {
     await expect(page.getByTitle('Edit selected tile')).toBeVisible();
     await expect(page.getByTitle('Delete selected tile from tileset')).toBeVisible();
   });
+
+  test('secondary swatch has no checkered pattern', async ({ page }) => {
+    await goToTilemap(page);
+
+    const swatch = page.getByTitle('Secondary tile (right-click to place)');
+    await expect(swatch).toBeVisible();
+
+    // Should use Tailwind background class, not inline backgroundImage
+    const styleAttr = await swatch.getAttribute('style');
+    expect(styleAttr ?? '').not.toMatch(/backgroundImage/);
+  });
+
+  test('delete button opens confirmation dialog', async ({ page }) => {
+    await goToTilemap(page);
+
+    const deleteBtn = page.getByTitle('Delete selected tile from tileset');
+    // Wait for cache to load and button to become enabled
+    await expect(deleteBtn).toBeEnabled({ timeout: 5000 });
+
+    await deleteBtn.click();
+
+    const dialog = page.getByRole('alertdialog');
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText('Delete tile?');
+  });
+
+  test('cancel on delete dialog preserves tile', async ({ page }) => {
+    await goToTilemap(page);
+
+    const deleteBtn = page.getByTitle('Delete selected tile from tileset');
+    await expect(deleteBtn).toBeEnabled({ timeout: 5000 });
+
+    await deleteBtn.click();
+    await expect(page.getByRole('alertdialog')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Cancel' }).click();
+    await expect(page.getByRole('alertdialog')).not.toBeVisible();
+
+    // Tile still selected — button should remain enabled
+    await expect(deleteBtn).toBeEnabled();
+  });
+
+  test('edit and delete disabled when tile is empty', async ({ page }) => {
+    await goToTilemap(page);
+
+    const editBtn = page.getByTitle('Edit selected tile');
+    const deleteBtn = page.getByTitle('Delete selected tile from tileset');
+
+    // Right after load, cache is not yet ready — buttons should be disabled
+    await expect(editBtn).toBeDisabled();
+    await expect(deleteBtn).toBeDisabled();
+  });
 });
