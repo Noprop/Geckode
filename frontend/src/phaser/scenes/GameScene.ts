@@ -3,6 +3,7 @@ import { EventBus } from '@/phaser/EventBus';
 import type { SpriteInstance } from '@/blockly/spriteRegistry';
 import { GAME_SCENE_KEY, EDITOR_SCENE_KEY } from '@/phaser/sceneKeys';
 import { useGeckodeStore } from '@/stores/geckodeStore';
+import { getClosestTileCollisionGap as findClosestTileCollisionGap } from '@/phaser/tileCollision';
 
 type SandboxContext = {
   scene: GameScene;
@@ -49,11 +50,13 @@ export default class GameScene extends Phaser.Scene {
 
   // Tilemap properties
   private static readonly TILE_SIZE = 16;
+  private static readonly TILESET_KEY = 'game-tileset';
   private tilemap: Phaser.Tilemaps.Tilemap | null = null;
-  private groundLayer: Phaser.Tilemaps.TilemapLayer | null = null;
-
-  // Store textures data for loading in create
-  private texturesData: Record<string, string> = {};
+  private tilemapLayer: Phaser.Tilemaps.TilemapLayer | null = null;
+  private tileKeyToIndex: Map<string, number> = new Map();
+  private collidableTileIndices: Set<number> = new Set();
+  private tilemapData: number[][] = [];
+  private tilemapOrigin = { x: 0, y: 0 };
 
   constructor() {
     super(GAME_SCENE_KEY);
@@ -66,7 +69,13 @@ export default class GameScene extends Phaser.Scene {
   private fromWorldY(y: number): number { return -y; }
 
   preload() {
-    this.generateTilesetTexture();
+    const { tiles } = useGeckodeStore.getState();
+    for (const tileKey of Object.keys(tiles)) {
+      const base64Image = tiles[tileKey];
+      const textureKey = 'tile-' + tileKey;
+      if (!base64Image || this.textures.exists(textureKey)) continue;
+      this.load.image(textureKey, base64Image);
+    }
   }
 
   create(data: { spriteInstances: SpriteInstance[]; textures: Record<string, string>; code: string }) {
@@ -74,7 +83,11 @@ export default class GameScene extends Phaser.Scene {
 
     // Reset tilemap state
     this.tilemap = null;
-    this.groundLayer = null;
+    this.tilemapLayer = null;
+    this.tilemapData = [];
+    this.tilemapOrigin = { x: 0, y: 0 };
+    this.tileKeyToIndex.clear();
+    this.collidableTileIndices.clear();
     this.gameSprites.clear();
     this.cloneRegistry.clear();
     this.cloneCounter = 0;
@@ -87,11 +100,11 @@ export default class GameScene extends Phaser.Scene {
       bottom: 0,
     };
 
-    // Store textures for later access
-    this.texturesData = data.textures || {};
-
     // Create the tilemap first (sits below everything)
-    // this.createTilemap();
+    const { tilemaps, activeTilemapId, tileCollidables } = useGeckodeStore.getState();
+    const selectedTilemap = tilemaps[activeTilemapId ?? 'tilemap_1'] ?? tilemaps['tilemap_1'];
+    this.generateTilesetTexture();
+    this.createTilemap(selectedTilemap?.data ?? [], tileCollidables);
 
     this.cursors = this.input.keyboard?.createCursorKeys()!;
     this.wasd = this.input.keyboard?.addKeys({
@@ -249,7 +262,7 @@ export default class GameScene extends Phaser.Scene {
 
     // Find ALL closest blockers in the movement direction
     let closestGap = Math.abs(delta);
-    let blockers: (Phaser.GameObjects.Sprite | 'worldBound')[] = [];
+    let blockers: (Phaser.GameObjects.Sprite | 'worldBound' | 'tilemap')[] = [];
 
     // Check other game sprites
     for (const other of this.gameSprites.values()) {
@@ -306,6 +319,17 @@ export default class GameScene extends Phaser.Scene {
       }
     }
 
+    // Check collidable map tiles (acts like a static blocker)
+    const tileGap = this.getClosestTileCollisionGap(sprite, delta, axis, hw, hh);
+    if (tileGap !== null) {
+      if (tileGap < closestGap - 0.001) {
+        closestGap = tileGap;
+        blockers = ['tilemap'];
+      } else if (Math.abs(tileGap - closestGap) < 0.001) {
+        blockers.push('tilemap');
+      }
+    }
+
     // Check world bounds (if collideWorldBounds is on for this sprite)
     if (sprite.getData('collideWorldBounds')) {
       let wbGap = Infinity;
@@ -342,7 +366,7 @@ export default class GameScene extends Phaser.Scene {
 
     // Check if any blocker is static or world bound — blocks the whole push
     const hasStaticBlocker = blockers.some(b =>
-      b === 'worldBound' || (b as Phaser.GameObjects.Sprite).getData('isStatic')
+      b === 'worldBound' || b === 'tilemap' || (b as Phaser.GameObjects.Sprite).getData('isStatic')
     );
 
     if (hasStaticBlocker) {
@@ -363,7 +387,7 @@ export default class GameScene extends Phaser.Scene {
     // The minimum push distance determines how far we can actually move
     let minPushed = Math.abs(remainDelta);
     for (const blocker of blockers) {
-      if (blocker === 'worldBound') { minPushed = 0; break; }
+      if (blocker === 'worldBound' || blocker === 'tilemap') { minPushed = 0; break; }
       const blockerSprite = blocker as Phaser.GameObjects.Sprite;
       const pushed = this.resolveAxisMovement(blockerSprite, remainDelta, axis, visited);
       minPushed = Math.min(minPushed, Math.abs(pushed));
@@ -440,97 +464,152 @@ export default class GameScene extends Phaser.Scene {
     );
   }
 
-  // ─── Tilemap helpers (unchanged) ─────────────────────────────────────
+  // ─── Tilemap helpers ──────────────────────────────────────────────────
 
   private generateTilesetTexture(): void {
-    const tileSize = GameScene.TILE_SIZE;
+    const { tiles } = useGeckodeStore.getState();
+    const tileKeys = Object.keys(tiles);
 
-    // Create a graphics object to draw tiles
-    const graphics = this.make.graphics({ x: 0, y: 0 });
-
-    // Tile 0: Empty/sky (transparent)
-    // We don't draw anything for tile 0
-
-    // Tile 1: Grass tile
-    graphics.fillStyle(0x4ade80); // green-400
-    graphics.fillRect(tileSize, 0, tileSize, tileSize);
-    // Add some grass texture lines
-    graphics.lineStyle(1, 0x22c55e, 0.6);
-    for (let i = 0; i < 5; i++) {
-      const x = tileSize + 4 + i * 6;
-      graphics.beginPath();
-      graphics.moveTo(x, tileSize - 2);
-      graphics.lineTo(x + 2, tileSize - 8);
-      graphics.strokePath();
+    // Build mapping: index 0 = empty, 1+ = each tile key
+    this.tileKeyToIndex.clear();
+    for (let i = 0; i < tileKeys.length; i++) {
+      this.tileKeyToIndex.set(tileKeys[i], i + 1);
     }
 
-    // Tile 2: Dirt tile
-    graphics.fillStyle(0x92400e); // amber-800
-    graphics.fillRect(tileSize * 2, 0, tileSize, tileSize);
-    // Add some dirt texture
-    graphics.fillStyle(0x78350f, 0.5);
-    for (let i = 0; i < 6; i++) {
-      const x = tileSize * 2 + 4 + Math.random() * 24;
-      const y = 4 + Math.random() * 24;
-      graphics.fillCircle(x, y, 2);
+    const totalSlots = tileKeys.length + 1; // +1 for empty tile at index 0
+    const stripWidth = totalSlots * GameScene.TILE_SIZE;
+
+    // Remove previous tileset texture if it exists
+    if (this.textures.exists(GameScene.TILESET_KEY)) {
+      this.textures.remove(GameScene.TILESET_KEY);
     }
 
-    // Tile 3: Stone tile
-    graphics.fillStyle(0x6b7280); // gray-500
-    graphics.fillRect(tileSize * 3, 0, tileSize, tileSize);
-    graphics.lineStyle(1, 0x4b5563, 0.8);
-    graphics.strokeRect(tileSize * 3 + 2, 2, tileSize - 4, tileSize - 4);
+    const dt = this.textures.addDynamicTexture(
+      GameScene.TILESET_KEY,
+      stripWidth,
+      GameScene.TILE_SIZE,
+      false,
+    );
+    if (!dt) return;
 
-    // Generate the texture (4 tiles wide, 1 tile tall)
-    graphics.generateTexture('game-tileset', tileSize * 4, tileSize);
-    graphics.destroy();
+    // Index 0 is left transparent (empty tile)
+    // Stamp each tile texture at its index position
+    for (let i = 0; i < tileKeys.length; i++) {
+      const textureKey = 'tile-' + tileKeys[i];
+      if (!this.textures.exists(textureKey)) continue;
+      dt.stamp(textureKey, undefined, (i + 1) * GameScene.TILE_SIZE, 0, {
+        originX: 0,
+        originY: 0,
+      });
+    }
+
+    dt.render();
   }
 
-  private createTilemap(): void {
-    const tileSize = GameScene.TILE_SIZE;
-    const width = this.scale.width;
-    const height = this.scale.height;
-    const mapWidth = Math.ceil(width / tileSize);
-    const mapHeight = Math.ceil(height / tileSize);
-
-    // Create tilemap data - simple ground at bottom 2 rows
-    const mapData: number[][] = [];
-    for (let y = 0; y < mapHeight; y++) {
-      const row: number[] = [];
-      for (let x = 0; x < mapWidth; x++) {
-        if (y >= mapHeight - 2) {
-          // Bottom 2 rows: grass on top, dirt below
-          row.push(y === mapHeight - 2 ? 1 : 2); // 1 = grass, 2 = dirt
-        } else {
-          row.push(0); // Empty
-        }
-      }
-      mapData.push(row);
+  private createTilemap(tilemap: (string | null)[][], tileCollidables: Record<string, boolean>): void {
+    // Clean up previous tilemap/layer
+    if (this.tilemapLayer) {
+      this.tilemapLayer.destroy();
+      this.tilemapLayer = null;
+    }
+    if (this.tilemap) {
+      this.tilemap.destroy();
+      this.tilemap = null;
     }
 
-    // Create tilemap from data
-    this.tilemap = this.make.tilemap({
-      data: mapData,
-      tileWidth: tileSize,
-      tileHeight: tileSize,
-    });
-
-    // Add tileset image
-    const tileset = this.tilemap.addTilesetImage('game-tileset', 'game-tileset', tileSize, tileSize, 0, 0);
-    if (!tileset) {
-      console.error('Failed to create tileset');
+    if (tilemap.length === 0 || tilemap[0].length === 0) {
+      this.tilemapData = [];
+      this.tilemapOrigin = { x: 0, y: 0 };
+      this.collidableTileIndices.clear();
       return;
     }
 
-    // Create layer (cast to TilemapLayer since we're creating from data, not GPU)
-    const layer = this.tilemap.createLayer(0, tileset, 0, 0);
-    if (layer && 'tilesDrawn' in layer) {
-      this.groundLayer = layer as Phaser.Tilemaps.TilemapLayer;
-      this.groundLayer.setDepth(0); // Below sprites
+    // Convert string keys to numeric indices using tileKeyToIndex
+    const numericData: number[][] = tilemap.map((row) =>
+      row.map((cell) => {
+        if (!cell) return 0;
+        return this.tileKeyToIndex.get(cell) ?? 0;
+      }),
+    );
+    this.tilemapData = numericData;
 
-      // Enable collision on grass (1) and dirt (2) tiles
-      this.tilemap.setCollision([1, 2]);
+    // Create tilemap from numeric data
+    this.tilemap = this.make.tilemap({
+      data: numericData,
+      tileWidth: GameScene.TILE_SIZE,
+      tileHeight: GameScene.TILE_SIZE,
+    });
+
+    // Add tileset image
+    const tileset = this.tilemap.addTilesetImage(
+      GameScene.TILESET_KEY,
+      GameScene.TILESET_KEY,
+      GameScene.TILE_SIZE,
+      GameScene.TILE_SIZE,
+      0,
+      0,
+    );
+    if (!tileset) return;
+
+    const mapPixelHeight = tilemap.length * GameScene.TILE_SIZE;
+    const layerY = -mapPixelHeight;
+    this.tilemapOrigin = { x: 0, y: layerY };
+
+    const layer = this.tilemap.createLayer(
+      0,
+      tileset,
+      this.tilemapOrigin.x,
+      this.tilemapOrigin.y,
+    );
+    if (layer) {
+      this.tilemapLayer = layer as Phaser.Tilemaps.TilemapLayer;
+      this.tilemapLayer.setDepth(0); // Below sprites
     }
+
+    this.rebuildCollidableTileIndices(tileCollidables);
+
+    if (this.collidableTileIndices.size > 0) {
+      this.tilemap.setCollision(Array.from(this.collidableTileIndices));
+    }
+  }
+
+  private rebuildCollidableTileIndices(tileCollidables: Record<string, boolean>): void {
+    this.collidableTileIndices.clear();
+    for (const [tileKey, collidable] of Object.entries(tileCollidables)) {
+      if (!collidable) continue;
+      const index = this.tileKeyToIndex.get(tileKey);
+      if (index !== undefined) {
+        this.collidableTileIndices.add(index);
+      }
+    }
+  }
+
+  private getClosestTileCollisionGap(
+    sprite: Phaser.GameObjects.Sprite,
+    delta: number,
+    axis: 'x' | 'y',
+    hw: number,
+    hh: number,
+  ): number | null {
+    if (this.tilemapData.length === 0 || this.collidableTileIndices.size === 0) return null;
+
+    return findClosestTileCollisionGap({
+      axis,
+      delta,
+      aabb: {
+        left: sprite.x - hw,
+        right: sprite.x + hw,
+        top: sprite.y - hh,
+        bottom: sprite.y + hh,
+      },
+      grid: {
+        data: this.tilemapData,
+        collidableTileIndices: this.collidableTileIndices,
+        tileSize: GameScene.TILE_SIZE,
+        originX: this.tilemapOrigin.x,
+        originY: this.tilemapOrigin.y,
+      },
+    });
   }
 
   // ─── Scene management ────────────────────────────────────────────────

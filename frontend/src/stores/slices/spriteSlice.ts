@@ -91,7 +91,28 @@ export const createUniqueSpriteName = (name: string, instances: { name: string }
 };
 
 export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> = (set, get) => ({
-  spriteInstances: [],
+  spriteInstances: [
+    {
+      name: 'gavin',
+      id: `id_${Date.now()}`,
+      textureName: 'gavin',
+      x: 50,
+      y: 50,
+      visible: true,
+      scaleX: 1,
+      scaleY: 1,
+      direction: 0,
+      snapToGrid: true,
+      physics: {
+        enabled: false,
+        anchored: false,
+        drag: 0.99,
+        gravityY: 300,
+        bounce: 0.5,
+        collideWorldBounds: true,
+      },
+    },
+  ],
   textures: {},
   tiles: {
     grass: grassTile,
