@@ -708,7 +708,7 @@ const TilemapEditor = () => {
                 className="w-7 h-7 flex items-center justify-center rounded-sm bg-transparent hover:bg-slate-200/60 dark:hover:bg-dark-tertiary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-green/50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition"
                 title="Delete selected tile from tileset"
               >
-                <Trash2Icon className="w-4 h-4" />
+                <Trash2Icon className="w-4 h-4 text-red-500" />
               </button>
               <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
                 <AlertDialogContent>
