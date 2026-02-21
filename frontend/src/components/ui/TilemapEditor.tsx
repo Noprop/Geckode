@@ -545,7 +545,6 @@ const TilemapEditor = () => {
   const handleDeleteTile = useCallback(() => {
     if (!effectiveSingleTile) return;
     const tileToDelete = effectiveSingleTile;
-
     updateActiveTilesetData((data) => {
       let found = false;
       for (let r = 0; r < data.length; r++) {
@@ -558,14 +557,7 @@ const TilemapEditor = () => {
       }
       return found ? data : null;
     });
-
-    if (activeTilemapId && tilemap) {
-      const newData = tilemap.data.map((row) =>
-        row.map((cell) => (cell === tileToDelete ? null : cell)),
-      );
-      setTilemapData(activeTilemapId, newData);
-    }
-  }, [effectiveSingleTile, updateActiveTilesetData, activeTilemapId, tilemap, setTilemapData]);
+  }, [effectiveSingleTile, updateActiveTilesetData]);
 
   const handleSwapTiles = useCallback(() => {
     setSelectedSingleTile(selectedSecondaryTile);
@@ -632,16 +624,21 @@ const TilemapEditor = () => {
       <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete tile?</AlertDialogTitle>
+            <AlertDialogTitle className="text-red-500 text-2xl">Delete Tile</AlertDialogTitle>
             <AlertDialogDescription>
-              {tilemapCellsUsingSelectedTile > 0
-                ? <>This tile is used in <strong>{tilemapCellsUsingSelectedTile}</strong> {tilemapCellsUsingSelectedTile === 1 ? 'cell' : 'cells'} on the current tilemap. Deleting it will clear those cells.</>
-                : 'This tile is not used on the current tilemap.'}
+              There are {tilemapCellsUsingSelectedTile} tiles using this tile. Please confirm you want to delete it.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteTile}>Delete</AlertDialogAction>
+            <AlertDialogAction
+              onClick={() => {
+                handleDeleteTile();
+                setDeleteConfirmOpen(false);
+              }}
+            >
+              Delete
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -733,6 +730,8 @@ const TilemapEditor = () => {
                 type="button"
                 disabled={isTileEmpty}
                 onClick={() => {
+                  if (!effectiveSingleTile) return;
+                  setEditingAsset(effectiveSingleTile, 'tiles', 'asset');
                   if (!effectiveSingleTile) return;
                   setEditingAsset(effectiveSingleTile, 'tiles', 'asset');
                   setIsTileEditorOpen(true);
