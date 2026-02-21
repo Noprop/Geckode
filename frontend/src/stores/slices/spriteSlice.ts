@@ -30,6 +30,8 @@ import {
   waterTile,
 } from '../b64_textures';
 import type { AssetType, EditingSource, GeckodeStore, Scene, SpriteSlice, SpriteModalMode, Tilemap, Tileset } from './types';
+import { addSpriteSync, deleteSpriteSync, updateSpriteSync } from '@/hooks/yjs/useWorkspaceSync';
+import { deleteAssetSync, setAssetSync } from '@/hooks/yjs/useAssetSync';
 
 export const createEmptyTilemapData = (height: number, width: number): (string | null)[][] =>
   Array.from({ length: height }, () => Array.from({ length: width }, () => null));
@@ -72,6 +74,7 @@ const createDefaultTilemap = (tilesetId: string): Tilemap => ({
 
 /** deduplicate texture name */
 export const createUniqueTextureName = (name: string, textures: Record<string, string>): string => {
+  console.log('creating unique texture name: ', name, textures);
   if (!(name in textures)) return name;
   if (Number.isNaN(Number(name[name.length - 1]))) return createUniqueTextureName(`${name}2`, textures);
   const lastDigit = Number(name[name.length - 1]);
@@ -88,30 +91,8 @@ export const createUniqueSpriteName = (name: string, instances: { name: string }
 };
 
 export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> = (set, get) => ({
-  spriteInstances: [
-    {
-      name: 'gavin',
-      id: `id_${Date.now()}`,
-      textureName: 'gavin',
-      x: 50,
-      y: 50,
-      visible: true,
-      scaleX: 1,
-      scaleY: 1,
-      direction: 0,
-      snapToGrid: true,
-      physics: {
-        enabled: false,
-        anchored: false,
-        drag: 0.99,
-        gravityY: 300,
-        bounce: 0.5,
-        collideWorldBounds: true,
-      },
-    },
-  ],
-
-  textures: { gavin: gavin },
+  spriteInstances: [],
+  textures: {},
   tiles: {
     grass: grassTile,
     dirt: dirtTile,
@@ -140,6 +121,8 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
   tileCollidables: {},
   animations: {},
   backgrounds: {},
+
+  textureLoadingState: {},
 
   libaryTextures: {
     'hero-walk-front': heroWalkFront1,
@@ -176,42 +159,22 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
       spriteModalSaveTargetTextureName: null,
     }),
   setSelectedSpriteId: (newId: string | null) => {
-    const { blocklyWorkspace, spriteWorkspaces, selectedSpriteId: prevId } = get();
+    const { selectedSpriteId: prevId } = get();
     if (newId === prevId) return;
-    if (!blocklyWorkspace) return;
-
-    // Save current workspace for the previously selected sprite
-    if (prevId) {
-      set({
-        spriteWorkspaces: {
-          ...spriteWorkspaces,
-          [prevId]: Blockly.serialization.workspaces.save(blocklyWorkspace),
-        },
-      });
-    }
-
-    // Load workspace for the newly selected sprite
-    const state = newId && get().spriteWorkspaces[newId];
-    if (!state) {
-      Blockly.serialization.workspaces.load({}, blocklyWorkspace);
-    } else {
-      Blockly.serialization.workspaces.load(state, blocklyWorkspace);
-    }
 
     set({ selectedSpriteId: newId });
     console.log(`sprite ${newId} workspace loaded`);
   },
   setSpriteInstances: (instances: SpriteInstance[]) => set({ spriteInstances: instances }),
-  removeSpriteInstance: (spriteId: string) => {
-    const { spriteInstances, selectedSpriteId, spriteWorkspaces, blocklyWorkspace, phaserScene } = get();
+  removeSpriteInstance: (spriteId: string, syncAfter: boolean = true) => {
+    const { spriteInstances, spriteWorkspaces, phaserScene } = get();
     const remaining = spriteInstances.filter((instance) => instance.id !== spriteId);
-    phaserScene!.removeSprite(spriteId);
 
-    if (selectedSpriteId === spriteId && remaining.length > 0) {
-      Blockly.serialization.workspaces.load(spriteWorkspaces[spriteInstances[0].id], blocklyWorkspace!);
-    }
+    if (phaserScene instanceof EditorScene) phaserScene.removeSprite(spriteId);
 
-    set({
+    spriteWorkspaces[spriteId]?.dispose();
+
+    set((s) => ({
       spriteInstances: remaining,
       spriteWorkspaces: {
         ...Object.fromEntries(
@@ -219,23 +182,38 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
             .filter(([id]) => id !== spriteId)
         ),
       },
-      selectedSpriteId: selectedSpriteId === spriteId
+      spriteOutputs: {
+        ...Object.fromEntries(
+          Object.entries(s.spriteOutputs)
+            .filter(([id]) => id !== spriteId)
+        ),
+      },
+      selectedSpriteId: s.selectedSpriteId === spriteId
         ? (remaining[0]?.id ?? null)
-        : selectedSpriteId,
-    });
+        : s.selectedSpriteId,
+    }));
+
+    if (syncAfter) {
+      deleteSpriteSync(spriteId);
+    }
   },
 
-  updateSpriteInstance: (spriteId: string, updates: Partial<SpriteInstance>) => {
+  updateSpriteInstance: (spriteId: string, updates: Partial<SpriteInstance>, syncAfter: boolean = true) => {
     const { phaserGame, phaserScene } = get();
     if (!phaserGame || !phaserScene) throw new Error('Game is not ready yet.');
-    if (!(phaserScene instanceof EditorScene)) throw new Error('Should not be able to update sprite from game scene.');
-    phaserScene.updateSprite(spriteId, updates);
+    if (phaserScene instanceof EditorScene) {
+      phaserScene.updateSprite(spriteId, updates);
+    }
 
     set((state) => ({
       spriteInstances: state.spriteInstances.map((instance) =>
         instance.id === spriteId ? { ...instance, ...updates } : instance,
       ),
     }));
+
+    if (syncAfter) {
+      updateSpriteSync(spriteId, updates);
+    }
   },
 
   updateInstanceOrder: (spriteIdx: number, newIdx: number) => {
@@ -246,8 +224,8 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
     set({ spriteInstances: updatedInstances });
   },
 
-  saveSprite: ({ spriteName, base64Image }) => {
-    const { editingSource, editingAssetName, textures } = get();
+  saveSprite: ({ spriteName, base64Image, syncAfter = true }) => {
+    const { editingSource, editingAssetName, textures, spriteWorkspaces, phaserScene } = get();
     let textureName: string;
 
     if (editingSource === 'asset' && editingAssetName) {
@@ -255,7 +233,21 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
     } else {
       textureName = createUniqueTextureName(spriteName, textures);
     }
-    set({ textures: { ...get().textures, [textureName]: base64Image } });
+    set({ 
+      textures: { ...get().textures, [textureName]: base64Image },
+      textureLoadingState: { ...get().textureLoadingState, [textureName]: 'pending' },
+    });
+
+    // Only load texture immediately if in EditorScene
+    // GameScene will pick up changes when user switches back
+    if (phaserScene instanceof EditorScene) {
+      phaserScene.loadSpriteTextureAsync(textureName, base64Image).then(() => {
+        get().setTextureLoadState(textureName, 'loaded');
+      }).catch((err) => {
+        console.error(`Failed to load texture ${textureName}:`, err);
+        get().setTextureLoadState(textureName, 'error');
+      });
+    }
 
     const instance: SpriteInstance = {
       name: createUniqueSpriteName(spriteName, get().spriteInstances),
@@ -269,28 +261,67 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
       direction: 0,
       snapToGrid: true,
     };
-    set({ spriteInstances: [...get().spriteInstances, instance] });
+
+    set({
+      spriteInstances: [...get().spriteInstances, instance],
+      spriteWorkspaces: {
+        ...spriteWorkspaces,
+        [instance.id]: new Blockly.Workspace(),
+      },
+    });
+
+    if (syncAfter) {
+      addSpriteSync(instance);
+    }
     return textureName;
   },
 
   /* ── Assets ── */
   setEditingAsset: (name: string | null, type: AssetType, source: EditingSource) => { set({ editingSource: source, editingAssetName: name, editingAssetType: type }) },
 
-  addAsset: (name: string, base64Image: string, type: AssetType) => {
-    if (type === 'tilesets') return;
-    const assets = { ...(get() as any)[type], [name]: base64Image };
-    set({ [type]: assets } as any);
+  setAsset: (name: string, base64Image: string, type: AssetType, syncAfter: boolean = true) => {
+    set({ [type]: { ...get()[type], [name]: base64Image } });
+
+    // If it's a texture, mark it as pending and load it only in EditorScene
+    if (type === 'textures') {
+      set((s) => ({
+        textureLoadingState: { ...s.textureLoadingState, [name]: 'pending' },
+      }));
+
+      const { phaserScene } = get();
+      // Only load texture immediately if in EditorScene
+      // GameScene will pick up changes when user switches back
+      if (phaserScene instanceof EditorScene) {
+        phaserScene.loadSpriteTextureAsync(name, base64Image).then(() => {
+          get().setTextureLoadState(name, 'loaded');
+        }).catch((err) => {
+          console.error(`Failed to load texture ${name}:`, err);
+          get().setTextureLoadState(name, 'error');
+        });
+      }
+    }
+
+    if (syncAfter) {
+      setAssetSync(name, base64Image, type);
+    }
   },
-  updateAsset: (name: string, base64Image: string, type: AssetType) => {
-    if (type === 'tilesets') return;
-    const assets = { ...(get() as any)[type], [name]: base64Image };
-    set({ [type]: assets } as any);
+  removeAsset: (name: string, type: Exclude<AssetType, 'tilesets'>, syncAfter: boolean = true) => {
+    const { [name]: _, ...rest } = get()[type];
+    set({ [type]: rest });
+
+    if (syncAfter) {
+      deleteAssetSync(name, type);
+    }
   },
-  removeAsset: (name: string, type: AssetType) => {
-    if (type === 'tilesets') return;
-    const current = { ...(get() as any)[type] };
-    delete current[name];
-    set({ [type]: current } as any);
+
+  /* ── Texture Loading ── */
+  setTextureLoadState: (textureName: string, state) => {
+    set((s) => ({
+      textureLoadingState: {
+        ...s.textureLoadingState,
+        [textureName]: state,
+      },
+    }));
   },
 
   /* ── Tilesets ── */
@@ -454,6 +485,7 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
       tileCollidables: {},
       animations: {},
       backgrounds: {},
+      textureLoadingState: {},
       libaryTextures: {
         'hero-walk-front': heroWalkFront1,
         'hero-walk-back': heroWalkBack1,

@@ -12,6 +12,7 @@ import { useCanvasZoom } from '@/hooks/useCanvasZoom';
 import { usePixelCanvas, createPixelArray } from '@/hooks/usePixelCanvas';
 import { createUniqueSpriteName, createUniqueTextureName } from '@/stores/slices/spriteSlice';
 import type { SpriteInstance } from '@/blockly/spriteRegistry';
+import { addSpriteSync } from '@/hooks/yjs/useWorkspaceSync';
 export type Tool = 'pen' | 'eraser' | 'bucket' | 'rectangle' | 'line' | 'oval' | 'rectangle-selection' | 'pan-tool' | 'color-picker';
 
 // Convert RGBA values at index to hex (returns '' for transparent)
@@ -63,8 +64,7 @@ const SpriteEditor = () => {
   // --- Zustand selectors ---
   const setIsSpriteModalOpen = useGeckodeStore((s) => s.setIsSpriteModalOpen);
   const clearSpriteModalContext = useGeckodeStore((s) => s.clearSpriteModalContext);
-  const addAsset = useGeckodeStore((s) => s.addAsset);
-  const updateAsset = useGeckodeStore((s) => s.updateAsset);
+  const setAsset = useGeckodeStore((s) => s.setAsset);
   const libaryTextures = useGeckodeStore((s) => s.libaryTextures);
   const textures = useGeckodeStore((s) => s.textures);
   const editingSource = useGeckodeStore((s) => s.editingSource);
@@ -365,7 +365,6 @@ const SpriteEditor = () => {
     };
   }, []);
 
-  // --- Save / Load ---
   const closeSpriteModal = () => {
     useGeckodeStore.setState({ editingSource: null, editingAssetName: null, editingAssetType: null });
     clearSpriteModalContext();
@@ -384,13 +383,14 @@ const SpriteEditor = () => {
   };
 
   const createAndInsertSprite = (textureName: string) => {
-    if (!(phaserScene instanceof EditorScene)) throw new Error('Phaser scene is not an EditorScene.');
+    if (!phaserScene) throw new Error('Phaser scene is not ready.');
 
-    const { spriteInstances: currentInstances, selectedSpriteId, spriteWorkspaces, blocklyWorkspace } = useGeckodeStore.getState();
+    const { spriteInstances: currentInstances } = useGeckodeStore.getState();
     const newSpriteName = createUniqueSpriteName(spriteName, currentInstances);
+
     const newSprite: SpriteInstance = {
       name: newSpriteName,
-      textureName,
+      textureName: textureName,
       id: `id_${Date.now()}`,
       x: 0,
       y: 0,
@@ -400,20 +400,23 @@ const SpriteEditor = () => {
       direction: 0,
       snapToGrid: true,
     };
+    
+    // Only manipulate Phaser sprites in EditorScene
+    if (phaserScene instanceof EditorScene) {
+      phaserScene.createSprite(newSprite);
+    }
 
-    phaserScene.createSprite(newSprite);
-    useGeckodeStore.setState({
-      spriteInstances: [...currentInstances, newSprite],
+    // Add sprite to state and sync (will be created in EditorScene when user switches back)
+    useGeckodeStore.setState((s) => ({
+      spriteInstances: [...s.spriteInstances, newSprite],
       selectedSpriteId: newSprite.id,
       spriteWorkspaces: {
-        ...spriteWorkspaces,
-        [newSprite.id]: {},
-        ...(selectedSpriteId && blocklyWorkspace
-          ? { [selectedSpriteId]: Blockly.serialization.workspaces.save(blocklyWorkspace) }
-          : {}),
+        ...s.spriteWorkspaces,
+        [newSprite.id]: new Blockly.Workspace(),
       },
-    });
-    Blockly.serialization.workspaces.load({}, useGeckodeStore.getState().blocklyWorkspace!);
+    }));
+
+    addSpriteSync(newSprite);
   };
 
   const handlePrimaryAction = async () => {
@@ -425,12 +428,15 @@ const SpriteEditor = () => {
       spriteModalSaveTargetTextureName: currentSaveTargetTextureName,
       textures: currentTextures,
     } = useGeckodeStore.getState();
+    const isEditorScene = phaserScene instanceof EditorScene;
+
+    if (!phaserScene) throw new Error('Phaser scene is not ready.');
 
     if (currentSpriteModalMode === 'phaser_edit') {
       const targetTextureName = currentSaveTargetTextureName ?? currentEditingAssetName;
       if (!targetTextureName) return;
-      updateAsset(targetTextureName, base64Image, 'textures');
-      if (phaserScene instanceof EditorScene) {
+      setAsset(targetTextureName, base64Image, 'textures');
+      if (isEditorScene) {
         await phaserScene.updateSpriteTextureAsync(targetTextureName, base64Image);
       }
       closeSpriteModal();
@@ -442,32 +448,36 @@ const SpriteEditor = () => {
         currentSaveTargetTextureName ??
         (currentEditingSource === 'asset' ? currentEditingAssetName : null);
       if (targetTextureName) {
-        updateAsset(targetTextureName, base64Image, 'textures');
-        if (phaserScene instanceof EditorScene) {
+        setAsset(targetTextureName, base64Image, 'textures');
+        if (isEditorScene) {
           await phaserScene.updateSpriteTextureAsync(targetTextureName, base64Image);
         }
       } else {
-        const newTextureName = createUniqueTextureName(spriteName, currentTextures);
-        addAsset(newTextureName, base64Image, 'textures');
+        const newTextureName = createUniqueTextureName(spriteName, {...currentTextures, ...libaryTextures});
+        setAsset(newTextureName, base64Image, 'textures');
       }
       closeSpriteModal();
       return;
     }
 
-    if (!(phaserScene instanceof EditorScene)) throw new Error('Phaser scene is not an EditorScene.');
-
     if (currentEditingSource === 'library' && currentEditingAssetName && !isCanvasDirty) {
       const libraryTextureBase64 = libaryTextures[currentEditingAssetName];
       if (!libraryTextureBase64) return;
-      await phaserScene.loadSpriteTextureAsync(currentEditingAssetName, libraryTextureBase64);
+      console.log('texture name added library: ', currentEditingAssetName);
+      if (isEditorScene) {
+        await phaserScene.loadSpriteTextureAsync(currentEditingAssetName, libraryTextureBase64);
+      }
       createAndInsertSprite(currentEditingAssetName);
       closeSpriteModal();
       return;
     }
 
-    const newTextureName = createUniqueTextureName(spriteName, currentTextures);
-    addAsset(newTextureName, base64Image, 'textures');
-    await phaserScene.loadSpriteTextureAsync(newTextureName, base64Image);
+    const newTextureName = createUniqueTextureName(spriteName, {...currentTextures, ...libaryTextures});
+    setAsset(newTextureName, base64Image, 'textures');
+    console.log('texture name added new: ', newTextureName);
+    if (isEditorScene) {
+      await phaserScene.loadSpriteTextureAsync(newTextureName, base64Image);
+    }
     createAndInsertSprite(newTextureName);
     closeSpriteModal();
   };

@@ -14,7 +14,7 @@ export interface BlockSelection {
 
 export interface Client {
   id: number;
-  user: PublicUser;
+  user?: PublicUser;
   blockDrag?: BlockDrag;
   blockSelection?: BlockSelection;
 }

@@ -19,7 +19,7 @@ const angleGhost = {
       name: "VALUE",
       clockwise: true,
       offset: 90,
-      value: 90,
+      value: 0,
       symbol: ""
     }
   ],
@@ -51,7 +51,7 @@ const spriteGhost = {
 
 javascriptGenerator.forBlock['spriteGhost'] = function (block, generator) {
   var value = block.getFieldValue("SPRITE");
-  const code = `${value}`
+  const code = `"${value}"`
   return [code, Order.NONE];
 };
 

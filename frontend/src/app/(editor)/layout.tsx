@@ -2,6 +2,7 @@
 
 import Header from "@/components/Header/Header";
 import HeaderRHSBtns from "@/components/HeaderRHSBtns";
+import { ClientsDisplay } from "@/components/ui/ClientsDisplay";
 import TabSelector from "@/components/ui/selectors/TabSelector";
 import {
   useWorkspaceView,
@@ -36,7 +37,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             ]}
           />
         }
-        rhs={<HeaderRHSBtns />}
+        rhs={
+          <>
+            <ClientsDisplay />
+            <HeaderRHSBtns />
+          </>
+        }
       />
       <main
         className="flex-1 flex flex-col bg-light-secondary dark:bg-dark-secondary"

@@ -49,6 +49,8 @@ export type AssetType = 'textures' | 'tiles' | 'tilesets' | 'animations' | 'back
 export type EditingSource = 'new' | 'asset' | 'library';
 export type SpriteModalMode = 'phaser_add' | 'phaser_edit' | 'asset_manager';
 
+export type TextureLoadState = 'pending' | 'loading' | 'loaded' | 'error';
+
 export interface SpriteState {
   spriteInstances: SpriteInstance[];
 
@@ -57,6 +59,9 @@ export interface SpriteState {
   tilesets: Tileset[];
   animations: Record<string, string>;
   backgrounds: Record<string, string>;
+
+  // Track texture loading state for Phaser
+  textureLoadingState: Record<string, TextureLoadState>;
 
   libaryTextures: Record<string, string>;
   libaryTiles: Record<string, string>;
@@ -89,15 +94,17 @@ export interface SpriteActions {
 
   /* Sprites */
   setSpriteInstances: (instances: SpriteInstance[]) => void;
-  removeSpriteInstance: (spriteId: string) => void;
-  updateSpriteInstance: (spriteId: string, updates: Partial<SpriteInstance>) => void;
+  removeSpriteInstance: (spriteId: string, syncAfter?: boolean) => void;
+  updateSpriteInstance: (spriteId: string, updates: Partial<SpriteInstance>, syncAfter?: boolean) => void;
   updateInstanceOrder: (spriteIdx: number, newIdx: number) => void;
-  saveSprite: (params: { spriteName: string; base64Image: string }) => string;
+  saveSprite: (params: { spriteName: string; base64Image: string; syncAfter?: boolean; }) => string;
 
   /* Assets */
-  addAsset: (name: string, base64Image: string, type: AssetType) => void;
-  updateAsset: (name: string, base64Image: string, type: AssetType) => void;
-  removeAsset: (name: string, type: AssetType) => void;
+  setAsset: (name: string, base64Image: string, type: AssetType, syncAfter?: boolean) => void;
+  removeAsset: (name: string, type: Exclude<AssetType, 'tilesets'>, syncAfter?: boolean) => void;
+
+  /* Texture Loading */
+  setTextureLoadState: (textureName: string, state: TextureLoadState) => void;
 
   /* Tilesets */
   addTileset: (tileset: Tileset) => void;
@@ -148,11 +155,11 @@ export interface EditorState {
   canRedo: boolean;
   isConverting: boolean;
   isEditorScene: boolean;
-  convertTimeoutId: ReturnType<typeof setTimeout> | null;
 
   // Workspace state
-  spriteWorkspaces: Record<string, Blockly.serialization.workspaceComments.State>;
+  spriteWorkspaces: Record<string, Blockly.Workspace>;
   spriteOutputs: Record<string, WorkspaceOutputType>;
+  spriteIdsUpdated: string[];
 }
 
 export interface EditorActions {
@@ -160,8 +167,8 @@ export interface EditorActions {
   setBlocklyWorkspaceRef: (blocklyWorkspace: Blockly.WorkspaceSvg) => void;
   setPhaserScene: (phaserScene: EditorScene | GameScene) => void;
   setPhaserGame: (phaserGame: Phaser.Game) => void;
-  setProjectId: (id: number) => void;
-  setProjectName: (name: string) => void;
+  setProjectId: (id: number | null) => void;
+  setProjectName: (name: string, syncAfter?: boolean) => void;
   setPhaserState: (phaserState: PhaserExport | null) => void;
   updateUndoRedoState: () => void;
 
@@ -170,14 +177,13 @@ export interface EditorActions {
 
   // Editor Actions
   generateCode: () => void;
-  scheduleConvert: () => void;
-  cancelScheduledConvert: () => void;
   saveProject: (showSnackbar: (msg: string, type: 'success' | 'error') => void) => Promise<void>;
   exportWorkspaceState: () => void;
   undoWorkspace: () => void;
   redoWorkspace: () => void;
   toggleEditor: () => void;
   resetProject: () => void;
+  markSpriteAsUpdated: (id: string) => void;
 }
 
 export type EditorSlice = EditorState & EditorActions;

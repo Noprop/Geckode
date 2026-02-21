@@ -216,22 +216,14 @@ const TilesetEditor = ({ onClose }: { onClose: () => void }) => {
         <div className="flex flex-col gap-1">
           <span className="text-sm text-slate-600 dark:text-slate-300 font-semibold px-0.5">Tiles</span>
 
-          {/* Pagination arrows + grid */}
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setTilePage(p => Math.max(0, p - 1))}
-              disabled={tilePage === 0}
-              className="w-6 h-6 flex items-center justify-center rounded text-slate-500 hover:bg-slate-200 dark:hover:bg-dark-tertiary disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition"
-              title="Previous page"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M15 18l-6-6 6-6" />
-              </svg>
-            </button>
-
-            <div className="grid grid-cols-3 gap-[2px] flex-1">
-              {pagedTileKeys.map((key) => (
+          {/* Tile grid — always 3×3 */}
+          <div className="grid grid-cols-3 gap-[2px]">
+            {Array.from({ length: TILES_PER_PAGE }, (_, i) => {
+              const key = pagedTileKeys[i];
+              if (!key) {
+                return <div key={`empty-${i}`} className="aspect-square" />;
+              }
+              return (
                 <button
                   key={key}
                   type="button"
@@ -256,25 +248,25 @@ const TilesetEditor = ({ onClose }: { onClose: () => void }) => {
                     style={{ imageRendering: 'pixelated' }}
                   />
                 </button>
-              ))}
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setTilePage(p => Math.min(totalPages - 1, p + 1))}
-              disabled={tilePage >= totalPages - 1}
-              className="w-6 h-6 flex items-center justify-center rounded text-slate-500 hover:bg-slate-200 dark:hover:bg-dark-tertiary disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition"
-              title="Next page"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M9 18l6-6-6-6" />
-              </svg>
-            </button>
+              );
+            })}
           </div>
 
-          {/* Page dots */}
+          {/* Arrows + page dots in one row */}
           {totalPages > 1 && (
-            <div className="flex justify-center gap-1 pt-1">
+            <div className="flex items-center justify-center gap-1">
+              <button
+                type="button"
+                onClick={() => setTilePage(p => Math.max(0, p - 1))}
+                disabled={tilePage === 0}
+                className="w-6 h-6 flex items-center justify-center rounded text-slate-500 hover:bg-slate-200 dark:hover:bg-dark-tertiary disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition"
+                title="Previous page"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M15 18l-6-6 6-6" />
+                </svg>
+              </button>
+
               {Array.from({ length: totalPages }, (_, i) => (
                 <button
                   key={i}
@@ -286,6 +278,18 @@ const TilesetEditor = ({ onClose }: { onClose: () => void }) => {
                   title={`Page ${i + 1}`}
                 />
               ))}
+
+              <button
+                type="button"
+                onClick={() => setTilePage(p => Math.min(totalPages - 1, p + 1))}
+                disabled={tilePage >= totalPages - 1}
+                className="w-6 h-6 flex items-center justify-center rounded text-slate-500 hover:bg-slate-200 dark:hover:bg-dark-tertiary disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition"
+                title="Next page"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M9 18l6-6-6-6" />
+                </svg>
+              </button>
             </div>
           )}
         </div>

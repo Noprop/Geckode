@@ -8,6 +8,9 @@ import Phaser from "./PhaserPanel/Phaser";
 
 import AssetWorkspace from "./AssetManager/Overview";
 import TilemapEditor from "@/components/ui/TilemapEditor";
+import { useParams } from "next/navigation";
+import { useWorkspaceSync } from "@/hooks/yjs/useWorkspaceSync";
+import useMultiDebounce from "@/hooks/useMultiDebounce";
 
 // disable for now
 // import { useBlockSync } from "@/hooks/yjs/useBlockSync";
@@ -22,19 +25,44 @@ import TilemapEditor from "@/components/ui/TilemapEditor";
 // };
 
 const ProjectView = () => {
+  const { projectID } = useParams();
   const { view } = useWorkspaceView();
-  const { undoWorkspace, redoWorkspace, canUndo, canRedo } = useGeckodeStore();
+  const { undoWorkspace, redoWorkspace, canUndo, canRedo, spriteIdsUpdated, isEditorScene, setProjectId } = useGeckodeStore();
+  const debouncedEditorChanges = useMultiDebounce({
+    values: { spriteIdsUpdated, isEditorScene },
+    delays: {
+      isEditorScene: 100,
+    },
+    defaultDelay: 400,
+  });
 
-  // disable for now 
-  // useBlockSync(documentName);
-  // useVariableSync(documentName);
-
+  // Keep store projectId in sync with route so Yjs documentRegistry resolves the right doc
   useEffect(() => {
-    return () => {
-      // Cancel any pending auto-convert on unmount
-      useGeckodeStore.getState().cancelScheduledConvert();
+    setProjectId(projectID != null ? Number(projectID) : null);
+    return () => setProjectId(null);
+  }, [projectID, setProjectId]);
+
+  useWorkspaceSync(String(projectID ?? ''));
+
+  // This handles generating the code after any changes
+  useEffect(() => {
+    console.log('debouncing editor changes to generate code', debouncedEditorChanges.spriteIdsUpdated);
+    if (!debouncedEditorChanges.isEditorScene || !debouncedEditorChanges.spriteIdsUpdated.length) return;
+
+    useGeckodeStore.setState({ isConverting: true });
+    useGeckodeStore.getState().generateCode();
+
+    // This timeout is to visually show that the code actual did generate (at least useful during development)
+    const timeoutFunc = () => {
+      useGeckodeStore.setState({ isConverting: false });
     };
-  }, []);
+    const timeout = setTimeout(timeoutFunc, 100);
+
+    return () => {
+      clearTimeout(timeout);
+      timeoutFunc();
+    };
+  }, [debouncedEditorChanges]);
 
   return (
     <div className="flex h-[calc(100vh-4rem)]">
@@ -65,7 +93,7 @@ const ProjectView = () => {
         </div>
 
         {view === "blocks" && (
-          <div className="absolute bottom-8 right-[30px] flex items-center gap-2.5 z-9999 pointer-events-auto">
+          <div className="absolute bottom-8 right-[30px] flex items-center gap-2.5 z-20 pointer-events-auto">
             <button
               onClick={undoWorkspace}
               disabled={!canUndo}

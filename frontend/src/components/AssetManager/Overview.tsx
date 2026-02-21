@@ -8,6 +8,7 @@ import AssetList from './AssetList';
 import TextureDetailPanel from './DetailPanel';
 import TileEditorModal from '../TileModal/TileEditorModal';
 import TilesetEditorModal from '../TileModal/TilesetEditorModal';
+import { useSnackbar } from '@/hooks/useSnackbar';
 
 export type SelectedAsset = { name: string; type: AssetType } | null;
 
@@ -28,13 +29,15 @@ const AssetWorkspace = () => {
 
   const assets = useGeckodeStore((s) => s[activeTab]);
   const tilesets = useGeckodeStore((s) => s.tilesets);
-  const addAsset = useGeckodeStore((s) => s.addAsset);
+  const setAsset = useGeckodeStore((s) => s.setAsset);
   const removeAsset = useGeckodeStore((s) => s.removeAsset);
   const addTileset = useGeckodeStore((s) => s.addTileset);
   const removeTileset = useGeckodeStore((s) => s.removeTileset);
   const setEditingAsset = useGeckodeStore((s) => s.setEditingAsset);
   const setIsSpriteModalOpen = useGeckodeStore((s) => s.setIsSpriteModalOpen);
   const setSpriteModalContext = useGeckodeStore((s) => s.setSpriteModalContext);
+
+  const showSnackbar = useSnackbar();
 
   const selectedTileset = selectedAsset?.type === 'tilesets'
     ? tilesets.find((ts) => ts.id === selectedAsset.name) ?? null
@@ -79,7 +82,7 @@ const AssetWorkspace = () => {
     const all = useGeckodeStore.getState()[selectedAsset.type];
     const nameMap = Object.fromEntries(Object.keys(all).map(k => [k, '']));
     const newName = createUniqueTextureName(selectedAsset.name, nameMap);
-    addAsset(newName, selectedBase64, selectedAsset.type);
+    setAsset(newName, selectedBase64, selectedAsset.type);
     setSelectedAsset({ name: newName, type: selectedAsset.type });
   };
 
@@ -93,6 +96,13 @@ const AssetWorkspace = () => {
     if (selectedAsset.type === 'tilesets') {
       removeTileset(selectedAsset.name);
     } else {
+      if (
+        selectedAsset.type === 'textures' &&
+        useGeckodeStore.getState().spriteInstances.some((sprite) => sprite.textureName === selectedAsset.name)
+      ) {
+        showSnackbar("A texture may only be deleted if no sprites are using it.", "error");
+        return;
+      }
       removeAsset(selectedAsset.name, selectedAsset.type);
     }
     setSelectedAsset(null);

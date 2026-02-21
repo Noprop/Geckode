@@ -1,20 +1,20 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useYjs } from "./useYjs";
-import { Client } from "@/lib/types/yjs/awareness";
 import { applyBlocklyEvent } from "@/lib/blockly/events";
 import { applyClientBlockProperties } from "@/lib/blockly/blocks";
 import * as Blockly from "blockly/core";
 import { toPublicUser } from "@/lib/types/api/users";
 import { useUser } from "@/contexts/UserContext";
 import { useGeckodeStore } from "@/stores/geckodeStore";
+import { useLayoutStore } from "@/stores/layoutStore";
+import { getClientColourTailwind } from "@/lib/yjs/clients";
 
 export const useAwareness = (
   documentName: string,
 ) => {
   const { blocklyWorkspace } = useGeckodeStore();
-  const { doc, awareness } = useYjs(documentName);
+  const { doc, awareness, onSynced } = useYjs(documentName);
   const user = useUser();
-  const [clients, setClients] = useState<Client[]>([]);
   const dragPollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const stopBlockDragPolling = useCallback(() => {
@@ -28,26 +28,30 @@ export const useAwareness = (
   useEffect(() => {
     if (!blocklyWorkspace) return;
 
-    awareness.setLocalStateField('user', toPublicUser(user!));
+    awareness.setLocalStateField('user', documentName.length === 0 ? undefined : toPublicUser(user!));
 
     const handleUpdate = ({ added, updated, removed }: Record<string, Array<any>>) => {
       if (added.length || removed.length) {
-        setClients(clients => [
-          ...clients.filter(({ id }) => !removed.includes(id)),
-          ...added.map(id => ({
-            id: id,
-            user: awareness.getStates().get(id)?.user,
-          }))
-        ]);
+        useLayoutStore.setState((s) => ({
+          clients: [
+            ...s.clients.filter(({ id }) => !removed.includes(id)),
+            ...added.map(id => ({
+              id: id,
+              user: awareness.getStates().get(id)?.user,
+            })),
+          ],
+        }));
       }
 
       if (updated.length) {
         updated.forEach(clientId => {
           if (clientId === doc.clientID) return;
 
-          const currentBlockDragState = awareness.getStates().get(clientId)?.blockDrag;
+          const clientAwareness = awareness.getStates().get(clientId);
+          const spriteId = clientAwareness?.selectedSpriteId;
+          const currentBlockDragState = clientAwareness?.blockDrag;
 
-          if (currentBlockDragState) {
+          if (spriteId === useGeckodeStore.getState().selectedSpriteId && currentBlockDragState) {
             applyBlocklyEvent(
               Object.assign(
                 {},
@@ -62,10 +66,14 @@ export const useAwareness = (
           }
 
           const currentBlockSelectionState = awareness.getStates().get(clientId)?.blockSelection;
+          const clientColour = getClientColourTailwind(
+            useLayoutStore.getState().clients.findIndex((client) => client.id === Number(clientId))
+          );
 
           if (currentBlockSelectionState) {
             applyClientBlockProperties(
               blocklyWorkspace,
+              clientColour,
               currentBlockSelectionState.oldBlockId,
               currentBlockSelectionState.blockId,
             );
@@ -109,18 +117,33 @@ export const useAwareness = (
       }
     }
 
+    onSynced(() => {
+      // Load initial awareness states
+      const states = awareness.getStates();
+      const initialClients = Array.from(states.entries())
+        .filter(([id]) => id !== doc.clientID)
+        .map(([id, state]) => ({
+          id: id,
+          user: state.user,
+        }));
+
+      if (initialClients.length > 0) {
+        useLayoutStore.setState({ clients: initialClients });
+      }
+    });
+
     awareness.on("update", handleUpdate);
     blocklyWorkspace.addChangeListener(eventsListener);
 
     return () => {
       awareness.off("update", handleUpdate);
       blocklyWorkspace.removeChangeListener(eventsListener);
-    }
-  }, [awareness, blocklyWorkspace, dragPollingIntervalRef]);
+    };
+  }, [awareness, blocklyWorkspace, doc, user, dragPollingIntervalRef, onSynced]);
 
   useEffect(() => {
     return () => stopBlockDragPolling();
   }, [stopBlockDragPolling]);
 
-  return { clients, stopBlockDragPolling };
+  return { stopBlockDragPolling };
 };

@@ -15,6 +15,9 @@ const server = new Server({
     console.log('token', token);
     if (!token || !documentName) return false;
 
+    // This is temporary for development on the main page
+    if (documentName.length === 0) return true;
+
     try {
       const res = await fetch(`http://localhost:8000/api/projects/${documentName}/`, {
         method: "GET",
