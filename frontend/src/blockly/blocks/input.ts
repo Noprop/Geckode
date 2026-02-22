@@ -74,7 +74,7 @@ const onKey = {
   type: 'onKey',
   tooltip: 'Runs code when a key is pressed, just pressed, or released',
   helpUrl: '',
-  message0: 'when key %1 %2 %3 %4',
+  message0: 'on key %1 %2 %3 %4',
   args0: [
     {
       type: 'field_dropdown',
