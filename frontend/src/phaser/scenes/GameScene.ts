@@ -254,7 +254,7 @@ export default class GameScene extends Phaser.Scene {
       return delta;
     }
 
-    const hw = sprite.displayWidth / 2;
+    const hw = sprite.displayWidth / 2
     const hh = sprite.displayHeight / 2;
     const sign = delta > 0 ? 1 : -1;
     const absDelta = Math.abs(delta);
@@ -526,6 +526,65 @@ export default class GameScene extends Phaser.Scene {
     );
   }
 
+  /**
+   * Check whether `sprite` is touching any solid surface from the given direction.
+   * Checks solid sprites, collidable tilemap tiles, and world bounds.
+   */
+  public isTouchingSolid(
+    sprite: Phaser.GameObjects.Sprite,
+    direction: 'left' | 'right' | 'up' | 'down',
+  ): boolean {
+    const hw = sprite.displayWidth / 2;
+    const hh = sprite.displayHeight / 2;
+    const tolerance = 0.5;
+
+    // Check solid sprites
+    for (const other of this.gameSprites.values()) {
+      if (other === sprite) continue;
+      if (!other.getData('isSolid')) continue;
+
+      const ohw = other.displayWidth / 2;
+      const ohh = other.displayHeight / 2;
+
+      if (direction === 'left' || direction === 'right') {
+        if (sprite.y + hh <= other.y - ohh || sprite.y - hh >= other.y + ohh) continue;
+        if (direction === 'right') {
+          const gap = (other.x - ohw) - (sprite.x + hw);
+          if (gap >= 0 && gap <= tolerance) return true;
+        } else {
+          const gap = (sprite.x - hw) - (other.x + ohw);
+          if (gap >= 0 && gap <= tolerance) return true;
+        }
+      } else {
+        if (sprite.x + hw <= other.x - ohw || sprite.x - hw >= other.x + ohw) continue;
+        if (direction === 'down') {
+          const gap = (other.y - ohh) - (sprite.y + hh);
+          if (gap >= 0 && gap <= tolerance) return true;
+        } else {
+          const gap = (sprite.y - hh) - (other.y + ohh);
+          if (gap >= 0 && gap <= tolerance) return true;
+        }
+      }
+    }
+
+    // Check collidable tilemap tiles
+    const axis: 'x' | 'y' = (direction === 'left' || direction === 'right') ? 'x' : 'y';
+    const probeDelta = (direction === 'right' || direction === 'down') ? tolerance : -tolerance;
+    const tileGap = this.getClosestTileCollisionGap(sprite, probeDelta, axis, hw, hh);
+    if (tileGap !== null && tileGap <= tolerance) return true;
+
+    // Check world bounds
+    if (sprite.getData('collideWorldBounds')) {
+      switch (direction) {
+        case 'right': if (this.worldBounds.right - (sprite.x + hw) <= tolerance) return true; break;
+        case 'left':  if ((sprite.x - hw) - this.worldBounds.left <= tolerance) return true; break;
+        case 'down':  if (this.worldBounds.bottom - (sprite.y + hh) <= tolerance) return true; break;
+        case 'up':    if ((sprite.y - hh) - this.worldBounds.top <= tolerance) return true; break;
+      }
+    }
+
+    return false;
+  }
   // ─── Tilemap helpers ──────────────────────────────────────────────────
 
   private generateTilesetTexture(): void {

@@ -423,6 +423,41 @@ javascriptGenerator.forBlock['setVelocityInDir'] = function (block, generator) {
 
 };
 
+const isTouchingSolid = {
+  type: 'isTouchingSolid',
+  tooltip: 'Check if a sprite is touching a wall from a direction',
+  helpUrl: '',
+  message0: 'is %1 hitting wall %2 ?',
+  args0: [
+    {
+      type: 'input_value',
+      name: 'SPRITE',
+    },
+    {
+      type: 'field_dropdown',
+      name: 'DIRECTION',
+      options: [
+        ['below', 'down'],
+        ['above', 'up'],
+        ['left', 'left'],
+        ['right', 'right'],
+      ],
+    },
+  ],
+  inputsInline: true,
+  output: 'Boolean',
+  colour: '%{BKY_SPRITES_HUE}',
+};
+
+javascriptGenerator.forBlock['isTouchingSolid'] = function (block, generator) {
+  const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
+
+  const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
+  const spriteName = `scene.getSprite(${spriteKey === currentSpriteId ? 'thisSprite' : spriteKey})`;
+  const direction = block.getFieldValue('DIRECTION');
+  return [`scene.isTouchingSolid(${spriteName}, '${direction}')`, Order.NONE];
+};
+
 export const spriteBlocks = [
   goToXY,
   setProperty,
@@ -435,4 +470,5 @@ export const spriteBlocks = [
   moveWithArrows,
   makeClone,
   setVelocityInDir,
+  isTouchingSolid,
 ];
