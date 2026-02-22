@@ -11,6 +11,8 @@ const options = [
   ['y', 'y'],
   ['velocityX', 'velocityX'],
   ['velocityY', 'velocityY'],
+  ['scaleX', 'scaleX'],
+  ['scaleY', 'scaleY'],
 ]
 
 const goToXY = {
@@ -45,7 +47,7 @@ javascriptGenerator.forBlock['goToXY'] = function (block, generator) {
   const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
   const spriteName = spriteKey === `"${currentSpriteId}"` ? 'thisSprite' : spriteKey;
 
-  return `scene.getSprite(${spriteName}).x = ${x}\nscene.getSprite(${spriteName}).y = -${y}\n`;
+  return `scene.getSprite(${spriteName}).x = ${x}\nscene.getSprite(${spriteName}).y = -(${y})\n`;
 };
 
 const setProperty = {

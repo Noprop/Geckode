@@ -26,7 +26,7 @@ export const starterSpriteWorkspaces: {sprite: SpriteInstance, blocks: Record<st
     sprite: {
       name: 'gavin',
       id: `id_${Date.now()}`,
-      textureName: 'gavin',
+      textureName: 'gavinDown',
       x: 50,
       y: 50,
       visible: true,
