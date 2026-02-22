@@ -237,6 +237,18 @@ export default class GameScene extends Phaser.Scene {
    * Handles chain-pushing of dynamic sprites and bouncing off static ones.
    * Returns the actual distance moved.
    */
+  /**
+   * Try to move `sprite` by `delta` pixels along `axis` ('x' or 'y').
+   *
+   * Uses a **sorted-group sweep** so that:
+   *  1. Intermediate blockers are never skipped (no phasing).
+   *  2. Closer blockers are only pushed as far as the next group's gap,
+   *     preventing "over-push" when a later blocker limits movement.
+   *  3. When multiple blockers sit at the same gap, a probe-then-push
+   *     ensures none is pushed further than the most-constrained one.
+   *
+   * Returns the actual (signed) distance moved.
+   */
   private resolveAxisMovement(
     sprite: Phaser.GameObjects.Sprite,
     delta: number,
@@ -256,146 +268,231 @@ export default class GameScene extends Phaser.Scene {
     const hw = sprite.displayWidth / 2;
     const hh = sprite.displayHeight / 2;
     const sign = delta > 0 ? 1 : -1;
+    const absDelta = Math.abs(delta);
+
+    // ── 1. Collect every blocker whose gap falls within [0, |delta|] ─────
+    type SpriteBlocker = { kind: 'sprite'; ref: Phaser.GameObjects.Sprite; gap: number };
+    type EnvBlocker    = { kind: 'tilemap' | 'worldBound'; gap: number };
+    type BlockerEntry  = SpriteBlocker | EnvBlocker;
+
+    const pathBlockers: BlockerEntry[] = [];
+
+    for (const other of this.gameSprites.values()) {
+      if (other === sprite || visited.has(other)) continue;
+      if (!other.getData('isSolid')) continue;
+
+      const ohw = other.displayWidth / 2;
+      const ohh = other.displayHeight / 2;
+
+      let gap: number;
+      if (axis === 'x') {
+        if (sprite.y + hh <= other.y - ohh || sprite.y - hh >= other.y + ohh) continue;
+        gap = delta > 0
+          ? (other.x - ohw) - (sprite.x + hw)
+          : (sprite.x - hw) - (other.x + ohw);
+      } else {
+        if (sprite.x + hw <= other.x - ohw || sprite.x - hw >= other.x + ohw) continue;
+        gap = delta > 0
+          ? (other.y - ohh) - (sprite.y + hh)
+          : (sprite.y - hh) - (other.y + ohh);
+      }
+
+      if (gap < -0.01) continue;        // Behind / overlapping
+      if (gap < 0) gap = 0;             // Touching
+      if (gap > absDelta + 0.001) continue; // Beyond movement range
+
+      pathBlockers.push({ kind: 'sprite', ref: other, gap });
+    }
+
+    // Tilemap (closest collidable tile – acts as a static wall)
+    const tileGap = this.getClosestTileCollisionGap(sprite, delta, axis, hw, hh);
+    if (tileGap !== null && tileGap <= absDelta + 0.001) {
+      pathBlockers.push({ kind: 'tilemap', gap: Math.max(0, tileGap) });
+    }
+
+    // World bounds
+    if (sprite.getData('collideWorldBounds')) {
+      let wbGap: number;
+      if (axis === 'x') {
+        wbGap = delta > 0
+          ? this.worldBounds.right - (sprite.x + hw)
+          : (sprite.x - hw) - this.worldBounds.left;
+      } else {
+        wbGap = delta > 0
+          ? this.worldBounds.bottom - (sprite.y + hh)
+          : (sprite.y - hh) - this.worldBounds.top;
+      }
+      if (wbGap < 0) wbGap = 0;
+      if (wbGap <= absDelta + 0.001) {
+        pathBlockers.push({ kind: 'worldBound', gap: wbGap });
+      }
+    }
+
+    // ── 2. If path is clear, move the full distance ──────────────────────
+    if (pathBlockers.length === 0) {
+      if (axis === 'x') sprite.x += delta;
+      else sprite.y += delta;
+      return delta;
+    }
+
+    // ── 3. Sort by gap, then group entries at the same gap ───────────────
+    pathBlockers.sort((a, b) => a.gap - b.gap);
+
+    type BlockerGroup = { gap: number; entries: BlockerEntry[] };
+    const groups: BlockerGroup[] = [];
+    for (const entry of pathBlockers) {
+      const last = groups[groups.length - 1];
+      if (last && Math.abs(entry.gap - last.gap) < 0.001) {
+        last.entries.push(entry);
+      } else {
+        groups.push({ gap: entry.gap, entries: [entry] });
+      }
+    }
+
+    // ── 4. Walk through groups from closest to farthest ──────────────────
     let totalMoved = 0;
-    let remainingDelta = delta;
+    let bounceNeeded = false;
+    const activeDynamic: Phaser.GameObjects.Sprite[] = [];
 
-    // Iterative sweep: process blockers from closest to farthest so we
-    // never jump over intermediate blockers after pushing the first one.
-    while (Math.abs(remainingDelta) > 0.001) {
+    let earlyExit = false;
+    for (const group of groups) {
+      // Signed distance from sprite's current position to this group
+      const advanceDist = sign * group.gap - totalMoved;
 
-      // ── Find closest blockers in the remaining movement direction ──
-      let closestGap = Math.abs(remainingDelta);
-      let blockers: (Phaser.GameObjects.Sprite | 'worldBound' | 'tilemap')[] = [];
-
-      for (const other of this.gameSprites.values()) {
-        if (other === sprite || visited.has(other)) continue;
-        if (!other.getData('isSolid')) continue;
-
-        const ohw = other.displayWidth / 2;
-        const ohh = other.displayHeight / 2;
-
-        if (axis === 'x') {
-          // Must have Y overlap (strict — no epsilon)
-          if (sprite.y + hh <= other.y - ohh || sprite.y - hh >= other.y + ohh) continue;
-
-          let gap: number;
-          if (remainingDelta > 0) {
-            gap = (other.x - ohw) - (sprite.x + hw);
-          } else {
-            gap = (sprite.x - hw) - (other.x + ohw);
-          }
-
-          if (gap < -0.01) continue;
-          if (gap < 0) gap = 0;
-
-          if (gap < closestGap - 0.001) { closestGap = gap; blockers = [other]; }
-          else if (Math.abs(gap - closestGap) < 0.001) { blockers.push(other); }
-        } else {
-          // Must have X overlap (strict — no epsilon)
-          if (sprite.x + hw <= other.x - ohw || sprite.x - hw >= other.x + ohw) continue;
-
-          let gap: number;
-          if (remainingDelta > 0) {
-            gap = (other.y - ohh) - (sprite.y + hh);
-          } else {
-            gap = (sprite.y - hh) - (other.y + ohh);
-          }
-
-          if (gap < -0.01) continue;
-          if (gap < 0) gap = 0;
-
-          if (gap < closestGap - 0.001) { closestGap = gap; blockers = [other]; }
-          else if (Math.abs(gap - closestGap) < 0.001) { blockers.push(other); }
+      // Push active (already-contacted) blockers to make room for the
+      // sprite to reach this group. Each blocker is pushed only to the
+      // NEXT group's gap — never further.
+      if (activeDynamic.length > 0 && Math.abs(advanceDist) > 0.001) {
+        const pushed = this.pushBlockerGroup(activeDynamic, advanceDist, axis, sprite, visited);
+        if (Math.abs(pushed) < Math.abs(advanceDist) - 0.001) {
+          // Active blockers couldn't be pushed far enough — stop here
+          if (axis === 'x') sprite.x += pushed;
+          else sprite.y += pushed;
+          totalMoved += pushed;
+          bounceNeeded = true;
+          earlyExit = true;
+          break;
         }
       }
 
-      // Tilemap tiles (static blocker)
-      const tileGap = this.getClosestTileCollisionGap(sprite, remainingDelta, axis, hw, hh);
-      if (tileGap !== null) {
-        if (tileGap < closestGap - 0.001) { closestGap = tileGap; blockers = ['tilemap']; }
-        else if (Math.abs(tileGap - closestGap) < 0.001) { blockers.push('tilemap'); }
-      }
+      // Advance sprite to this group's contact point
+      if (axis === 'x') sprite.x += advanceDist;
+      else sprite.y += advanceDist;
+      totalMoved += advanceDist;
 
-      // World bounds
-      if (sprite.getData('collideWorldBounds')) {
-        let wbGap = Infinity;
-        if (axis === 'x') {
-          wbGap = remainingDelta > 0
-            ? this.worldBounds.right - (sprite.x + hw)
-            : (sprite.x - hw) - this.worldBounds.left;
-        } else {
-          wbGap = remainingDelta > 0
-            ? this.worldBounds.bottom - (sprite.y + hh)
-            : (sprite.y - hh) - this.worldBounds.top;
-        }
-        if (wbGap < 0) wbGap = 0;
-
-        if (wbGap < closestGap - 0.001) { closestGap = wbGap; blockers = ['worldBound']; }
-        else if (Math.abs(wbGap - closestGap) < 0.001) { blockers.push('worldBound'); }
-      }
-
-      // ── If path is clear, move the remaining distance and we're done ──
-      if (blockers.length === 0 || closestGap >= Math.abs(remainingDelta) - 0.001) {
-        if (axis === 'x') sprite.x += remainingDelta;
-        else sprite.y += remainingDelta;
-        totalMoved += remainingDelta;
-        break;
-      }
-
-      // ── Move to contact point ──
-      const contactDelta = sign * closestGap;
-      if (axis === 'x') sprite.x += contactDelta;
-      else sprite.y += contactDelta;
-      totalMoved += contactDelta;
-      remainingDelta -= contactDelta;
-
-      // ── Static blocker → stop, apply bounce ──
-      const hasStaticBlocker = blockers.some(b =>
-        b === 'worldBound' || b === 'tilemap' || (b as Phaser.GameObjects.Sprite).getData('isStatic')
+      // If this group contains any static blocker we cannot push past it
+      const hasStatic = group.entries.some(e =>
+        e.kind === 'tilemap' || e.kind === 'worldBound' ||
+        (e.kind === 'sprite' && e.ref.getData('isStatic'))
       );
-
-      if (hasStaticBlocker) {
-        const bounce: number = sprite.getData('bounce') || 0;
-        if (axis === 'x') sprite.setData('vx', -(sprite.getData('vx') || 0) * bounce);
-        else sprite.setData('vy', -(sprite.getData('vy') || 0) * bounce);
+      if (hasStatic) {
+        bounceNeeded = true;
+        earlyExit = true;
         break;
       }
 
-      // ── Push dynamic blockers ──
-      let minPushed = Math.abs(remainingDelta);
-      for (const blocker of blockers) {
-        if (blocker === 'worldBound' || blocker === 'tilemap') { minPushed = 0; break; }
-        const blockerSprite = blocker as Phaser.GameObjects.Sprite;
-        const pushed = this.resolveAxisMovement(blockerSprite, remainingDelta, axis, visited);
-        minPushed = Math.min(minPushed, Math.abs(pushed));
-
-        // Impart pusher's velocity onto pushed object, scaled by its drag.
-        // drag=1 → full transfer, drag=0 → no transfer (stops when released).
-        const blockerDrag: number = blockerSprite.getData('drag') || 0;
-        const pusherVel: number = sprite.getData(axis === 'x' ? 'vx' : 'vy') || 0;
-        if (axis === 'x') blockerSprite.setData('vx', pusherVel * blockerDrag);
-        else blockerSprite.setData('vy', pusherVel * blockerDrag);
+      // Accumulate dynamic blockers from this group
+      for (const entry of group.entries) {
+        if (entry.kind === 'sprite') {
+          activeDynamic.push(entry.ref);
+        }
       }
+    }
 
-      // If push was incomplete → advance by what we could, bounce, stop
-      if (minPushed < Math.abs(remainingDelta) - 0.001) {
-        const actualPush = sign * minPushed;
-        if (axis === 'x') sprite.x += actualPush;
-        else sprite.y += actualPush;
-        totalMoved += actualPush;
-        const bounce: number = sprite.getData('bounce') || 0;
-        if (axis === 'x') sprite.setData('vx', -(sprite.getData('vx') || 0) * bounce);
-        else sprite.setData('vy', -(sprite.getData('vy') || 0) * bounce);
-        break;
+    // ── 5. Final push — move all active blockers by the remaining delta ──
+    if (!earlyExit) {
+      const remaining = delta - totalMoved;
+      if (activeDynamic.length > 0 && Math.abs(remaining) > 0.001) {
+        const pushed = this.pushBlockerGroup(activeDynamic, remaining, axis, sprite, visited);
+        if (axis === 'x') sprite.x += pushed;
+        else sprite.y += pushed;
+        totalMoved += pushed;
+        if (Math.abs(pushed) < Math.abs(remaining) - 0.001) {
+          bounceNeeded = true;
+        }
+      } else if (Math.abs(delta - totalMoved) > 0.001) {
+        // No active blockers but remaining delta → path is clear after last group
+        const rem = delta - totalMoved;
+        if (axis === 'x') sprite.x += rem;
+        else sprite.y += rem;
+        totalMoved += rem;
       }
+    }
 
-      // Push was fully successful. The pushed blockers are now in `visited`
-      // and will be skipped on the next scan. Do NOT advance the sprite by
-      // the push amount — instead loop back and re-scan from the contact
-      // point so any INTERMEDIATE blockers are properly detected.
+    // ── 6. Impart velocity (before bounce so we use pre-bounce vel) ──────
+    if (activeDynamic.length > 0) {
+      const vel: number = sprite.getData(axis === 'x' ? 'vx' : 'vy') || 0;
+      for (const b of activeDynamic) {
+        const drag: number = b.getData('drag') || 0;
+        if (axis === 'x') b.setData('vx', vel * drag);
+        else b.setData('vy', vel * drag);
+      }
+    }
+
+    if (bounceNeeded) {
+      const bounce: number = sprite.getData('bounce') || 0;
+      if (axis === 'x') sprite.setData('vx', -(sprite.getData('vx') || 0) * bounce);
+      else sprite.setData('vy', -(sprite.getData('vy') || 0) * bounce);
     }
 
     return totalMoved;
+  }
+
+  // ─── Push helpers ─────────────────────────────────────────────────────
+
+  /**
+   * Push a set of dynamic blockers by `delta` using **probe-then-push**.
+   *
+   *  1. Snapshot all sprite positions.
+   *  2. Probe each blocker independently (full recursive resolve) to
+   *     find how far it *can* move.  Restore after each probe.
+   *  3. Take the minimum — the "safe" distance.
+   *  4. Actually push every blocker by that safe distance.
+   *
+   * Returns the signed distance by which the blockers were moved.
+   */
+  private pushBlockerGroup(
+    blockers: Phaser.GameObjects.Sprite[],
+    delta: number,
+    axis: 'x' | 'y',
+    pusher: Phaser.GameObjects.Sprite,
+    visited: Set<Phaser.GameObjects.Sprite>,
+  ): number {
+    if (blockers.length === 0 || Math.abs(delta) < 0.001) return 0;
+
+    const sign = delta > 0 ? 1 : -1;
+
+    // ── Probe phase ─────────────────────────────────────────────────────
+    // Save every sprite's position so we can rewind after each probe.
+    const snapshot = new Map<Phaser.GameObjects.Sprite, { x: number; y: number }>();
+    for (const s of this.gameSprites.values()) {
+      snapshot.set(s, { x: s.x, y: s.y });
+    }
+
+    let minPushed = Math.abs(delta);
+    for (const blocker of blockers) {
+      // Fresh visited containing only the pusher (prevents back-pushing)
+      const probeVisited = new Set<Phaser.GameObjects.Sprite>([pusher]);
+      const pushed = this.resolveAxisMovement(blocker, delta, axis, probeVisited);
+      minPushed = Math.min(minPushed, Math.abs(pushed));
+
+      // Rewind
+      for (const [s, pos] of snapshot) { s.x = pos.x; s.y = pos.y; }
+    }
+
+    // ── Actual push by the safe minimum ─────────────────────────────────
+    const safeDelta = sign * minPushed;
+    const pushVisited = new Set<Phaser.GameObjects.Sprite>([pusher]);
+    for (const blocker of blockers) {
+      if (pushVisited.has(blocker)) continue; // already moved by an earlier chain
+      this.resolveAxisMovement(blocker, safeDelta, axis, pushVisited);
+    }
+
+    // Merge into the caller's visited so physicsStep knows these sprites
+    // were handled and won't double-process them.
+    for (const s of pushVisited) visited.add(s);
+
+    return safeDelta;
   }
 
   // ─── Sprite Velocity Accessors (called by generated Blockly code) ────
