@@ -458,6 +458,38 @@ const getToolbox = () => {
       },
       {
         kind: 'category',
+        name: 'Camera',
+        contents: [
+          {
+            kind: 'block',
+            type: 'cameraToXY',
+            inputs: {
+              x: {
+                shadow: {
+                  type: 'math_number',
+                  fields: {
+                    NUM: 0,
+                  },
+                },
+              },
+              y: {
+                shadow: {
+                  type: 'math_number',
+                  fields: {
+                    NUM: 0,
+                  },
+                },
+              },
+            },
+          },
+          {
+            kind: 'block',
+            type: 'resetCamera',
+          },
+        ]
+      },
+      {
+        kind: 'category',
         name: 'Typed Variables',
         custom: 'VARIABLE_DYNAMIC',
       },

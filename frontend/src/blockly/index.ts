@@ -9,6 +9,7 @@ import { eventBlocks } from '@/blockly/blocks/events';
 import { inputBlocks } from '@/blockly/blocks/input';
 import { developmentBlocks } from '@/blockly/blocks/development';
 import { ghostBlocks } from '@/blockly/blocks/ghosts';
+import { cameraBlocks } from '@/blockly/blocks/camera';
 
 import { javascriptGenerator } from 'blockly/javascript';
 
@@ -29,7 +30,7 @@ type KeyPressHandler = {
   eventType: 'just_pressed' | 'pressed' | 'released';
 };
 
-const customBlocks = [...spriteBlocks, ...eventBlocks, ...inputBlocks, ...developmentBlocks, ...ghostBlocks];
+const customBlocks = [...spriteBlocks, ...eventBlocks, ...inputBlocks, ...developmentBlocks, ...ghostBlocks, ...cameraBlocks];
 
 let isRegistered = false;
 

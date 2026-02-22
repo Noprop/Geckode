@@ -6,3 +6,4 @@ Blockly.Msg['INPUT_HUE'] = '#DB5161';
 Blockly.Msg['CONTROL_HUE'] = '42';
 Blockly.Msg['LOGIC_HUE'] = '#5169DB'; // blockly hue
 Blockly.Msg['MATH_HUE'] = '42'; // blockly hue
+Blockly.Msg['CAMERA_HUE'] = '#a6542a'; 
