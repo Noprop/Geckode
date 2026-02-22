@@ -57,10 +57,10 @@ export default class GameScene extends Phaser.Scene {
     this.key = GAME_SCENE_KEY;
   }
 
-  /** Store (positive-up) → Phaser (positive-down) */
-  private toWorldY(y: number): number { return -y; }
-  /** Phaser (positive-down) → Store (positive-up) */
-  private fromWorldY(y: number): number { return -y; }
+  /** Logical (Y-up) → Phaser world (Y-down) */
+  public toWorldY(y: number): number { return -y; }
+  /** Phaser world (Y-down) → Logical (Y-up) */
+  public toLogicalY(y: number): number { return -y; }
 
   preload() {
     const { tiles } = useGeckodeStore.getState();
@@ -89,7 +89,7 @@ export default class GameScene extends Phaser.Scene {
     // Set world bounds for our custom collision system
     this.worldBounds = {
       left: 0,
-      top: -this.scale.height,
+      top: this.toWorldY(this.scale.height),
       right: this.scale.width,
       bottom: 0,
     };
@@ -125,7 +125,7 @@ export default class GameScene extends Phaser.Scene {
     // Tell React which scene is active (will trigger pause state sync)
     EventBus.emit('current-scene-ready', this);
 
-    this.cameras.main.centerOn(this.scale.width/2, -this.scale.height/2);
+    this.cameras.main.centerOn(this.scale.width/2, this.toWorldY(this.scale.height/2));
     this.started = false;
   }
 
@@ -152,6 +152,7 @@ export default class GameScene extends Phaser.Scene {
     this.updateHook();
 
     // Run our custom physics step after user code (dt in seconds)
+    console.log('[GameScene] updating physics, delta: ', delta);
     this.physicsStep(delta / 1000);
   }
 
@@ -181,8 +182,6 @@ export default class GameScene extends Phaser.Scene {
         const gravityY: number = sprite.getData('gravityY') || 0;
         vy += gravityY * dt;
 
-        // Apply air drag — drag is a keep-ratio (0.99 = keep 99% per frame at 60fps).
-        // Scale exponentially so behaviour is identical regardless of frame rate.
         const drag: number = sprite.getData('drag') || 0;
         if (drag > 0 && drag < 1) {
           const dragFactor = Math.pow(drag, dt);
@@ -201,35 +200,50 @@ export default class GameScene extends Phaser.Scene {
 
       sprite.setData('vx', vx);
       sprite.setData('vy', vy);
+      console.log('[GameScene] after applying gravity and drag, vx: ', sprite.getData('vx'), 'vy: ', sprite.getData('vy'));
     }
 
     // 2. Resolve movement — convert velocity (px/s) to displacement (px) for this frame.
     // processedX/Y tracks sprites already moved (prevents double-movement
     // from imparted velocity). Each resolveAxisMovement call gets a FRESH
     // chain set so pushed sprites are still visible as blockers to others.
-    const processedX = new Set<Phaser.GameObjects.Sprite>();
-    for (const sprite of this.gameSprites.values()) {
-      if (sprite.getData('isStatic') || processedX.has(sprite)) continue;
-      const vx: number = sprite.getData('vx') || 0;
-      if (vx !== 0) {
-        const chain = new Set<Phaser.GameObjects.Sprite>();
-        this.resolveAxisMovement(sprite, vx * dt, 'x', chain);
-        for (const s of chain) processedX.add(s);
-      }
-    }
+    this.resolveVelocityAxisMovement(dt, 'x');
+    this.resolveVelocityAxisMovement(dt, 'y');
+  }
 
-    const processedY = new Set<Phaser.GameObjects.Sprite>();
+  private resolveVelocityAxisMovement(dt: number, axis: 'x' | 'y'): void {
+    const processed = new Set<Phaser.GameObjects.Sprite>();
     for (const sprite of this.gameSprites.values()) {
-      if (sprite.getData('isStatic') || processedY.has(sprite)) continue;
-      const vy: number = sprite.getData('vy') || 0;
-      if (vy !== 0) {
-        const chain = new Set<Phaser.GameObjects.Sprite>();
-        this.resolveAxisMovement(sprite, vy * dt, 'y', chain);
-        for (const s of chain) processedY.add(s);
+      if (sprite.getData('isStatic') || processed.has(sprite)) continue;
+      const velocity = sprite.getData(`v${axis}`);
+      if (velocity === 0) continue;
+
+      const chain = new Set<Phaser.GameObjects.Sprite>();
+      this.resolveAxisMovement(sprite, velocity * dt, axis, chain);
+      for (const pushedSprite of chain) {
+        processed.add(pushedSprite);
       }
     }
   }
 
+  /**
+   * Try to move `sprite` by `delta` pixels along `axis` ('x' or 'y').
+   *
+   * Uses a **sorted-group sweep** so that:
+   *  1. Intermediate blockers are never skipped (no phasing).
+   *  2. Closer blockers are only pushed as far as the next group's gap,
+   *     preventing "over-push" when a later blocker limits movement.
+   *  3. When multiple blockers sit at the same gap, a probe-then-push
+   *     ensures none is pushed further than the most-constrained one.
+   *
+   * Returns the actual (signed) distance moved.
+   */
+  /**
+   * Try to move `sprite` by `delta` pixels along `axis` ('x' or 'y').
+   * Uses an iterative sweep so intermediate blockers are never skipped.
+   * Handles chain-pushing of dynamic sprites and bouncing off static ones.
+   * Returns the actual distance moved.
+   */
   /**
    * Try to move `sprite` by `delta` pixels along `axis` ('x' or 'y').
    *
@@ -618,7 +632,7 @@ export default class GameScene extends Phaser.Scene {
     if (!tileset) return;
 
     const mapPixelHeight = tilemap.length * GameScene.TILE_SIZE;
-    const layerY = -mapPixelHeight;
+    const layerY = this.toWorldY(mapPixelHeight);
     this.tilemapOrigin = { x: 0, y: layerY };
 
     const layer = this.tilemap.createLayer(
@@ -865,51 +879,52 @@ export default class GameScene extends Phaser.Scene {
 
   // ─── Arrow-key movement (called from generated code) ─────────────────
 
+  private applyArrowAxisInput(
+    sprite: Phaser.GameObjects.Sprite,
+    speed: number,
+    negativeKey: Phaser.Input.Keyboard.Key,
+    positiveKey: Phaser.Input.Keyboard.Key,
+    axis: 'x' | 'y',
+  ): void {
+    if (speed == 0) return;
+
+    const vKey = axis === 'x' ? 'vx' : 'vy';
+    if (negativeKey.isDown && positiveKey.isDown) {
+      sprite.setData(vKey, 0);
+    } else if (negativeKey.isDown) {
+      sprite.setData(vKey, -speed);
+    } else if (positiveKey.isDown) {
+      sprite.setData(vKey, speed);
+    } else if (this.getJustReleased(negativeKey) || this.getJustReleased(positiveKey)) {
+      sprite.setData(vKey, 0);
+    }
+  }
+
   private moveWithArrows(spriteName: string, vx: number, vy: number) {
     const sprite = this.getSprite(spriteName);
-    if (sprite) {
-      if (vx != 0) {
-        if (this.cursors.left.isDown && this.cursors.right.isDown) {
-          sprite.setData('vx', 0);
-        } else if (this.cursors.left.isDown) {
-          sprite.setData('vx', -vx);
-        } else if (this.cursors.right.isDown) {
-          sprite.setData('vx', vx);
-        } else if (this.getJustReleased(this.cursors.left) || this.getJustReleased(this.cursors.right)) {
-          sprite.setData('vx', 0);
-        }
-      }
-      if (vy != 0) {
-        if (this.cursors.up.isDown && this.cursors.down.isDown) {
-          sprite.setData('vy', 0);
-        } else if (this.cursors.up.isDown) {
-          sprite.setData('vy', -vy);
-        } else if (this.cursors.down.isDown) {
-          sprite.setData('vy', vy);
-        } else if (this.getJustReleased(this.cursors.up) || this.getJustReleased(this.cursors.down)) {
-          sprite.setData('vy', 0);
-        }
-      }
-    }
+    if (!sprite) return;
+
+    this.applyArrowAxisInput(sprite, vx, this.cursors.left, this.cursors.right, 'x');
+    this.applyArrowAxisInput(sprite, vy, this.cursors.up, this.cursors.down, 'y');
   }
 
   // Source - https://stackoverflow.com/q/35271222
   // Posted by Matthew Spence, modified by community. See post 'Timeline' for change history
   // Retrieved 2026-02-19, License - CC BY-SA 4.0
 
-  private getMovementAngle(spriteName: string){
+  private getMovementAngle(spriteName: string) {
     const sprite = this.getSprite(spriteName);
-    if (sprite){
-        const x = this.getVelocityX(sprite)
-        const y = this.getVelocityY(sprite)
-        if (x==0 && y==0){
-          return 0
-        }
-        const angle = Math.atan2(y, x);
-        const degrees = 180 * angle / Math.PI;
-        return (90 + degrees) % 360;
+    if (sprite) {
+      const x = this.getVelocityX(sprite);
+      const y = this.getVelocityY(sprite);
+      if (x == 0 && y == 0) {
+        return 0;
+      }
+      const angle = Math.atan2(y, x);
+      const degrees = 180 * angle / Math.PI;
+      return (90 + degrees) % 360;
     }
-    return 0
-    }
+    return 0;
+  }
 
 }
