@@ -139,6 +139,7 @@ export default class GameScene extends Phaser.Scene {
 
   startHook() {}
   updateHook() {}
+  keyPressHook() {}
 
   update(_time: number, delta: number) {
     this.justPressedKeys = [];
@@ -150,6 +151,7 @@ export default class GameScene extends Phaser.Scene {
     }
 
     this.updateHook();
+    this.keyPressHook();
 
     // Run our custom physics step after user code (dt in seconds)
     console.log('[GameScene] updating physics, delta: ', delta);
@@ -896,7 +898,7 @@ export default class GameScene extends Phaser.Scene {
 
   // ─── Input helpers ───────────────────────────────────────────────────
 
-  private getJustPressed(key: Phaser.Input.Keyboard.Key) {
+  public getJustPressed(key: Phaser.Input.Keyboard.Key) {
     if (this.justPressedKeys.includes(key)) {
       return true;
     }
@@ -907,7 +909,7 @@ export default class GameScene extends Phaser.Scene {
     return false;
   }
 
-  private getJustReleased(key: Phaser.Input.Keyboard.Key) {
+  public getJustReleased(key: Phaser.Input.Keyboard.Key) {
     if (this.justReleasedKeys.includes(key)) {
       return true;
     }

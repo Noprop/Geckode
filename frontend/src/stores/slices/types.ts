@@ -137,6 +137,12 @@ export interface HandlerRef {
 }
 
 export interface WorkspaceOutputType {
+  keyPressHandlers?: Array<{
+    spriteId: string;
+    functionName: string;
+    key: 'left' | 'right' | 'up' | 'down' | 'space';
+    eventType: 'just_pressed' | 'pressed' | 'released';
+  }>;
   code: string;
   updateHandlers: HandlerRef[];
   startHandlers: HandlerRef[];

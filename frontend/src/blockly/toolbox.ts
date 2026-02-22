@@ -309,6 +309,10 @@ const getToolbox = () => {
         contents: [
           {
             kind: 'block',
+            type: 'onKey',
+          },
+          {
+            kind: 'block',
             type: 'keyPressed',
             fields: {
               PRESSED_TYPE: 'pressed',

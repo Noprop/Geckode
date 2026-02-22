@@ -83,6 +83,7 @@ export const createEditorSlice: StateCreator<
             ),
             updateHandlers: (javascriptGenerator as any).updateHandlers ?? [],
             startHandlers: (javascriptGenerator as any).startHandlers ?? [],
+            keyPressHandlers: (javascriptGenerator as any).keyPressHandlers ?? [],
           },
         ])),
       },
@@ -163,11 +164,33 @@ export const createEditorSlice: StateCreator<
       const allStartHandlers = outputs
         .flatMap((o) => o?.startHandlers)
         .filter(Boolean);
+      const allKeyPressHandlers = outputs
+        .flatMap((o) => o?.keyPressHandlers)
+        .filter(Boolean);
       const updateBody = allUpdateHandlers
         .map((h) => `  for (const __id of scene.getSpriteAndClones('${h?.spriteId}')) ${h?.functionName}(__id);`)
         .join("\n");
       const startBody = allStartHandlers
         .map((h) => `  for (const __id of scene.getSpriteAndClones('${h?.spriteId}')) ${h?.functionName}(__id);`)
+        .join("\n");
+      const keyPressBody = allKeyPressHandlers
+        .map((h) => {
+          const keyObj = `scene.cursors.${h?.key}`;
+          
+          let condition: string;
+          if (h?.eventType === 'just_pressed') {
+            condition = `scene.getJustPressed(${keyObj})`;
+          } else if (h?.eventType === 'released') {
+            condition = `scene.getJustReleased(${keyObj})`;
+          } else {
+            // 'pressed' - continuously held down
+            condition = `${keyObj}.isDown`;
+          }
+          
+          return `  if (${condition}) {
+    for (const __id of scene.getSpriteAndClones('${h?.spriteId}')) ${h?.functionName}(__id);
+  }`;
+        })
         .join("\n");
 
       const updateCode = `
@@ -180,8 +203,13 @@ export const createEditorSlice: StateCreator<
           ${startBody}
         };
       `;
+      const keyPressCode = `
+        scene.keyPressHook = () => {
+          ${keyPressBody}
+        };
+      `;
 
-      const code = [...outputs.map((o) => o?.code), startCode, updateCode].join(
+      const code = [...outputs.map((o) => o?.code), startCode, updateCode, keyPressCode].join(
         "\n\n",
       );
 
