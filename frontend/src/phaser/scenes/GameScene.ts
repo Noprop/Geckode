@@ -238,24 +238,6 @@ export default class GameScene extends Phaser.Scene {
    *
    * Returns the actual (signed) distance moved.
    */
-  /**
-   * Try to move `sprite` by `delta` pixels along `axis` ('x' or 'y').
-   * Uses an iterative sweep so intermediate blockers are never skipped.
-   * Handles chain-pushing of dynamic sprites and bouncing off static ones.
-   * Returns the actual distance moved.
-   */
-  /**
-   * Try to move `sprite` by `delta` pixels along `axis` ('x' or 'y').
-   *
-   * Uses a **sorted-group sweep** so that:
-   *  1. Intermediate blockers are never skipped (no phasing).
-   *  2. Closer blockers are only pushed as far as the next group's gap,
-   *     preventing "over-push" when a later blocker limits movement.
-   *  3. When multiple blockers sit at the same gap, a probe-then-push
-   *     ensures none is pushed further than the most-constrained one.
-   *
-   * Returns the actual (signed) distance moved.
-   */
   private resolveAxisMovement(
     sprite: Phaser.GameObjects.Sprite,
     delta: number,
