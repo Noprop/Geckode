@@ -21,7 +21,7 @@ const cameraToXY = {
   previousStatement: null,
   nextStatement: null,
   inputsInline: true,
-  colour: '%{BKY_SPRITES_HUE}',
+  colour: '%{BKY_CAMERA_HUE}',
 };
 
 javascriptGenerator.forBlock['cameraToXY'] = function (block, generator) {
@@ -42,7 +42,7 @@ const resetCamera = {
   previousStatement: null,
   nextStatement: null,
   inputsInline: true,
-  colour: '%{BKY_SPRITES_HUE}',
+  colour: '%{BKY_CAMERA_HUE}',
 };
 
 javascriptGenerator.forBlock['resetCamera'] = function (block, generator) {
