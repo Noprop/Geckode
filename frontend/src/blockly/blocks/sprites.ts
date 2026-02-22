@@ -258,7 +258,7 @@ const movementDirection = {
   type: "movementDirection",
   tooltip: "Get the movement direction of a sprite",
   helpUrl: "",
-  message0: "movement direction of %1",
+  message0: "get %1 movement direction",
   args0: [
     {
       type: 'input_value',
@@ -388,7 +388,7 @@ const setVelocityInDir = {
   type: 'setVelocityInDir',
   tooltip: 'Set the property of a sprite in a direction',
   helpUrl: '',
-  message0: 'set velocity of %1 to %2 in direction %3',
+  message0: 'set %1 velocity to %2 in direction %3',
   args0: [
     {
       type: 'input_value',
@@ -427,7 +427,7 @@ const isTouchingSolid = {
   type: 'isTouchingSolid',
   tooltip: 'Check if a sprite is touching a wall from a direction',
   helpUrl: '',
-  message0: 'is %1 hitting wall %2 ?',
+  message0: '%1 hitting wall %2 ?',
   args0: [
     {
       type: 'input_value',
