@@ -2,7 +2,7 @@ import { Modal } from '@/components/ui/modals/Modal';
 import { InputBox, InputBoxRef } from '@/components/ui/inputs/InputBox';
 import { InfoCircledIcon } from '@radix-ui/react-icons';
 import { useSnackbar } from '@/hooks/useSnackbar';
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useGeckodeStore } from '@/stores/geckodeStore';
 import { Button } from '@/components/ui/Button';
 
@@ -16,47 +16,52 @@ const VariableModal = ({ showVariableModal, setShowVariableModal }: Props) => {
   const workspace = useGeckodeStore((state) => state.blocklyWorkspace);
   const variableInputRef = useRef<InputBoxRef | null>(null);
 
+  useEffect(() => {
+    if (showVariableModal) {
+      variableInputRef.current?.focus();
+    }
+  }, [showVariableModal]);
+
+  if (!showVariableModal) return null;
+
   const handleClose = () => {
     setShowVariableModal(false);
     const flyout = workspace?.getFlyout();
     if (flyout) flyout.autoClose = true;
   };
 
-  if (!showVariableModal) return null;
+  const handleCreate = () => {
+    if (!workspace || !variableInputRef.current) {
+      showSnackbar('Something went wrong', 'error');
+      return;
+    }
+    if (!variableInputRef.current.inputValue) {
+      showSnackbar('Please input a variable name.');
+      return;
+    }
+    if (
+      workspace
+        .getVariableMap()
+        .getAllVariables()
+        .some((variable) => variable.getName() == variableInputRef.current!.inputValue)
+    ) {
+      showSnackbar('A variable with that name already exists. Please enter another name.');
+      return;
+    }
+    workspace.getVariableMap().createVariable(variableInputRef.current.inputValue);
+    handleClose();
+    showSnackbar(`Variable "${variableInputRef.current.inputValue}" successfully created!`, 'success');
+  };
 
   return (
     <div>
       <Modal
         onClose={handleClose}
-        title="Create variable"
+        title="Create Variable"
         icon={InfoCircledIcon}
         actions={
           <>
-            <Button
-              onClick={() => {
-                if (!workspace || !variableInputRef.current) {
-                  showSnackbar('Something went wrong', 'error');
-                  return;
-                }
-                if (!variableInputRef.current.inputValue) {
-                  showSnackbar('Please input a variable name.');
-                  return;
-                }
-                if (
-                  workspace
-                    .getVariableMap()
-                    .getAllVariables()
-                    .some((variable) => variable.getName() == variableInputRef.current!.inputValue)
-                ) {
-                  showSnackbar('A variable with that name already exists. Please enter another name.');
-                  return;
-                }
-                workspace.getVariableMap().createVariable(variableInputRef.current.inputValue);
-                handleClose();
-                showSnackbar(`Variable "${variableInputRef.current.inputValue}" successfully created!`, 'success');
-              }}
-              className="btn-confirm ml-3"
-            >
+            <Button onClick={handleCreate} className="btn-confirm ml-3">
               Create
             </Button>
             <Button onClick={handleClose} className="btn-neutral">
@@ -67,7 +72,15 @@ const VariableModal = ({ showVariableModal, setShowVariableModal }: Props) => {
       >
         Please enter a name for your variable:
         <div className="flex flex-col">
-          <InputBox ref={variableInputRef} placeholder="Variable name" className="bg-white text-black my-3 border-0" />
+          <InputBox
+            ref={variableInputRef}
+            placeholder="Variable name"
+            className="bg-white text-black my-3 border-0"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleCreate();
+              if (e.key === 'Escape') handleClose();
+            }}
+          />
         </div>
       </Modal>
     </div>

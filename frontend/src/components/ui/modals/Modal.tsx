@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { Icon, IconType } from "../Icon";
 
 interface ModalProps {
@@ -23,6 +24,15 @@ export const Modal: React.FC<ModalProps> = ({
   actions,
   className = '',
 }) => {
+  useEffect(() => {
+    if (!onClose) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   return (
     <>
       {onClose ? <>
@@ -32,7 +42,7 @@ export const Modal: React.FC<ModalProps> = ({
         />
       </> : null}
 
-      <div className="fixed inset-0 z-50 flex items-end justify-center p-4 text-center sm:items-center sm:p-0 backdrop-blur-xs bg-black/30">
+      <div className="fixed inset-0 z-100 flex items-end justify-center p-4 text-center sm:items-center sm:p-0 backdrop-blur-xs bg-black/30">
         <div
           className="relative transform overflow-hidden rounded-lg bg-gray-800 text-left shadow-xl outline outline-white/10 transition-all"
           onClick={(e) => e.stopPropagation()}
