@@ -13,6 +13,7 @@ const options = [
   ['velocityY', 'velocityY'],
   ['scaleX', 'scaleX'],
   ['scaleY', 'scaleY'],
+  ['angle', 'angle'],
 ]
 
 const goToXY = {

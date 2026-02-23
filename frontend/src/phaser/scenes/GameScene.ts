@@ -171,38 +171,32 @@ export default class GameScene extends Phaser.Scene {
    * immediately — even user-set velocity — preventing any movement.
    */
   private physicsStep(dt: number) {
-    // 1. Apply gravity and drag BEFORE movement
+    // 1. Apply gravity and drag BEFORE movement (all sprites)
     for (const sprite of this.gameSprites.values()) {
-      if (sprite.getData('isStatic')) continue;
-
       let vx: number = sprite.getData('vx') || 0;
       let vy: number = sprite.getData('vy') || 0;
 
-      // Only apply gravity/drag to sprites with physics enabled
-      if (sprite.getData('hasPhysics')) {
-        // Apply gravity (gravityY is in px/s²)
-        const gravityY: number = sprite.getData('gravityY') || 0;
-        vy += gravityY * dt;
+      // Apply gravity (gravityY is in px/s²)
+      const gravityY: number = sprite.getData('gravityY') || 0;
+      vy += gravityY * dt;
 
-        const drag: number = sprite.getData('drag') || 0;
-        if (drag > 0 && drag < 1) {
-          const dragFactor = Math.pow(drag, dt);
-          vx *= dragFactor;
-          vy *= dragFactor;
-          // Zero out tiny residuals
-          if (Math.abs(vx) < 0.01) vx = 0;
-          if (Math.abs(vy) < 0.01) vy = 0;
-        } else if (drag === 0) {
-          // drag = 0 → lose all velocity immediately
-          vx = 0;
-          vy = 0;
-        }
-        // drag >= 1 means no drag at all
+      const drag: number = sprite.getData('drag') ?? 1;
+      if (drag > 0 && drag < 1) {
+        const dragFactor = Math.pow(drag, dt);
+        vx *= dragFactor;
+        vy *= dragFactor;
+        // Zero out tiny residuals
+        if (Math.abs(vx) < 0.01) vx = 0;
+        if (Math.abs(vy) < 0.01) vy = 0;
+      } else if (drag === 0) {
+        // drag = 0 → lose all velocity immediately
+        vx = 0;
+        vy = 0;
       }
+      // drag >= 1 means no drag at all
 
       sprite.setData('vx', vx);
       sprite.setData('vy', vy);
-      console.log('[GameScene] after applying gravity and drag, vx: ', sprite.getData('vx'), 'vy: ', sprite.getData('vy'));
     }
 
     // 2. Resolve movement — convert velocity (px/s) to displacement (px) for this frame.
@@ -216,14 +210,20 @@ export default class GameScene extends Phaser.Scene {
   private resolveVelocityAxisMovement(dt: number, axis: 'x' | 'y'): void {
     const processed = new Set<Phaser.GameObjects.Sprite>();
     for (const sprite of this.gameSprites.values()) {
-      if (sprite.getData('isStatic') || processed.has(sprite)) continue;
+      if (processed.has(sprite)) continue;
       const velocity = sprite.getData(`v${axis}`);
       if (velocity === 0) continue;
 
       const chain = new Set<Phaser.GameObjects.Sprite>();
       this.resolveAxisMovement(sprite, velocity * dt, axis, chain);
+      processed.add(sprite);
       for (const pushedSprite of chain) {
-        processed.add(pushedSprite);
+        if (pushedSprite === sprite) continue;
+        const pushedVel = Math.abs(pushedSprite.getData(`v${axis}`) || 0);
+        const moverVel = Math.abs(sprite.getData(`v${axis}`) || 0);
+        if (pushedVel <= moverVel) {
+          processed.add(pushedSprite);
+        }
       }
     }
   }
@@ -245,12 +245,13 @@ export default class GameScene extends Phaser.Scene {
     delta: number,
     axis: 'x' | 'y',
     visited: Set<Phaser.GameObjects.Sprite> = new Set(),
+    effectiveImpartVel?: number,
   ): number {
-    if (delta === 0 || sprite.getData('isStatic')) return 0;
+    if (delta === 0) return 0;
     visited.add(sprite);
 
-    // Non-solid sprites move freely — no collision checks
-    if (!sprite.getData('isSolid')) {
+    // Sprites without collidesWithWalls move freely — no collision checks
+    if (!sprite.getData('collidesWithWalls')) {
       if (axis === 'x') sprite.x += delta;
       else sprite.y += delta;
       return delta;
@@ -270,7 +271,11 @@ export default class GameScene extends Phaser.Scene {
 
     for (const other of this.gameSprites.values()) {
       if (other === sprite || visited.has(other)) continue;
-      if (!other.getData('isSolid')) continue;
+      const otherSolid = other.getData('isSolid');
+      const otherPushes = other.getData('pushesObjects');
+      const moverPushable = sprite.getData('pushable');
+      const blocksMover = otherSolid || (otherPushes && moverPushable);
+      if (!blocksMover) continue;
 
       const ohw = other.displayWidth / 2;
       const ohh = other.displayHeight / 2;
@@ -353,8 +358,11 @@ export default class GameScene extends Phaser.Scene {
       // Push active (already-contacted) blockers to make room for the
       // sprite to reach this group. Each blocker is pushed only to the
       // NEXT group's gap — never further.
+      // Impart velocity to blockers BEFORE pushing so they can propagate it
+      // when they push others (e.g. A→C→B: C needs velocity before pushing B).
       if (activeDynamic.length > 0 && Math.abs(advanceDist) > 0.001) {
-        const pushed = this.pushBlockerGroup(activeDynamic, advanceDist, axis, sprite, visited);
+        this.impartVelocityToBlockers(sprite, activeDynamic, axis, effectiveImpartVel);
+        const pushed = this.pushBlockerGroup(activeDynamic, advanceDist, axis, sprite, visited, effectiveImpartVel);
         if (Math.abs(pushed) < Math.abs(advanceDist) - 0.001) {
           // Active blockers couldn't be pushed far enough — stop here
           if (axis === 'x') sprite.x += pushed;
@@ -371,10 +379,12 @@ export default class GameScene extends Phaser.Scene {
       else sprite.y += advanceDist;
       totalMoved += advanceDist;
 
-      // If this group contains any static blocker we cannot push past it
+      // If this group contains any immovable blocker we cannot push past it
+      // (tilemap, worldBound, or non-pushable sprite; or pushable but mover can't push)
+      const canPush = sprite.getData('pushesObjects');
       const hasStatic = group.entries.some(e =>
         e.kind === 'tilemap' || e.kind === 'worldBound' ||
-        (e.kind === 'sprite' && e.ref.getData('isStatic'))
+        (e.kind === 'sprite' && (!e.ref.getData('pushable') || !canPush))
       );
       if (hasStatic) {
         bounceNeeded = true;
@@ -382,9 +392,9 @@ export default class GameScene extends Phaser.Scene {
         break;
       }
 
-      // Accumulate dynamic blockers from this group
+      // Accumulate pushable blockers from this group (only when mover can push)
       for (const entry of group.entries) {
-        if (entry.kind === 'sprite') {
+        if (entry.kind === 'sprite' && entry.ref.getData('pushable') && canPush) {
           activeDynamic.push(entry.ref);
         }
       }
@@ -394,7 +404,8 @@ export default class GameScene extends Phaser.Scene {
     if (!earlyExit) {
       const remaining = delta - totalMoved;
       if (activeDynamic.length > 0 && Math.abs(remaining) > 0.001) {
-        const pushed = this.pushBlockerGroup(activeDynamic, remaining, axis, sprite, visited);
+        this.impartVelocityToBlockers(sprite, activeDynamic, axis, effectiveImpartVel);
+        const pushed = this.pushBlockerGroup(activeDynamic, remaining, axis, sprite, visited, effectiveImpartVel);
         if (axis === 'x') sprite.x += pushed;
         else sprite.y += pushed;
         totalMoved += pushed;
@@ -410,13 +421,13 @@ export default class GameScene extends Phaser.Scene {
       }
     }
 
-    // ── 6. Impart velocity (before bounce so we use pre-bounce vel) ──────
+    // ── 6. Impart velocity to direct blockers (before bounce so we use pre-bounce vel)
+    // Also handles case when we never called pushBlockerGroup (e.g. hit static immediately).
     if (activeDynamic.length > 0) {
-      const vel: number = sprite.getData(axis === 'x' ? 'vx' : 'vy') || 0;
-      for (const b of activeDynamic) {
-        const drag: number = b.getData('drag') || 0;
-        if (axis === 'x') b.setData('vx', vel * drag);
-        else b.setData('vy', vel * drag);
+      this.impartVelocityToBlockers(sprite, activeDynamic, axis, effectiveImpartVel);
+      // Elastic collision: if we pushed and have bounce, bounce off the pushed object
+      if ((sprite.getData('bounce') || 0) > 0) {
+        bounceNeeded = true;
       }
     }
 
@@ -430,6 +441,32 @@ export default class GameScene extends Phaser.Scene {
   }
 
   // ─── Push helpers ─────────────────────────────────────────────────────
+
+  /** Impart pusher's velocity onto blockers so they can propagate it when pushing others.
+   * Uses effectiveImpartVel (root pusher) when available so full impact passes through the chain.
+   * Only overwrites blocker velocity when it would increase speed in that direction (or change direction). */
+  private impartVelocityToBlockers(
+    pusher: Phaser.GameObjects.Sprite,
+    blockers: Phaser.GameObjects.Sprite[],
+    axis: 'x' | 'y',
+    effectiveImpartVel?: number,
+  ): void {
+    const ownVel: number = pusher.getData(axis === 'x' ? 'vx' : 'vy') || 0;
+    const velToUse = effectiveImpartVel !== undefined ? effectiveImpartVel : ownVel;
+    const velVal = velToUse || 0;
+
+    for (const b of blockers) {
+      const drag: number = b.getData('drag') ?? 1;
+      const newVel = velVal * drag;
+      const bCurrent: number = b.getData(axis === 'x' ? 'vx' : 'vy') || 0;
+      const sameDirection = (newVel > 0 && bCurrent > 0) || (newVel < 0 && bCurrent < 0);
+      const wouldReduce = sameDirection && Math.abs(newVel) < Math.abs(bCurrent);
+      if (!wouldReduce) {
+        if (axis === 'x') b.setData('vx', newVel);
+        else b.setData('vy', newVel);
+      }
+    }
+  }
 
   /**
    * Push a set of dynamic blockers by `delta` using **probe-then-push**.
@@ -448,6 +485,7 @@ export default class GameScene extends Phaser.Scene {
     axis: 'x' | 'y',
     pusher: Phaser.GameObjects.Sprite,
     visited: Set<Phaser.GameObjects.Sprite>,
+    effectiveImpartVel?: number,
   ): number {
     if (blockers.length === 0 || Math.abs(delta) < 0.001) return 0;
 
@@ -474,9 +512,11 @@ export default class GameScene extends Phaser.Scene {
     // ── Actual push by the safe minimum ─────────────────────────────────
     const safeDelta = sign * minPushed;
     const pushVisited = new Set<Phaser.GameObjects.Sprite>([pusher]);
+    const pusherVel = pusher.getData(axis === 'x' ? 'vx' : 'vy') || 0;
+    const velToPass = effectiveImpartVel !== undefined ? effectiveImpartVel : pusherVel;
     for (const blocker of blockers) {
       if (pushVisited.has(blocker)) continue; // already moved by an earlier chain
-      this.resolveAxisMovement(blocker, safeDelta, axis, pushVisited);
+      this.resolveAxisMovement(blocker, safeDelta, axis, pushVisited, velToPass);
     }
 
     // Merge into the caller's visited so physicsStep knows these sprites
@@ -757,25 +797,14 @@ export default class GameScene extends Phaser.Scene {
     // Initialize custom physics state
     sprite.setData('vx', 0);
     sprite.setData('vy', 0);
-
-    if (physics?.enabled) {
-      sprite.setData('hasPhysics', true);
-      sprite.setData('isSolid', true);
-      sprite.setData('isStatic', physics.anchored);
-      sprite.setData('gravityY', physics.gravityY || 0);
-      sprite.setData('bounce', physics.bounce || 0);
-      sprite.setData('drag', physics.drag || 0);
-      sprite.setData('collideWorldBounds', physics.collideWorldBounds ?? true);
-    } else {
-      // No physics — can still move via velocity, but no collision
-      sprite.setData('hasPhysics', false);
-      sprite.setData('isSolid', false);
-      sprite.setData('isStatic', false);
-      sprite.setData('gravityY', 0);
-      sprite.setData('bounce', 0);
-      sprite.setData('drag', 0);
-      sprite.setData('collideWorldBounds', false);
-    }
+    sprite.setData('pushesObjects', physics?.pushesObjects ?? false);
+    sprite.setData('pushable', physics?.pushable ?? false);
+    sprite.setData('collidesWithWalls', physics?.collidesWithWalls ?? true);
+    sprite.setData('isSolid', physics?.isSolid ?? false);
+    sprite.setData('gravityY', physics?.gravityY ?? 0);
+    sprite.setData('bounce', physics?.bounce ?? 0);
+    sprite.setData('drag', physics?.drag ?? 1);
+    sprite.setData('collideWorldBounds', physics?.collideWorldBounds ?? true);
 
     this.gameLayer.add(sprite);
     this.gameLayer.bringToTop(sprite);

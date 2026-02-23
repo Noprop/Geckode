@@ -15,7 +15,7 @@ const config = {
   },
   fps: {
     target: 60,
-    forceSetTimeOut: true,
+    forceSetTimeOut: false,
   },
   parent: 'phaser-container',
   pixelArt: true,

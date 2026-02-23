@@ -239,12 +239,12 @@ describe('GameScene resolveAxisMovement', () => {
     (scene as any).getClosestTileCollisionGap = vi.fn(() => null);
   });
 
-  it('moves non-solid sprites freely without collision checks', () => {
+  it('moves sprites without collidesWithWalls freely without collision checks', () => {
     const sprite = createSprite({
       x: 5,
       data: {
-        isSolid: false,
-        isStatic: false,
+        collidesWithWalls: false,
+        pushable: true,
       },
     });
 
@@ -256,12 +256,14 @@ describe('GameScene resolveAxisMovement', () => {
     expect(sprite.x).toBe(2);
   });
 
-  it('stops at static blockers and applies bounce', () => {
+  it('stops at non-pushable blockers and applies bounce', () => {
     const mover = createSprite({
       x: 10,
       data: {
+        collidesWithWalls: true,
+        pushesObjects: true,
         isSolid: true,
-        isStatic: false,
+        pushable: true,
         bounce: 0.5,
         vx: 20,
       },
@@ -270,7 +272,7 @@ describe('GameScene resolveAxisMovement', () => {
       x: 22,
       data: {
         isSolid: true,
-        isStatic: true,
+        pushable: false,
       },
     });
 
@@ -290,8 +292,10 @@ describe('GameScene resolveAxisMovement', () => {
     const mover = createSprite({
       x: 10,
       data: {
+        collidesWithWalls: true,
+        pushesObjects: true,
         isSolid: true,
-        isStatic: false,
+        pushable: true,
         bounce: 0,
         vx: 20,
       },
@@ -300,7 +304,7 @@ describe('GameScene resolveAxisMovement', () => {
       x: 22,
       data: {
         isSolid: true,
-        isStatic: false,
+        pushable: true,
         drag: 0.5,
       },
     });
@@ -322,8 +326,10 @@ describe('GameScene resolveAxisMovement', () => {
     const sprite = createSprite({
       x: 10,
       data: {
+        collidesWithWalls: true,
+        pushesObjects: true,
         isSolid: true,
-        isStatic: false,
+        pushable: true,
         collideWorldBounds: true,
         bounce: 0.5,
         vx: 10,
@@ -346,8 +352,10 @@ describe('GameScene resolveAxisMovement', () => {
     const sprite = createSprite({
       x: 10,
       data: {
+        collidesWithWalls: true,
+        pushesObjects: true,
         isSolid: true,
-        isStatic: false,
+        pushable: true,
         collideWorldBounds: true,
         bounce: 0.2,
         vx: 10,
@@ -382,15 +390,15 @@ describe('GameScene simultaneous multi-sprite push', () => {
     // Only blockA (full overlap) is pushed.
     const player = createSprite({
       x: 0, y: 0, width: 16, height: 16,
-      data: { isSolid: true, isStatic: false, bounce: 0, vx: 100 },
+      data: { collidesWithWalls: true, pushesObjects: true, isSolid: true, pushable: true, bounce: 0, vx: 100 },
     });
     const blockA = createSprite({
       x: 18, y: 0, width: 16, height: 16,
-      data: { isSolid: true, isStatic: false, drag: 1 },
+      data: { isSolid: true, pushable: true, drag: 1 },
     });
     const blockB = createSprite({
       x: 18, y: -16, width: 16, height: 16,
-      data: { isSolid: true, isStatic: false, drag: 1 },
+      data: { isSolid: true, pushable: true, drag: 1 },
     });
 
     setSceneSprites(scene, [
@@ -411,15 +419,15 @@ describe('GameScene simultaneous multi-sprite push', () => {
     // They share only the line y=8 — strict overlap excludes this.
     const player = createSprite({
       x: 0, y: 0, width: 16, height: 16,
-      data: { isSolid: true, isStatic: false, bounce: 0, vx: 100 },
+      data: { collidesWithWalls: true, pushesObjects: true, isSolid: true, pushable: true, bounce: 0, vx: 100 },
     });
     const blockA = createSprite({
       x: 18, y: 0, width: 16, height: 16,
-      data: { isSolid: true, isStatic: false, drag: 1 },
+      data: { isSolid: true, pushable: true, drag: 1 },
     });
     const blockB = createSprite({
       x: 18, y: 16, width: 16, height: 16,
-      data: { isSolid: true, isStatic: false, drag: 1 },
+      data: { isSolid: true, pushable: true, drag: 1 },
     });
 
     setSceneSprites(scene, [
@@ -440,15 +448,15 @@ describe('GameScene simultaneous multi-sprite push', () => {
     // They share only the line x=8 — strict overlap excludes this.
     const player = createSprite({
       x: 0, y: 0, width: 16, height: 16,
-      data: { isSolid: true, isStatic: false, bounce: 0, vy: 100 },
+      data: { collidesWithWalls: true, pushesObjects: true, isSolid: true, pushable: true, bounce: 0, vy: 100 },
     });
     const blockA = createSprite({
       x: 0, y: 18, width: 16, height: 16,
-      data: { isSolid: true, isStatic: false, drag: 1 },
+      data: { isSolid: true, pushable: true, drag: 1 },
     });
     const blockB = createSprite({
       x: 16, y: 18, width: 16, height: 16,
-      data: { isSolid: true, isStatic: false, drag: 1 },
+      data: { isSolid: true, pushable: true, drag: 1 },
     });
 
     setSceneSprites(scene, [
@@ -467,15 +475,15 @@ describe('GameScene simultaneous multi-sprite push', () => {
   it('pushes both blocks with overlapping Y (sanity check)', () => {
     const player = createSprite({
       x: 0, y: 0, width: 16, height: 16,
-      data: { isSolid: true, isStatic: false, bounce: 0, vx: 100 },
+      data: { collidesWithWalls: true, pushesObjects: true, isSolid: true, pushable: true, bounce: 0, vx: 100 },
     });
     const blockA = createSprite({
       x: 18, y: -3, width: 16, height: 16,
-      data: { isSolid: true, isStatic: false, drag: 1 },
+      data: { isSolid: true, pushable: true, drag: 1 },
     });
     const blockB = createSprite({
       x: 18, y: 3, width: 16, height: 16,
-      data: { isSolid: true, isStatic: false, drag: 1 },
+      data: { isSolid: true, pushable: true, drag: 1 },
     });
 
     setSceneSprites(scene, [
@@ -495,15 +503,15 @@ describe('GameScene simultaneous multi-sprite push', () => {
     // staticBlock y=-16 shares only the line y=-8 with player — strict overlap skips it.
     const player = createSprite({
       x: 0, y: 0, width: 16, height: 16,
-      data: { isSolid: true, isStatic: false, bounce: 0.5, vx: 100 },
+      data: { collidesWithWalls: true, pushesObjects: true, isSolid: true, pushable: true, bounce: 0.5, vx: 100 },
     });
     const dynamicBlock = createSprite({
       x: 18, y: 0, width: 16, height: 16,
-      data: { isSolid: true, isStatic: false, drag: 1 },
+      data: { isSolid: true, pushable: true, drag: 1 },
     });
     const staticBlock = createSprite({
       x: 18, y: -16, width: 16, height: 16,
-      data: { isSolid: true, isStatic: true },
+      data: { isSolid: true, pushable: false },
     });
 
     setSceneSprites(scene, [
@@ -525,19 +533,19 @@ describe('GameScene simultaneous multi-sprite push', () => {
     // freeBlock also has real overlap, unobstructed.
     const player = createSprite({
       x: 0, y: 0, width: 16, height: 16,
-      data: { isSolid: true, isStatic: false, bounce: 0, vx: 100 },
+      data: { collidesWithWalls: true, pushesObjects: true, isSolid: true, pushable: true, bounce: 0, vx: 100 },
     });
     const freeBlock = createSprite({
       x: 18, y: 3, width: 16, height: 16,
-      data: { isSolid: true, isStatic: false, drag: 1 },
+      data: { collidesWithWalls: true, pushesObjects: true, isSolid: true, pushable: true, drag: 1 },
     });
     const blockedBlock = createSprite({
       x: 18, y: -3, width: 16, height: 16,
-      data: { isSolid: true, isStatic: false, drag: 1, bounce: 0 },
+      data: { collidesWithWalls: true, pushesObjects: true, isSolid: true, pushable: true, drag: 1, bounce: 0 },
     });
     const wall = createSprite({
       x: 38, y: -3, width: 16, height: 16,
-      data: { isSolid: true, isStatic: true },
+      data: { isSolid: true, pushable: false },
     });
 
     setSceneSprites(scene, [
@@ -570,15 +578,15 @@ describe('GameScene chain-push (iterative sweep)', () => {
     // Player → A → B, all 16×16, gap=2 between each
     const player = createSprite({
       x: 0, y: 0, width: 16, height: 16,
-      data: { isSolid: true, isStatic: false, bounce: 0, vx: 100 },
+      data: { collidesWithWalls: true, pushesObjects: true, isSolid: true, pushable: true, bounce: 0, vx: 100 },
     });
     const blockA = createSprite({
       x: 18, y: 0, width: 16, height: 16,
-      data: { isSolid: true, isStatic: false, drag: 1 },
+      data: { collidesWithWalls: true, pushesObjects: true, isSolid: true, pushable: true, drag: 1 },
     });
     const blockB = createSprite({
       x: 36, y: 0, width: 16, height: 16,
-      data: { isSolid: true, isStatic: false, drag: 1 },
+      data: { collidesWithWalls: true, pushesObjects: true, isSolid: true, pushable: true, drag: 1 },
     });
 
     setSceneSprites(scene, [
@@ -600,19 +608,19 @@ describe('GameScene chain-push (iterative sweep)', () => {
   it('chain-pushes three blocks A → B → C', () => {
     const player = createSprite({
       x: 0, y: 0, width: 16, height: 16,
-      data: { isSolid: true, isStatic: false, bounce: 0, vx: 100 },
+      data: { collidesWithWalls: true, pushesObjects: true, isSolid: true, pushable: true, bounce: 0, vx: 100 },
     });
     const blockA = createSprite({
       x: 18, y: 0, width: 16, height: 16,
-      data: { isSolid: true, isStatic: false, drag: 1 },
+      data: { collidesWithWalls: true, pushesObjects: true, isSolid: true, pushable: true, drag: 1 },
     });
     const blockB = createSprite({
       x: 36, y: 0, width: 16, height: 16,
-      data: { isSolid: true, isStatic: false, drag: 1 },
+      data: { collidesWithWalls: true, pushesObjects: true, isSolid: true, pushable: true, drag: 1 },
     });
     const blockC = createSprite({
       x: 54, y: 0, width: 16, height: 16,
-      data: { isSolid: true, isStatic: false, drag: 1 },
+      data: { collidesWithWalls: true, pushesObjects: true, isSolid: true, pushable: true, drag: 1 },
     });
 
     setSceneSprites(scene, [
@@ -639,15 +647,15 @@ describe('GameScene chain-push (iterative sweep)', () => {
   it('chain stops at static wall and bounces back', () => {
     const player = createSprite({
       x: 0, y: 0, width: 16, height: 16,
-      data: { isSolid: true, isStatic: false, bounce: 0.5, vx: 100 },
+      data: { collidesWithWalls: true, pushesObjects: true, isSolid: true, pushable: true, bounce: 0.5, vx: 100 },
     });
     const blockA = createSprite({
       x: 18, y: 0, width: 16, height: 16,
-      data: { isSolid: true, isStatic: false, drag: 1, bounce: 0 },
+      data: { collidesWithWalls: true, pushesObjects: true, isSolid: true, pushable: true, drag: 1, bounce: 0 },
     });
     const wall = createSprite({
       x: 40, y: 0, width: 16, height: 16,
-      data: { isSolid: true, isStatic: true },
+      data: { isSolid: true, pushable: false },
     });
 
     setSceneSprites(scene, [
@@ -665,5 +673,225 @@ describe('GameScene chain-push (iterative sweep)', () => {
     expect(blockA.x).toBeCloseTo(24);
     expect(wall.x).toBe(40);
     expect(player.getData('vx')).toBeCloseTo(-50);
+  });
+
+  it('elastic collision: bouncy pusher bounces and imparts velocity to pushed object', () => {
+    // A (bounce=0.5, pushesObjects) hits B (pushable). A bounces, B gets imparted velocity.
+    const spriteA = createSprite({
+      x: 0, y: 0, width: 16, height: 16,
+      data: { collidesWithWalls: true, pushesObjects: true, isSolid: true, pushable: true, bounce: 0.5, vx: 100 },
+    });
+    const spriteB = createSprite({
+      x: 18, y: 0, width: 16, height: 16,
+      data: { collidesWithWalls: true, pushesObjects: true, isSolid: true, pushable: true, drag: 1 },
+    });
+
+    setSceneSprites(scene, [
+      ['A', spriteA],
+      ['B', spriteB],
+    ]);
+
+    (scene as any).resolveAxisMovement(spriteA, 10, 'x');
+
+    // A pushes B, both move. A bounces (vx = -100 * 0.5 = -50), B gets imparted (vx = 100)
+    expect(spriteA.getData('vx')).toBe(-50);
+    expect(spriteB.getData('vx')).toBe(100);
+  });
+
+  it('imparts velocity through chain A→C→B when C has low drag (B gets full impact)', () => {
+    // A pushes C (drag=0.5), C pushes B (drag=1).
+    // B receives full impact from A (100), not dampened by C's drag. C retains 50.
+    const spriteA = createSprite({
+      x: 0, y: 0, width: 16, height: 16,
+      data: { collidesWithWalls: true, pushesObjects: true, isSolid: true, pushable: true, bounce: 0, vx: 100 },
+    });
+    const spriteC = createSprite({
+      x: 18, y: 0, width: 16, height: 16,
+      data: { collidesWithWalls: true, pushesObjects: true, isSolid: true, pushable: true, drag: 0.5 },
+    });
+    const spriteB = createSprite({
+      x: 36, y: 0, width: 16, height: 16,
+      data: { collidesWithWalls: true, pushesObjects: true, isSolid: true, pushable: true, drag: 1 },
+    });
+
+    setSceneSprites(scene, [
+      ['A', spriteA],
+      ['C', spriteC],
+      ['B', spriteB],
+    ]);
+
+    (scene as any).resolveAxisMovement(spriteA, 10, 'x');
+
+    // Positions: A→C→B all move correctly
+    expect(spriteA.x).toBe(10);
+    expect(spriteC.x).toBe(26);
+    expect(spriteB.x).toBe(42);
+
+    // C receives velocity from A: 100 * 0.5 = 50
+    expect(spriteC.getData('vx')).toBe(50);
+
+    // B receives full impact from A (passed through chain): 100 * 1 = 100
+    expect(spriteB.getData('vx')).toBe(100);
+  });
+
+  it('imparts velocity through chain A→C→B when C has drag=0 (impact passes through)', () => {
+    // A pushes C (drag=0), C pushes B (drag=1).
+    // C absorbs all velocity (does not slide), but B should still receive velocity from the impact.
+    const spriteA = createSprite({
+      x: 0, y: 0, width: 16, height: 16,
+      data: { collidesWithWalls: true, pushesObjects: true, isSolid: true, pushable: true, bounce: 0, vx: 100 },
+    });
+    const spriteC = createSprite({
+      x: 18, y: 0, width: 16, height: 16,
+      data: { collidesWithWalls: true, pushesObjects: true, isSolid: true, pushable: true, drag: 0 },
+    });
+    const spriteB = createSprite({
+      x: 36, y: 0, width: 16, height: 16,
+      data: { collidesWithWalls: true, pushesObjects: true, isSolid: true, pushable: true, drag: 1 },
+    });
+
+    setSceneSprites(scene, [
+      ['A', spriteA],
+      ['C', spriteC],
+      ['B', spriteB],
+    ]);
+
+    (scene as any).resolveAxisMovement(spriteA, 10, 'x');
+
+    // Positions: A→C→B all move correctly
+    expect(spriteA.x).toBe(10);
+    expect(spriteC.x).toBe(26);
+    expect(spriteB.x).toBe(42);
+
+    // C has drag=0 so retains no velocity
+    expect(spriteC.getData('vx')).toBe(0);
+
+    // B receives velocity from A's impact (passed through C): 100 * 1 = 100
+    expect(spriteB.getData('vx')).toBe(100);
+  });
+
+  it('imparts velocity through chain A→C→B→D (D gets root A velocity, not C)', () => {
+    // A pushes C (drag=0.5), C pushes B, B pushes D.
+    // Without passing effectiveImpartVel through pushBlockerGroup, D would get C's velocity (50).
+    // With the fix, D receives A's velocity (100).
+    const spriteA = createSprite({
+      x: 0, y: 0, width: 16, height: 16,
+      data: { collidesWithWalls: true, pushesObjects: true, isSolid: true, pushable: true, bounce: 0, vx: 100 },
+    });
+    const spriteC = createSprite({
+      x: 18, y: 0, width: 16, height: 16,
+      data: { collidesWithWalls: true, pushesObjects: true, isSolid: true, pushable: true, drag: 0.5 },
+    });
+    const spriteB = createSprite({
+      x: 36, y: 0, width: 16, height: 16,
+      data: { collidesWithWalls: true, pushesObjects: true, isSolid: true, pushable: true, drag: 1 },
+    });
+    const spriteD = createSprite({
+      x: 54, y: 0, width: 16, height: 16,
+      data: { collidesWithWalls: true, pushesObjects: true, isSolid: true, pushable: true, drag: 1 },
+    });
+
+    setSceneSprites(scene, [
+      ['A', spriteA],
+      ['C', spriteC],
+      ['B', spriteB],
+      ['D', spriteD],
+    ]);
+
+    (scene as any).resolveAxisMovement(spriteA, 10, 'x');
+
+    // C gets 50 (A * C's drag), B gets 100, D must get 100 (root A), not 50 (C)
+    expect(spriteC.getData('vx')).toBe(50);
+    expect(spriteB.getData('vx')).toBe(100);
+    expect(spriteD.getData('vx')).toBe(100);
+  });
+
+  it('B separates from C when B has higher velocity (processed does not skip faster pushed)', () => {
+    // C (vx=50) and B (vx=100) in contact. B should move and separate from C.
+    // Without the processed fix, B would be skipped and stick to C.
+    const spriteC = createSprite({
+      x: 0, y: 0, width: 16, height: 16,
+      data: { collidesWithWalls: true, pushesObjects: true, isSolid: true, pushable: true, drag: 1, vx: 50 },
+    });
+    const spriteB = createSprite({
+      x: 18, y: 0, width: 16, height: 16,
+      data: { collidesWithWalls: true, pushesObjects: true, isSolid: true, pushable: true, drag: 1, vx: 100 },
+    });
+
+    setSceneSprites(scene, [
+      ['C', spriteC],
+      ['B', spriteB],
+    ]);
+
+    (scene as any).physicsStep(0.1);
+
+    // B (100) moves 10, C (50) moves 5. B should end up ahead of C.
+    expect(spriteB.x).toBeGreaterThan(spriteC.x + 8);
+  });
+
+  it('pushesObjects sprite blocks pushable mover even when not solid', () => {
+    // Player (pushesObjects, isSolid=false) blocks puzzle block (pushable) from passing through
+    const player = createSprite({
+      x: 20, y: 0, width: 16, height: 16,
+      data: { collidesWithWalls: true, pushesObjects: true, isSolid: false, pushable: false },
+    });
+    const block = createSprite({
+      x: 0, y: 0, width: 16, height: 16,
+      data: { collidesWithWalls: true, pushesObjects: true, isSolid: true, pushable: true, vx: 100 },
+    });
+
+    setSceneSprites(scene, [
+      ['player', player],
+      ['block', block],
+    ]);
+
+    (scene as any).resolveAxisMovement(block, 15, 'x');
+
+    // Block should stop at player, not pass through
+    expect(block.x).toBeLessThan(player.x);
+  });
+
+  it('pushable=false mover passes through pushesObjects isSolid=false sprite', () => {
+    // Player (pushable=false) passes through non-solid pusher (e.g. enemy)
+    const player = createSprite({
+      x: 0, y: 0, width: 16, height: 16,
+      data: { collidesWithWalls: true, pushesObjects: true, isSolid: false, pushable: false, vx: 100 },
+    });
+    const enemy = createSprite({
+      x: 20, y: 0, width: 16, height: 16,
+      data: { collidesWithWalls: true, pushesObjects: true, isSolid: false, pushable: false },
+    });
+
+    setSceneSprites(scene, [
+      ['player', player],
+      ['enemy', enemy],
+    ]);
+
+    (scene as any).resolveAxisMovement(player, 15, 'x');
+
+    // Player should pass through enemy (overlap)
+    expect(player.x).toBe(15);
+  });
+
+  it('does not reduce B velocity when slower C bumps into faster B', () => {
+    // C (vx=50) bumps into B (vx=100). B should keep 100, not be dampened to 50.
+    const spriteC = createSprite({
+      x: 0, y: 0, width: 16, height: 16,
+      data: { collidesWithWalls: true, pushesObjects: true, isSolid: true, pushable: true, vx: 50 },
+    });
+    const spriteB = createSprite({
+      x: 18, y: 0, width: 16, height: 16,
+      data: { collidesWithWalls: true, pushesObjects: true, isSolid: true, pushable: true, drag: 1, vx: 100 },
+    });
+
+    setSceneSprites(scene, [
+      ['C', spriteC],
+      ['B', spriteB],
+    ]);
+
+    (scene as any).resolveAxisMovement(spriteC, 10, 'x');
+
+    // C pushes B (same direction). B had 100, C would impart 50. Don't reduce.
+    expect(spriteB.getData('vx')).toBe(100);
   });
 });

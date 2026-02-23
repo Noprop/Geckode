@@ -11,8 +11,10 @@ interface SpritePhysicsCurtainProps {
 }
 
 const DEFAULT_PHYSICS: SpritePhysics = {
-  enabled: false,
-  anchored: false,
+  pushesObjects: false,
+  pushable: false,
+  collidesWithWalls: true,
+  isSolid: false,
   gravityY: 0,
   bounce: 0,
   drag: 1,
@@ -44,9 +46,11 @@ const SpritePhysicsCurtain = ({ isExpanded, onToggle }: SpritePhysicsCurtainProp
   const updateSpriteInstance = useGeckodeStore((state) => state.updateSpriteInstance);
 
   const physics = selectedSprite?.physics;
-  const enabled = physics?.enabled ?? DEFAULT_PHYSICS.enabled;
+  const pushesObjects = physics?.pushesObjects ?? DEFAULT_PHYSICS.pushesObjects;
+  const pushable = physics?.pushable ?? DEFAULT_PHYSICS.pushable;
+  const collidesWithWalls = physics?.collidesWithWalls ?? DEFAULT_PHYSICS.collidesWithWalls;
+  const isSolid = physics?.isSolid ?? DEFAULT_PHYSICS.isSolid;
   const collideWorldBounds = physics?.collideWorldBounds ?? DEFAULT_PHYSICS.collideWorldBounds;
-  const anchored = physics?.anchored ?? DEFAULT_PHYSICS.anchored;
 
   const [values, setValues] = useState<PhysicsFormValues>(() => buildPhysicsFormValues(physics));
 
@@ -109,7 +113,6 @@ const SpritePhysicsCurtain = ({ isExpanded, onToggle }: SpritePhysicsCurtainProp
   }, [selectedSpriteId, selectedSprite, values.drag, updateSpriteInstance]);
 
   const disabled = !selectedSprite;
-  const fieldsDisabled = disabled || !enabled;
 
   return (
     <>
@@ -141,16 +144,52 @@ const SpritePhysicsCurtain = ({ isExpanded, onToggle }: SpritePhysicsCurtainProp
           </div>
 
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs">
-            {/* Enable Physics */}
+            {/* Pushes objects */}
             <label className="flex cursor-pointer items-center gap-1.5">
               <input
                 type="checkbox"
-                checked={enabled}
-                onChange={() => handleToggleField('enabled', !enabled)}
+                checked={pushesObjects}
+                onChange={() => handleToggleField('pushesObjects', !pushesObjects)}
                 disabled={disabled}
                 className="h-3.5 w-3.5 accent-primary-green cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               />
-              <span className={labelClasses}>Enable Physics</span>
+              <span className={labelClasses}>Pushes objects</span>
+            </label>
+
+            {/* Pushable */}
+            <label className="flex cursor-pointer items-center gap-1.5">
+              <input
+                type="checkbox"
+                checked={pushable}
+                onChange={() => handleToggleField('pushable', !pushable)}
+                disabled={disabled}
+                className="h-3.5 w-3.5 accent-primary-green cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+              <span className={labelClasses}>Pushable</span>
+            </label>
+
+            {/* Collides with walls */}
+            <label className="flex cursor-pointer items-center gap-1.5">
+              <input
+                type="checkbox"
+                checked={collidesWithWalls}
+                onChange={() => handleToggleField('collidesWithWalls', !collidesWithWalls)}
+                disabled={disabled}
+                className="h-3.5 w-3.5 accent-primary-green cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+              <span className={labelClasses}>Collides with walls</span>
+            </label>
+
+            {/* Is solid */}
+            <label className="flex cursor-pointer items-center gap-1.5">
+              <input
+                type="checkbox"
+                checked={isSolid}
+                onChange={() => handleToggleField('isSolid', !isSolid)}
+                disabled={disabled}
+                className="h-3.5 w-3.5 accent-primary-green cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+              <span className={labelClasses}>Is solid</span>
             </label>
 
             {/* Collide World Bounds */}
@@ -159,29 +198,17 @@ const SpritePhysicsCurtain = ({ isExpanded, onToggle }: SpritePhysicsCurtainProp
                 type="checkbox"
                 checked={collideWorldBounds}
                 onChange={() => handleToggleField('collideWorldBounds', !collideWorldBounds)}
-                disabled={fieldsDisabled}
+                disabled={disabled}
                 className="h-3.5 w-3.5 accent-primary-green cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               />
               <span className={labelClasses}>World Bounds</span>
-            </label>
-
-            {/* Anchored */}
-            <label className="flex cursor-pointer items-center gap-1.5">
-              <input
-                type="checkbox"
-                checked={anchored}
-                onChange={() => handleToggleField('anchored', !anchored)}
-                disabled={fieldsDisabled}
-                className="h-3.5 w-3.5 accent-primary-green cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              />
-              <span className={labelClasses}>Anchored</span>
             </label>
 
             {/* Gravity Y */}
             <NumericField
               label="Gravity"
               value={values.gravityY}
-              disabled={fieldsDisabled}
+              disabled={disabled}
               onChange={(v) => handleInputChange('gravityY', v)}
               onBlur={handleBlurGravityY}
             />
@@ -190,7 +217,7 @@ const SpritePhysicsCurtain = ({ isExpanded, onToggle }: SpritePhysicsCurtainProp
             <NumericField
               label="Bounce"
               value={values.bounce}
-              disabled={fieldsDisabled}
+              disabled={disabled}
               min="0"
               max="1"
               onChange={(v) => handleInputChange('bounce', v)}
@@ -201,7 +228,7 @@ const SpritePhysicsCurtain = ({ isExpanded, onToggle }: SpritePhysicsCurtainProp
             <NumericField
               label="Drag"
               value={values.drag}
-              disabled={fieldsDisabled}
+              disabled={disabled}
               min="0"
               max="1"
               onChange={(v) => handleInputChange('drag', v)}

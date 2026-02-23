@@ -18,8 +18,10 @@ export type SpriteInstance = SpriteDefinition & {
 };
 
 export type SpritePhysics = {
-  enabled: boolean;
-  anchored: boolean;
+  pushesObjects: boolean;
+  pushable: boolean;
+  collidesWithWalls: boolean;
+  isSolid: boolean;
   gravityY: number;
   bounce: number;
   drag: number;

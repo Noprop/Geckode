@@ -209,20 +209,6 @@ const getToolbox = () => {
           },
           {
             kind: 'block',
-            type: 'getRotation',
-            inputs: {
-              SPRITE: {
-                shadow: {
-                  type: 'spriteGhost',
-                  fields: {
-                    SPRITE: spriteId,
-                  },
-                },
-              },
-            },
-          },
-          {
-            kind: 'block',
             type: 'setVelocityInDir',
             inputs: {
               SPRITE: {
