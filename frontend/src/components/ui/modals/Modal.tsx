@@ -45,7 +45,7 @@ export const Modal: React.FC<ModalProps> = ({
 
       <div
         className={
-          'fixed inset-0 z-20 flex items-end justify-center p-4 text-center sm:items-center sm:p-0' +
+          'fixed inset-0 z-100 flex items-end justify-center p-4 text-center sm:items-center sm:p-0' +
           (asOverlay ? ' backdrop-blur-xs bg-black/30' : ' pointer-events-none')
         }
       >
