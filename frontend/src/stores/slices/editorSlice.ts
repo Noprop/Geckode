@@ -6,7 +6,7 @@ import projectsApi from "@/lib/api/handlers/projects";
 import { createPhaserState } from "@/phaser/PhaserStateManager";
 import { EDITOR_SCENE_KEY, GAME_SCENE_KEY } from "@/phaser/sceneKeys";
 import EditorScene from "@/phaser/scenes/EditorScene";
-import type { EditorSlice, GeckodeStore } from "./types";
+import type { EditorSlice, GeckodeStore, WorkspaceOutputType } from "./types";
 import { projectNameSync } from "@/hooks/yjs/useProjectNameSync";
 
 export const createEditorSlice: StateCreator<
@@ -72,23 +72,45 @@ export const createEditorSlice: StateCreator<
 
   generateCode: () => {
     console.log('generating code for sprites:', get().spriteIdsUpdated);
-    set((s) => ({
-      spriteOutputs: {
-        ...s.spriteOutputs,
-        ...Object.fromEntries(s.spriteIdsUpdated.map((id) => [
-          id,
-          {
-            code: javascriptGenerator.workspaceToCode(
-              id === s.selectedSpriteId ? s.blocklyWorkspace! : s.spriteWorkspaces[id]
-            ),
-            updateHandlers: (javascriptGenerator as any).updateHandlers ?? [],
-            startHandlers: (javascriptGenerator as any).startHandlers ?? [],
-            keyPressHandlers: (javascriptGenerator as any).keyPressHandlers ?? [],
-          },
-        ])),
-      },
-      spriteIdsUpdated: [],
-    }));
+    const state = get();
+    const originalSelectedSpriteId = state.selectedSpriteId;
+    
+    set((s) => {
+      const outputs: Record<string, WorkspaceOutputType> = {};
+      
+      for (const id of s.spriteIdsUpdated) {
+        // Temporarily set selectedSpriteId to the sprite being processed
+        // so that event blocks can correctly identify their sprite ID
+        s.selectedSpriteId = id;
+        
+        // Clear handlers before generating code for this sprite
+        (javascriptGenerator as any).updateHandlers = [];
+        (javascriptGenerator as any).startHandlers = [];
+        (javascriptGenerator as any).keyPressHandlers = [];
+        
+        // Use the original selectedSpriteId to determine which workspace to use
+        const workspace = id === originalSelectedSpriteId ? s.blocklyWorkspace! : s.spriteWorkspaces[id];
+        const code = javascriptGenerator.workspaceToCode(workspace);
+        
+        outputs[id] = {
+          code,
+          updateHandlers: (javascriptGenerator as any).updateHandlers ?? [],
+          startHandlers: (javascriptGenerator as any).startHandlers ?? [],
+          keyPressHandlers: (javascriptGenerator as any).keyPressHandlers ?? [],
+        };
+      }
+      
+      // Restore original selectedSpriteId
+      s.selectedSpriteId = originalSelectedSpriteId;
+      
+      return {
+        spriteOutputs: {
+          ...s.spriteOutputs,
+          ...outputs,
+        },
+        spriteIdsUpdated: [],
+      };
+    });
   },
 
   saveProject: async (showSnackbar) => {
