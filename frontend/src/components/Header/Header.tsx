@@ -9,10 +9,6 @@ interface Props {
   rhs?: ReactElement;
 }
 
-// universal classes for all header btns
-export const headerBtnClasses: string =
-  'cursor-pointer flex items-center justify-center w-8 h-8 rounded-md bg-white/15 text-white hover:bg-white/25 transition-colors border border-white/20 shadow-sm';
-
 export default function Header({ lhs, middle, rhs }: Props) {
   return (
     <header className='bg-primary-green flex items-center h-16 px-4 shadow-md'>
