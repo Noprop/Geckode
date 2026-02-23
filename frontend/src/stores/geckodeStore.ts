@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+// import { persist } from "zustand/middleware";
 import { createEditorSlice } from "./slices/editorSlice";
 import { createSpriteSlice } from "./slices/spriteSlice";
 import type { GeckodeStore } from "./slices/types";
