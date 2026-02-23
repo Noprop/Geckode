@@ -273,8 +273,10 @@ export default class GameScene extends Phaser.Scene {
       if (other === sprite || visited.has(other)) continue;
       const otherSolid = other.getData('isSolid');
       const otherPushes = other.getData('pushesObjects');
+      const otherPushable = other.getData('pushable');
       const moverPushable = sprite.getData('pushable');
-      const blocksMover = otherSolid || (otherPushes && moverPushable);
+      const moverPushes = sprite.getData('pushesObjects');
+      const blocksMover = otherSolid || (otherPushes && moverPushable) || (otherPushable && moverPushes);
       if (!blocksMover) continue;
 
       const ohw = other.displayWidth / 2;
@@ -500,6 +502,8 @@ export default class GameScene extends Phaser.Scene {
 
     let minPushed = Math.abs(delta);
     for (const blocker of blockers) {
+      // Non-solid pushables don't impede the pusher — skip when computing min
+      if (blocker.getData('pushable') && !blocker.getData('isSolid')) continue;
       // Fresh visited containing only the pusher (prevents back-pushing)
       const probeVisited = new Set<Phaser.GameObjects.Sprite>([pusher]);
       const pushed = this.resolveAxisMovement(blocker, delta, axis, probeVisited);

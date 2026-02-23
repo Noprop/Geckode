@@ -851,6 +851,30 @@ describe('GameScene chain-push (iterative sweep)', () => {
     expect(block.x).toBeLessThan(player.x);
   });
 
+  it('pusher pushes pushable player (isSolid=false) and is not impeded', () => {
+    // Block (pushesObjects) hits player (pushable, isSolid=false). Block moves full delta, player gets imparted.
+    const block = createSprite({
+      x: 0, y: 0, width: 16, height: 16,
+      data: { collidesWithWalls: true, pushesObjects: true, isSolid: true, pushable: true, vx: 100 },
+    });
+    const player = createSprite({
+      x: 20, y: 0, width: 16, height: 16,
+      data: { collidesWithWalls: true, pushesObjects: true, isSolid: false, pushable: true },
+    });
+
+    setSceneSprites(scene, [
+      ['block', block],
+      ['player', player],
+    ]);
+
+    (scene as any).resolveAxisMovement(block, 15, 'x');
+
+    // Block should move full 15 (not impeded by player)
+    expect(block.x).toBe(15);
+    // Player gets imparted velocity
+    expect(player.getData('vx')).toBe(100);
+  });
+
   it('pushable=false mover passes through pushesObjects isSolid=false sprite', () => {
     // Player (pushable=false) passes through non-solid pusher (e.g. enemy)
     const player = createSprite({
