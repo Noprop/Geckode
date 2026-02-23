@@ -12,7 +12,6 @@ const PhaserSpriteList = () => {
   const removeSpriteInstance = useGeckodeStore((state) => state.removeSpriteInstance);
   const textures = useGeckodeStore((state) => state.textures);
   const libaryTextures = useGeckodeStore((state) => state.libaryTextures);
-  const isEditorScene = useGeckodeStore((state) => state.isEditorScene);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -39,7 +38,6 @@ const PhaserSpriteList = () => {
             setIsSpriteModalOpen(true);
           }}
           title="Add new sprite"
-          disabled={!isEditorScene}
         >
           + Add
         </Button>
@@ -73,7 +71,7 @@ const PhaserSpriteList = () => {
                     }}
                     onMouseEnter={() => setHoveredId(sprite.id)}
                     onMouseLeave={() => setHoveredId(null)}
-                    className={`relative aspect-square rounded-lg border-2 cursor-pointer transition-all overflow-hidden ${isSelected
+                    className={`relative aspect-square rounded-lg border-2 cursor-pointer transition-all overflow-hidden select-none ${isSelected
                         ? 'border-primary-green bg-primary-green/10 shadow-md ring-2 ring-primary-green/30'
                         : 'border-slate-200 bg-slate-50 hover:border-primary-green/50 dark:border-slate-600 dark:bg-dark-hover dark:hover:border-primary-green/50'
                       }`}

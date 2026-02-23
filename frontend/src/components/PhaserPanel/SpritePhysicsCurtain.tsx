@@ -13,9 +13,9 @@ interface SpritePhysicsCurtainProps {
 const DEFAULT_PHYSICS: SpritePhysics = {
   enabled: false,
   anchored: false,
-  gravityY: 300,
-  bounce: 0.2,
-  drag: 0.99,
+  gravityY: 0,
+  bounce: 0,
+  drag: 1,
   collideWorldBounds: true,
 };
 

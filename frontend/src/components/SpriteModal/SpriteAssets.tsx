@@ -49,6 +49,12 @@ const SpriteAssets = ({ setActiveTab }: SpriteAssetsProps) => {
 
   const handleDelete = useCallback(
     async (e: React.MouseEvent, textureName: string) => {
+      e.stopPropagation();
+      if (useGeckodeStore.getState().spriteInstances.some((sprite) => sprite.textureName === textureName)) {
+        showSnackbar('A texture may only be deleted if no sprites are using it.', 'error');
+        return;
+      }
+
       const uploadSuccess: boolean = await deleteTextureInBackend(textureName);
 
       if (uploadSuccess) {

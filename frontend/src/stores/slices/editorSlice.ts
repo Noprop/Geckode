@@ -1,14 +1,13 @@
 import * as Blockly from "blockly/core";
 import { javascriptGenerator } from "blockly/javascript";
 import type { StateCreator } from "zustand";
-import starterWorkspace from "@/blockly/workspaces/starter";
+import { starterWorkspace } from "@/blockly/workspaces/starter";
 import projectsApi from "@/lib/api/handlers/projects";
 import { createPhaserState } from "@/phaser/PhaserStateManager";
 import { EDITOR_SCENE_KEY, GAME_SCENE_KEY } from "@/phaser/sceneKeys";
 import EditorScene from "@/phaser/scenes/EditorScene";
 import type { EditorSlice, GeckodeStore } from "./types";
-
-const DEBOUNCE_MS = 400;
+import { projectNameSync } from "@/hooks/yjs/useProjectNameSync";
 
 export const createEditorSlice: StateCreator<
   GeckodeStore,
@@ -29,11 +28,14 @@ export const createEditorSlice: StateCreator<
   canRedo: false,
   isConverting: false,
   isEditorScene: true,
-  convertTimeoutId: null,
 
   // Workspace state
   spriteWorkspaces: {},
   spriteOutputs: {},
+  spriteIdsUpdated: [],
+
+  // Other
+  persistence: null,
 
   getCurrentSpriteId: () => {
     return get().selectedSpriteId ?? undefined;
@@ -43,7 +45,13 @@ export const createEditorSlice: StateCreator<
   setPhaserScene: (phaserScene) => set({ phaserScene }),
   setPhaserGame: (phaserGame) => set({ phaserGame }),
   setProjectId: (projectId) => set({ projectId }),
-  setProjectName: (projectName) => set({ projectName }),
+  setProjectName: (projectName, syncAfter = true) => {
+    set({ projectName });
+
+    if (syncAfter) {
+      projectNameSync(projectName);
+    }
+  },
   setPhaserState: (phaserState) => set({ phaserState }),
 
   updateUndoRedoState: () => {
@@ -63,52 +71,24 @@ export const createEditorSlice: StateCreator<
   },
 
   generateCode: () => {
-    const { blocklyWorkspace, spriteWorkspaces, spriteOutputs, selectedSpriteId: spriteId } = get();
-    if (!blocklyWorkspace || !spriteId) return;
-
-    const code = javascriptGenerator.workspaceToCode(blocklyWorkspace);
-    const output = {
-      code: code,
-      updateHandlers: (javascriptGenerator as any).updateHandlers ?? [],
-      startHandlers: (javascriptGenerator as any).startHandlers ?? [],
-    };
-
-    set({ spriteOutputs: { ...get().spriteOutputs, [spriteId]: output } });
-    console.log('generateCode spriteId: ', spriteId);
-    console.log('generateCode spriteOutputs: ', JSON.stringify(spriteOutputs, null, 2));
-    console.log('generateCode workspace code: \n', code);
-
-    // save workspace state
-    const state = Blockly.serialization.workspaces.save(blocklyWorkspace);
-    set({ spriteWorkspaces: { ...get().spriteWorkspaces, [spriteId]: state } });
-  },
-
-  scheduleConvert: () => {
-    const { convertTimeoutId } = get();
-    set({ isConverting: true });
-
-    if (convertTimeoutId) clearTimeout(convertTimeoutId);
-    const attemptConvert = () => {
-      const { phaserScene, blocklyWorkspace, generateCode } = get();
-
-      if (!phaserScene || !blocklyWorkspace) {
-        set({ convertTimeoutId: setTimeout(attemptConvert, 100) });
-        return;
-      }
-
-      generateCode();
-      set({ isConverting: false, convertTimeoutId: null });
-    };
-
-    set({ convertTimeoutId: setTimeout(attemptConvert, DEBOUNCE_MS) });
-  },
-
-  cancelScheduledConvert: () => {
-    const { convertTimeoutId } = get();
-    if (convertTimeoutId) {
-      clearTimeout(convertTimeoutId);
-      set({ convertTimeoutId: null });
-    }
+    console.log('generating code for sprites:', get().spriteIdsUpdated);
+    set((s) => ({
+      spriteOutputs: {
+        ...s.spriteOutputs,
+        ...Object.fromEntries(s.spriteIdsUpdated.map((id) => [
+          id,
+          {
+            code: javascriptGenerator.workspaceToCode(
+              id === s.selectedSpriteId ? s.blocklyWorkspace! : s.spriteWorkspaces[id]
+            ),
+            updateHandlers: (javascriptGenerator as any).updateHandlers ?? [],
+            startHandlers: (javascriptGenerator as any).startHandlers ?? [],
+            keyPressHandlers: (javascriptGenerator as any).keyPressHandlers ?? [],
+          },
+        ])),
+      },
+      spriteIdsUpdated: [],
+    }));
   },
 
   saveProject: async (showSnackbar) => {
@@ -170,24 +150,47 @@ export const createEditorSlice: StateCreator<
   },
 
   toggleEditor: () => {
-    const { isEditorScene, phaserScene, spriteInstances, spriteOutputs } =
-      get();
+    const { isEditorScene, phaserScene, spriteInstances, generateCode } = get();
     if (!phaserScene)
       throw new Error("toggleEditor() - Phaser scene is not set.");
 
     if (isEditorScene) {
-      const outputs = spriteInstances.map((s) => get().spriteOutputs[s.id]);
+      generateCode();
+      const { spriteOutputs } = get();
+      const outputs = spriteInstances.map((s) => spriteOutputs[s.id]);
       const allUpdateHandlers = outputs
         .flatMap((o) => o?.updateHandlers)
         .filter(Boolean);
       const allStartHandlers = outputs
         .flatMap((o) => o?.startHandlers)
         .filter(Boolean);
+      const allKeyPressHandlers = outputs
+        .flatMap((o) => o?.keyPressHandlers)
+        .filter(Boolean);
       const updateBody = allUpdateHandlers
         .map((h) => `  for (const __id of scene.getSpriteAndClones('${h?.spriteId}')) ${h?.functionName}(__id);`)
         .join("\n");
       const startBody = allStartHandlers
         .map((h) => `  for (const __id of scene.getSpriteAndClones('${h?.spriteId}')) ${h?.functionName}(__id);`)
+        .join("\n");
+      const keyPressBody = allKeyPressHandlers
+        .map((h) => {
+          const keyObj = `scene.cursors.${h?.key}`;
+          
+          let condition: string;
+          if (h?.eventType === 'just_pressed') {
+            condition = `scene.getJustPressed(${keyObj})`;
+          } else if (h?.eventType === 'released') {
+            condition = `scene.getJustReleased(${keyObj})`;
+          } else {
+            // 'pressed' - continuously held down
+            condition = `${keyObj}.isDown`;
+          }
+          
+          return `  if (${condition}) {
+    for (const __id of scene.getSpriteAndClones('${h?.spriteId}')) ${h?.functionName}(__id);
+  }`;
+        })
         .join("\n");
 
       const updateCode = `
@@ -200,8 +203,13 @@ export const createEditorSlice: StateCreator<
           ${startBody}
         };
       `;
+      const keyPressCode = `
+        scene.keyPressHook = () => {
+          ${keyPressBody}
+        };
+      `;
 
-      const code = [...outputs.map((o) => o?.code), startCode, updateCode].join(
+      const code = [...outputs.map((o) => o?.code), startCode, updateCode, keyPressCode].join(
         "\n\n",
       );
 
@@ -232,14 +240,11 @@ export const createEditorSlice: StateCreator<
     // Reset sprite store first to get new sprite IDs
     resetSpriteStore();
 
-    // Get the new default sprite instance after reset
-    const { spriteInstances } = get();
-    const defaultSprite = spriteInstances[0];
-
     // Clear and reset Blockly workspace
     if (blocklyWorkspace) {
+      Blockly.Events.disable();
       blocklyWorkspace.clear();
-      Blockly.serialization.workspaces.load(starterWorkspace, blocklyWorkspace);
+      Blockly.Events.enable();
     }
 
     // Reset Phaser scene sprites if in editor mode
@@ -251,11 +256,17 @@ export const createEditorSlice: StateCreator<
     set({
       spriteWorkspaces: {},
       spriteOutputs: {},
-      selectedSpriteId: get().spriteInstances[0]?.id ?? null,
+      selectedSpriteId: null,
       canUndo: false,
       canRedo: false,
     });
 
     console.log("[editorStore] Project reset to default state");
+  },
+
+  markSpriteAsUpdated: (id: string) => {
+    set((s) => ({
+      spriteIdsUpdated: Array.from(new Set([...s.spriteIdsUpdated, id])),
+    }));
   },
 });

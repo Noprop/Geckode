@@ -8,6 +8,7 @@ import {
   rebuildPixelBuffer,
 } from '@/hooks/useTilePixelCache';
 import TileEditorModal from '@/components/TileModal/TileEditorModal';
+import { ShieldBanIcon } from 'lucide-react';
 
 const TILE_PX = 16;
 const GRID_W = 5;
@@ -24,8 +25,11 @@ const normalizeGrid = (grid: (string | null)[][]): (string | null)[][] => {
   );
 };
 
+type TilesetTool = 'place' | 'collidable';
+
 const TilesetEditor = ({ onClose }: { onClose: () => void }) => {
   const [selectedTileKey, setSelectedTileKey] = useState<string | null>(null);
+  const [activeTool, setActiveTool] = useState<TilesetTool>('place');
   const [tilesetName, setTilesetName] = useState('myTileset');
   const [tilePage, setTilePage] = useState(0);
   const [isTileEditorOpen, setIsTileEditorOpen] = useState(false);
@@ -117,6 +121,14 @@ const TilesetEditor = ({ onClose }: { onClose: () => void }) => {
     setHistoryVersion(v => v + 1);
     bumpGrid();
   }, [editingSource, editingAssetName, editingAssetType, tilesets]);
+
+  // ── Collidable tool click ──
+  const handleCellClick = (row: number, col: number) => {
+    if (activeTool !== 'collidable') return;
+    const tileKey = gridRef.current[row]?.[col];
+    if (!tileKey) return;
+    setTileCollidable(tileKey, !tileCollidables[tileKey]);
+  };
 
   // ── Drag & Drop handlers ──
   const handleDragStart = (e: React.DragEvent, source: 'palette' | 'grid', tileKey: string, row?: number, col?: number) => {
@@ -216,34 +228,26 @@ const TilesetEditor = ({ onClose }: { onClose: () => void }) => {
         <div className="flex flex-col gap-1">
           <span className="text-sm text-slate-600 dark:text-slate-300 font-semibold px-0.5">Tiles</span>
 
-          {/* Pagination arrows + grid */}
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setTilePage(p => Math.max(0, p - 1))}
-              disabled={tilePage === 0}
-              className="w-6 h-6 flex items-center justify-center rounded text-slate-500 hover:bg-slate-200 dark:hover:bg-dark-tertiary disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition"
-              title="Previous page"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M15 18l-6-6 6-6" />
-              </svg>
-            </button>
-
-            <div className="grid grid-cols-3 gap-[2px] flex-1">
-              {pagedTileKeys.map((key) => (
+          {/* Tile grid — always 3×3 */}
+          <div className="grid grid-cols-3 gap-[2px]">
+            {Array.from({ length: TILES_PER_PAGE }, (_, i) => {
+              const key = pagedTileKeys[i];
+              if (!key) {
+                return <div key={`empty-${i}`} className="aspect-square" />;
+              }
+              return (
                 <button
                   key={key}
                   type="button"
                   draggable
                   onDragStart={(e) => handleDragStart(e, 'palette', key)}
-                  onClick={() => setSelectedTileKey(key)}
+                  onClick={() => { setSelectedTileKey(key); setActiveTool('place'); }}
                   onDoubleClick={() => {
                     setEditingAsset(key, 'tiles', 'asset');
                     setIsTileEditorOpen(true);
                   }}
                   className={`aspect-square cursor-grab active:cursor-grabbing transition-colors overflow-hidden ${
-                    selectedTileKey === key
+                    (selectedTileKey === key && activeTool !== 'collidable')
                       ? 'border-2 border-primary-green'
                       : 'border-2 border-transparent hover:border-slate-400 dark:hover:border-slate-500'
                   }`}
@@ -256,25 +260,25 @@ const TilesetEditor = ({ onClose }: { onClose: () => void }) => {
                     style={{ imageRendering: 'pixelated' }}
                   />
                 </button>
-              ))}
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setTilePage(p => Math.min(totalPages - 1, p + 1))}
-              disabled={tilePage >= totalPages - 1}
-              className="w-6 h-6 flex items-center justify-center rounded text-slate-500 hover:bg-slate-200 dark:hover:bg-dark-tertiary disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition"
-              title="Next page"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M9 18l6-6-6-6" />
-              </svg>
-            </button>
+              );
+            })}
           </div>
 
-          {/* Page dots */}
+          {/* Arrows + page dots in one row */}
           {totalPages > 1 && (
-            <div className="flex justify-center gap-1 pt-1">
+            <div className="flex items-center justify-center gap-1">
+              <button
+                type="button"
+                onClick={() => setTilePage(p => Math.max(0, p - 1))}
+                disabled={tilePage === 0}
+                className="w-6 h-6 flex items-center justify-center rounded text-slate-500 hover:bg-slate-200 dark:hover:bg-dark-tertiary disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition"
+                title="Previous page"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M15 18l-6-6 6-6" />
+                </svg>
+              </button>
+
               {Array.from({ length: totalPages }, (_, i) => (
                 <button
                   key={i}
@@ -286,30 +290,40 @@ const TilesetEditor = ({ onClose }: { onClose: () => void }) => {
                   title={`Page ${i + 1}`}
                 />
               ))}
+
+              <button
+                type="button"
+                onClick={() => setTilePage(p => Math.min(totalPages - 1, p + 1))}
+                disabled={tilePage >= totalPages - 1}
+                className="w-6 h-6 flex items-center justify-center rounded text-slate-500 hover:bg-slate-200 dark:hover:bg-dark-tertiary disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition"
+                title="Next page"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M9 18l6-6-6-6" />
+                </svg>
+              </button>
             </div>
           )}
         </div>
 
-        {/* Collidable toggle for selected tile */}
-        {selectedTileKey && (
+        {/* Tool buttons */}
+        <div className="flex flex-col gap-1 items-start">
+          <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold px-0.5">Tools</span>
           <button
             type="button"
-            onClick={() => setTileCollidable(selectedTileKey, !tileCollidables[selectedTileKey])}
+            onClick={() => { setActiveTool('collidable'); setSelectedTileKey(null); }}
             className={`flex items-center gap-2 px-3 py-2 rounded text-xs font-medium cursor-pointer transition ${
-              tileCollidables[selectedTileKey]
-                ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                : 'bg-slate-100 text-slate-600 dark:bg-dark-tertiary dark:text-slate-300'
+              activeTool === 'collidable'
+                ? 'bg-primary-green text-white'
+                : 'bg-slate-100 text-slate-600 dark:bg-dark-tertiary dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-dark-tertiary/80'
             }`}
+            style={{ minWidth: 0, width: 'auto', maxWidth: '100%' }}
+            title="Collidable tool — click tiles in the grid to toggle collision"
           >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
-            {tileCollidables[selectedTileKey] ? 'Collidable' : 'Not collidable'}
-            {tileCollidables[selectedTileKey] && (
-              <span className="w-2 h-2 rounded-full bg-red-500 ml-auto" />
-            )}
+            <ShieldBanIcon className="w-4 h-4" />
+            Collidable
           </button>
-        )}
+        </div>
 
         <div className="flex-1" />
       </div>
@@ -339,22 +353,27 @@ const TilesetEditor = ({ onClose }: { onClose: () => void }) => {
                         : tileKey
                           ? 'bg-slate-100 dark:bg-dark-tertiary'
                           : 'bg-slate-50 dark:bg-dark-tertiary/50 border-2 border-dashed border-slate-300 dark:border-slate-600'
-                    }`}
+                      } ${activeTool === 'collidable' && tileKey ? 'cursor-pointer' : ''}`}
                     onDragOver={(e) => handleDragOver(e, row, col)}
                     onDragLeave={handleDragLeave}
                     onDrop={(e) => handleDrop(e, row, col)}
                     onContextMenu={(e) => handleCellContextMenu(e, row, col)}
+                    onClick={() => handleCellClick(row, col)}
                   >
                     {tileKey && tileTextures[tileKey] ? (
                       <img
                         src={tileTextures[tileKey]}
                         alt={tileKey}
-                        draggable
+                        draggable={activeTool !== 'collidable'}
                         onDragStart={(e) => handleDragStart(e, 'grid', tileKey, row, col)}
-                        className="w-full h-full object-contain cursor-grab active:cursor-grabbing"
+                        className="w-full h-full object-contain pointer-events-none"
                         style={{ imageRendering: 'pixelated' }}
                       />
                     ) : null}
+                    {tileKey && tileCollidables[tileKey] && (
+                      <div className="absolute inset-0 bg-red-500/30 flex items-center justify-center rounded pointer-events-none">
+                      </div>
+                    )}
                   </div>
                 );
               })

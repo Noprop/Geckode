@@ -9,6 +9,7 @@ import { eventBlocks } from '@/blockly/blocks/events';
 import { inputBlocks } from '@/blockly/blocks/input';
 import { developmentBlocks } from '@/blockly/blocks/development';
 import { ghostBlocks } from '@/blockly/blocks/ghosts';
+import { cameraBlocks } from '@/blockly/blocks/camera';
 
 import { javascriptGenerator } from 'blockly/javascript';
 
@@ -22,7 +23,14 @@ type StartHandler = {
   functionName: string;
 };
 
-const customBlocks = [...spriteBlocks, ...eventBlocks, ...inputBlocks, ...developmentBlocks, ...ghostBlocks];
+type KeyPressHandler = {
+  spriteId: string;
+  functionName: string;
+  key: 'left' | 'right' | 'up' | 'down' | 'space';
+  eventType: 'just_pressed' | 'pressed' | 'released';
+};
+
+const customBlocks = [...spriteBlocks, ...eventBlocks, ...inputBlocks, ...developmentBlocks, ...ghostBlocks, ...cameraBlocks];
 
 let isRegistered = false;
 
@@ -46,12 +54,17 @@ export function getStartRegistry(generator: any): StartHandler[] {
   return generator.startHandlers;
 }
 
+export function getKeyPressRegistry(generator: any): KeyPressHandler[] {
+  if (!generator.keyPressHandlers) generator.keyPressHandlers = [];
+  return generator.keyPressHandlers;
+}
+
 export function isIsolated(block: Blockly.Block): boolean {
   let currentBlock: Blockly.Block | null = block;
 
   // Traverse up to the parent block
   while (currentBlock) {
-    if (currentBlock.type === 'onUpdate' || currentBlock.type === 'onStart') return false;
+    if (currentBlock.type === 'onUpdate' || currentBlock.type === 'onStart' || currentBlock.type === 'onKey') return false;
     currentBlock = currentBlock.getSurroundParent();
   }
 
@@ -64,7 +77,8 @@ javascriptGenerator.scrub_ = function (block, code, thisOnly) {
   // Allow event blocks themselves
   if (
     block.type === 'onUpdate' ||
-    block.type === 'onStart'
+    block.type === 'onStart' ||
+    block.type === 'onKey'
   ) {
     return oldScrub.call(this, block, code, thisOnly);
   }
@@ -84,6 +98,7 @@ if (typeof window !== 'undefined') {
     originalInit.call(this, workspace);
     (this as any).updateHandlers = [];
     (this as any).startHandlers = [];
+    (this as any).keyPressHandlers = [];
   };
 }
 

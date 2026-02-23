@@ -31,7 +31,7 @@ const AssetWorkspace = () => {
 
   const assets = useGeckodeStore((s) => s[activeTab]);
   const tilesets = useGeckodeStore((s) => s.tilesets);
-  const addAsset = useGeckodeStore((s) => s.addAsset);
+  const setAsset = useGeckodeStore((s) => s.setAsset);
   const removeAsset = useGeckodeStore((s) => s.removeAsset);
   const addTileset = useGeckodeStore((s) => s.addTileset);
   const removeTileset = useGeckodeStore((s) => s.removeTileset);
@@ -94,7 +94,7 @@ const AssetWorkspace = () => {
 
     const uploadSuccess = await addAssetToBackend(newName, selectedBase64, selectedAsset.type);
     if (uploadSuccess) {
-      addAsset(newName, selectedBase64, selectedAsset.type);
+      setAsset(newName, selectedBase64, selectedAsset.type);
       showSnackbar(`Successfully duplicated ${selectedAsset.name}!`, 'success');
       setSelectedAsset({ name: newName, type: selectedAsset.type });
     } else {
@@ -163,6 +163,13 @@ const AssetWorkspace = () => {
     if (selectedAsset.type === 'tilesets') {
       removeTileset(selectedAsset.name);
     } else {
+      if (
+        selectedAsset.type === 'textures' &&
+        useGeckodeStore.getState().spriteInstances.some((sprite) => sprite.textureName === selectedAsset.name)
+      ) {
+        showSnackbar('A texture may only be deleted if no sprites are using it.', 'error');
+        return;
+      }
       const uploadSuccess = await deleteTextureInBackend(selectedAsset.name);
       if (uploadSuccess) {
         showSnackbar(`Successfully deleted ${selectedAsset.name}!`, 'success');

@@ -355,9 +355,9 @@ const TileEditor = ({ onClose }: { onClose: () => void }) => {
     if (editingSource === 'new' || editingSource === 'library') {
       const allTiles = useGeckodeStore.getState().tiles;
       const uniqueName = createUniqueTextureName(tileName, allTiles);
-      useGeckodeStore.getState().addAsset(uniqueName, base64Image, 'tiles');
+      useGeckodeStore.getState().setAsset(uniqueName, base64Image, 'tiles');
     } else if (editingSource === 'asset') {
-      useGeckodeStore.getState().updateAsset(editingAssetName!, base64Image, 'tiles');
+      useGeckodeStore.getState().setAsset(editingAssetName!, base64Image, 'tiles');
     }
 
     useGeckodeStore.setState({ editingSource: null, editingAssetName: null, editingAssetType: null });

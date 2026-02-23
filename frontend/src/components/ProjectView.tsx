@@ -13,6 +13,8 @@ import assetsApi from '@/lib/api/handlers/assets';
 import { useParams } from 'next/navigation';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { extractAxiosErrMsg } from '@/lib/api/axios';
+import { useWorkspaceSync } from '@/hooks/yjs/useWorkspaceSync';
+import useMultiDebounce from '@/hooks/useMultiDebounce';
 
 // disable for now
 // import { useBlockSync } from "@/hooks/yjs/useBlockSync";
@@ -27,58 +29,86 @@ import { extractAxiosErrMsg } from '@/lib/api/axios';
 // };
 
 const ProjectView = () => {
+  const { projectID } = useParams();
   const { view } = useWorkspaceView();
+  const showSnackbar = useSnackbar();
   const {
     undoWorkspace,
     redoWorkspace,
     canUndo,
     canRedo,
-    addAsset,
-    addLibraryAsset,
+    spriteIdsUpdated,
+    isEditorScene,
+    projectId,
     setProjectId,
-    resetAssetsOnly,
+    setAsset,
     addAssetId,
+    addLibraryAsset,
+    resetAssetsOnly,
   } = useGeckodeStore();
-  const prjId = Number(useParams().projectID);
-  const showSnackbar = useSnackbar();
+  const debouncedEditorChanges = useMultiDebounce({
+    values: { spriteIdsUpdated, isEditorScene },
+    delays: {
+      isEditorScene: 100,
+    },
+    defaultDelay: 400,
+  });
 
-  // disable for now
-  // useBlockSync(documentName);
-  // useVariableSync(documentName);
-
+  // Keep store projectId in sync with route so Yjs documentRegistry resolves the right doc
   useEffect(() => {
-    return () => {
-      // Cancel any pending auto-convert on unmount
-      useGeckodeStore.getState().cancelScheduledConvert();
+    setProjectId(projectID != null && !Number.isNaN(projectID) ? Number(projectID) : null);
 
-      // clear all previous sprites and rebuild
-      resetAssetsOnly();
+    // clear all previous sprites and rebuild
+    resetAssetsOnly();
 
-      // set project ID and pull all assets
-      if (!Number.isNaN(prjId)) {
-        setProjectId(prjId);
+    // set project ID and pull all assets
+    if (projectId) {
+      const prjId = Number(projectID);
 
-        projectsApi(prjId)
-          .assetsApi.list({ asset_type: 'textures' })
-          .then((res) => {
-            for (var asset of res.results) {
-              addAsset(asset.name, asset.asset, 'textures');
-              addAssetId(asset.name, asset.id);
-            }
-          })
-          .catch((err) => showSnackbar(extractAxiosErrMsg(err, 'Failed to get project assets!'), 'error'));
+      projectsApi(prjId)
+        .assetsApi.list({ asset_type: 'textures' })
+        .then((res) => {
+          for (var asset of res.results) {
+            setAsset(asset.name, asset.asset, 'textures');
+            addAssetId(asset.name, asset.id);
+          }
+        })
+        .catch((err) => showSnackbar(extractAxiosErrMsg(err, 'Failed to get project assets!'), 'error'));
 
-        assetsApi
-          .list({ asset_type: 'textures' })
-          .then((res) => {
-            for (var asset of res.results) {
-              addLibraryAsset(asset.name, asset.asset, 'libaryTextures');
-            }
-          })
-          .catch((err) => showSnackbar(extractAxiosErrMsg(err, 'Failed to get library assets!'), 'error'));
-      }
+      assetsApi
+        .list({ asset_type: 'textures' })
+        .then((res) => {
+          for (var asset of res.results) {
+            addLibraryAsset(asset.name, asset.asset, 'libaryTextures');
+          }
+        })
+        .catch((err) => showSnackbar(extractAxiosErrMsg(err, 'Failed to get library assets!'), 'error'));
+    }
+
+    return () => setProjectId(null);
+  }, [projectID, setProjectId]);
+
+  useWorkspaceSync(String(projectID ?? ''));
+
+  // This handles generating the code after any changes
+  useEffect(() => {
+    console.log('debouncing editor changes to generate code', debouncedEditorChanges.spriteIdsUpdated);
+    if (!debouncedEditorChanges.isEditorScene || !debouncedEditorChanges.spriteIdsUpdated.length) return;
+
+    useGeckodeStore.setState({ isConverting: true });
+    useGeckodeStore.getState().generateCode();
+
+    // This timeout is to visually show that the code actual did generate (at least useful during development)
+    const timeoutFunc = () => {
+      useGeckodeStore.setState({ isConverting: false });
     };
-  }, []);
+    const timeout = setTimeout(timeoutFunc, 100);
+
+    return () => {
+      clearTimeout(timeout);
+      timeoutFunc();
+    };
+  }, [debouncedEditorChanges]);
 
   return (
     <div className='flex h-[calc(100vh-4rem)]'>
@@ -109,7 +139,7 @@ const ProjectView = () => {
         </div>
 
         {view === 'blocks' && (
-          <div className='absolute bottom-8 right-[30px] flex items-center gap-2.5 z-9999 pointer-events-auto'>
+          <div className='absolute bottom-8 right-[30px] flex items-center gap-2.5 z-20 pointer-events-auto'>
             <button
               onClick={undoWorkspace}
               disabled={!canUndo}

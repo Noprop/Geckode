@@ -30,6 +30,11 @@ const getToolbox = () => {
         kind: 'category',
         name: 'Sprites',
         contents: [
+          // Movement section
+          {
+            kind: 'label',
+            text: 'Movement',
+          },
           {
             kind: 'block',
             type: 'goToXY',
@@ -120,6 +125,41 @@ const getToolbox = () => {
           },
           {
             kind: 'block',
+            type: 'moveWithArrows',
+            inputs: {
+              SPRITE: {
+                shadow: {
+                  type: 'spriteGhost',
+                  fields: {
+                    SPRITE: spriteId,
+                  },
+                },
+              },
+              VX: {
+                shadow: {
+                  type: 'math_number',
+                  fields: {
+                    NUM: 100,
+                  },
+                },
+              },
+              VY: {
+                shadow: {
+                  type: 'math_number',
+                  fields: {
+                    NUM: 100,
+                  },
+                },
+              },
+            },
+          },
+          // Direction section
+          {
+            kind: 'label',
+            text: 'Direction',
+          },
+          {
+            kind: 'block',
             type: 'setRotation',
             inputs: {
               SPRITE: {
@@ -169,6 +209,47 @@ const getToolbox = () => {
           },
           {
             kind: 'block',
+            type: 'getRotation',
+            inputs: {
+              SPRITE: {
+                shadow: {
+                  type: 'spriteGhost',
+                  fields: {
+                    SPRITE: spriteId,
+                  },
+                },
+              },
+            },
+          },
+          {
+            kind: 'block',
+            type: 'setVelocityInDir',
+            inputs: {
+              SPRITE: {
+                shadow: {
+                  type: 'spriteGhost',
+                  fields: {
+                    SPRITE: spriteId,
+                  },
+                },
+              },
+              VALUE: {
+                shadow: {
+                  type: 'math_number',
+                  fields: {
+                    NUM: 100,
+                  },
+                },
+              },
+              DIRECTION: {
+                shadow: {
+                  type: 'angleGhost',
+                },
+              },
+            },
+          },
+          {
+            kind: 'block',
             type: 'movementDirection',
             inputs: {
               SPRITE: {
@@ -180,6 +261,11 @@ const getToolbox = () => {
                 },
               },
             },
+          },
+          // Collision section
+          {
+            kind: 'label',
+            text: 'Collision',
           },
           {
             kind: 'block',
@@ -205,60 +291,22 @@ const getToolbox = () => {
           },
           {
             kind: 'block',
-            type: 'moveWithArrows',
+            type: 'isTouchingSolid',
             inputs: {
               SPRITE: {
                 shadow: {
                   type: 'spriteGhost',
                   fields: {
                     SPRITE: spriteId,
-                  },
-                },
-              },
-              VX: {
-                shadow: {
-                  type: 'math_number',
-                  fields: {
-                    NUM: 2,
-                  },
-                },
-              },
-              VY: {
-                shadow: {
-                  type: 'math_number',
-                  fields: {
-                    NUM: 2,
                   },
                 },
               },
             },
           },
+          // Cloning section
           {
-            kind: 'block',
-            type: 'setVelocityInDir',
-            inputs: {
-              SPRITE: {
-                shadow: {
-                  type: 'spriteGhost',
-                  fields: {
-                    SPRITE: spriteId,
-                  },
-                },
-              },
-              VALUE: {
-                shadow: {
-                  type: 'math_number',
-                  fields: {
-                    NUM: 2,
-                  },
-                },
-              },
-              DIRECTION: {
-                shadow: {
-                  type: 'angleGhost',
-                },
-              },
-            },
+            kind: 'label',
+            text: 'Cloning',
           },
           {
             kind: 'block',
@@ -284,15 +332,16 @@ const getToolbox = () => {
               },
             },
           },
-
-
-
         ],
       },
       {
         kind: 'category',
         name: 'Input',
         contents: [
+          {
+            kind: 'block',
+            type: 'onKey',
+          },
           {
             kind: 'block',
             type: 'keyPressed',
@@ -406,6 +455,38 @@ const getToolbox = () => {
         kind: 'category',
         name: 'Variables',
         custom: 'CUSTOM_VARIABLES',
+      },
+      {
+        kind: 'category',
+        name: 'Camera',
+        contents: [
+          {
+            kind: 'block',
+            type: 'cameraToXY',
+            inputs: {
+              x: {
+                shadow: {
+                  type: 'math_number',
+                  fields: {
+                    NUM: 0,
+                  },
+                },
+              },
+              y: {
+                shadow: {
+                  type: 'math_number',
+                  fields: {
+                    NUM: 0,
+                  },
+                },
+              },
+            },
+          },
+          {
+            kind: 'block',
+            type: 'resetCamera',
+          },
+        ]
       },
       {
         kind: 'category',

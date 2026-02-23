@@ -11,7 +11,6 @@ const options = [
   ['y', 'y'],
   ['velocityX', 'velocityX'],
   ['velocityY', 'velocityY'],
-  ['angle', 'angle'],
 ]
 
 const goToXY = {
@@ -181,7 +180,7 @@ const setRotation = {
   type: "setRotation",
   tooltip: "Set the rotation of a sprite",
   helpUrl: "",
-  message0: "rotate %1 to %2",
+  message0: "set %1 rotation to %2",
   args0: [
     {
       type: 'input_value',
@@ -208,6 +207,31 @@ javascriptGenerator.forBlock['setRotation'] = function (block, generator) {
     spriteKey === `"${currentSpriteId}"` ? 'thisSprite' : spriteKey
   }).angle = (${value}) % 360\n`;
 
+};
+
+const getRotation = {
+  type: 'getRotation',
+  tooltip: 'Get the rotation angle of a sprite',
+  helpUrl: '',
+  message0: 'get %1 rotation',
+  args0: [
+    {
+      type: 'input_value',
+      name: 'SPRITE',
+    },
+  ],
+  output: null,
+  colour: '%{BKY_SPRITES_HUE}',
+};
+
+javascriptGenerator.forBlock['getRotation'] = function (block, generator) {
+  const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
+
+  const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
+  const spriteName = spriteKey === `"${currentSpriteId}"` ? 'thisSprite' : spriteKey;
+  const spriteRef = `scene.getSprite(${spriteName})`;
+
+  return [`(${spriteRef}.angle)`, Order.NONE];
 };
 
 const pointAtXY = {
@@ -258,7 +282,7 @@ const movementDirection = {
   type: "movementDirection",
   tooltip: "Get the movement direction of a sprite",
   helpUrl: "",
-  message0: "movement direction of %1",
+  message0: "get %1 movement direction",
   args0: [
     {
       type: 'input_value',
@@ -388,7 +412,7 @@ const setVelocityInDir = {
   type: 'setVelocityInDir',
   tooltip: 'Set the property of a sprite in a direction',
   helpUrl: '',
-  message0: 'set velocity of %1 to %2 in direction %3',
+  message0: 'set %1 velocity to %2 in direction %3',
   args0: [
     {
       type: 'input_value',
@@ -423,16 +447,53 @@ javascriptGenerator.forBlock['setVelocityInDir'] = function (block, generator) {
 
 };
 
+const isTouchingSolid = {
+  type: 'isTouchingSolid',
+  tooltip: 'Check if a sprite is touching a wall from a direction',
+  helpUrl: '',
+  message0: '%1 hitting wall %2 ?',
+  args0: [
+    {
+      type: 'input_value',
+      name: 'SPRITE',
+    },
+    {
+      type: 'field_dropdown',
+      name: 'DIRECTION',
+      options: [
+        ['below', 'down'],
+        ['above', 'up'],
+        ['left', 'left'],
+        ['right', 'right'],
+      ],
+    },
+  ],
+  inputsInline: true,
+  output: 'Boolean',
+  colour: '%{BKY_SPRITES_HUE}',
+};
+
+javascriptGenerator.forBlock['isTouchingSolid'] = function (block, generator) {
+  const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
+
+  const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
+  const spriteName = `scene.getSprite(${spriteKey === currentSpriteId ? 'thisSprite' : spriteKey})`;
+  const direction = block.getFieldValue('DIRECTION');
+  return [`scene.isTouchingSolid(${spriteName}, '${direction}')`, Order.NONE];
+};
+
 export const spriteBlocks = [
   goToXY,
   setProperty,
   changeProperty,
   getProperty,
   setRotation,
+  getRotation,
   pointAtXY,
   movementDirection,
   isTouching,
   moveWithArrows,
   makeClone,
   setVelocityInDir,
+  isTouchingSolid,
 ];

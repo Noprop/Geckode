@@ -1,14 +1,37 @@
-"use client";
-import { HomeIcon, MoonIcon, PersonIcon, QuestionMarkCircledIcon, SunIcon } from "@radix-ui/react-icons";
-import Link from "next/link";
-import React, { useEffect, useState } from "react";
-import DropDownButton from "./ui/DropDownButton";
-import Image from "next/image";
-import { authApi } from "@/lib/api/auth";
-import { useUser } from "@/contexts/UserContext";
-import { useTheme } from "@/contexts/ThemeContext";
-import { headerBtnClasses } from "./Header/Header";
-import { useSnackbar } from "@/hooks/useSnackbar";
+'use client';
+import { HomeIcon, MoonIcon, PersonIcon, QuestionMarkCircledIcon, Share1Icon, SunIcon } from '@radix-ui/react-icons';
+import Link from 'next/link';
+import React, { useEffect, useState } from 'react';
+import DropDownButton from './ui/DropDownButton';
+import Image from 'next/image';
+import { authApi } from '@/lib/api/auth';
+import { useUser } from '@/contexts/UserContext';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useSnackbar } from '@/hooks/useSnackbar';
+import { headerBtnClasses } from './Header/Header';
+
+interface HeaderButtonProps {
+  onClick?: React.MouseEventHandler<HTMLButtonElement>;
+  title?: string;
+  icon?: React.ComponentType<any>;
+  href?: string;
+}
+
+const HeaderButton = ({ onClick = () => {}, title, icon: Icon, href }: HeaderButtonProps) => {
+  const icon = Icon ? <Icon className='w-5 h-5' /> : null;
+
+  return (
+    <button
+      type='button'
+      onClick={onClick}
+      className='flex items-center justify-center w-9 h-9 rounded-full bg-white/15 text-white
+        hover:bg-white/25 transition-color cursor-pointer'
+      title={title}
+    >
+      {href ? <Link href={href}>{icon}</Link> : icon}
+    </button>
+  );
+};
 
 const HeaderRHSBtns = () => {
   const { resolvedTheme, toggleTheme } = useTheme();
@@ -22,58 +45,44 @@ const HeaderRHSBtns = () => {
   }, []);
   return (
     <>
-      {" "}
-      <button
-        type="button"
+      {' '}
+      <HeaderButton title='Share Project' icon={Share1Icon} />
+      <HeaderButton
         onClick={toggleTheme}
-        className={headerBtnClasses}
         title={
-          !mounted ? "Loading theme..." : resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+          !mounted ? 'Loading theme...' : resolvedTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'
         }
-      >
-        {mounted ? (
-          resolvedTheme === "dark" ? (
-            <SunIcon className="w-5 h-5" />
-          ) : (
-            <MoonIcon className="w-5 h-5" />
-          )
-        ) : (
-          <div className="w-5 h-5" /> // Empty placeholder with same dimensions
-        )}
-      </button>
-      <Link href="/projects" className={headerBtnClasses} title="Home">
-        <HomeIcon className="w-5 h-5" />
-      </Link>
-      <button type="button" className={headerBtnClasses} title="Help">
-        <QuestionMarkCircledIcon className="w-5 h-5" />
-      </button>
+        icon={mounted ? (resolvedTheme === 'dark' ? SunIcon : MoonIcon) : undefined}
+      />
+      <HeaderButton title='Home' icon={HomeIcon} href={'/projects'} />
+      <HeaderButton title='Help' icon={QuestionMarkCircledIcon} />
       <DropDownButton
         className={headerBtnClasses}
-        title="User"
+        title='User'
         optionsMapping={{
           ...{
-            "Account Settings": "tbd",
-            "My Projects": "/projects",
-            "My Organizations": "/organizations",
+            'Account Settings': 'tbd',
+            'My Projects': '/projects',
+            'My Organizations': '/organizations',
           },
           ...(user !== null
             ? {
                 Logout: () => {
                   authApi
                     .logout()
-                    .then(() => (window.location.href = "/login"))
-                    .catch(() => showSnackbar("Failed to load workspace.", "error"));
+                    .then(() => (window.location.href = '/login'))
+                    .catch(() => showSnackbar('Failed to load workspace.', 'error'));
                 },
               }
-            : { Login: "/login" }),
+            : { Login: '/login' }),
         }}
       >
         {
           // if user is blank or doesn't have an avatar, sub in a placeholder
           !user || !user.avatar ? (
-            <PersonIcon className="w-5 h-5" />
+            <PersonIcon className='w-5 h-5' />
           ) : (
-            <Image src={user.avatar} alt="" className="h-5 w-5 rounded-full"></Image>
+            <Image src={user.avatar} alt='' className='h-5 w-5 rounded-full'></Image>
           )
         }
       </DropDownButton>
