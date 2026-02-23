@@ -25,24 +25,15 @@ const DropDownButton = ({
 
   return (
     <div onMouseLeave={() => setShowDD(false)} className="py-5">
-      <button
-        ref={btnRef}
-        onClick={() => setShowDD(!showDD)}
-        className={className}
-        type={type}
-        title={title}
-      >
+      <button ref={btnRef} onClick={() => setShowDD(!showDD)} className={className} type={type} title={title}>
         {children}
       </button>
       {showDD && (
         <div
-          className="absolute min-w-40 z-10 bg-light-tertiary dark:bg-dark-tertiary rounded-lg border-gray-400 border"
+          className="absolute min-w-36 z-10 bg-light-tertiary dark:bg-dark-tertiary rounded-lg border-gray-400 border p-1"
           style={{
             top: btnRef.current?.getBoundingClientRect().bottom! + bottomBuffer,
-            right:
-              window.innerWidth -
-              btnRef.current?.getBoundingClientRect().right! +
-              rightBuffer,
+            right: window.innerWidth - btnRef.current?.getBoundingClientRect().right! + rightBuffer,
           }} /*Position dropdown below button and is aligned on the right*/
         >
           {Object.entries(optionsMapping!).length > 0 && (
@@ -50,12 +41,10 @@ const DropDownButton = ({
               {Object.entries(optionsMapping!).map(([label, action]) => (
                 <li
                   key={label}
-                  className="p-2 cursor-pointer"
+                  className="p-2 cursor-pointer rounded-lg hover:bg-gray-400/30 dark:hover:bg-white/20"
                   onClick={() =>
                     // either redirect user to string provided or trigger the function
-                    typeof action === "string"
-                      ? (window.location.href = action)
-                      : action()
+                    typeof action === "string" ? (window.location.href = action) : action()
                   }
                 >
                   {label}

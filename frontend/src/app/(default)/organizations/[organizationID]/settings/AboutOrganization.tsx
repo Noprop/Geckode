@@ -2,15 +2,13 @@ import DragAndDrop, { DragAndDropRef } from "@/components/DragAndDrop";
 import { InputBox, InputBoxRef } from "@/components/ui/inputs/InputBox";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import organizationsApi from "@/lib/api/handlers/organizations";
-import {
-  Organization,
-  OrganizationPayload,
-} from "@/lib/types/api/organizations";
+import { Organization, OrganizationPayload } from "@/lib/types/api/organizations";
 import { User } from "@/lib/types/api/users";
 import { useEffect, useRef, useState } from "react";
 import { createSlug } from "../../page";
 import { OrgPermissions } from "@/lib/types/api/organizations/invitations";
 import { Button } from "@/components/ui/Button";
+import { extractAxiosErrMsg } from "@/lib/api/axios";
 
 interface Props {
   org: Organization;
@@ -33,16 +31,13 @@ export const AboutOrganization = ({ org, setOrg, user }: Props) => {
   const updateOrg = () => {
     // fill out update information if filled out
     const payload: Partial<OrganizationPayload> = {};
-    if (orgNameRef.current?.inputValue !== "")
-      payload.name = orgNameRef.current?.inputValue;
+    if (orgNameRef.current?.inputValue !== "") payload.name = orgNameRef.current?.inputValue;
 
     if (slug !== "") payload.slug = slug;
 
-    if (orgDescRef.current?.inputValue !== "")
-      payload.description = orgDescRef.current?.inputValue;
+    if (orgDescRef.current?.inputValue !== "") payload.description = orgDescRef.current?.inputValue;
 
-    if (permissionDropdownView.current)
-      payload.default_member_permission = permissionDropdownView.current.value;
+    if (permissionDropdownView.current) payload.default_member_permission = permissionDropdownView.current.value;
 
     org?.id &&
       organizationsApi(org.id)
@@ -50,8 +45,8 @@ export const AboutOrganization = ({ org, setOrg, user }: Props) => {
         .then(() => {
           snackbar("Updated Organization!", "success");
         })
-        .catch(() => {
-          snackbar("Failed to update organization!");
+        .catch((err) => {
+          snackbar(extractAxiosErrMsg(err, "Failed to update organization!"), "error");
         });
   };
 
@@ -96,10 +91,7 @@ export const AboutOrganization = ({ org, setOrg, user }: Props) => {
         <Button className="bg-primary-green" onClick={updateOrg}>
           Save Changes
         </Button>
-        <Button
-          className="bg-light-tertiary dark:bg-dark-tertiary ml-3"
-          onClick={resetPage}
-        >
+        <Button className="bg-light-tertiary dark:bg-dark-tertiary ml-3" onClick={resetPage}>
           Cancel
         </Button>
       </div>

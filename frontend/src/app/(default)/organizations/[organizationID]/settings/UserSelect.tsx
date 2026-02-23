@@ -1,22 +1,14 @@
 import { InputBox } from "@/components/ui/inputs/InputBox";
+import { useSnackbar } from "@/hooks/useSnackbar";
+import { extractAxiosErrMsg } from "@/lib/api/axios";
 import { BaseApiInnerReturn, createBaseApi } from "@/lib/api/base";
 import usersApi from "@/lib/api/handlers/users";
 import { projectPermissions } from "@/lib/types/api/projects";
 import { User } from "@/lib/types/api/users";
-import React, {
-  ReactElement,
-  Ref,
-  useEffect,
-  useImperativeHandle,
-  useState,
-} from "react";
+import React, { ReactElement, Ref, useEffect, useImperativeHandle, useState } from "react";
 
 // used to determine how to display user on search results
-export type ListUserStatus =
-  | "selected"
-  | "already-member"
-  | "already-invited"
-  | "standard";
+export type ListUserStatus = "selected" | "already-member" | "already-invited" | "standard";
 
 export interface UserSelectRef {
   invSearchResults: User[];
@@ -32,6 +24,7 @@ interface props {
 const UserSelect = ({ ref, determineUserStatus }: props) => {
   const [invSearchResults, setInvSearchResults] = useState<User[]>([]);
   const [usersSelected, setUsersSelected] = useState<User[]>([]);
+  const showSnackbar = useSnackbar();
 
   useImperativeHandle(ref, () => ({
     invSearchResults,
@@ -47,9 +40,12 @@ const UserSelect = ({ ref, determineUserStatus }: props) => {
       return;
     }
 
-    usersApi.list({ search: searchCriteria }).then((res) => {
-      setInvSearchResults(res.results as User[]);
-    });
+    usersApi
+      .list({ search: searchCriteria })
+      .then((res) => {
+        setInvSearchResults(res.results as User[]);
+      })
+      .catch((err) => showSnackbar(extractAxiosErrMsg(err, "Failed to search for users"), "error"));
   };
 
   // determines entry properties when listed in the "Invite User" section

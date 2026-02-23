@@ -1,13 +1,7 @@
 "use client";
 
 import projectsApi from "@/lib/api/handlers/projects";
-import {
-  Project,
-  ProjectFilters,
-  ProjectSortKeys,
-  ProjectPayload,
-  projectSortKeys,
-} from "@/lib/types/api/projects";
+import { Project, ProjectFilters, ProjectSortKeys, ProjectPayload, projectSortKeys } from "@/lib/types/api/projects";
 import { useEffect, useRef, useState } from "react";
 import { Table, TableRef } from "@/components/ui/Table";
 import { Button } from "@/components/ui/Button";
@@ -16,16 +10,12 @@ import { InputBox, InputBoxRef } from "@/components/ui/inputs/InputBox";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import DragAndDrop, { DragAndDropRef } from "@/components/DragAndDrop";
 import { convertFormData } from "@/lib/api/base";
-import {
-  FilePlusIcon,
-  GearIcon,
-  Share1Icon,
-  TrashIcon,
-} from "@radix-ui/react-icons";
+import { FilePlusIcon, GearIcon, Share1Icon, TrashIcon } from "@radix-ui/react-icons";
 import { ProjectShareModal } from "@/components/ui/modals/ProjectShareModal";
 import { SelectionBox } from "@/components/ui/selectors/SelectionBox";
 import { useUser } from "@/contexts/UserContext";
 import { useRouter } from "next/navigation";
+import { extractAxiosErrMsg } from "@/lib/api/axios";
 
 export default function ProjectsPage() {
   const router = useRouter();
@@ -37,9 +27,7 @@ export default function ProjectsPage() {
   const projectNameRef = useRef<InputBoxRef | null>(null);
   const autoProjectOpenRef = useRef<InputBoxRef | null>(null);
 
-  const [showModal, setShowModal] = useState<
-    null | "create" | "delete" | "share"
-  >(null);
+  const [showModal, setShowModal] = useState<null | "create" | "delete" | "share">(null);
   const [rowIndex, setRowIndex] = useState<number>(0);
 
   const createProject = () => {
@@ -62,7 +50,8 @@ export default function ProjectsPage() {
           tableRef.current?.refresh();
           setShowModal(null);
         }
-      });
+      })
+      .catch((err) => showSnackbar(extractAxiosErrMsg(err, "Failed to create project"), "error"));
   };
 
   const deleteProject = () => {
@@ -77,9 +66,7 @@ export default function ProjectsPage() {
         setShowModal(null);
         tableRef.current?.refresh();
       })
-      .catch((err) =>
-        showSnackbar("Something went wrong. Please try again.", "error"),
-      );
+      .catch((err) => showSnackbar(extractAxiosErrMsg(err, "Something went wrong. Please try again."), "error"));
   };
 
   return (
@@ -89,13 +76,7 @@ export default function ProjectsPage() {
         <div className="flex w-full justify-end"></div>
       </div>
 
-      <Table<
-        Project,
-        ProjectPayload,
-        ProjectFilters,
-        ProjectSortKeys,
-        typeof projectsApi
-      >
+      <Table<Project, ProjectPayload, ProjectFilters, ProjectSortKeys, typeof projectsApi>
         ref={tableRef}
         api={projectsApi}
         columns={{
@@ -129,9 +110,7 @@ export default function ProjectsPage() {
         sortKeys={projectSortKeys}
         defaultSortField="updated_at"
         defaultSortDirection="desc"
-        handleRowClick={(row) =>
-          (window.location.href = `/projects/${row.getValue("id")}/`)
-        }
+        handleRowClick={(row) => (window.location.href = `/projects/${row.getValue("id")}/`)}
         actions={[
           {
             rowIcon: Share1Icon,
@@ -141,10 +120,7 @@ export default function ProjectsPage() {
               setShowModal("share");
             },
             rowIconClassName: "hover:text-green-500 mt-1",
-            canUse: (project) =>
-              ["owner", "admin", "manage", "invite"].includes(
-                project.permission ?? "",
-              ),
+            canUse: (project) => ["owner", "admin", "manage", "invite"].includes(project.permission ?? ""),
           },
           {
             rowIcon: TrashIcon,
@@ -161,9 +137,7 @@ export default function ProjectsPage() {
             rowIconSize: 24,
             rowIconClassName: "transition-transform hover:rotate-22",
             rowIconClicked: (index) => {
-              router.push(
-                `/projects/${tableRef.current?.data?.[index].id}/settings`,
-              );
+              router.push(`/projects/${tableRef.current?.data?.[index].id}/settings`);
             },
           },
         ]}
@@ -184,10 +158,7 @@ export default function ProjectsPage() {
                 }));
               }}
             />
-            <Button
-              onClick={() => setShowModal("create")}
-              className="btn-confirm"
-            >
+            <Button onClick={() => setShowModal("create")} className="btn-confirm">
               Create Project
             </Button>
           </div>
@@ -204,31 +175,17 @@ export default function ProjectsPage() {
               <Button onClick={createProject} className="btn-confirm ml-3">
                 Create
               </Button>
-              <Button
-                onClick={() => setShowModal(null)}
-                className="btn-neutral"
-              >
-                Cancel
-              </Button>
+              <Button onClick={() => setShowModal(null)}>Cancel</Button>
             </>
           }
         >
           Please enter a name for your project:
           <div className="flex flex-col">
-            <InputBox
-              ref={projectNameRef}
-              placeholder="Project name"
-              className="bg-white text-black my-3 border-0"
-            />
+            <InputBox ref={projectNameRef} placeholder="Project name" className="bg-white text-black my-3 border-0" />
             <p>Project Thumbnail:</p>
             <DragAndDrop ref={dropboxRef} accept="image/*" multiple={false} />
             <div className="flex align-center">
-              <InputBox
-                ref={autoProjectOpenRef}
-                type="checkbox"
-                defaultChecked={true}
-                className="mr-2"
-              />
+              <InputBox ref={autoProjectOpenRef} type="checkbox" defaultChecked={true} className="mr-2" />
               Automatically open the project after creation
             </div>
           </div>
@@ -246,20 +203,14 @@ export default function ProjectsPage() {
               <Button onClick={deleteProject} className="btn-deny ml-3">
                 Delete
               </Button>
-              <Button
-                onClick={() => setShowModal(null)}
-                className="btn-neutral"
-              >
+              <Button onClick={() => setShowModal(null)} className="btn-neutral">
                 Cancel
               </Button>
             </>
           }
         />
       ) : showModal === "share" && tableRef.current?.data?.[rowIndex] ? (
-        <ProjectShareModal
-          onClose={() => setShowModal(null)}
-          project={tableRef.current?.data?.[rowIndex]}
-        />
+        <ProjectShareModal onClose={() => setShowModal(null)} project={tableRef.current?.data?.[rowIndex]} />
       ) : null}
     </div>
   );

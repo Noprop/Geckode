@@ -1,10 +1,11 @@
-import { ChangeEvent, Dispatch, FocusEvent, SetStateAction, useImperativeHandle, useRef, useState } from 'react';
+import { ChangeEvent, Dispatch, FocusEvent, KeyboardEvent, SetStateAction, useImperativeHandle, useRef, useState } from 'react';
 
 export interface InputBoxRef {
   inputValue: string;
   setInputValue: Dispatch<SetStateAction<string>>;
   isChecked: boolean;
   setIsChecked: Dispatch<SetStateAction<boolean>>;
+  focus: () => void;
 }
 
 interface InputBoxProps {
@@ -17,6 +18,7 @@ interface InputBoxProps {
   onChange?: (e: ChangeEvent<HTMLInputElement>) => void;
   onFocus?: (e: FocusEvent<HTMLInputElement>) => void;
   onBlur?: (e: FocusEvent<HTMLInputElement>) => void;
+  onKeyDown?: (e: KeyboardEvent<HTMLInputElement>) => void;
   required?: boolean;
   className?: string;
   overrideClassName?: boolean;
@@ -33,6 +35,7 @@ export const InputBox = ({
   onChange = () => {},
   onFocus = () => {},
   onBlur = () => {},
+  onKeyDown = () => {},
   required = false,
   className = '',
   overrideClassName = false,
@@ -50,6 +53,7 @@ export const InputBox = ({
       setInputValue: setInputValue,
       isChecked: isChecked,
       setIsChecked: setIsChecked,
+      focus: () => inputRef.current?.focus(),
     })
   );
 
@@ -71,6 +75,7 @@ export const InputBox = ({
         disabled={disabled}
         onFocus={onFocus}
         onBlur={onBlur}
+        onKeyDown={onKeyDown}
       />
     </>
   );

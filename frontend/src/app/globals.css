@@ -141,6 +141,11 @@ body {
 .btn-alt2 {
   @apply bg-blue-500 hover:bg-blue-400 active:bg-blue-600 shadow-md;
 }
+
+.header-btn {
+  @apply cursor-pointer flex items-center justify-center w-8 h-8 rounded-lg bg-white/15 text-white hover:bg-white/25 transition-colors border border-white/20 shadow-sm;
+}
+
 .blocklyFlyout[style*="display: none"] + .blocklyScrollbarVertical  {
   display: none !important;
 }

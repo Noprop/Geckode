@@ -13,7 +13,19 @@ import { usePixelCanvas, createPixelArray } from '@/hooks/usePixelCanvas';
 import { createUniqueSpriteName, createUniqueTextureName } from '@/stores/slices/spriteSlice';
 import type { SpriteInstance } from '@/blockly/spriteRegistry';
 import { addSpriteSync } from '@/hooks/yjs/useWorkspaceSync';
-export type Tool = 'pen' | 'eraser' | 'bucket' | 'rectangle' | 'line' | 'oval' | 'rectangle-selection' | 'pan-tool' | 'color-picker';
+import { useSnackbar } from '@/hooks/useSnackbar';
+import projectsApi from '@/lib/api/handlers/projects';
+import { Asset } from '@/lib/types/api/assets';
+export type Tool =
+  | 'pen'
+  | 'eraser'
+  | 'bucket'
+  | 'rectangle'
+  | 'line'
+  | 'oval'
+  | 'rectangle-selection'
+  | 'pan-tool'
+  | 'color-picker';
 
 // Convert RGBA values at index to hex (returns '' for transparent)
 const rgbaToHex = (data: Uint8ClampedArray, idx: number): string => {
@@ -25,7 +37,11 @@ const rgbaToHex = (data: Uint8ClampedArray, idx: number): string => {
 };
 
 // Set pixel in RGBA array
-const setPixel = (data: Uint8ClampedArray, idx: number, color: { r: number; g: number; b: number; a: number } | null) => {
+const setPixel = (
+  data: Uint8ClampedArray,
+  idx: number,
+  color: { r: number; g: number; b: number; a: number } | null,
+) => {
   if (color) {
     data[idx] = color.r;
     data[idx + 1] = color.g;
@@ -39,16 +55,7 @@ const setPixel = (data: Uint8ClampedArray, idx: number, color: { r: number; g: n
   }
 };
 
-const palette = [
-  '#ffffff',
-  '#ef4444',
-  '#10b981',
-  '#3b82f6',
-  '#f97316',
-  '#000000',
-  '#8b5cf6',
-  '#fbbf24',
-];
+const palette = ['#ffffff', '#ef4444', '#10b981', '#3b82f6', '#f97316', '#000000', '#8b5cf6', '#fbbf24'];
 
 const SpriteEditor = () => {
   // --- UI state (drives rendering) ---
@@ -65,6 +72,9 @@ const SpriteEditor = () => {
   const setIsSpriteModalOpen = useGeckodeStore((s) => s.setIsSpriteModalOpen);
   const clearSpriteModalContext = useGeckodeStore((s) => s.clearSpriteModalContext);
   const setAsset = useGeckodeStore((s) => s.setAsset);
+  const assetIds = useGeckodeStore((s) => s.assetIds);
+  const addAssetId = useGeckodeStore((s) => s.addAssetId);
+  const updateAssetId = useGeckodeStore((s) => s.updateAssetId);
   const libaryTextures = useGeckodeStore((s) => s.libaryTextures);
   const textures = useGeckodeStore((s) => s.textures);
   const editingSource = useGeckodeStore((s) => s.editingSource);
@@ -74,8 +84,28 @@ const SpriteEditor = () => {
   const phaserScene = useGeckodeStore((s) => s.phaserScene);
 
   // --- Custom hooks ---
-  const { cellSize, zoomPercent, setZoom, isEditingZoom, setIsEditingZoom, canvasContainerRef, MIN_ZOOM_PERCENT, MAX_ZOOM_PERCENT } = useCanvasZoom(gridWidth, gridHeight);
-  const { canvasRef, previewRef, outputPixelsRef, previewPixelsRef, requestRender, saveToHistory, clearCanvas, resetPixelArrays } = usePixelCanvas(gridWidth, gridHeight, cellSize, 0.5);
+  const {
+    cellSize,
+    zoomPercent,
+    setZoom,
+    isEditingZoom,
+    setIsEditingZoom,
+    canvasContainerRef,
+    MIN_ZOOM_PERCENT,
+    MAX_ZOOM_PERCENT,
+  } = useCanvasZoom(gridWidth, gridHeight);
+  const {
+    canvasRef,
+    previewRef,
+    outputPixelsRef,
+    previewPixelsRef,
+    requestRender,
+    saveToHistory,
+    clearCanvas,
+    resetPixelArrays,
+  } = usePixelCanvas(gridWidth, gridHeight, cellSize, 0.5);
+  const showSnackbar = useSnackbar();
+  const { projectId } = useGeckodeStore();
 
   // --- Drawing state (single ref, no re-renders) ---
   const drawStateRef = useRef({
@@ -115,13 +145,16 @@ const SpriteEditor = () => {
   // --- Drawing tools (inline per user preference) ---
   const paintAt = (x: number, y: number, color: string) => {
     const { gridWidth: w, gridHeight: h, brushSize: size } = drawStateRef.current;
-    const pixelColor = color === '' ? null : (() => {
-      const rgba = Display.Color.HexStringToColor(color);
-      return { r: rgba.red, g: rgba.green, b: rgba.blue, a: rgba.alpha };
-    })();
+    const pixelColor =
+      color === ''
+        ? null
+        : (() => {
+            const rgba = Display.Color.HexStringToColor(color);
+            return { r: rgba.red, g: rgba.green, b: rgba.blue, a: rgba.alpha };
+          })();
     const offset = Math.floor(size / 2);
     const layer1 = outputPixelsRef.current;
-  
+
     for (let dy = 0; dy < size; dy += 1) {
       for (let dx = 0; dx < size; dx += 1) {
         const px = Math.max(0, Math.min(w - 1, x + dx - offset));
@@ -137,10 +170,13 @@ const SpriteEditor = () => {
   const floodFill = (startX: number, startY: number, fillColor: string) => {
     const { gridWidth: w, gridHeight: h } = drawStateRef.current;
     const layer1 = outputPixelsRef.current;
-    const fillPixelColor = fillColor === '' ? null : (() => {
-      const fillRgba = Display.Color.HexStringToColor(fillColor);
-      return { r: fillRgba.red, g: fillRgba.green, b: fillRgba.blue, a: fillRgba.alpha };
-    })();
+    const fillPixelColor =
+      fillColor === ''
+        ? null
+        : (() => {
+            const fillRgba = Display.Color.HexStringToColor(fillColor);
+            return { r: fillRgba.red, g: fillRgba.green, b: fillRgba.blue, a: fillRgba.alpha };
+          })();
 
     const startIdx = (startY * w + startX) * 4;
     const targetR = layer1[startIdx];
@@ -149,10 +185,13 @@ const SpriteEditor = () => {
     const targetA = layer1[startIdx + 3];
 
     if (fillPixelColor) {
-      if (targetR === fillPixelColor.r &&
+      if (
+        targetR === fillPixelColor.r &&
         targetG === fillPixelColor.g &&
         targetB === fillPixelColor.b &&
-        targetA === fillPixelColor.a) return;
+        targetA === fillPixelColor.a
+      )
+        return;
     } else {
       if (targetA === 0) return;
     }
@@ -167,8 +206,13 @@ const SpriteEditor = () => {
       if (x < 0 || x >= w || y < 0 || y >= h) continue;
 
       const idx = pixelIndex * 4;
-      if (layer1[idx] !== targetR || layer1[idx + 1] !== targetG ||
-        layer1[idx + 2] !== targetB || layer1[idx + 3] !== targetA) continue;
+      if (
+        layer1[idx] !== targetR ||
+        layer1[idx + 1] !== targetG ||
+        layer1[idx + 2] !== targetB ||
+        layer1[idx + 3] !== targetA
+      )
+        continue;
 
       visited.add(pixelIndex);
       setPixel(layer1, idx, fillPixelColor);
@@ -192,8 +236,14 @@ const SpriteEditor = () => {
       pixels.push({ x: x0, y: y0 });
       if (x0 === x1 && y0 === y1) break;
       const e2 = 2 * err;
-      if (e2 > -dy) { err -= dy; x0 += sx; }
-      if (e2 < dx) { err += dx; y0 += sy; }
+      if (e2 > -dy) {
+        err -= dy;
+        x0 += sx;
+      }
+      if (e2 < dx) {
+        err += dx;
+        y0 += sy;
+      }
     }
     return pixels;
   };
@@ -201,10 +251,13 @@ const SpriteEditor = () => {
   const applyBrush = (pixels: { x: number; y: number }[], color: string, layer: Uint8ClampedArray) => {
     const { brushSize: size, gridWidth: w, gridHeight: h } = drawStateRef.current;
     const offset = Math.floor(size / 2);
-    const pixelColor = color === '' ? null : (() => {
-      const rgba = Display.Color.HexStringToColor(color);
-      return { r: rgba.red, g: rgba.green, b: rgba.blue, a: rgba.alpha };
-    })();
+    const pixelColor =
+      color === ''
+        ? null
+        : (() => {
+            const rgba = Display.Color.HexStringToColor(color);
+            return { r: rgba.red, g: rgba.green, b: rgba.blue, a: rgba.alpha };
+          })();
 
     for (const p of pixels) {
       for (let dy = 0; dy < size; dy++) {
@@ -219,18 +272,26 @@ const SpriteEditor = () => {
   };
 
   const getRectanglePixels = (x1: number, y1: number, x2: number, y2: number) => {
-    const minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
-    const minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
+    const minX = Math.min(x1, x2),
+      maxX = Math.max(x1, x2);
+    const minY = Math.min(y1, y2),
+      maxY = Math.max(y1, y2);
     const pixels: { x: number; y: number }[] = [];
-    for (let x = minX; x <= maxX; x++) { pixels.push({ x, y: minY }, { x, y: maxY }); }
-    for (let y = minY + 1; y < maxY; y++) { pixels.push({ x: minX, y }, { x: maxX, y }); }
+    for (let x = minX; x <= maxX; x++) {
+      pixels.push({ x, y: minY }, { x, y: maxY });
+    }
+    for (let y = minY + 1; y < maxY; y++) {
+      pixels.push({ x: minX, y }, { x: maxX, y });
+    }
     return pixels;
   };
 
   const getOvalPixels = (x1: number, y1: number, x2: number, y2: number) => {
     const { gridWidth: w, gridHeight: h } = drawStateRef.current;
-    const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
-    const rx = Math.abs(x2 - x1) / 2, ry = Math.abs(y2 - y1) / 2;
+    const cx = (x1 + x2) / 2,
+      cy = (y1 + y2) / 2;
+    const rx = Math.abs(x2 - x1) / 2,
+      ry = Math.abs(y2 - y1) / 2;
     if (rx === 0 || ry === 0) return [];
     const pixels: { x: number; y: number }[] = [];
     const steps = Math.max(Math.ceil(2 * Math.PI * Math.max(rx, ry)), 32);
@@ -249,20 +310,22 @@ const SpriteEditor = () => {
     const rect = canvasRef.current!.getBoundingClientRect();
     return {
       x: Math.floor((event.clientX - rect.left) / (rect.width / w)),
-      y: Math.floor((event.clientY - rect.top) / (rect.height / h))
+      y: Math.floor((event.clientY - rect.top) / (rect.height / h)),
     };
   };
 
   const clipToCanvas = (start: { x: number; y: number }, end: { x: number; y: number }) => {
     const { gridWidth: w, gridHeight: h } = drawStateRef.current;
-    const dx = end.x - start.x, dy = end.y - start.y;
-    const t = Math.min(1,
+    const dx = end.x - start.x,
+      dy = end.y - start.y;
+    const t = Math.min(
+      1,
       end.x < 0 ? -start.x / dx : end.x >= w ? (w - 1 - start.x) / dx : 1,
-      end.y < 0 ? -start.y / dy : end.y >= h ? (h - 1 - start.y) / dy : 1
+      end.y < 0 ? -start.y / dy : end.y >= h ? (h - 1 - start.y) / dy : 1,
     );
     return {
       x: Math.max(0, Math.min(w - 1, Math.round(start.x + dx * t))),
-      y: Math.max(0, Math.min(h - 1, Math.round(start.y + dy * t)))
+      y: Math.max(0, Math.min(h - 1, Math.round(start.y + dy * t))),
     };
   };
 
@@ -321,7 +384,9 @@ const SpriteEditor = () => {
     // Paint for pen and eraser
     if (ds.activeTool === 'pen' || ds.activeTool === 'eraser') {
       if (prev && (Math.abs(position.x - prev.x) > 1 || Math.abs(position.y - prev.y) > 1)) {
-        getLinePixels(prev.x, prev.y, position.x, position.y).forEach(p => paintAt(p.x, p.y, ds.activeTool === 'pen' ? color : ''));
+        getLinePixels(prev.x, prev.y, position.x, position.y).forEach((p) =>
+          paintAt(p.x, p.y, ds.activeTool === 'pen' ? color : ''),
+        );
       } else {
         paintAt(position.x, position.y, ds.activeTool === 'pen' ? color : '');
       }
@@ -400,7 +465,7 @@ const SpriteEditor = () => {
       direction: 0,
       snapToGrid: true,
     };
-    
+
     // Only manipulate Phaser sprites in EditorScene
     if (phaserScene instanceof EditorScene) {
       phaserScene.createSprite(newSprite);
@@ -419,6 +484,43 @@ const SpriteEditor = () => {
     addSpriteSync(newSprite);
   };
 
+  /* Backend functions returns true if operation is successful OR if not connected to backend at all */
+
+  const addTextureToBackend = async (name: string, base64string: string): Promise<boolean> => {
+    var success: boolean = true; // if connected to backend, becomes false if request fails
+    console.log({
+      name: name,
+      asset: base64string,
+      asset_type: 'textures',
+    });
+    if (projectId) {
+      await projectsApi(projectId)
+        .assetsApi.create({
+          name: name,
+          asset: base64string,
+          asset_type: 'textures',
+        })
+        .then((res) => addAssetId(res.name, res.id))
+        .catch(() => (success = false));
+    }
+    return success;
+  };
+
+  const updateTextureInBackend = async (textureName: string, props: Partial<Asset>): Promise<boolean> => {
+    var success: boolean = true; // if connected to backend, becomes false if request fails
+    if (projectId && textureName in assetIds) {
+      const id = assetIds[textureName];
+      await projectsApi(projectId)
+        .assetsApi(id)
+        .update(props)
+        .then(() => {
+          if (props.name) updateAssetId(textureName, props.name); // update asset name if changed
+        })
+        .catch(() => (success = false));
+    }
+    return success;
+  };
+
   const handlePrimaryAction = async () => {
     const base64Image = createBase64FromCanvas();
     const {
@@ -435,9 +537,17 @@ const SpriteEditor = () => {
     if (currentSpriteModalMode === 'phaser_edit') {
       const targetTextureName = currentSaveTargetTextureName ?? currentEditingAssetName;
       if (!targetTextureName) return;
-      setAsset(targetTextureName, base64Image, 'textures');
-      if (isEditorScene) {
-        await phaserScene.updateSpriteTextureAsync(targetTextureName, base64Image);
+
+      const uploadSuccess = await updateTextureInBackend(targetTextureName, { asset: base64Image });
+
+      if (uploadSuccess) {
+        setAsset(targetTextureName, base64Image, 'textures');
+        if (isEditorScene) {
+          await phaserScene.updateSpriteTextureAsync(targetTextureName, base64Image);
+        }
+        showSnackbar(`Successfully updated ${targetTextureName}!`, 'success');
+      } else {
+        showSnackbar(`Failed to update ${targetTextureName}!`, 'error');
       }
       closeSpriteModal();
       return;
@@ -445,16 +555,33 @@ const SpriteEditor = () => {
 
     if (currentSpriteModalMode === 'asset_manager') {
       const targetTextureName =
-        currentSaveTargetTextureName ??
-        (currentEditingSource === 'asset' ? currentEditingAssetName : null);
+        currentSaveTargetTextureName ?? (currentEditingSource === 'asset' ? currentEditingAssetName : null);
       if (targetTextureName) {
-        setAsset(targetTextureName, base64Image, 'textures');
-        if (isEditorScene) {
-          await phaserScene.updateSpriteTextureAsync(targetTextureName, base64Image);
+        console.log('asset manager - if');
+
+        const uploadSuccess = await updateTextureInBackend(targetTextureName, { asset: base64Image });
+
+        if (uploadSuccess) {
+          setAsset(targetTextureName, base64Image, 'textures');
+          if (isEditorScene) {
+            await phaserScene.updateSpriteTextureAsync(targetTextureName, base64Image);
+          }
+          showSnackbar(`Successfully updated ${targetTextureName}!`, 'success');
+        } else {
+          showSnackbar(`Failed to update ${targetTextureName}!`, 'error');
         }
       } else {
-        const newTextureName = createUniqueTextureName(spriteName, {...currentTextures, ...libaryTextures});
-        setAsset(newTextureName, base64Image, 'textures');
+        const newTextureName = createUniqueTextureName(spriteName, { ...currentTextures, ...libaryTextures });
+
+        // upload to backend
+        const uploadSuccess = await addTextureToBackend(newTextureName, base64Image);
+
+        if (uploadSuccess) {
+          setAsset(newTextureName, base64Image, 'textures');
+          showSnackbar(`Successfully created texture ${newTextureName}!`, 'success');
+        } else {
+          showSnackbar(`Failed to create texture!`, 'error');
+        }
       }
       closeSpriteModal();
       return;
@@ -472,29 +599,32 @@ const SpriteEditor = () => {
       return;
     }
 
-    const newTextureName = createUniqueTextureName(spriteName, {...currentTextures, ...libaryTextures});
-    setAsset(newTextureName, base64Image, 'textures');
-    console.log('texture name added new: ', newTextureName);
-    if (isEditorScene) {
-      await phaserScene.loadSpriteTextureAsync(newTextureName, base64Image);
+    const newTextureName = createUniqueTextureName(spriteName, { ...currentTextures, ...libaryTextures });
+
+    const uploadSuccess = await addTextureToBackend(newTextureName, base64Image);
+
+    if (uploadSuccess) {
+      setAsset(newTextureName, base64Image, 'textures');
+      console.log('texture name added new: ', newTextureName);
+      if (isEditorScene) {
+        await phaserScene.loadSpriteTextureAsync(newTextureName, base64Image);
+      }
+      createAndInsertSprite(newTextureName);
+      showSnackbar(`Successfully created ${currentEditingAssetName}!`, 'success');
+      closeSpriteModal();
+    } else {
+      showSnackbar(`Failed to create texture!`, 'error');
     }
-    createAndInsertSprite(newTextureName);
-    closeSpriteModal();
   };
 
   // Load existing texture when editing from library or asset (use offscreen canvas to avoid checkerboard in pixel data)
   useEffect(() => {
-    if (
-      editingSource === null ||
-      editingAssetName === null ||
-      !canvasRef.current
-    )
-      return;
+    if (editingSource === null || editingAssetName === null || !canvasRef.current) return;
 
     const textureInfo =
-      editingSource === "library"
+      editingSource === 'library'
         ? libaryTextures[editingAssetName]
-        : textures[editingAssetName] ?? libaryTextures[editingAssetName];
+        : (textures[editingAssetName] ?? libaryTextures[editingAssetName]);
     if (!textureInfo) return;
 
     const img = new Image();
@@ -505,10 +635,10 @@ const SpriteEditor = () => {
       setGridWidth(width);
       setGridHeight(height);
 
-      const offscreen = document.createElement("canvas");
+      const offscreen = document.createElement('canvas');
       offscreen.width = width;
       offscreen.height = height;
-      const offCtx = offscreen.getContext("2d")!;
+      const offCtx = offscreen.getContext('2d')!;
       offCtx.drawImage(img, 0, 0);
       const imageData = offCtx.getImageData(0, 0, width, height);
 
@@ -543,33 +673,27 @@ const SpriteEditor = () => {
   const isSaveMode = spriteModalMode === 'phaser_edit' || spriteModalMode === 'asset_manager';
   const isAddMode = spriteModalMode === 'phaser_add';
   const isSaveDisabled =
-    isSaveMode &&
-    spriteModalMode === 'asset_manager' &&
-    editingSource === 'library' &&
-    !isCanvasDirty;
+    isSaveMode && spriteModalMode === 'asset_manager' && editingSource === 'library' && !isCanvasDirty;
   const isMissingEditTarget =
-    spriteModalMode === 'phaser_edit' &&
-    !spriteModalSaveTargetTextureName &&
-    !editingAssetName;
+    spriteModalMode === 'phaser_edit' && !spriteModalSaveTargetTextureName && !editingAssetName;
   const isPrimaryActionDisabled = isSaveDisabled || isMissingEditTarget;
 
   return (
-    <div className="flex-1 min-h-0 flex border-t border-slate-200 bg-slate-800 dark:border-slate-700">
-      <div className="w-30 flex flex-col gap-3 p-2 bg-slate-700 dark:bg-slate-800 border-r border-slate-600">
+    <div className='flex-1 min-h-0 flex border-t border-slate-200 bg-slate-800 dark:border-slate-700'>
+      <div className='w-30 flex flex-col gap-3 p-2 bg-slate-700 dark:bg-slate-800 border-r border-slate-600'>
         {/* brush size */}
-        <div className="grid grid-cols-3 rounded overflow-hidden">
+        <div className='grid grid-cols-3 rounded overflow-hidden'>
           {[1, 2, 3].map((size) => (
             <button
               key={size}
-              type="button"
+              type='button'
               onClick={() => setBrushSize(size)}
-              className={`h-9 flex items-center justify-center cursor-pointer transition ${brushSize === size
-                ? 'bg-primary-green'
-                : 'bg-slate-600 hover:bg-slate-500'
-                }`}
+              className={`h-9 flex items-center justify-center cursor-pointer transition ${
+                brushSize === size ? 'bg-primary-green' : 'bg-slate-600 hover:bg-slate-500'
+              }`}
               title={`${size}x${size} brush`}
             >
-              <div className="bg-white" style={{ width: size * 3 + 2, height: size * 3 + 2 }} />
+              <div className='bg-white' style={{ width: size * 3 + 2, height: size * 3 + 2 }} />
             </button>
           ))}
         </div>
@@ -577,11 +701,11 @@ const SpriteEditor = () => {
         <EditorTools activeTool={activeTool} setActiveTool={setActiveTool} />
 
         {/* dual color indicator */}
-        <div className="relative w-full h-12 mx-auto mt-2.5 mb-1">
+        <div className='relative w-full h-12 mx-auto mt-2.5 mb-1'>
           <button
-            type="button"
+            type='button'
             onClick={swapColors}
-            className="absolute right-1.5 bottom-0 w-18 h-8 rounded-xs cursor-pointer transition-shadow"
+            className='absolute right-1.5 bottom-0 w-18 h-8 rounded-xs cursor-pointer transition-shadow'
             style={{
               backgroundColor: secondaryColor || '#9e9e9e',
               backgroundImage: !secondaryColor
@@ -590,12 +714,12 @@ const SpriteEditor = () => {
               backgroundSize: '8px 8px',
               backgroundPosition: '0 0, 0 4px, 4px -4px, -4px 0px',
             }}
-            title="Secondary color (right-click) - Click to swap"
+            title='Secondary color (right-click) - Click to swap'
           />
           <button
-            type="button"
+            type='button'
             onClick={swapColors}
-            className="absolute left-1.5 top-0 w-18 h-8 rounded-xs cursor-pointer transition-shadow"
+            className='absolute left-1.5 top-0 w-18 h-8 rounded-xs cursor-pointer transition-shadow'
             style={{
               backgroundColor: primaryColor || '#9e9e9e',
               backgroundImage: !primaryColor
@@ -604,31 +728,32 @@ const SpriteEditor = () => {
               backgroundSize: '8px 8px',
               backgroundPosition: '0 0, 0 4px, 4px -4px, -4px 0px',
             }}
-            title="Primary color (left-click) - Click to swap"
+            title='Primary color (left-click) - Click to swap'
           />
         </div>
 
         {/* color palette */}
-        <div className="flex flex-col gap-2 pt-2">
-          <div className="grid grid-cols-3 w-full gap-1.5">
+        <div className='flex flex-col gap-2 pt-2'>
+          <div className='grid grid-cols-3 w-full gap-1.5'>
             <button
-              type="button"
+              type='button'
               onClick={() => setPrimaryColor('')}
-              className="rounded-xs cursor-pointer transition aspect-square hover:ring-2 hover:ring-white/40"
+              className='rounded-xs cursor-pointer transition aspect-square hover:ring-2 hover:ring-white/40'
               style={{
-                backgroundImage: 'linear-gradient(45deg, #6e6e6e 25%, transparent 25%), linear-gradient(-45deg, #6e6e6e 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #6e6e6e 75%), linear-gradient(-45deg, transparent 75%, #6e6e6e 75%)',
+                backgroundImage:
+                  'linear-gradient(45deg, #6e6e6e 25%, transparent 25%), linear-gradient(-45deg, #6e6e6e 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #6e6e6e 75%), linear-gradient(-45deg, transparent 75%, #6e6e6e 75%)',
                 backgroundSize: '8px 8px',
                 backgroundPosition: '0 0, 0 4px, 4px -4px, -4px 0px',
                 backgroundColor: '#9e9e9e',
               }}
-              title="Transparent"
+              title='Transparent'
             />
             {palette.map((color) => (
               <button
                 key={color}
-                type="button"
+                type='button'
                 onClick={() => setPrimaryColor(color)}
-                className="rounded-xs cursor-pointer transition aspect-square hover:ring-2 hover:ring-white/40"
+                className='rounded-xs cursor-pointer transition aspect-square hover:ring-2 hover:ring-white/40'
                 style={{ backgroundColor: color }}
                 title={color}
               />
@@ -636,70 +761,70 @@ const SpriteEditor = () => {
           </div>
 
           <label
-            className="w-full h-8 flex items-center justify-center gap-2 rounded cursor-pointer bg-slate-600 hover:bg-slate-500 transition"
-            title="Pick custom color"
+            className='w-full h-8 flex items-center justify-center gap-2 rounded cursor-pointer bg-slate-600 hover:bg-slate-500 transition'
+            title='Pick custom color'
           >
-            <div className="w-4 h-4 rounded border border-white/30" style={{ backgroundColor: primaryColor }} />
-            <span className="text-xs text-slate-300">Custom</span>
+            <div className='w-4 h-4 rounded border border-white/30' style={{ backgroundColor: primaryColor }} />
+            <span className='text-xs text-slate-300'>Custom</span>
             <input
-              type="color"
+              type='color'
               value={primaryColor || '#000000'}
               onChange={(e) => setPrimaryColor(e.target.value)}
-              className="hidden"
+              className='hidden'
             />
           </label>
         </div>
 
-        <div className="flex-1" />
+        <div className='flex-1' />
 
         {/* grid size (uncontrolled inputs reset via key) */}
-        <div className="flex items-center gap-1">
+        <div className='flex items-center gap-1'>
           <input
             key={`w-${gridWidth}`}
-            type="number"
+            type='number'
             defaultValue={gridWidth}
             onBlur={(e) => handleGridResize('width', e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
             min={1}
             max={1024}
-            className="w-12 h-8 px-1 text-xs text-slate-300 text-center bg-slate-600 border border-slate-500 rounded outline-none focus:border-primary-green [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            title="Grid width"
-            name="gridWidth"
+            className='w-12 h-8 px-1 text-xs text-slate-300 text-center bg-slate-600 border border-slate-500 rounded outline-none focus:border-primary-green [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
+            title='Grid width'
+            name='gridWidth'
           />
-          <span className="text-slate-400 text-xs">x</span>
+          <span className='text-slate-400 text-xs'>x</span>
           <input
             key={`h-${gridHeight}`}
-            type="number"
+            type='number'
             defaultValue={gridHeight}
             onBlur={(e) => handleGridResize('height', e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
             min={1}
             max={1024}
-            className="w-12 h-8 px-1 text-xs text-slate-300 text-center bg-slate-600 border border-slate-500 rounded outline-none focus:border-primary-green [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            title="Grid height"
-            name="gridHeight"
+            className='w-12 h-8 px-1 text-xs text-slate-300 text-center bg-slate-600 border border-slate-500 rounded outline-none focus:border-primary-green [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
+            title='Grid height'
+            name='gridHeight'
           />
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+      <div className='flex-1 flex flex-col min-h-0 overflow-hidden'>
         {/* the canvas, clear button */}
         <div
           ref={canvasContainerRef}
-          className="relative flex-1 flex items-center justify-center bg-slate-600 p-4 overflow-auto min-h-0"
+          className='relative flex-1 flex items-center justify-center bg-slate-600 p-4 overflow-auto min-h-0'
         >
           <button
-            type="button"
+            type='button'
             onClick={handleClearCanvas}
-            className="absolute top-2 right-2 z-10 px-3 h-7 flex items-center justify-center rounded bg-red-600/80 hover:bg-red-600 text-white text-xs font-medium cursor-pointer transition"
-            title="Clear canvas"
+            className='absolute top-2 right-2 z-10 px-3 h-7 flex items-center justify-center rounded bg-red-600/80 hover:bg-red-600 text-white text-xs font-medium cursor-pointer transition'
+            title='Clear canvas'
           >
             Clear
           </button>
-          <div className="relative">
+          <div className='relative'>
             <canvas
               ref={canvasRef}
-              className="cursor-crosshair select-none touch-none"
+              className='cursor-crosshair select-none touch-none'
               style={{
                 width: gridWidth * cellSize,
                 height: gridHeight * cellSize,
@@ -712,78 +837,84 @@ const SpriteEditor = () => {
         </div>
 
         {/* zoom controls */}
-        <div className="h-10 flex items-center justify-center gap-2 bg-slate-700 border-t border-slate-600 shrink-0">
+        <div className='h-10 flex items-center justify-center gap-2 bg-slate-700 border-t border-slate-600 shrink-0'>
           <button
-            type="button"
+            type='button'
             onClick={() => setZoom(zoomPercent - 25)}
             disabled={zoomPercent <= MIN_ZOOM_PERCENT}
-            className="w-8 h-8 flex items-center justify-center rounded bg-slate-600 hover:bg-slate-500 disabled:opacity-40 disabled:cursor-not-allowed text-white cursor-pointer transition"
-            title="Zoom out"
+            className='w-8 h-8 flex items-center justify-center rounded bg-slate-600 hover:bg-slate-500 disabled:opacity-40 disabled:cursor-not-allowed text-white cursor-pointer transition'
+            title='Zoom out'
           >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="11" cy="11" r="8" />
-              <path d="M21 21l-4.35-4.35M8 11h6" />
+            <svg className='w-4 h-4' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2'>
+              <circle cx='11' cy='11' r='8' />
+              <path d='M21 21l-4.35-4.35M8 11h6' />
             </svg>
           </button>
           {isEditingZoom ? (
             <input
-              type="number"
+              type='number'
               defaultValue={Math.round(zoomPercent)}
               onBlur={(e) => {
                 setZoom(parseInt(e.target.value, 10));
                 setIsEditingZoom(false);
               }}
-              onKeyDown={(e) => e.key === 'Enter' ? e.currentTarget.blur() : e.key === 'Escape' && setIsEditingZoom(false)}
-              className="w-14 h-6 px-1 text-xs text-slate-300 text-center bg-slate-600 border border-slate-500 rounded outline-none focus:border-primary-green [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              onKeyDown={(e) =>
+                e.key === 'Enter' ? e.currentTarget.blur() : e.key === 'Escape' && setIsEditingZoom(false)
+              }
+              className='w-14 h-6 px-1 text-xs text-slate-300 text-center bg-slate-600 border border-slate-500 rounded outline-none focus:border-primary-green [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
               autoFocus
               onFocus={(e) => e.target.select()}
             />
           ) : (
             <button
-              type="button"
+              type='button'
               onClick={() => setIsEditingZoom(true)}
-              className="w-14 h-6 text-xs text-slate-300 text-center hover:bg-slate-600 rounded cursor-pointer transition"
-                title="Click to edit zoom (100% = fit to container)"
+              className='w-14 h-6 text-xs text-slate-300 text-center hover:bg-slate-600 rounded cursor-pointer transition'
+              title='Click to edit zoom (100% = fit to container)'
             >
-                {Math.round(zoomPercent)}%
+              {Math.round(zoomPercent)}%
             </button>
           )}
           <button
-            type="button"
+            type='button'
             onClick={() => setZoom(zoomPercent + 25)}
             disabled={zoomPercent >= MAX_ZOOM_PERCENT}
-            className="w-8 h-8 flex items-center justify-center rounded bg-slate-600 hover:bg-slate-500 disabled:opacity-40 disabled:cursor-not-allowed text-white cursor-pointer transition"
-            title="Zoom in"
+            className='w-8 h-8 flex items-center justify-center rounded bg-slate-600 hover:bg-slate-500 disabled:opacity-40 disabled:cursor-not-allowed text-white cursor-pointer transition'
+            title='Zoom in'
           >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="11" cy="11" r="8" />
-              <path d="M21 21l-4.35-4.35M11 8v6M8 11h6" />
+            <svg className='w-4 h-4' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2'>
+              <circle cx='11' cy='11' r='8' />
+              <path d='M21 21l-4.35-4.35M11 8v6M8 11h6' />
             </svg>
           </button>
         </div>
 
         {/* Bottom row; preview, name, and add to game */}
-        <div className="h-16 flex items-center gap-3 px-4 bg-slate-700 dark:bg-slate-800 border-t border-slate-600 shrink-0">
+        <div className='h-16 flex items-center gap-3 px-4 bg-slate-700 dark:bg-slate-800 border-t border-slate-600 shrink-0'>
           <canvas
             ref={previewRef}
-            className="w-10 h-10 rounded border border-slate-500"
+            className='w-10 h-10 rounded border border-slate-500'
             style={{ imageRendering: 'pixelated' }}
           />
           <input
-            type="text"
+            type='text'
             value={spriteName}
             onChange={(e) => setSpriteName(e.target.value)}
-            placeholder="Sprite name"
-            className="flex-1 h-9 px-3 rounded bg-slate-600 border border-slate-500 text-sm text-white placeholder:text-slate-400 outline-none focus:border-primary-green"
+            placeholder='Sprite name'
+            className='flex-1 h-9 px-3 rounded bg-slate-600 border border-slate-500 text-sm text-white placeholder:text-slate-400 outline-none focus:border-primary-green'
           />
           <Button
-            className="btn-confirm h-9 px-4"
+            className='btn-confirm h-9 px-4'
             onClick={handlePrimaryAction}
             disabled={isPrimaryActionDisabled}
             title={
               isSaveMode
-                ? (isSaveDisabled ? 'Make a canvas edit before saving' : 'Save changes')
-                : (isAddMode ? 'Add to game' : 'Primary action')
+                ? isSaveDisabled
+                  ? 'Make a canvas edit before saving'
+                  : 'Save changes'
+                : isAddMode
+                  ? 'Add to game'
+                  : 'Primary action'
             }
           >
             {isSaveMode ? 'Save' : 'Add to Game'}

@@ -16,14 +16,9 @@ import { Modal } from "@/components/ui/modals/Modal";
 import { InputBox, InputBoxRef } from "@/components/ui/inputs/InputBox";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import DragAndDrop, { DragAndDropRef } from "@/components/DragAndDrop";
-import {
-  ExclamationTriangleIcon,
-  ExitIcon,
-  FilePlusIcon,
-  GearIcon,
-  TrashIcon,
-} from "@radix-ui/react-icons";
+import { ExclamationTriangleIcon, ExitIcon, FilePlusIcon, GearIcon, TrashIcon } from "@radix-ui/react-icons";
 import { useRouter } from "next/navigation";
+import { extractAxiosErrMsg } from "@/lib/api/axios";
 
 //spaces -> dashes, non-alphanumeric characters removed
 export const createSlug = (val: string) => {
@@ -40,18 +35,14 @@ export default function OrganizationsPage() {
   const router = useRouter();
 
   const dropboxRef = useRef<DragAndDropRef>(null);
-  const tableRef = useRef<TableRef<Organization, OrganizationFilters> | null>(
-    null,
-  );
+  const tableRef = useRef<TableRef<Organization, OrganizationFilters> | null>(null);
   const organizationNameRef = useRef<InputBoxRef | null>(null);
   const autoOrganizationOpenRef = useRef<InputBoxRef | null>(null);
 
   const [userId, setUserId] = useState<number>(-1);
   const [slug, setSlug] = useState<string>("");
 
-  const [showModal, setShowModal] = useState<
-    null | "create" | "delete" | "leave"
-  >(null);
+  const [showModal, setShowModal] = useState<null | "create" | "delete" | "leave">(null);
   const [rowIndex, setRowIndex] = useState<number>(0);
 
   useEffect(() => {
@@ -61,9 +52,7 @@ export default function OrganizationsPage() {
         .then((res) => {
           setUserId(res.id);
         })
-        .catch((err) =>
-          showSnackbar("Something went wrong. Please try again.", "error"),
-        );
+        .catch((err) => showSnackbar(extractAxiosErrMsg(err, "Something went wrong. Please try again."), "error"));
     };
 
     fetchUserInfo();
@@ -76,10 +65,7 @@ export default function OrganizationsPage() {
         {
           slug: slug,
           name: orgName,
-          thumbnail:
-            dropboxRef.current?.files?.length! > 0
-              ? dropboxRef.current?.files![0]
-              : null,
+          thumbnail: dropboxRef.current?.files?.length! > 0 ? dropboxRef.current?.files![0] : null,
         },
         {
           headers: {
@@ -94,7 +80,8 @@ export default function OrganizationsPage() {
           tableRef.current?.refresh();
           setShowModal(null);
         }
-      });
+      })
+      .catch((err) => showSnackbar(extractAxiosErrMsg(err, "Failed to create Organization!"), "error"));
   };
 
   const deleteOrganization = () => {
@@ -109,21 +96,13 @@ export default function OrganizationsPage() {
         setShowModal(null);
         tableRef.current?.refresh();
       })
-      .catch((err) =>
-        showSnackbar("Something went wrong. Please try again.", "error"),
-      );
+      .catch((err) => showSnackbar(extractAxiosErrMsg(err, "Something went wrong. Please try again."), "error"));
   };
 
   return (
     <div className="mx-20 my-5">
       <h1 className="header-1">Organizations</h1>
-      <Table<
-        Organization,
-        OrganizationPayload,
-        OrganizationFilters,
-        OrganizationSortKeys,
-        typeof organizationsApi
-      >
+      <Table<Organization, OrganizationPayload, OrganizationFilters, OrganizationSortKeys, typeof organizationsApi>
         ref={tableRef}
         api={organizationsApi}
         columns={{
@@ -150,11 +129,7 @@ export default function OrganizationsPage() {
         sortKeys={organizationSortKeys}
         defaultSortField="name"
         defaultSortDirection="desc"
-        handleRowClick={(row) =>
-          (window.location.href = `/organizations/${row.getValue(
-            "id",
-          )}/projects/`)
-        }
+        handleRowClick={(row) => (window.location.href = `/organizations/${row.getValue("id")}/projects/`)}
         actions={[
           {
             rowIcon: TrashIcon,
@@ -180,18 +155,13 @@ export default function OrganizationsPage() {
             rowIconSize: 24,
             rowIconClassName: "transition-transform hover:rotate-22",
             rowIconClicked: (index) => {
-              router.push(
-                `/organizations/${tableRef.current?.data?.[index].id}/settings`,
-              );
+              router.push(`/organizations/${tableRef.current?.data?.[index].id}/settings`);
             },
           },
         ]}
         extras={
           <>
-            <Button
-              onClick={() => setShowModal("create")}
-              className="btn-confirm"
-            >
+            <Button onClick={() => setShowModal("create")} className="btn-confirm">
               Create Organization
             </Button>
           </>
@@ -232,12 +202,7 @@ export default function OrganizationsPage() {
             <p>Organization Thumbnail:</p>
             <DragAndDrop ref={dropboxRef} accept="image/*" multiple={false} />
             <div className="flex align-center">
-              <InputBox
-                ref={autoOrganizationOpenRef}
-                type="checkbox"
-                defaultChecked={true}
-                className="mr-2"
-              />
+              <InputBox ref={autoOrganizationOpenRef} type="checkbox" defaultChecked={true} className="mr-2" />
               Automatically open the organization after creation
             </div>
           </div>

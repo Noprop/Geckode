@@ -1,8 +1,8 @@
 from rest_framework.viewsets import ModelViewSet
-from .models import ProjectGroup, Project, ProjectCollaborator, OrganizationProject, ProjectInvitation
-from .serializers import ProjectGroupSerializer, ProjectSerializer, ProjectInvitationSerializer, ProjectCollaboratorSerializer, OrganizationProjectSerializer, ProjectOrganizationSerializer
+from .models import ProjectGroup, Project, ProjectCollaborator, OrganizationProject, ProjectInvitation, Asset
+from .serializers import ProjectGroupSerializer, ProjectSerializer, ProjectInvitationSerializer, ProjectCollaboratorSerializer, OrganizationProjectSerializer, ProjectOrganizationSerializer, AssetSerializer
 from django_filters.rest_framework import DjangoFilterBackend
-from .filters import ProjectFilter, apply_project_access_filters, ProjectCollaboratorFilter, ProjectInvitationFilter, OrganizationProjectFilter, ProjectOrganizationFilter
+from .filters import ProjectFilter, apply_project_access_filters, ProjectCollaboratorFilter, ProjectInvitationFilter, OrganizationProjectFilter, ProjectOrganizationFilter, AssetFilter
 from utils.permissions import create_user_permission_class, AnyOf
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.decorators import action
@@ -284,3 +284,45 @@ class ProjectInvitationViewSet(ModelViewSet):
         project.add_member(invitation.invitee, invitation.permission, invitation.inviter)
 
         return Response({"status": "accepted"}, status=HTTP_200_OK)
+
+class AssetViewSet(ModelViewSet):
+    queryset = Asset.objects.all()
+    serializer_class = AssetSerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = AssetFilter
+
+    http_method_names = ['get', 'post', 'patch', 'delete']
+
+    def perform_create(self, serializer):
+        # note if project is null, project_id = none
+        project_id = self.kwargs.get("project_pk")
+
+        
+
+        serializer.save(project_id=project_id)
+    
+    def get_permissions(self) -> list[any]:
+        '''
+        Only allow users that can invite to create invitations in the org
+        Restrict all other methods to managers
+        However, allow the inviter or invitee to delete the object (repeal or reject the invitation)
+        '''
+        
+        if self.kwargs.get('project_pk') == None:
+            # TODO: restrict creating/updating for public assets
+            return super().get_permissions()
+
+        return super().get_permissions() + [
+            create_user_permission_class(
+                'code' if (self.action == 'create' or self.action == 'update') else 'view',
+                user_override_fields=[],
+                primary_pk_class=Project,
+                lookup='project_pk',
+                secondary_pk_class=Asset,
+                secondary_pk_kwargs={'id': self.kwargs.get('pk')},
+            )()
+        ]
+
+    def get_queryset(self):
+        return super().get_queryset().filter(Q(project_id=self.kwargs.get('project_pk')))
+    

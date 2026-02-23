@@ -31,7 +31,7 @@ import {
   tntTile,
   waterTile,
 } from '../b64_textures';
-import type { AssetType, EditingSource, GeckodeStore, Scene, SpriteSlice, SpriteModalMode, Tilemap, Tileset } from './types';
+import type { AssetType, EditingSource, GeckodeStore, Scene, SpriteSlice, SpriteModalMode, Tilemap, Tileset, LibraryAssetType } from './types';
 import { addSpriteSync, deleteSpriteSync, updateSpriteSync } from '@/hooks/yjs/useWorkspaceSync';
 import { deleteAssetSync, setAssetSync } from '@/hooks/yjs/useAssetSync';
 
@@ -92,6 +92,10 @@ export const createUniqueSpriteName = (name: string, instances: { name: string }
   return createUniqueSpriteName(`${name.slice(0, -1)}${lastDigit + 1}`, instances);
 };
 
+export const convertToLibraryAsset = (asset: AssetType) : LibraryAssetType => "library" + String(asset)[0].toLowerCase() + String(asset).slice(1) as LibraryAssetType;
+export const convertToAsset = (asset: LibraryAssetType) : AssetType => String(asset).slice(7).toLowerCase() as AssetType
+
+
 export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> = (set, get) => ({
   spriteInstances: [],
   textures: {},
@@ -125,6 +129,7 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
   backgrounds: {},
 
   textureLoadingState: {},
+  assetIds: {},
 
   libaryTextures: {
     gavinDown: gavinDown,
@@ -371,6 +376,26 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
     set({ tileCollidables: { ...get().tileCollidables, [tileKey]: collidable } });
   },
 
+  /* Asset Ids */
+  addAssetId: (name: string, id: string|number) => {
+    set({["assetIds"]: { ...get()["assetIds"], [name] : id }})
+  },
+  updateAssetId: (oldName: string,  newName: string) => { // assign id to newName and delete the old name record
+    const { [oldName]: id, ...rest } = get()["assetIds"];
+    set({ ["assetIds"]: {...rest, [newName]: id} });
+  },
+  removeAssetId: (name: string) => {
+    const { [name]: _, ...rest } = get()["assetIds"];
+    set({ ["assetIds"]: rest });
+  },
+
+  addLibraryAsset: (name: string, base64Image: string, type) => { set({ [type]: { ...get()[type], [name]: base64Image } }); },
+  updateLibraryAsset: (name: string, base64Image: string, type) => { set({ [type]: { ...get()[type], [name]: base64Image } }); },
+  removeLibraryAsset: (name: string, type) => {
+    const { [name]: _, ...rest } = get()[type];
+    set({ [type]: rest });
+  },
+
   /* ── Tilemaps ── */
   setActiveTilemapId: (id: string | null) => set({ activeTilemapId: id }),
   setTilemapTilesetId: (tilemapId: string, tilesetId: string) => {
@@ -510,6 +535,27 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
       tilemaps: { tilemap_1: createDefaultTilemap(DEFAULT_TILESET_ID) },
       scenes: [{ id: 'scene_1', name: 'Scene 1', tilemapId: 'tilemap_1' }],
       activeTilemapId: 'tilemap_1',
+    });
+  },
+
+  resetAssetsOnly() {
+    console.log(`resetting assets`);
+
+    set({
+      tiles: {},
+      tilesets: [createDefaultTileset()],
+      animations: {},
+      backgrounds: {},
+      libaryTextures: {
+        'hero-walk-front': heroWalkFront1,
+        'hero-walk-back': heroWalkBack1,
+        gavin: gavin,
+      },
+      libaryTiles: {},
+      libaryTilesets: {},
+      libaryAnimations: {},
+      libaryBackgrounds: {},  
+      assetIds: {}
     });
   },
 });

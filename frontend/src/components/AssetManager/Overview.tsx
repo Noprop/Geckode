@@ -9,6 +9,8 @@ import TextureDetailPanel from './DetailPanel';
 import TileEditorModal from '../TileModal/TileEditorModal';
 import TilesetEditorModal from '../TileModal/TilesetEditorModal';
 import { useSnackbar } from '@/hooks/useSnackbar';
+import projectsApi from '@/lib/api/handlers/projects';
+import { Asset } from '@/lib/types/api/assets';
 
 export type SelectedAsset = { name: string; type: AssetType } | null;
 
@@ -36,17 +38,25 @@ const AssetWorkspace = () => {
   const setEditingAsset = useGeckodeStore((s) => s.setEditingAsset);
   const setIsSpriteModalOpen = useGeckodeStore((s) => s.setIsSpriteModalOpen);
   const setSpriteModalContext = useGeckodeStore((s) => s.setSpriteModalContext);
-
+  const assetIds = useGeckodeStore((s) => s.assetIds);
+  const addAssetId = useGeckodeStore((s) => s.addAssetId);
+  const updateAssetId = useGeckodeStore((s) => s.updateAssetId);
+  const removeAssetId = useGeckodeStore((s) => s.removeAssetId);
+  const projectId = useGeckodeStore((s) => s.projectId);
   const showSnackbar = useSnackbar();
 
-  const selectedTileset = selectedAsset?.type === 'tilesets'
-    ? tilesets.find((ts) => ts.id === selectedAsset.name) ?? null
-    : null;
-  const rawValue = selectedAsset?.type === 'tilesets'
-    ? selectedTileset
-    : (selectedAsset ? (assets as Record<string, string>)[selectedAsset.name] : null);
+  const selectedTileset =
+    selectedAsset?.type === 'tilesets' ? (tilesets.find((ts) => ts.id === selectedAsset.name) ?? null) : null;
+  const rawValue =
+    selectedAsset?.type === 'tilesets'
+      ? selectedTileset
+      : selectedAsset
+        ? (assets as Record<string, string>)[selectedAsset.name]
+        : null;
   const selectedBase64 = rawValue
-    ? (typeof rawValue === 'string' ? rawValue : (rawValue as Tileset).base64Preview)
+    ? typeof rawValue === 'string'
+      ? rawValue
+      : (rawValue as Tileset).base64Preview
     : null;
 
   const handleEdit = () => {
@@ -55,12 +65,11 @@ const AssetWorkspace = () => {
     if (selectedAsset.type === 'textures') {
       setSpriteModalContext('asset_manager', selectedAsset.name);
       setIsSpriteModalOpen(true);
-    }
-    else if (selectedAsset.type === 'tiles') setIsTileEditorModalOpen(true);
+    } else if (selectedAsset.type === 'tiles') setIsTileEditorModalOpen(true);
     else if (selectedAsset.type === 'tilesets') setIsTilesetEditorModalOpen(true);
   };
 
-  const handleDuplicate = () => {
+  const handleDuplicate = async () => {
     if (!selectedAsset || !selectedBase64) return;
     if (selectedAsset.type === 'tilesets') {
       const source = tilesets.find((ts) => ts.id === selectedAsset.name);
@@ -80,10 +89,17 @@ const AssetWorkspace = () => {
       return;
     }
     const all = useGeckodeStore.getState()[selectedAsset.type];
-    const nameMap = Object.fromEntries(Object.keys(all).map(k => [k, '']));
+    const nameMap = Object.fromEntries(Object.keys(all).map((k) => [k, '']));
     const newName = createUniqueTextureName(selectedAsset.name, nameMap);
-    setAsset(newName, selectedBase64, selectedAsset.type);
-    setSelectedAsset({ name: newName, type: selectedAsset.type });
+
+    const uploadSuccess = await addAssetToBackend(newName, selectedBase64, selectedAsset.type);
+    if (uploadSuccess) {
+      setAsset(newName, selectedBase64, selectedAsset.type);
+      showSnackbar(`Successfully duplicated ${selectedAsset.name}!`, 'success');
+      setSelectedAsset({ name: newName, type: selectedAsset.type });
+    } else {
+      showSnackbar(`Failed to duplicate ${selectedAsset.name}!`, 'error');
+    }
   };
 
   const handleCopy = async () => {
@@ -91,8 +107,59 @@ const AssetWorkspace = () => {
     await navigator.clipboard.writeText(selectedBase64);
   };
 
-  const handleDelete = () => {
+  const addAssetToBackend = async (name: string, base64string: string, assetType = 'textures'): Promise<boolean> => {
+    var success: boolean = true; // if connected to backend, becomes false if request fails
+    console.log({
+      name: name,
+      asset: base64string,
+      asset_type: assetType,
+    });
+    if (projectId) {
+      await projectsApi(projectId)
+        .assetsApi.create({
+          name: name,
+          asset: base64string,
+          asset_type: assetType,
+        })
+        .then((res) => addAssetId(res.name, res.id))
+        .catch(() => (success = false));
+    }
+    return success;
+  };
+
+  const updateTextureInBackend = async (textureName: string, props: Partial<Asset>): Promise<boolean> => {
+    var success: boolean = true; // if connected to backend, becomes false if request fails
+    if (projectId && textureName in assetIds) {
+      const id = assetIds[textureName];
+      await projectsApi(projectId)
+        .assetsApi(id)
+        .update(props)
+        .then(() => {
+          if (props.name) updateAssetId(textureName, props.name); // update asset name if changed
+        })
+        .catch(() => (success = false));
+    }
+    return success;
+  };
+
+  const deleteTextureInBackend = async (textureName: string): Promise<boolean> => {
+    var success: boolean = true; // if connected to backend, becomes false if request fails
+    if (projectId && textureName in assetIds) {
+      const id = assetIds[textureName];
+      await projectsApi(projectId)
+        .assetsApi(id)
+        .delete()
+        .then(() => {
+          removeAssetId(textureName);
+        })
+        .catch(() => (success = false));
+    }
+    return success;
+  };
+
+  const handleDelete = async () => {
     if (!selectedAsset) return;
+
     if (selectedAsset.type === 'tilesets') {
       removeTileset(selectedAsset.name);
     } else {
@@ -100,10 +167,16 @@ const AssetWorkspace = () => {
         selectedAsset.type === 'textures' &&
         useGeckodeStore.getState().spriteInstances.some((sprite) => sprite.textureName === selectedAsset.name)
       ) {
-        showSnackbar("A texture may only be deleted if no sprites are using it.", "error");
+        showSnackbar('A texture may only be deleted if no sprites are using it.', 'error');
         return;
       }
-      removeAsset(selectedAsset.name, selectedAsset.type);
+      const uploadSuccess = await deleteTextureInBackend(selectedAsset.name);
+      if (uploadSuccess) {
+        showSnackbar(`Successfully deleted ${selectedAsset.name}!`, 'success');
+        removeAsset(selectedAsset.name, selectedAsset.type);
+      } else {
+        showSnackbar(`Failed to deleted ${selectedAsset.name}!`, 'error');
+      }
     }
     setSelectedAsset(null);
   };
@@ -113,23 +186,20 @@ const AssetWorkspace = () => {
     if (activeTab === 'textures') {
       setSpriteModalContext('asset_manager');
       setIsSpriteModalOpen(true);
-    }
-    else if (activeTab === 'tiles') setIsTileEditorModalOpen(true);
+    } else if (activeTab === 'tiles') setIsTileEditorModalOpen(true);
     else if (activeTab === 'tilesets') setIsTilesetEditorModalOpen(true);
   };
 
   // Auto-select first item when nothing is selected
   useEffect(() => {
     if (selectedAsset) return;
-    const firstKey = activeTab === 'tilesets'
-      ? tilesets[0]?.id
-      : Object.keys(assets as Record<string, string>)[0];
+    const firstKey = activeTab === 'tilesets' ? tilesets[0]?.id : Object.keys(assets as Record<string, string>)[0];
     if (firstKey) setSelectedAsset({ name: firstKey, type: activeTab });
   }, [selectedAsset, activeTab, assets, tilesets]);
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col w-full h-full">
-      <div className="flex flex-1 min-h-0">
+    <div className='flex-1 min-h-0 flex flex-col w-full h-full'>
+      <div className='flex flex-1 min-h-0'>
         <TextureDetailPanel
           selectedAsset={selectedAsset}
           base64={selectedBase64}
@@ -144,9 +214,10 @@ const AssetWorkspace = () => {
           onTabChange={(tab) => {
             setActiveTab(tab);
             const tabAssets = useGeckodeStore.getState()[tab];
-            const firstKey = tab === 'tilesets'
-              ? (tabAssets as Tileset[])[0]?.id
-              : Object.keys(tabAssets as Record<string, string>)[0];
+            const firstKey =
+              tab === 'tilesets'
+                ? (tabAssets as Tileset[])[0]?.id
+                : Object.keys(tabAssets as Record<string, string>)[0];
             setSelectedAsset(firstKey ? { name: firstKey, type: tab } : null);
           }}
           selectedAsset={selectedAsset}
@@ -159,21 +230,14 @@ const AssetWorkspace = () => {
             if (asset.type === 'textures') {
               setSpriteModalContext('asset_manager', asset.name);
               setIsSpriteModalOpen(true);
-            }
-            else if (asset.type === 'tiles') setIsTileEditorModalOpen(true);
+            } else if (asset.type === 'tiles') setIsTileEditorModalOpen(true);
             else if (asset.type === 'tilesets') setIsTilesetEditorModalOpen(true);
           }}
         />
       </div>
 
-      <TileEditorModal
-        isOpen={isTileEditorModalOpen}
-        onClose={() => setIsTileEditorModalOpen(false)}
-      />
-      <TilesetEditorModal
-        isOpen={isTilesetEditorModalOpen}
-        onClose={() => setIsTilesetEditorModalOpen(false)}
-      />
+      <TileEditorModal isOpen={isTileEditorModalOpen} onClose={() => setIsTileEditorModalOpen(false)} />
+      <TilesetEditorModal isOpen={isTilesetEditorModalOpen} onClose={() => setIsTilesetEditorModalOpen(false)} />
     </div>
   );
 };

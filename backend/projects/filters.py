@@ -3,7 +3,7 @@ from operator import or_
 from django.db.models import Q
 from utils.filters import PrefixedFilterSet, make_owner_id_filter, make_nullable_boolean_filter
 from django_filters import NumberFilter, BooleanFilter, CharFilter, ChoiceFilter
-from .models import Project, ProjectCollaborator, OrganizationProject, ProjectInvitation
+from .models import Project, ProjectCollaborator, OrganizationProject, ProjectInvitation, Asset
 from accounts.filters import UserFilter
 from accounts.models import User
 
@@ -92,4 +92,18 @@ class ProjectInvitationFilter(PrefixedFilterSet):
 
     class Meta:
         model = ProjectInvitation
+        fields = []
+
+class AssetFilter(PrefixedFilterSet):
+    search_fields = ["name"]
+    ordering_fields = (
+        "id",
+        "name",
+    )
+
+    name = CharFilter(field_name="name")
+    asset_type = CharFilter(field_name="asset_type")
+
+    class Meta:
+        model = Asset
         fields = []
