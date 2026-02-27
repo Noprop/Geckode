@@ -1,4 +1,4 @@
-from django.db.models import Model, ImageField, ForeignKey, CASCADE, DateTimeField, CharField, TextField, SET_NULL, ManyToManyField, JSONField
+from django.db.models import Model, ImageField, ForeignKey, CASCADE, DateTimeField, CharField, TextField, SET_NULL, ManyToManyField, JSONField, BooleanField, FloatField, OneToOneField
 from accounts.models import User
 from organizations.models import Organization
 from utils.permissions import create_permissions_allowed_hierarchy
@@ -150,3 +150,59 @@ class Asset(Model):
         
         # otherwise, anyone who is a member has access to this library
         return self.project.has_permission(user, required_permission)
+
+
+class SpriteWorkspace(Model):
+    project = ForeignKey(Project, on_delete=CASCADE, related_name="workspaces")
+    sprite_id = CharField(max_length=50)
+
+    class Meta:
+        unique_together = ('project', 'sprite_id')
+
+class SpritePhysics(Model):
+    pushes_objects = BooleanField()
+    pushable = BooleanField()
+    collides_with_walls = BooleanField()
+    is_solid = BooleanField()
+    gravity_y = FloatField()
+    bounce = FloatField()
+    drag = FloatField()
+    collide_world_bounds = BooleanField()
+
+class SpriteInstance(Model):
+    workspace = ForeignKey(SpriteWorkspace, on_delete=CASCADE, related_name="sprites")
+    name = CharField(max_length=200)
+    texture_name = CharField(max_length=200)
+    x = FloatField()
+    y = FloatField()
+    visible = BooleanField()
+    scale_x = FloatField()
+    scale_y = FloatField()
+    direction = FloatField()
+    snap_to_grid = BooleanField()
+    physics = OneToOneField(SpritePhysics, on_delete=CASCADE, related_name="sprite", primary_key=True)
+
+class WorkspaceBlock(Model):
+    workspace = ForeignKey(SpriteWorkspace, on_delete=CASCADE, related_name="blocks")
+    block_id = CharField(max_length=50)
+    type = CharField(max_length=50)
+    x = FloatField(null=True, blank=True)
+    y = FloatField(null=True, blank=True)
+    collapsed = BooleanField(null=True, blank=True)
+    deletable = BooleanField(null=True, blank=True)
+    movable = BooleanField(null=True, blank=True)
+    editable = BooleanField(null=True, blank=True)
+    enabled = BooleanField(null=True, blank=True)
+    disabled_reasons = JSONField(null=True, blank=True)
+    inline = BooleanField(null=True, blank=True)
+    data = CharField(max_length=200)
+    extra_state = JSONField(null=True, blank=True)
+    icons = JSONField(null=True, blank=True)
+    fields = JSONField(null=True, blank=True)
+    is_shadow = BooleanField(null=True, blank=True)
+    parent_id = CharField(max_length=50, null=True, blank=True)
+    input_name = CharField(max_length=50, null=True, blank=True)
+    comment = CharField(max_length=500, null=True, blank=True)
+
+    class Meta:
+        unique_together = ('workspace', 'block_id')

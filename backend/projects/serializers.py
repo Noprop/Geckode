@@ -1,7 +1,7 @@
-from rest_framework.serializers import ModelSerializer, ImageField, PrimaryKeyRelatedField, BooleanField, SerializerMethodField, ValidationError
+from rest_framework.serializers import ModelSerializer, ImageField, PrimaryKeyRelatedField, BooleanField, SerializerMethodField, ValidationError, CharField
 from accounts.serializers import PublicUserSerializer
 from django.utils import timezone
-from .models import ProjectGroup, Project, ProjectCollaborator, OrganizationProject, ProjectInvitation, Asset
+from .models import ProjectGroup, Project, ProjectCollaborator, OrganizationProject, ProjectInvitation, Asset, SpritePhysics, SpriteInstance, SpriteWorkspace, WorkspaceBlock
 from accounts.models import User
 from organizations.serializers import PublicOrganizationSerializer
 import base64
@@ -17,6 +17,40 @@ def is_base64(s : str) -> bool:
         return True
     except:
         return False
+
+
+# WORKSPACE ELEMENTS
+
+class SpritePhysicsSerializer(ModelSerializer):
+    class Meta:
+        model = SpritePhysics
+        exclude = ['id']
+
+class SpriteInstanceSerializer(ModelSerializer):
+    id = CharField(source='workspace.sprite_id')
+    physics = SpritePhysicsSerializer(read_only=True)
+
+    class Meta:
+        model = SpriteInstance
+        exclude = ['workspace']
+
+class WorkspaceBlockSerializer(ModelSerializer):
+    id = CharField(source='block_id')
+
+    class Meta:
+        model = WorkspaceBlock
+        exclude = ['workspace', 'block_id']
+
+class SpriteWorkspaceSerializer(ModelSerializer):
+    sprite = SpriteInstanceSerializer()
+    blocks = WorkspaceBlockSerializer(many=True)
+
+    class Meta:
+        model = SpriteWorkspace
+        exclude = ['id', 'project', 'sprite_id']
+
+
+
 
 class ProjectGroupSerializer(ModelSerializer):
     owner = PublicUserSerializer(read_only=True)
@@ -52,11 +86,12 @@ class ProjectSerializer(ModelSerializer):
     fork_count = SerializerMethodField()
     asset_count = SerializerMethodField()
     permission = SerializerMethodField()
+    workspaces = SpriteWorkspaceSerializer()
 
     class Meta:
         model = Project
         fields = ['id', 'owner', 'created_at', 'updated_at', 'name', 'description', 'published_at',
-                    'is_published', 'fork_count', 'asset_count', 'blocks', 'game_state', 'thumbnail', 'sprites', 'permission']
+                    'is_published', 'fork_count', 'asset_count', 'blocks', 'game_state', 'thumbnail', 'sprites', 'permission', 'workspaces']
         read_only_fields = ['created_at', 'updated_at', 'published_at']
 
     def get_fork_count(self, instance):
@@ -257,3 +292,5 @@ class AssetSerializer(ModelSerializer):
             pass
 
         return attrs
+
+

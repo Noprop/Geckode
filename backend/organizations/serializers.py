@@ -18,7 +18,7 @@ class OrganizationSerializer(ModelSerializer):
     class Meta:
         model = Organization
         fields = ['id', 'created_at', 'owner', 'name', 'slug', 'description', 'is_public',
-                  'default_member_permission', 'members_count', 'projects_count', 'thumbnail']
+                  'default_member_permission', 'members_count', 'projects_count', 'thumbnail', 'permission']
         read_only_fields = ['created_at']
 
     def get_members_count(self, instance : Organization) -> int:
@@ -26,6 +26,9 @@ class OrganizationSerializer(ModelSerializer):
 
     def get_projects_count(self, instance : Organization) -> int:
         return instance.projects.count()
+
+    def get_permission(self, instance):
+        return instance.get_permission(self.context['request'].user)
 
 class OrganizationInvitationSerializer(ModelSerializer):
     invitee = PublicUserSerializer(read_only=True)
