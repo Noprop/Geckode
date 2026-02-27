@@ -1,7 +1,7 @@
 import { SpriteInstance } from "../spriteRegistry";
 import { Block } from "@/lib/types/yjs/blocks";
 
-export const starterWorkspace = {
+const starterWorkspace = {
   "blocks": {
     "languageVersion": 0,
     "blocks": [
@@ -63,3 +63,6 @@ export const starterSpriteWorkspaces: {sprite: SpriteInstance, blocks: Record<st
 export const starterTextures: Record<string, string> = {
   
 };
+
+export { starterWorkspace };
+export default starterWorkspace;

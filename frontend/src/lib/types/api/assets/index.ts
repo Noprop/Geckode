@@ -18,3 +18,8 @@ export interface AssetPayload {
     asset_file: File;
     asset_type: string;
 }
+
+export interface Sprite {
+    name: string;
+    texture: string;
+}

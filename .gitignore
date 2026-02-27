@@ -56,3 +56,5 @@ node_modules/
 .pnpm-store/
 
 .playwright-mcp
+
+go.md
