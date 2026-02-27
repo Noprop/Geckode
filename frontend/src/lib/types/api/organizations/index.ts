@@ -13,6 +13,7 @@ export interface Organization {
   default_member_permission?: string;
   members_count?: number;
   projects_count?: number;
+  permission?: string;
 }
 
 export interface OrganizationFilters extends BaseFilters {

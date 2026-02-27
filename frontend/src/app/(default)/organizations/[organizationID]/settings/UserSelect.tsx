@@ -1,14 +1,14 @@
-import { InputBox } from "@/components/ui/inputs/InputBox";
-import { useSnackbar } from "@/hooks/useSnackbar";
-import { extractAxiosErrMsg } from "@/lib/api/axios";
-import { BaseApiInnerReturn, createBaseApi } from "@/lib/api/base";
-import usersApi from "@/lib/api/handlers/users";
-import { projectPermissions } from "@/lib/types/api/projects";
-import { User } from "@/lib/types/api/users";
-import React, { ReactElement, Ref, useEffect, useImperativeHandle, useState } from "react";
+import { InputBox } from '@/components/ui/inputs/InputBox';
+import { useSnackbar } from '@/hooks/useSnackbar';
+import { extractAxiosErrMsg } from '@/lib/api/axios';
+import { BaseApiInnerReturn, createBaseApi } from '@/lib/api/base';
+import usersApi from '@/lib/api/handlers/users';
+import { projectPermissions } from '@/lib/types/api/projects';
+import { User } from '@/lib/types/api/users';
+import React, { ReactElement, Ref, useEffect, useImperativeHandle, useState } from 'react';
 
 // used to determine how to display user on search results
-export type ListUserStatus = "selected" | "already-member" | "already-invited" | "standard";
+export type ListUserStatus = 'selected' | 'already-member' | 'already-invited' | 'standard';
 
 export interface UserSelectRef {
   invSearchResults: User[];
@@ -35,7 +35,7 @@ const UserSelect = ({ ref, determineUserStatus }: props) => {
   const searchForUsers = (searchValue: string) => {
     const searchCriteria = searchValue.trim();
 
-    if (searchCriteria === "" || searchCriteria === undefined) {
+    if (searchCriteria === '' || searchCriteria === undefined) {
       setInvSearchResults([]);
       return;
     }
@@ -45,12 +45,12 @@ const UserSelect = ({ ref, determineUserStatus }: props) => {
       .then((res) => {
         setInvSearchResults(res.results as User[]);
       })
-      .catch((err) => showSnackbar(extractAxiosErrMsg(err, "Failed to search for users"), "error"));
+      .catch((err) => showSnackbar(extractAxiosErrMsg(err, 'Failed to search for users'), 'error'));
   };
 
   // determines entry properties when listed in the "Invite User" section
   const ListUser = ({ user }: { user: User }): ReactElement => {
-    const [status, setStatus] = useState<ListUserStatus>("standard");
+    const [status, setStatus] = useState<ListUserStatus>('standard');
 
     useEffect(() => {
       if (determineUserStatus) setStatus(determineUserStatus(user));
@@ -59,18 +59,18 @@ const UserSelect = ({ ref, determineUserStatus }: props) => {
     return (
       <li
         className={
-          "pl-2 align-text-middle h-10 my-1 w-full flex rounded-md dark:border-dark-txt border-light-txt border " +
-          (status === "selected"
-            ? "bg-primary-green text-white"
-            : status === "already-member" || status === "already-invited"
-              ? "bg-gray-500 text-white"
-              : "")
+          'pl-2 align-text-middle h-10 my-1 w-full flex rounded-md dark:border-light-hover border-light-txt border ' +
+          (status === 'selected'
+            ? 'bg-primary-green text-white'
+            : status === 'already-member' || status === 'already-invited'
+              ? 'bg-gray-500 text-white'
+              : '')
         }
       >
-        <p className="my-auto">{user.username}</p>
-        {status === "standard" ? (
+        <p className='my-auto'>{user.username}</p>
+        {status === 'standard' ? (
           <button
-            className="ml-auto align-middle rounded-r-sm h-full w-10 bg-primary-green hover:bg-accent-green cursor-pointer "
+            className='ml-auto align-middle rounded-r-sm h-full w-10 bg-primary-green hover:bg-accent-green cursor-pointer '
             onClick={() => {
               // add user to usersSelected
               let us = Object.assign([], usersSelected);
@@ -80,9 +80,9 @@ const UserSelect = ({ ref, determineUserStatus }: props) => {
           >
             +
           </button>
-        ) : status === "selected" ? (
+        ) : status === 'selected' ? (
           <button
-            className="ml-auto align-middle rounded-r-sm h-full w-10 cursor-pointer bg-white hover:bg-gray-100 text-primary-green"
+            className='ml-auto align-middle rounded-r-sm h-full w-10 cursor-pointer bg-white hover:bg-gray-100 text-primary-green'
             onClick={() => {
               // remove user from usersSelected
               let us = Object.assign([], usersSelected) as User[];
@@ -98,9 +98,9 @@ const UserSelect = ({ ref, determineUserStatus }: props) => {
             -
           </button>
         ) : (
-          <p className="italic ml-auto my-auto mr-3 text-slate-300">
-            {" "}
-            {status === "already-member" ? "Member" : "Invite sent"}
+          <p className='italic ml-auto my-auto mr-3 text-slate-300'>
+            {' '}
+            {status === 'already-member' ? 'Member' : 'Invite sent'}
           </p>
         )}
       </li>
@@ -108,13 +108,13 @@ const UserSelect = ({ ref, determineUserStatus }: props) => {
   };
 
   return (
-    <div className="flex flex-col w-90">
+    <div className='flex flex-col w-90'>
       <InputBox
         onChange={(e) => searchForUsers(e.target.value)}
-        placeholder="Search username:"
-        className="bg-white text-black mb-3 border-0"
+        placeholder='Search username:'
+        className='mb-3 dark:border-white'
       />
-      <ul className="mb-3 p-1 rounded-md h-40 border border-white overflow-y-scroll standard-scrollbar bg-light-tertiary dark:bg-dark-tertiary text-light-txt dark:text-dark-txt">
+      <ul className='mb-3 p-1 rounded-md h-40 border border-white overflow-y-scroll scrollbar-hide bg-light-tertiary dark:bg-dark-tertiary text-light-txt dark:text-dark-txt'>
         {invSearchResults.map((user) => (
           <ListUser user={user} key={user.id} />
         ))}

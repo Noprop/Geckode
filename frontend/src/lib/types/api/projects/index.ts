@@ -2,6 +2,9 @@ import { User } from "../users";
 import { BaseFilters } from "..";
 import { PhaserExport } from "@/phaser/PhaserStateManager";
 import { SpriteInstance } from "@/blockly/spriteRegistry";
+import { Block } from '../../yjs/blocks';
+
+
 
 export interface Project {
   id: number;
@@ -14,9 +17,7 @@ export interface Project {
   fork_count: number;
   thumbnail: string | null;
   permission: ProjectPermissions | "owner";
-  blocks?: JSON;
-  game_state?: PhaserExport;
-  sprites?: SpriteInstance[];
+  workspaces?: Workspace[];
 }
 
 export interface ProjectFilters extends BaseFilters {
@@ -43,6 +44,11 @@ export const projectSortKeys: (keyof Project)[] = [
   "owner",
   "name",
 ] as const;
+
+interface Workspace {
+  sprite: SpriteInstance;
+  blocks: Block[];
+}
 
 export type ProjectSortKeys = (typeof projectSortKeys)[number];
 

@@ -1,4 +1,13 @@
-import { ChangeEvent, Dispatch, FocusEvent, KeyboardEvent, SetStateAction, useImperativeHandle, useRef, useState } from 'react';
+import {
+  ChangeEvent,
+  Dispatch,
+  FocusEvent,
+  KeyboardEvent,
+  SetStateAction,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from 'react';
 
 export interface InputBoxRef {
   inputValue: string;
@@ -54,7 +63,7 @@ export const InputBox = ({
       isChecked: isChecked,
       setIsChecked: setIsChecked,
       focus: () => inputRef.current?.focus(),
-    })
+    }),
   );
 
   return (
@@ -71,7 +80,9 @@ export const InputBox = ({
           onChange(e);
         }}
         required={required}
-        className={(overrideClassName ? '' : 'border p-2 rounded-md') + ' ' + className}
+        className={
+          (overrideClassName ? '' : 'border p-2 rounded-md') + ' ' + className + (disabled ? ' opacity-50' : '')
+        }
         disabled={disabled}
         onFocus={onFocus}
         onBlur={onBlur}

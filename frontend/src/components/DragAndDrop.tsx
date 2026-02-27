@@ -1,16 +1,11 @@
-import React, {
-  ReactNode,
-  useEffect,
-  useImperativeHandle,
-  useRef,
-  useState,
-} from "react";
+import React, { ReactNode, useEffect, useImperativeHandle, useRef, useState } from 'react';
 
 interface Props {
   centerDecal?: ReactNode | string | null;
   multiple?: boolean;
   accept?: string;
-  dropAgain?: "overwrite" | "append";
+  dropAgain?: 'overwrite' | 'append';
+  disabled?: boolean;
   OnFileDrop?: (files: Array<File>) => any; //handles file changes when OnFileDrop is triggered
   OnChange?: React.FormEventHandler<HTMLDivElement> | undefined;
 }
@@ -27,7 +22,8 @@ const DragAndDrop = ({
   centerDecal = DefaultCenterDecal,
   multiple = false,
   accept,
-  dropAgain = "overwrite",
+  dropAgain = 'overwrite',
+  disabled = false,
   OnFileDrop,
   OnChange,
 }: { ref: DragAndDropRefObj } & Props) => {
@@ -45,20 +41,22 @@ const DragAndDrop = ({
   }, [files]);
 
   const handleOnDrop = (fs: FileList) => {
+    if (disabled) return;
+
     let fsList = Array.from(fs);
 
     // filter fs on accept parametres (matches with MIME type)
-    const rules = accept!.split(",").map((x) => x.trim().toLowerCase());
+    const rules = accept!.split(',').map((x) => x.trim().toLowerCase());
 
     fsList.filter((file) => {
       const fileType = file.type.toLowerCase();
-      const fileExt = "." + file.name.split(".").pop()?.toLowerCase();
+      const fileExt = '.' + file.name.split('.').pop()?.toLowerCase();
 
       return rules.some((rule) => {
-        if (rule.endsWith("/*")) {
-          return fileType.startsWith(rule.replace("/*", ""));
+        if (rule.endsWith('/*')) {
+          return fileType.startsWith(rule.replace('/*', ''));
         }
-        if (rule.startsWith(".")) {
+        if (rule.startsWith('.')) {
           return fileExt === rule;
         }
         return fileType === rule;
@@ -74,7 +72,7 @@ const DragAndDrop = ({
     if (!multiple && fsList.length > 0) fsList = [fsList[0]];
 
     // set files by write mode
-    if (dropAgain === "overwrite") setFiles(fsList);
+    if (dropAgain === 'overwrite') setFiles(fsList);
     else setFiles(files.concat(fsList));
 
     // handle OnFileDrop given
@@ -82,6 +80,7 @@ const DragAndDrop = ({
   };
 
   const removeFile = (idx: number) => {
+    if (disabled) return;
     let fcopy = Object.assign([], files);
     fcopy.splice(idx, 1);
     setFiles(fcopy);
@@ -90,7 +89,7 @@ const DragAndDrop = ({
   // cut off fileName display at 20 characters for consistent formatting
   const fileNameDisplay = (fileName: string): string => {
     if (fileName.length >= 20) {
-      const displayName = fileName.substring(0, 18) + "...";
+      const displayName = fileName.substring(0, 18) + '...';
       return displayName;
     } else return fileName;
   };
@@ -98,7 +97,10 @@ const DragAndDrop = ({
   return (
     <>
       <div
-        className="outline outline-light-txt dark:outline-dark-txt rounded-lg w-full p-5 my-2"
+        className={
+          'outline rounded-lg w-full p-5 my-2' +
+          (!disabled ? ' outline-light-txt dark:outline-dark-txt' : ' outline:gray-400 text-gray-300')
+        }
         onDrop={(e) => {
           e.preventDefault();
           handleOnDrop(e.dataTransfer.files);
@@ -109,8 +111,8 @@ const DragAndDrop = ({
         {centerDecal}
         <input
           ref={inputRef}
-          className="hidden"
-          type="file"
+          className='hidden'
+          type='file'
           accept={accept}
           onChange={(e) => {
             e.preventDefault();
@@ -118,27 +120,22 @@ const DragAndDrop = ({
           }}
         />
         <div
-          className="text-sm underline text-blue-500 hover:text-blue-400 active:text-blue-600 text-shadow-sm hover:cursor-pointer w-full text-center"
-          onClick={() => inputRef.current?.click()}
+          className={
+            'text-sm underline  text-shadow-sm hover:cursor-pointer w-full text-center' +
+            (!disabled ? ' text-blue-500 hover:text-blue-400 active:text-blue-600' : ' text-gray-400')
+          }
+          onClick={() => !disabled && inputRef.current?.click()}
         >
           Open File Explorer
         </div>
       </div>
       <ul>
         {files?.map((f, idx) => (
-          <li
-            key={idx}
-            className="bg-light-hover dark:bg-dark-hover rounded-lg w-full my-1 flex pr-4 h-9"
-          >
-            {f.type.startsWith("image") && (
-              <img
-                src={URL.createObjectURL(f)}
-                className="h-9 rounded-l-lg"
-              ></img>
-            )}
-            <p className="p-2">{fileNameDisplay(f.name)}</p>
+          <li key={idx} className='bg-light-hover dark:bg-dark-hover rounded-lg w-full my-1 flex pr-4 h-9'>
+            {f.type.startsWith('image') && <img src={URL.createObjectURL(f)} className='h-9 rounded-l-lg'></img>}
+            <p className='p-2'>{fileNameDisplay(f.name)}</p>
             <button
-              className="ml-auto"
+              className='ml-auto'
               onClick={() => removeFile(idx)} //remove element
             >
               x
@@ -150,5 +147,5 @@ const DragAndDrop = ({
   );
 };
 
-const DefaultCenterDecal = <p className="text-center">Drag your file here!</p>;
+const DefaultCenterDecal = <p className='text-center'>Drag your file here!</p>;
 export default DragAndDrop;
