@@ -44,7 +44,6 @@ const ProjectView = () => {
     setAsset,
     addAssetId,
     addLibraryAsset,
-    resetAssetsOnly,
   } = useGeckodeStore();
   const debouncedEditorChanges = useMultiDebounce({
     values: { spriteIdsUpdated, isEditorScene },
@@ -57,9 +56,6 @@ const ProjectView = () => {
   // Keep store projectId in sync with route so Yjs documentRegistry resolves the right doc
   useEffect(() => {
     setProjectId(projectID != null && !Number.isNaN(projectID) ? Number(projectID) : null);
-
-    // clear all previous sprites and rebuild
-    resetAssetsOnly();
 
     // set project ID and pull all assets
     if (projectId) {
