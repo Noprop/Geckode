@@ -5,7 +5,6 @@ import * as Blockly from 'blockly/core';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { Button } from '../ui/Button';
 import { useGeckodeStore } from '@/stores/geckodeStore';
-import { type Tool } from './EditorTools';
 import EditorScene from '@/phaser/scenes/EditorScene';
 import { PixelCanvasEditorLayout } from '@/components/PixelCanvasEditorLayout';
 import { PixelEditorToolbar } from '@/components/PixelEditorToolbar';
@@ -18,6 +17,7 @@ import { addSpriteSync } from '@/hooks/yjs/useWorkspaceSync';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import projectsApi from '@/lib/api/handlers/projects';
 import { Asset } from '@/lib/types/api/assets';
+
 export type Tool =
   | 'pen'
   | 'eraser'
