@@ -68,8 +68,8 @@ const createDefaultTilemap = (tilesetId: string): Tilemap => ({
   id: 'tilemap_1',
   name: 'Tilemap 1',
   height: 12,
-  width: 48,
-  data: createEmptyTilemapData(12, 48),
+  width: 16,
+  data: createEmptyTilemapData(12, 16),
   tilesetId,
   base64: '',
 });

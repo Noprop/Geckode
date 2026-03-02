@@ -1,6 +1,16 @@
 import { EraserIcon } from "@radix-ui/react-icons";
 import { PencilIcon, BucketIcon, LineIcon, CircleIcon, RectangleSelectionIcon, HandIcon, ColorPickerIcon } from '@/components/icons';
-import type { Tool } from './SpriteEditor';
+
+export type Tool =
+  | 'pen'
+  | 'eraser'
+  | 'bucket'
+  | 'rectangle'
+  | 'line'
+  | 'oval'
+  | 'rectangle-selection'
+  | 'pan-tool'
+  | 'color-picker';
 
 interface ToolButtonProps {
   tool: Tool;

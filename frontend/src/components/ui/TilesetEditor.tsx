@@ -8,7 +8,7 @@ import {
   rebuildPixelBuffer,
 } from '@/hooks/useTilePixelCache';
 import TileEditorModal from '@/components/TileModal/TileEditorModal';
-import { ShieldBanIcon } from 'lucide-react';
+import { PlusIcon, ShieldBanIcon } from 'lucide-react';
 
 const TILE_PX = 16;
 const GRID_W = 5;
@@ -174,6 +174,12 @@ const TilesetEditor = ({ onClose }: { onClose: () => void }) => {
     }
   };
 
+  const handleAddRow = useCallback(() => {
+    saveToHistory();
+    gridRef.current.push(Array.from({ length: GRID_W }, () => null));
+    bumpGrid();
+  }, [saveToHistory]);
+
   // ── Generate preview base64 ──
   const generatePreviewBase64 = useCallback((): string => {
     if (!isReady) return '';
@@ -330,54 +336,66 @@ const TilesetEditor = ({ onClose }: { onClose: () => void }) => {
 
       {/* Main area — 5xN CSS grid */}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        <div className="relative flex-1 flex items-center justify-center bg-light-whiteboard dark:bg-dark-whiteboard p-4 overflow-auto min-h-0">
-          <div
-            className="grid gap-1"
-            style={{
-              gridTemplateColumns: `repeat(${GRID_W}, 1fr)`,
-              gridTemplateRows: `repeat(${gridHeight}, 1fr)`,
-              width: 'min(400px, 60vh)',
-              aspectRatio: `${GRID_W} / ${gridHeight}`,
-            }}
-          >
-            {Array.from({ length: gridHeight }, (_, row) =>
-              Array.from({ length: GRID_W }, (_, col) => {
-                const tileKey = gridRef.current[row]?.[col];
-                const isDragOver = dragOverCell?.row === row && dragOverCell?.col === col;
-                return (
-                  <div
-                    key={`${row}-${col}`}
-                    className={`relative flex items-center justify-center rounded transition-colors ${
-                      isDragOver
-                        ? 'bg-emerald-100 dark:bg-emerald-900/40 ring-2 ring-primary-green'
-                        : tileKey
-                          ? 'bg-slate-100 dark:bg-dark-tertiary'
-                          : 'bg-slate-50 dark:bg-dark-tertiary/50 border-2 border-dashed border-slate-300 dark:border-slate-600'
-                      } ${activeTool === 'collidable' && tileKey ? 'cursor-pointer' : ''}`}
-                    onDragOver={(e) => handleDragOver(e, row, col)}
-                    onDragLeave={handleDragLeave}
-                    onDrop={(e) => handleDrop(e, row, col)}
-                    onContextMenu={(e) => handleCellContextMenu(e, row, col)}
-                    onClick={() => handleCellClick(row, col)}
-                  >
-                    {tileKey && tileTextures[tileKey] ? (
-                      <img
-                        src={tileTextures[tileKey]}
-                        alt={tileKey}
-                        draggable={activeTool !== 'collidable'}
-                        onDragStart={(e) => handleDragStart(e, 'grid', tileKey, row, col)}
-                        className="w-full h-full object-contain pointer-events-none"
-                        style={{ imageRendering: 'pixelated' }}
-                      />
-                    ) : null}
-                    {tileKey && tileCollidables[tileKey] && (
-                      <div className="absolute inset-0 bg-red-500/30 flex items-center justify-center rounded pointer-events-none">
-                      </div>
-                    )}
-                  </div>
-                );
-              })
-            )}
+        <div className="relative flex-1 flex flex-col items-center bg-light-whiteboard dark:bg-dark-whiteboard p-4 overflow-auto min-h-0">
+          <div className="flex flex-col items-center gap-4 py-4">
+            <div
+              className="grid gap-1"
+              style={{
+                gridTemplateColumns: `repeat(${GRID_W}, 1fr)`,
+                gridTemplateRows: `repeat(${gridHeight}, 1fr)`,
+                width: 'min(400px, 60vh)',
+                aspectRatio: `${GRID_W} / ${gridHeight}`,
+              }}
+            >
+              {Array.from({ length: gridHeight }, (_, row) =>
+                Array.from({ length: GRID_W }, (_, col) => {
+                  const tileKey = gridRef.current[row]?.[col];
+                  const isDragOver = dragOverCell?.row === row && dragOverCell?.col === col;
+                  return (
+                    <div
+                      key={`${row}-${col}`}
+                      className={`relative flex items-center justify-center rounded transition-colors ${
+                        isDragOver
+                          ? 'bg-emerald-100 dark:bg-emerald-900/40 ring-2 ring-primary-green'
+                          : tileKey
+                            ? 'bg-slate-100 dark:bg-dark-tertiary'
+                            : 'bg-slate-50 dark:bg-dark-tertiary/50 border-2 border-dashed border-slate-300 dark:border-slate-600'
+                        } ${activeTool === 'collidable' && tileKey ? 'cursor-pointer' : ''}`}
+                      onDragOver={(e) => handleDragOver(e, row, col)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => handleDrop(e, row, col)}
+                      onContextMenu={(e) => handleCellContextMenu(e, row, col)}
+                      onClick={() => handleCellClick(row, col)}
+                    >
+                      {tileKey && tileTextures[tileKey] ? (
+                        <img
+                          src={tileTextures[tileKey]}
+                          alt={tileKey}
+                          draggable={activeTool !== 'collidable'}
+                          onDragStart={(e) => handleDragStart(e, 'grid', tileKey, row, col)}
+                          className="w-full h-full object-contain pointer-events-none"
+                          style={{ imageRendering: 'pixelated' }}
+                        />
+                      ) : null}
+                      {tileKey && tileCollidables[tileKey] && (
+                        <div className="absolute inset-0 bg-red-500/30 flex items-center justify-center rounded pointer-events-none">
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={handleAddRow}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:border-primary-green hover:text-primary-green dark:hover:border-primary-green dark:hover:text-primary-green transition-colors text-sm font-medium"
+              title="Add row"
+            >
+              <PlusIcon className="w-4 h-4" />
+              Add row
+            </button>
           </div>
 
           {/* Floating undo/redo */}

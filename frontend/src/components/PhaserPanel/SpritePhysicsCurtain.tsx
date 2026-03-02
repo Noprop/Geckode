@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Square,
   Hand,
-  Globe,
+  RectangleHorizontal,
   Box,
   Move,
   ArrowDown,
@@ -265,7 +265,7 @@ const SpritePhysicsCurtain = () => {
         <ToggleIcon
           checked={collideWorldBounds}
           onToggle={() => handleToggleField('collideWorldBounds', !collideWorldBounds)}
-          icon={Globe}
+          icon={RectangleHorizontal}
           label="World Bounds"
           disabled={disabled}
         />

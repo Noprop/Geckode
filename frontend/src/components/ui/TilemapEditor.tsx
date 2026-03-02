@@ -1,9 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { DragEvent as ReactDragEvent, PointerEvent as ReactPointerEvent } from 'react';
 import { EraserIcon, Pencil2Icon } from '@radix-ui/react-icons';
-import { Trash2Icon } from 'lucide-react';
+import { Trash2Icon, PlusIcon, Box } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,6 +29,11 @@ import {
 import TileEditorModal from '@/components/TileModal/TileEditorModal';
 import { getLineCells, getRectangleCells, getOvalCells } from '@/lib/tileGridGeometry';
 import { TILE_PX, TILESET_WIDTH } from '@/stores/slices/spriteSlice';
+import {
+  visibilityButtonBaseClasses,
+  visibilityButtonActiveClasses,
+  visibilityButtonInactiveClasses,
+} from '@/components/PhaserPanel/spritePositionUtils';
 
 // ── Tool button ──
 const ToolButton = ({
@@ -62,7 +67,7 @@ const TilemapEditor = () => {
   const [activeTool, setActiveTool] = useState<TilemapTool>('place');
   const [selectedSingleTile, setSelectedSingleTile] = useState<string | null>(null);
   const [selectedSecondaryTile, setSelectedSecondaryTile] = useState<string | null>(null);
-  const [selectedTilesetCell, setSelectedTilesetCell] = useState<{ row: number; col: number; tileKey: string } | null>(
+  const [selectedTilesetCell, setSelectedTilesetCell] = useState<{ row: number; col: number; tileKey: string | null } | null>(
     null,
   );
   const [dragOverTilesetCell, setDragOverTilesetCell] = useState<{ row: number; col: number } | null>(null);
@@ -73,6 +78,7 @@ const TilemapEditor = () => {
   const [showCollidables, setShowCollidables] = useState(false);
   const minimapRef = useRef<HTMLCanvasElement>(null);
   const collidableCanvasRef = useRef<HTMLCanvasElement>(null);
+  const pendingNewTileSlotRef = useRef<{ row: number; col: number } | null>(null);
 
   const tileTextures = useGeckodeStore((s) => s.tiles);
   const tilesets = useGeckodeStore((s) => s.tilesets);
@@ -82,12 +88,25 @@ const TilemapEditor = () => {
   const setTilemapData = useGeckodeStore((s) => s.setTilemapData);
   const resizeTilemap = useGeckodeStore((s) => s.resizeTilemap);
   const setTilemapTilesetId = useGeckodeStore((s) => s.setTilemapTilesetId);
-  const clearTilemap = useGeckodeStore((s) => s.clearTilemap);
   const updateTileset = useGeckodeStore((s) => s.updateTileset);
   const setEditingAsset = useGeckodeStore((s) => s.setEditingAsset);
   const tileCollidables = useGeckodeStore((s) => s.tileCollidables);
+  const setTileCollidable = useGeckodeStore((s) => s.setTileCollidable);
 
   const tilemap = activeTilemapId ? tilemaps[activeTilemapId] : null;
+
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scheduleSaveToScene = useCallback(() => {
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(() => {
+      saveTimeoutRef.current = null;
+      EventBus.emit('update-tilemap');
+    }, 150);
+  }, []);
+
+  useEffect(() => () => {
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+  }, []);
 
   const selectedTileset: Tileset | null = tilemap
     ? (tilesets.find((ts) => ts.id === tilemap.tilesetId) ?? tilesets[0] ?? null)
@@ -111,16 +130,10 @@ const TilemapEditor = () => {
 
     if (selectedTilesetCell) {
       const currentTile = selectedTileset.data[selectedTilesetCell.row]?.[selectedTilesetCell.col] ?? null;
-      if (currentTile) {
-        if (currentTile !== selectedTilesetCell.tileKey) {
-          setSelectedTilesetCell({ row: selectedTilesetCell.row, col: selectedTilesetCell.col, tileKey: currentTile });
-        }
-        setSelectedSingleTile(currentTile);
-        return;
+      if (currentTile !== selectedTilesetCell.tileKey) {
+        setSelectedTilesetCell({ row: selectedTilesetCell.row, col: selectedTilesetCell.col, tileKey: currentTile });
       }
-      // Cell was deleted — clear selection, don't auto-select another tile
-      setSelectedTilesetCell(null);
-      setSelectedSingleTile(null);
+      setSelectedSingleTile(currentTile);
       return;
     }
 
@@ -129,6 +142,48 @@ const TilemapEditor = () => {
     setSelectedTilesetCell(first);
     setSelectedSingleTile(first?.tileKey ?? null);
   }, [selectedTileset]);
+
+  // Track tile keys so we can auto-insert newly created tiles into the active tileset.
+  const prevTileKeysRef = useRef<Set<string>>(new Set(Object.keys(tileTextures)));
+  useEffect(() => {
+    const prevKeys = prevTileKeysRef.current;
+    const currentKeys = new Set(Object.keys(tileTextures));
+    prevTileKeysRef.current = currentKeys;
+
+    if (!selectedTileset) return;
+
+    const tilesetKeys = new Set(selectedTileset.data.flat().filter(Boolean) as string[]);
+    const newKeys = [...currentKeys].filter((k) => !prevKeys.has(k) && !tilesetKeys.has(k));
+    if (newKeys.length === 0) return;
+
+    const draft = selectedTileset.data.map((row) => [...row]);
+    const pending = pendingNewTileSlotRef.current;
+    pendingNewTileSlotRef.current = null;
+
+    for (const key of newKeys) {
+      let placed = false;
+      if (pending && draft[pending.row]?.[pending.col] === null) {
+        draft[pending.row][pending.col] = key;
+        placed = true;
+      }
+      if (!placed) {
+        for (let r = 0; r < draft.length && !placed; r++) {
+          for (let c = 0; c < TILESET_WIDTH && !placed; c++) {
+            if (draft[r][c] === null) {
+              draft[r][c] = key;
+              placed = true;
+            }
+          }
+        }
+      }
+      if (!placed) {
+        const newRow: (string | null)[] = Array.from({ length: TILESET_WIDTH }, () => null);
+        newRow[0] = key;
+        draft.push(newRow);
+      }
+    }
+    updateTileset(selectedTileset.id, { ...selectedTileset, data: normalizeTilesetData(draft) });
+  }, [tileTextures]);
 
   const effectiveSingleTile: string | null = selectedSingleTile;
 
@@ -145,21 +200,25 @@ const TilemapEditor = () => {
 
   const {
     cellSize,
-    zoomPercent,
-    setZoom,
-    isEditingZoom,
-    setIsEditingZoom,
+    zoomIn,
+    zoomOut,
+    canZoomIn,
+    canZoomOut,
     canvasContainerRef,
-    MIN_ZOOM_PERCENT,
-    MAX_ZOOM_PERCENT,
+    scrollContainerRef,
   } = useCanvasZoom(pixelW, pixelH);
 
-  const { canvasRef, outputPixelsRef, previewPixelsRef, requestRender, resetPixelArrays } = usePixelCanvas(
+  // Integer display dimensions so CSS size, getBoundingClientRect(), and the
+  // shadow overlay all agree on exact pixel boundaries.
+  const canvasDisplayW = Math.round(pixelW * cellSize);
+  const canvasDisplayH = Math.round(pixelH * cellSize);
+
+  const { canvasRef, outputPixelsRef, previewPixelsRef, hoverRectRef, requestRender, resetPixelArrays } = usePixelCanvas(
     pixelW,
     pixelH,
     cellSize,
     8,
-    { enableKeyboardShortcuts: false },
+    { enableKeyboardShortcuts: false, canvasSize: { w: canvasDisplayW, h: canvasDisplayH } },
   );
 
   const { tilePixelsRef, tileAveragesRef, isReady } = useTilePixelCache(tileTextures);
@@ -187,9 +246,14 @@ const TilemapEditor = () => {
     }
   }, [tilemap, gridWidthTiles, gridHeightTiles, tileAveragesRef]);
 
-  // ── Zustand → pixel buffer sync ──
-  useEffect(() => {
+  // ── Zustand → pixel buffer sync (useLayoutEffect so it runs before usePixelCanvas paint) ──
+  const prevDimsRef = useRef({ w: pixelW, h: pixelH });
+  useLayoutEffect(() => {
     if (!tilemap || !isReady) return;
+    if (prevDimsRef.current.w !== pixelW || prevDimsRef.current.h !== pixelH) {
+      resetPixelArrays(pixelW, pixelH);
+      prevDimsRef.current = { w: pixelW, h: pixelH };
+    }
     rebuildPixelBuffer(
       outputPixelsRef.current,
       tilemap.data,
@@ -200,14 +264,14 @@ const TilemapEditor = () => {
     );
     requestRender();
     renderMinimap();
-  }, [tilemap, isReady, outputPixelsRef, tilePixelsRef, requestRender, renderMinimap]);
+  }, [tilemap, isReady, pixelW, pixelH, outputPixelsRef, tilePixelsRef, requestRender, renderMinimap, resetPixelArrays]);
 
   // ── Render collidable overlay ──
   useEffect(() => {
     const canvas = collidableCanvasRef.current;
     if (!canvas || !tilemap || !showCollidables) return;
-    const w = pixelW * cellSize;
-    const h = pixelH * cellSize;
+    const w = canvasDisplayW;
+    const h = canvasDisplayH;
     canvas.width = w;
     canvas.height = h;
     const ctx = canvas.getContext('2d');
@@ -223,16 +287,7 @@ const TilemapEditor = () => {
         }
       }
     }
-  }, [tilemap, showCollidables, tileCollidables, pixelW, pixelH, cellSize]);
-
-  // ── Handle resize ──
-  const prevDimsRef = useRef({ w: pixelW, h: pixelH });
-  useEffect(() => {
-    if (prevDimsRef.current.w !== pixelW || prevDimsRef.current.h !== pixelH) {
-      resetPixelArrays(pixelW, pixelH);
-      prevDimsRef.current = { w: pixelW, h: pixelH };
-    }
-  }, [pixelW, pixelH, resetPixelArrays]);
+  }, [tilemap, showCollidables, tileCollidables, canvasDisplayW, canvasDisplayH]);
 
   // ── Drawing state ref (avoids stale closures in window handlers) ──
   const drawStateRef = useRef({
@@ -276,7 +331,8 @@ const TilemapEditor = () => {
     const prev = undoStackRef.current.pop();
     if (prev) setTilemapData(activeTilemapId, prev);
     setHistoryVersion((v) => v + 1);
-  }, [activeTilemapId, tilemap, setTilemapData]);
+    scheduleSaveToScene();
+  }, [activeTilemapId, tilemap, setTilemapData, scheduleSaveToScene]);
 
   const redo = useCallback(() => {
     if (!activeTilemapId || !tilemap || redoStackRef.current.length === 0) return;
@@ -284,7 +340,8 @@ const TilemapEditor = () => {
     const next = redoStackRef.current.pop();
     if (next) setTilemapData(activeTilemapId, next);
     setHistoryVersion((v) => v + 1);
-  }, [activeTilemapId, tilemap, setTilemapData]);
+    scheduleSaveToScene();
+  }, [activeTilemapId, tilemap, setTilemapData, scheduleSaveToScene]);
 
   // ── Cell from pointer event ──
   const getCellFromEvent = useCallback(
@@ -333,8 +390,9 @@ const TilemapEditor = () => {
           updateTilemapCell(activeTilemapId, c.row, c.col, tileKey);
         }
       }
+      scheduleSaveToScene();
     },
-    [activeTilemapId, tilemap, updateTilemapCell, expandBrush],
+    [activeTilemapId, tilemap, updateTilemapCell, expandBrush, scheduleSaveToScene],
   );
 
   // ── Flood fill on tile grid ──
@@ -363,8 +421,9 @@ const TilemapEditor = () => {
       }
 
       setTilemapData(activeTilemapId, newData);
+      scheduleSaveToScene();
     },
-    [activeTilemapId, tilemap, setTilemapData],
+    [activeTilemapId, tilemap, setTilemapData, scheduleSaveToScene],
   );
 
   // ── Commit shape preview cells to store ──
@@ -381,7 +440,8 @@ const TilemapEditor = () => {
     }
     setTilemapData(activeTilemapId, newData);
     previewCellsRef.current = [];
-  }, [activeTilemapId, tilemap, setTilemapData]);
+    scheduleSaveToScene();
+  }, [activeTilemapId, tilemap, setTilemapData, scheduleSaveToScene]);
 
   // ── Compute shape cells with brush expansion ──
   const computeShapeCells = useCallback(
@@ -560,18 +620,33 @@ const TilemapEditor = () => {
     const newW = dimension === 'width' ? parsed : tilemap.width;
     const newH = dimension === 'height' ? parsed : tilemap.height;
     resizeTilemap(activeTilemapId, newW, newH);
+    scheduleSaveToScene();
   };
 
   const handleSelectTilesetCell = useCallback(
     (row: number, col: number) => {
       if (!selectedTileset) return;
       const tileKey = selectedTileset.data[row]?.[col] ?? null;
-      if (!tileKey) return;
       setSelectedTilesetCell({ row, col, tileKey });
       setSelectedSingleTile(tileKey);
-      if (activeTool === 'tile-picker') setActiveTool('place');
+      if (tileKey && activeTool === 'tile-picker') setActiveTool('place');
     },
     [selectedTileset, activeTool],
+  );
+
+  const openTileEditorForCell = useCallback(
+    (row: number, col: number) => {
+      if (!selectedTileset) return;
+      const tileKey = selectedTileset.data[row]?.[col] ?? null;
+      if (tileKey) {
+        setEditingAsset(tileKey, 'tiles', 'asset');
+      } else {
+        pendingNewTileSlotRef.current = { row, col };
+        setEditingAsset(null!, 'tiles', 'new');
+      }
+      setIsTileEditorOpen(true);
+    },
+    [selectedTileset, setEditingAsset],
   );
 
   const updateActiveTilesetData = useCallback(
@@ -597,6 +672,7 @@ const TilemapEditor = () => {
     // Remove all placed instances from the tilemap
     const newData = tilemap.data.map((row) => row.map((cell) => (cell === tileToDelete ? null : cell)));
     setTilemapData(activeTilemapId, newData);
+    scheduleSaveToScene();
 
     // Remove from tileset
     updateActiveTilesetData((data) => {
@@ -611,7 +687,7 @@ const TilemapEditor = () => {
       }
       return found ? data : null;
     });
-  }, [effectiveSingleTile, activeTilemapId, tilemap, saveToHistory, setTilemapData, updateActiveTilesetData]);
+  }, [effectiveSingleTile, activeTilemapId, tilemap, saveToHistory, setTilemapData, updateActiveTilesetData, scheduleSaveToScene]);
 
   const handleSwapTiles = useCallback(() => {
     setSelectedSingleTile(selectedSecondaryTile);
@@ -647,12 +723,7 @@ const TilemapEditor = () => {
         if (payload.row === destRow && payload.col === destCol) return null;
 
         const destTile = data[destRow][destCol];
-        if (destTile !== null) {
-          const shouldOverwrite = window.confirm('This slot is already used. Overwrite this tile slot?');
-          if (!shouldOverwrite) return null;
-        }
-
-        data[payload.row][payload.col] = null;
+        data[payload.row][payload.col] = destTile;
         data[destRow][destCol] = sourceTile;
         setSelectedTilesetCell({ row: destRow, col: destCol, tileKey: sourceTile });
         setSelectedSingleTile(sourceTile);
@@ -661,6 +732,13 @@ const TilemapEditor = () => {
     },
     [selectedTileset, updateActiveTilesetData],
   );
+
+  const handleAddTilesetRow = useCallback(() => {
+    updateActiveTilesetData((data) => {
+      data.push(Array.from({ length: TILESET_WIDTH }, () => null));
+      return data;
+    });
+  }, [updateActiveTilesetData]);
 
   if (!tilemap || !activeTilemapId) {
     return (
@@ -796,13 +874,21 @@ const TilemapEditor = () => {
             <div className='flex gap-1'>
               <button
                 type='button'
-                disabled={isTileEmpty}
                 onClick={() => {
-                  if (!effectiveSingleTile) return;
-                  setEditingAsset(effectiveSingleTile, 'tiles', 'asset');
-                  if (!effectiveSingleTile) return;
-                  setEditingAsset(effectiveSingleTile, 'tiles', 'asset');
+                  setEditingAsset(null!, 'tiles', 'new');
                   setIsTileEditorOpen(true);
+                }}
+                className='w-7 h-7 flex items-center justify-center rounded-sm bg-transparent hover:bg-slate-200/60 dark:hover:bg-dark-tertiary/60 text-slate-700 dark:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-green/50 cursor-pointer transition'
+                title='New tile'
+              >
+                <PlusIcon className='w-4 h-4' />
+              </button>
+              <button
+                type='button'
+                disabled={!selectedTilesetCell}
+                onClick={() => {
+                  if (!selectedTilesetCell) return;
+                  openTileEditorForCell(selectedTilesetCell.row, selectedTilesetCell.col);
                 }}
                 className='w-7 h-7 flex items-center justify-center rounded-sm bg-transparent hover:bg-slate-200/60 dark:hover:bg-dark-tertiary/60 text-slate-700 dark:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-green/50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition'
                 title='Edit selected tile'
@@ -877,61 +963,102 @@ const TilemapEditor = () => {
           </div>
 
           {selectedTileset && (
-            <div>
-              <div className='grid grid-cols-5 gap-px max-h-[260px] overflow-y-auto'>
-                {selectedTileset.data.map((row, rowIndex) =>
-                  Array.from({ length: TILESET_WIDTH }, (_, colIndex) => {
-                    const tileKey = row[colIndex] ?? null;
-                    const isSelected =
-                      selectedTilesetCell?.row === rowIndex &&
-                      selectedTilesetCell?.col === colIndex &&
-                      selectedTilesetCell?.tileKey === tileKey &&
-                      tileKey !== null;
-                    const isDragOver = dragOverTilesetCell?.row === rowIndex && dragOverTilesetCell?.col === colIndex;
-                    return (
-                      <button
-                        key={`${rowIndex}-${colIndex}`}
-                        type='button'
-                        draggable={Boolean(tileKey)}
-                        onClick={() => handleSelectTilesetCell(rowIndex, colIndex)}
-                        onContextMenu={(e) => {
-                          e.preventDefault();
-                          if (tileKey) setSelectedSecondaryTile(tileKey);
-                        }}
-                        onDragStart={(e) => {
-                          if (!tileKey) return;
-                          handleTilesetDragStart(e, rowIndex, colIndex, tileKey);
-                        }}
-                        onDragOver={(e) => {
-                          e.preventDefault();
-                          setDragOverTilesetCell({ row: rowIndex, col: colIndex });
-                        }}
-                        onDragLeave={() => setDragOverTilesetCell(null)}
-                        onDrop={(e) => handleTilesetDrop(e, rowIndex, colIndex)}
-                        className={`group relative aspect-square transition-colors cursor-pointer ${isDragOver ? 'bg-emerald-100 dark:bg-emerald-900/30' : ''}`}
-                        title={tileKey ?? 'Empty'}
-                      >
-                        {tileKey && tileTextures[tileKey] ? (
-                          <img
-                            src={tileTextures[tileKey]}
-                            alt={tileKey}
-                            className='w-full h-full object-cover pointer-events-none'
-                            style={{ imageRendering: 'pixelated' }}
-                          />
-                        ) : null}
-                        <div className='absolute inset-0 bg-black/0 group-hover:bg-black/15 transition-colors pointer-events-none' />
-                        {isSelected && (
-                          <>
-                            <div className='absolute inset-0 pointer-events-none' />
-                          </>
-                        )}
-                      </button>
-                    );
-                  }),
-                )}
+            <div className='h-[260px] min-h-[260px] overflow-y-auto'>
+              <div className='flex flex-col items-center gap-2 pb-2'>
+                <div className='grid grid-cols-5 gap-px p-px w-full'>
+                  {selectedTileset.data.map((row, rowIndex) =>
+                    Array.from({ length: TILESET_WIDTH }, (_, colIndex) => {
+                      const tileKey = row[colIndex] ?? null;
+                      const isSelected =
+                        selectedTilesetCell?.row === rowIndex &&
+                        selectedTilesetCell?.col === colIndex;
+                      const isDragOver = dragOverTilesetCell?.row === rowIndex && dragOverTilesetCell?.col === colIndex;
+                      const isCollidable = showCollidables && tileKey !== null && tileCollidables[tileKey];
+                      return (
+                        <button
+                          key={`${rowIndex}-${colIndex}`}
+                          type='button'
+                          draggable={Boolean(tileKey)}
+                          onClick={() => handleSelectTilesetCell(rowIndex, colIndex)}
+                          onDoubleClick={() => openTileEditorForCell(rowIndex, colIndex)}
+                          onContextMenu={(e) => {
+                            e.preventDefault();
+                            if (tileKey) setSelectedSecondaryTile(tileKey);
+                          }}
+                          onDragStart={(e) => {
+                            if (!tileKey) return;
+                            handleTilesetDragStart(e, rowIndex, colIndex, tileKey);
+                          }}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            setDragOverTilesetCell({ row: rowIndex, col: colIndex });
+                          }}
+                          onDragLeave={() => setDragOverTilesetCell(null)}
+                          onDrop={(e) => handleTilesetDrop(e, rowIndex, colIndex)}
+                          className={`group relative aspect-square transition-colors cursor-pointer bg-light-tertiary dark:bg-dark-tertiary ${isDragOver ? '!bg-emerald-100 dark:!bg-emerald-900/30' : ''}`}
+                          title={tileKey ?? 'Empty'}
+                        >
+                          {tileKey && tileTextures[tileKey] ? (
+                            <img
+                              src={tileTextures[tileKey]}
+                              alt={tileKey}
+                              className='w-full h-full object-cover pointer-events-none'
+                              style={{ imageRendering: 'pixelated' }}
+                            />
+                          ) : null}
+                          <div className='absolute inset-0 bg-black/0 group-hover:bg-black/15 transition-colors pointer-events-none' />
+                          {isCollidable && (
+                            <div className='absolute inset-0 bg-red-500/30 pointer-events-none' />
+                          )}
+                          {isSelected && (
+                            <div className='absolute -inset-px border-2 border-primary-green pointer-events-none z-10' />
+                          )}
+                        </button>
+                      );
+                    }),
+                  )}
+                </div>
+                <button
+                  type='button'
+                  onClick={handleAddTilesetRow}
+                  className='flex items-center gap-1.5 px-3 py-1.5 rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:border-primary-green hover:text-primary-green dark:hover:border-primary-green dark:hover:text-primary-green transition-colors text-xs font-medium'
+                  title='Add row'
+                >
+                  <PlusIcon className='w-3.5 h-3.5' />
+                  Add row
+                </button>
               </div>
             </div>
           )}
+
+          {/* Solid toggle for selected tile */}
+          <div className={`flex items-center gap-1.5 ${isTileEmpty ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+            <button
+              type='button'
+              disabled={isTileEmpty}
+              onClick={() => {
+                if (!effectiveSingleTile) return;
+                setTileCollidable(effectiveSingleTile, !tileCollidables[effectiveSingleTile]);
+              }}
+              className={`${visibilityButtonBaseClasses} shrink-0 ${
+                effectiveSingleTile && tileCollidables[effectiveSingleTile]
+                  ? visibilityButtonActiveClasses
+                  : visibilityButtonInactiveClasses
+              }`}
+              title='Is solid'
+            >
+              <Box className='w-3.5 h-3.5 shrink-0' />
+            </button>
+            <span
+              className={`text-xs select-none ${isTileEmpty ? 'text-slate-400 dark:text-slate-500' : 'text-slate-600 dark:text-slate-300 cursor-pointer'}`}
+              onClick={() => {
+                if (isTileEmpty || !effectiveSingleTile) return;
+                setTileCollidable(effectiveSingleTile, !tileCollidables[effectiveSingleTile]);
+              }}
+            >
+              Is solid
+            </span>
+          </div>
 
           {/* Show collidables checkbox */}
           <label className='flex items-center gap-1.5 px-0.5 cursor-pointer select-none'>
@@ -950,58 +1077,81 @@ const TilemapEditor = () => {
 
       {/* Main canvas area */}
       <div className='flex-1 flex flex-col min-h-0 overflow-hidden'>
+        {/*
+          Outer div: stable size source for baseZoom — overflow-hidden so the
+          ResizeObserver never sees scrollbar-induced size changes.
+        */}
         <div
           ref={canvasContainerRef}
-          className='relative flex-1 flex items-center justify-center bg-light-whiteboard dark:bg-dark-whiteboard p-4 overflow-auto min-h-0'
+          className='relative flex-1 min-h-0 bg-light-whiteboard dark:bg-dark-whiteboard'
         >
-          <div className='absolute top-2 right-2 z-10 flex gap-1.5'>
-            <button
-              type='button'
-              onClick={() => EventBus.emit('update-tilemap')}
-              className='px-3 h-7 flex items-center justify-center rounded bg-emerald-600/80 hover:bg-emerald-600 text-white text-xs font-medium cursor-pointer transition'
-              title='Save tilemap to scene'
-            >
-              Save
-            </button>
-            <button
-              type='button'
-              onClick={() => {
-                saveToHistory();
-                clearTilemap(activeTilemapId);
-              }}
-              className='px-3 h-7 flex items-center justify-center rounded bg-red-600/80 hover:bg-red-600 text-white text-xs font-medium cursor-pointer transition'
-              title='Clear tilemap'
-            >
-              Clear
-            </button>
+          {/*
+            Inner div: actual scroll container — absolutely fills the outer div
+            so its presence never changes the outer div's measured size.
+          */}
+          <div ref={scrollContainerRef} className='absolute inset-0 overflow-auto'>
+            {/*
+              Centering wrapper: min-w/h = 100% ensures the flex centering works
+              when the canvas is small, AND that all canvas edges are reachable
+              by scrolling when the canvas is large.
+            */}
+            <div className='min-w-full min-h-full w-max flex items-center justify-center p-4'>
+              <div className='relative'>
+                <canvas
+                  ref={canvasRef}
+                  className='cursor-crosshair select-none touch-none'
+                  style={{
+                    width: canvasDisplayW,
+                    height: canvasDisplayH,
+                    imageRendering: 'pixelated',
+                  }}
+                  onPointerDown={handlePointerDown}
+                  onPointerMove={(e) => {
+                    if (!tilemap) return;
+                    const canvas = canvasRef.current;
+                    if (!canvas) return;
+                    const rect = canvas.getBoundingClientRect();
+                    const col = Math.floor(((e.clientX - rect.left) / rect.width) * tilemap.width);
+                    const row = Math.floor(((e.clientY - rect.top) / rect.height) * tilemap.height);
+                    if (col < 0 || col >= tilemap.width || row < 0 || row >= tilemap.height) {
+                      setHoverCell(null);
+                      hoverRectRef.current = null;
+                      requestRender();
+                      return;
+                    }
+                    setHoverCell({ row, col });
+                    const off = Math.floor(brushSize / 2);
+                    hoverRectRef.current = {
+                      x0: Math.max(0, col - off) * TILE_PX,
+                      y0: Math.max(0, row - off) * TILE_PX,
+                      x1: Math.min(tilemap.width, col - off + brushSize) * TILE_PX,
+                      y1: Math.min(tilemap.height, row - off + brushSize) * TILE_PX,
+                    };
+                    requestRender();
+                  }}
+                  onPointerLeave={() => {
+                    setHoverCell(null);
+                    hoverRectRef.current = null;
+                    requestRender();
+                  }}
+                  onContextMenu={(e) => e.preventDefault()}
+                />
+                {showCollidables && (
+                  <canvas
+                    ref={collidableCanvasRef}
+                    className='absolute top-0 left-0 pointer-events-none'
+                    style={{
+                      width: canvasDisplayW,
+                      height: canvasDisplayH,
+                    }}
+                  />
+                )}
+              </div>
+            </div>
           </div>
-          <div className='relative'>
-            <canvas
-              ref={canvasRef}
-              className='cursor-crosshair select-none touch-none'
-              style={{
-                width: pixelW * cellSize,
-                height: pixelH * cellSize,
-                imageRendering: 'pixelated',
-              }}
-              onPointerDown={handlePointerDown}
-              onPointerMove={(e) => setHoverCell(getCellFromEvent(e))}
-              onPointerLeave={() => setHoverCell(null)}
-              onContextMenu={(e) => e.preventDefault()}
-            />
-            {showCollidables && (
-              <canvas
-                ref={collidableCanvasRef}
-                className='absolute top-0 left-0 pointer-events-none'
-                style={{
-                  width: pixelW * cellSize,
-                  height: pixelH * cellSize,
-                }}
-              />
-            )}
-          </div>
-          {/* Floating undo/redo */}
-          <div className='absolute bottom-2 right-2 z-10 flex gap-1.5'>
+
+          {/* Floating undo/redo + zoom — outside the scroll container so they stay anchored */}
+          <div className='absolute bottom-2 right-2 z-10 flex items-center gap-1.5'>
             <button
               type='button'
               onClick={undo}
@@ -1042,6 +1192,31 @@ const TilemapEditor = () => {
                 <path d='M21 7l-4-4M21 7l-4 4' />
               </svg>
             </button>
+            <div className='w-px h-5 bg-slate-300 dark:bg-slate-600' />
+            <button
+              type='button'
+              onClick={zoomOut}
+              disabled={!canZoomOut}
+              className='w-7 h-7 flex items-center justify-center rounded bg-slate-200/80 hover:bg-slate-300 dark:bg-dark-tertiary/80 dark:hover:bg-dark-tertiary text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition'
+              title='Zoom out'
+            >
+              <svg className='w-3.5 h-3.5' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2'>
+                <circle cx='11' cy='11' r='8' />
+                <path d='M21 21l-4.35-4.35M8 11h6' />
+              </svg>
+            </button>
+            <button
+              type='button'
+              onClick={zoomIn}
+              disabled={!canZoomIn}
+              className='w-7 h-7 flex items-center justify-center rounded bg-slate-200/80 hover:bg-slate-300 dark:bg-dark-tertiary/80 dark:hover:bg-dark-tertiary text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition'
+              title='Zoom in'
+            >
+              <svg className='w-3.5 h-3.5' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2'>
+                <circle cx='11' cy='11' r='8' />
+                <path d='M21 21l-4.35-4.35M11 8v6M8 11h6' />
+              </svg>
+            </button>
           </div>
         </div>
 
@@ -1078,61 +1253,8 @@ const TilemapEditor = () => {
             </span>
           </div>
 
-          {/* Center: tilemap name */}
-          <span className='text-xs text-slate-500 dark:text-slate-400 font-medium truncate px-2'>{tilemap.name}</span>
-
-          {/* Right: zoom controls */}
-          <div className='flex items-center gap-1.5 flex-1 min-w-0 justify-end'>
-            <button
-              type='button'
-              onClick={() => setZoom(zoomPercent - 25)}
-              disabled={zoomPercent <= MIN_ZOOM_PERCENT}
-              className='w-6 h-6 flex items-center justify-center rounded bg-slate-200 hover:bg-slate-300 dark:bg-dark-tertiary dark:hover:bg-dark-tertiary/80 disabled:opacity-40 disabled:cursor-not-allowed text-slate-600 dark:text-slate-300 cursor-pointer transition'
-              title='Zoom out'
-            >
-              <svg className='w-3.5 h-3.5' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2'>
-                <circle cx='11' cy='11' r='8' />
-                <path d='M21 21l-4.35-4.35M8 11h6' />
-              </svg>
-            </button>
-            {isEditingZoom ? (
-              <input
-                type='number'
-                defaultValue={Math.round(zoomPercent)}
-                onBlur={(e) => {
-                  setZoom(parseInt(e.target.value, 10));
-                  setIsEditingZoom(false);
-                }}
-                onKeyDown={(e) =>
-                  e.key === 'Enter' ? e.currentTarget.blur() : e.key === 'Escape' && setIsEditingZoom(false)
-                }
-                className='w-12 h-6 px-1 text-xs text-slate-700 dark:text-slate-300 text-center bg-white border border-slate-200 dark:bg-dark-tertiary dark:border-slate-600 rounded outline-none focus:border-primary-green [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
-                autoFocus
-                onFocus={(e) => e.target.select()}
-              />
-            ) : (
-              <button
-                type='button'
-                onClick={() => setIsEditingZoom(true)}
-                className='w-12 h-6 text-xs text-slate-600 dark:text-slate-300 text-center hover:bg-slate-200 dark:hover:bg-dark-tertiary rounded cursor-pointer transition'
-                title='Click to edit zoom (100% = fit to container)'
-              >
-                {Math.round(zoomPercent)}%
-              </button>
-            )}
-            <button
-              type='button'
-              onClick={() => setZoom(zoomPercent + 25)}
-              disabled={zoomPercent >= MAX_ZOOM_PERCENT}
-              className='w-6 h-6 flex items-center justify-center rounded bg-slate-200 hover:bg-slate-300 dark:bg-dark-tertiary dark:hover:bg-dark-tertiary/80 disabled:opacity-40 disabled:cursor-not-allowed text-slate-600 dark:text-slate-300 cursor-pointer transition'
-              title='Zoom in'
-            >
-              <svg className='w-3.5 h-3.5' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2'>
-                <circle cx='11' cy='11' r='8' />
-                <path d='M21 21l-4.35-4.35M11 8v6M8 11h6' />
-              </svg>
-            </button>
-          </div>
+          {/* Right: tilemap name */}
+          <span className='text-xs text-slate-500 dark:text-slate-400 font-medium truncate px-2 flex-1 min-w-0 text-right'>{tilemap.name}</span>
         </div>
       </div>
     </div>
