@@ -8,11 +8,7 @@ import Phaser from './PhaserPanel/Phaser';
 
 import AssetWorkspace from './AssetManager/Overview';
 import TilemapEditor from '@/components/ui/TilemapEditor';
-import projectsApi from '@/lib/api/handlers/projects';
-import assetsApi from '@/lib/api/handlers/assets';
 import { useParams } from 'next/navigation';
-import { useSnackbar } from '@/hooks/useSnackbar';
-import { extractAxiosErrMsg } from '@/lib/api/axios';
 import { useWorkspaceSync } from '@/hooks/yjs/useWorkspaceSync';
 import useMultiDebounce from '@/hooks/useMultiDebounce';
 
@@ -31,7 +27,6 @@ import useMultiDebounce from '@/hooks/useMultiDebounce';
 const ProjectView = () => {
   const { projectID } = useParams();
   const { view } = useWorkspaceView();
-  const showSnackbar = useSnackbar();
   const {
     undoWorkspace,
     redoWorkspace,
@@ -39,11 +34,7 @@ const ProjectView = () => {
     canRedo,
     spriteIdsUpdated,
     isEditorScene,
-    projectId,
     setProjectId,
-    setAsset,
-    addAssetId,
-    addLibraryAsset,
   } = useGeckodeStore();
   const debouncedEditorChanges = useMultiDebounce({
     values: { spriteIdsUpdated, isEditorScene },
@@ -56,30 +47,6 @@ const ProjectView = () => {
   // Keep store projectId in sync with route so Yjs documentRegistry resolves the right doc
   useEffect(() => {
     setProjectId(projectID != null && !Number.isNaN(projectID) ? Number(projectID) : null);
-
-    // set project ID and pull all assets
-    if (projectId) {
-      const prjId = Number(projectID);
-
-      projectsApi(prjId)
-        .assetsApi.list({ asset_type: 'textures' })
-        .then((res) => {
-          for (var asset of res.results) {
-            setAsset(asset.name, asset.asset, 'textures');
-            addAssetId(asset.name, asset.id);
-          }
-        })
-        .catch((err) => showSnackbar(extractAxiosErrMsg(err, 'Failed to get project assets!'), 'error'));
-
-      assetsApi
-        .list({ asset_type: 'textures' })
-        .then((res) => {
-          for (var asset of res.results) {
-            addLibraryAsset(asset.name, asset.asset, 'libaryTextures');
-          }
-        })
-        .catch((err) => showSnackbar(extractAxiosErrMsg(err, 'Failed to get library assets!'), 'error'));
-    }
 
     return () => setProjectId(null);
   }, [projectID, setProjectId]);
