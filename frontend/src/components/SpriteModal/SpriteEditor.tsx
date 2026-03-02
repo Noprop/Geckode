@@ -35,6 +35,7 @@ const SpriteEditor = () => {
   const textures = useGeckodeStore((s) => s.textures);
   const editingSource = useGeckodeStore((s) => s.editingSource);
   const editingAssetName = useGeckodeStore((s) => s.editingAssetName);
+  const editingTextureToLoad = useGeckodeStore((s) => s.editingTextureToLoad);
   const spriteModalMode = useGeckodeStore((s) => s.spriteModalMode);
   const spriteModalSaveTargetTextureName = useGeckodeStore((s) => s.spriteModalSaveTargetTextureName);
   const phaserScene = useGeckodeStore((s) => s.phaserScene);
@@ -114,7 +115,7 @@ const SpriteEditor = () => {
   };
 
   const closeSpriteModal = () => {
-    useGeckodeStore.setState({ editingSource: null, editingAssetName: null, editingAssetType: null });
+    useGeckodeStore.setState({ editingSource: null, editingAssetName: null, editingAssetType: null, editingTextureToLoad: null });
     clearSpriteModalContext();
     setIsSpriteModalOpen(false);
   };
@@ -239,10 +240,13 @@ const SpriteEditor = () => {
   useEffect(() => {
     if (editingSource === null || editingAssetName === null || !canvasRef.current) return;
 
+    // When editing an asset and user picked a library texture, load that but keep save target as editingAssetName
     const textureInfo =
-      editingSource === 'library'
-        ? libaryTextures[editingAssetName]
-        : (textures[editingAssetName] ?? libaryTextures[editingAssetName]);
+      editingTextureToLoad != null
+        ? (libaryTextures[editingTextureToLoad] ?? textures[editingTextureToLoad])
+        : editingSource === 'library'
+          ? libaryTextures[editingAssetName]
+          : (textures[editingAssetName] ?? libaryTextures[editingAssetName]);
     if (!textureInfo) return;
 
     const img = new Image();
@@ -267,7 +271,7 @@ const SpriteEditor = () => {
       requestRender();
     };
     img.src = textureInfo;
-  }, [editingSource, editingAssetName, libaryTextures, textures]);
+  }, [editingSource, editingAssetName, editingTextureToLoad, libaryTextures, textures]);
 
   // --- Grid resize handler (used by uncontrolled inputs) ---
   const handleGridResize = (dimension: 'width' | 'height', value: string) => {

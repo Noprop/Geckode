@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { DragEvent as ReactDragEvent, PointerEvent as ReactPointerEvent } from 'react';
 import { EraserIcon, Pencil2Icon } from '@radix-ui/react-icons';
 import { Trash2Icon, PlusIcon, Box } from 'lucide-react';
@@ -28,7 +28,7 @@ import {
 } from '@/hooks/useTilePixelCache';
 import TileEditorModal from '@/components/TileModal/TileEditorModal';
 import { getLineCells, getRectangleCells, getOvalCells } from '@/lib/tileGridGeometry';
-import { TILE_PX, TILESET_WIDTH } from '@/stores/slices/spriteSlice';
+import { LIBRARY_TILE_PREFIX, TILE_PX, TILESET_WIDTH } from '@/stores/slices/spriteSlice';
 import {
   visibilityButtonBaseClasses,
   visibilityButtonActiveClasses,
@@ -80,7 +80,9 @@ const TilemapEditor = () => {
   const collidableCanvasRef = useRef<HTMLCanvasElement>(null);
   const pendingNewTileSlotRef = useRef<{ row: number; col: number } | null>(null);
 
-  const tileTextures = useGeckodeStore((s) => s.tiles);
+  const libaryTiles = useGeckodeStore((s) => s.libaryTiles);
+  const tiles = useGeckodeStore((s) => s.tiles);
+  const tileTextures = useMemo(() => ({ ...libaryTiles, ...tiles }), [libaryTiles, tiles]);
   const tilesets = useGeckodeStore((s) => s.tilesets);
   const tilemaps = useGeckodeStore((s) => s.tilemaps);
   const activeTilemapId = useGeckodeStore((s) => s.activeTilemapId);
@@ -640,6 +642,9 @@ const TilemapEditor = () => {
       const tileKey = selectedTileset.data[row]?.[col] ?? null;
       if (tileKey) {
         setEditingAsset(tileKey, 'tiles', 'asset');
+        if (tileKey.startsWith(LIBRARY_TILE_PREFIX)) {
+          pendingNewTileSlotRef.current = { row, col };
+        }
       } else {
         pendingNewTileSlotRef.current = { row, col };
         setEditingAsset(null!, 'tiles', 'new');
@@ -661,6 +666,54 @@ const TilemapEditor = () => {
       });
     },
     [selectedTileset, updateTileset],
+  );
+
+  const handleTileAdded = useCallback(
+    (tileKey: string) => {
+      if (!selectedTileset) return;
+      const pending = pendingNewTileSlotRef.current;
+      pendingNewTileSlotRef.current = null;
+
+      const resultRef: { current: { row: number; col: number } | null } = { current: null };
+
+      updateActiveTilesetData((data) => {
+        const draft = data.map((row) => [...row]);
+
+        if (pending) {
+          draft[pending.row][pending.col] = tileKey;
+          resultRef.current = { row: pending.row, col: pending.col };
+          return draft;
+        }
+
+        const sel = selectedTilesetCell;
+        if (sel && draft[sel.row]?.[sel.col] === null) {
+          draft[sel.row][sel.col] = tileKey;
+          return draft;
+        }
+
+        for (let r = 0; r < draft.length; r++) {
+          for (let c = 0; c < TILESET_WIDTH; c++) {
+            if (draft[r]?.[c] === null) {
+              draft[r][c] = tileKey;
+              resultRef.current = { row: r, col: c };
+              return draft;
+            }
+          }
+        }
+        const newRow: (string | null)[] = Array.from({ length: TILESET_WIDTH }, () => null);
+        newRow[0] = tileKey;
+        draft.push(newRow);
+        resultRef.current = { row: draft.length - 1, col: 0 };
+        return draft;
+      });
+
+      const placed = resultRef.current;
+      if (placed) {
+        setSelectedTilesetCell({ row: placed.row, col: placed.col, tileKey });
+        setSelectedSingleTile(tileKey);
+      }
+    },
+    [selectedTileset, selectedTilesetCell, updateActiveTilesetData],
   );
 
   const handleDeleteTile = useCallback(() => {
@@ -750,7 +803,14 @@ const TilemapEditor = () => {
 
   return (
     <div className='flex-1 min-h-0 flex bg-light-secondary dark:bg-dark-secondary h-full'>
-      <TileEditorModal isOpen={isTileEditorOpen} onClose={() => setIsTileEditorOpen(false)} />
+      <TileEditorModal
+        isOpen={isTileEditorOpen}
+        onClose={() => {
+          pendingNewTileSlotRef.current = null;
+          setIsTileEditorOpen(false);
+        }}
+        onAddTileToSlot={handleTileAdded}
+      />
       <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -875,6 +935,11 @@ const TilemapEditor = () => {
               <button
                 type='button'
                 onClick={() => {
+                  if (selectedTilesetCell && selectedTileset?.data[selectedTilesetCell.row]?.[selectedTilesetCell.col] === null) {
+                    pendingNewTileSlotRef.current = { row: selectedTilesetCell.row, col: selectedTilesetCell.col };
+                  } else {
+                    pendingNewTileSlotRef.current = null;
+                  }
                   setEditingAsset(null!, 'tiles', 'new');
                   setIsTileEditorOpen(true);
                 }}

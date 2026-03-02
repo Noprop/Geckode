@@ -1,7 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useGeckodeStore } from '@/stores/geckodeStore';
+import { getLibraryTileDisplayName } from '@/stores/slices/spriteSlice';
 import type { Tileset } from '@/stores/geckodeStore';
 import {
   useTilePixelCache,
@@ -46,7 +47,9 @@ const TilesetEditor = ({ onClose }: { onClose: () => void }) => {
   const redoStackRef = useRef<(string | null)[][][]>([]);
   const [_historyVersion, setHistoryVersion] = useState(0);
 
-  const tileTextures = useGeckodeStore((s) => s.tiles);
+  const libaryTiles = useGeckodeStore((s) => s.libaryTiles);
+  const tiles = useGeckodeStore((s) => s.tiles);
+  const tileTextures = useMemo(() => ({ ...libaryTiles, ...tiles }), [libaryTiles, tiles]);
   const tilesets = useGeckodeStore((s) => s.tilesets);
   const tileCollidables = useGeckodeStore((s) => s.tileCollidables);
   const setTileCollidable = useGeckodeStore((s) => s.setTileCollidable);
@@ -257,7 +260,7 @@ const TilesetEditor = ({ onClose }: { onClose: () => void }) => {
                       ? 'border-2 border-primary-green'
                       : 'border-2 border-transparent hover:border-slate-400 dark:hover:border-slate-500'
                   }`}
-                  title={key}
+                  title={getLibraryTileDisplayName(key)}
                 >
                   <img
                     src={tileTextures[key]}

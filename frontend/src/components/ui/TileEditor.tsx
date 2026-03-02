@@ -3,7 +3,7 @@
 import { useEffect, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { Button } from '../ui/Button';
 import { useGeckodeStore } from '@/stores/geckodeStore';
-import { createUniqueTextureName } from '@/stores/slices/spriteSlice';
+import { createUniqueTextureName, getLibraryTileDisplayName, LIBRARY_TILE_PREFIX } from '@/stores/slices/spriteSlice';
 import { PixelEditorToolbar } from '@/components/PixelEditorToolbar';
 import { type Tool } from '../SpriteModal/EditorTools';
 import { PixelCanvasEditorLayout } from '@/components/PixelCanvasEditorLayout';
@@ -11,7 +11,12 @@ import { useCanvasZoom } from '@/hooks/useCanvasZoom';
 import { usePixelCanvas } from '@/hooks/usePixelCanvas';
 import { usePixelEditorDrawing } from '@/hooks/usePixelEditorDrawing';
 
-const TileEditor = ({ onClose }: { onClose: () => void }) => {
+interface TileEditorProps {
+  onClose: () => void;
+  onAddTileToSlot?: (tileKey: string) => void;
+}
+
+const TileEditor = ({ onClose, onAddTileToSlot }: TileEditorProps) => {
   // --- UI state (drives rendering) ---
   const [tileName, setTileName] = useState('myTile');
   const [brushSize, setBrushSize] = useState(1);
@@ -20,6 +25,7 @@ const TileEditor = ({ onClose }: { onClose: () => void }) => {
   const [activeTool, setActiveTool] = useState<Tool>('pen');
   const [gridWidth, setGridWidth] = useState(16);
   const [gridHeight, setGridHeight] = useState(16);
+  const [isCanvasDirty, setIsCanvasDirty] = useState(false);
 
   // --- Zustand selectors ---
   const libaryTiles = useGeckodeStore((s) => s.libaryTiles);
@@ -27,6 +33,7 @@ const TileEditor = ({ onClose }: { onClose: () => void }) => {
   const editingSource = useGeckodeStore((s) => s.editingSource);
   const editingAssetName = useGeckodeStore((s) => s.editingAssetName);
   const editingAssetType = useGeckodeStore((s) => s.editingAssetType);
+  const editingTextureToLoad = useGeckodeStore((s) => s.editingTextureToLoad);
 
   // --- Custom hooks ---
   const { cellSize, zoomIn, zoomOut, canZoomIn, canZoomOut, canvasContainerRef, scrollContainerRef } = useCanvasZoom(gridWidth, gridHeight, { zoomStep: 10 });
@@ -52,6 +59,7 @@ const TileEditor = ({ onClose }: { onClose: () => void }) => {
     secondaryColor,
     activeTool,
     setPrimaryColor,
+    onMarkDirty: () => setIsCanvasDirty(true),
   });
 
   const swapColors = () => {
@@ -83,6 +91,14 @@ const TileEditor = ({ onClose }: { onClose: () => void }) => {
 
   // --- Save / Load ---
   const saveTileToAssets = () => {
+    // Library + no edits: use library key directly, no copy to My Assets
+    if (editingSource === 'library' && editingAssetName && !isCanvasDirty) {
+      onAddTileToSlot?.(editingAssetName);
+      useGeckodeStore.setState({ editingSource: null, editingAssetName: null, editingAssetType: null, editingTextureToLoad: null });
+      onClose();
+      return;
+    }
+
     const w = gridWidth;
     const h = gridHeight;
     const offscreen = document.createElement('canvas');
@@ -95,14 +111,23 @@ const TileEditor = ({ onClose }: { onClose: () => void }) => {
     const base64Image = offscreen.toDataURL('image/png');
 
     if (editingSource === 'new' || editingSource === 'library') {
-      const allTiles = useGeckodeStore.getState().tiles;
+      const allTiles = useGeckodeStore.getState().getTilesForRendering();
       const uniqueName = createUniqueTextureName(tileName, allTiles);
       useGeckodeStore.getState().setAsset(uniqueName, base64Image, 'tiles');
+      onAddTileToSlot?.(uniqueName);
     } else if (editingSource === 'asset') {
-      useGeckodeStore.getState().setAsset(editingAssetName!, base64Image, 'tiles');
+      // Editing a library tile from the tileset: create new asset, don't save to lib: key
+      if (editingAssetName!.startsWith(LIBRARY_TILE_PREFIX)) {
+        const allTiles = useGeckodeStore.getState().getTilesForRendering();
+        const uniqueName = createUniqueTextureName(tileName, allTiles);
+        useGeckodeStore.getState().setAsset(uniqueName, base64Image, 'tiles');
+        onAddTileToSlot?.(uniqueName);
+      } else {
+        useGeckodeStore.getState().setAsset(editingAssetName!, base64Image, 'tiles');
+      }
     }
 
-    useGeckodeStore.setState({ editingSource: null, editingAssetName: null, editingAssetType: null });
+    useGeckodeStore.setState({ editingSource: null, editingAssetName: null, editingAssetType: null, editingTextureToLoad: null });
     onClose();
   };
 
@@ -116,10 +141,13 @@ const TileEditor = ({ onClose }: { onClose: () => void }) => {
     )
       return;
 
+    // When editing an asset and user picked a library texture, load that but keep save target as editingAssetName
     const textureInfo =
-      editingSource === 'library'
-        ? libaryTiles[editingAssetName]
-        : tiles[editingAssetName];
+      editingTextureToLoad != null
+        ? (libaryTiles[editingTextureToLoad] ?? tiles[editingTextureToLoad])
+        : editingSource === 'library'
+          ? libaryTiles[editingAssetName]
+          : (tiles[editingAssetName] ?? libaryTiles[editingAssetName]);
     if (!textureInfo) return;
 
     const img = new Image();
@@ -139,11 +167,12 @@ const TileEditor = ({ onClose }: { onClose: () => void }) => {
 
       resetPixelArrays(width, height);
       outputPixelsRef.current = new Uint8ClampedArray(imageData.data);
-      setTileName(editingAssetName);
+      setTileName(editingAssetName.startsWith(LIBRARY_TILE_PREFIX) ? getLibraryTileDisplayName(editingAssetName) : editingAssetName);
+      setIsCanvasDirty(false);
       requestRender();
     };
     img.src = textureInfo;
-  }, [editingSource, editingAssetName, libaryTiles, tiles]);
+  }, [editingSource, editingAssetName, editingTextureToLoad, libaryTiles, tiles]);
 
   // --- Grid resize handler (used by uncontrolled inputs) ---
   const handleGridResize = (dimension: 'width' | 'height', value: string) => {
@@ -154,8 +183,14 @@ const TileEditor = ({ onClose }: { onClose: () => void }) => {
     const newH = dimension === 'height' ? parsed : gridHeight;
     if (newW === gridWidth && newH === gridHeight) return;
     resetPixelArrays(newW, newH);
+    setIsCanvasDirty(true);
     if (dimension === 'width') setGridWidth(parsed);
     else setGridHeight(parsed);
+  };
+
+  const handleClearCanvas = () => {
+    clearCanvas();
+    setIsCanvasDirty(true);
   };
 
   return (
@@ -184,7 +219,7 @@ const TileEditor = ({ onClose }: { onClose: () => void }) => {
           zoomOut={zoomOut}
           canZoomIn={canZoomIn}
           canZoomOut={canZoomOut}
-          clearButton={{ onClick: clearCanvas }}
+          clearButton={{ onClick: handleClearCanvas }}
         >
           <canvas
             ref={canvasRef}
@@ -201,7 +236,7 @@ const TileEditor = ({ onClose }: { onClose: () => void }) => {
           />
         </PixelCanvasEditorLayout>
 
-        {/* Bottom row; preview, name, and add to game */}
+        {/* Bottom row; preview, name, and add to tilemap */}
         <div className="h-16 flex items-center gap-3 px-4 bg-slate-700 dark:bg-slate-800 border-t border-slate-600 shrink-0">
           <canvas
             ref={previewRef}
@@ -212,15 +247,21 @@ const TileEditor = ({ onClose }: { onClose: () => void }) => {
             type="text"
             value={tileName}
             onChange={(e) => setTileName(e.target.value)}
-            placeholder="Sprite name"
+            placeholder="Tile name"
             className="flex-1 h-9 px-3 rounded bg-slate-600 border border-slate-500 text-sm text-white placeholder:text-slate-400 outline-none focus:border-primary-green"
           />
           <Button
             className="btn-confirm h-9 px-4"
             onClick={saveTileToAssets}
-            title="Save to assets"
+            title={
+              editingSource === 'asset' && editingAssetName && !editingAssetName.startsWith(LIBRARY_TILE_PREFIX)
+                ? 'Save changes'
+                : 'Add to tilemap'
+            }
           >
-            Save to Assets
+            {editingSource === 'asset' && editingAssetName && !editingAssetName.startsWith(LIBRARY_TILE_PREFIX)
+              ? 'Save'
+              : 'Add to tilemap'}
           </Button>
         </div>
       </div>

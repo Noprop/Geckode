@@ -15,7 +15,7 @@ const SpriteModal = () => {
   const clearSpriteModalContext = useGeckodeStore((state) => state.clearSpriteModalContext);
   const isSpriteModalOpen = useGeckodeStore((state) => state.isSpriteModalOpen);
   const handleClose = () => {
-    useGeckodeStore.setState({ editingSource: null, editingAssetName: null, editingAssetType: null });
+    useGeckodeStore.setState({ editingSource: null, editingAssetName: null, editingAssetType: null, editingTextureToLoad: null });
     clearSpriteModalContext();
     setIsSpriteModalOpen(false);
   };

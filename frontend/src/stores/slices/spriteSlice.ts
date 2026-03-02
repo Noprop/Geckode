@@ -32,6 +32,7 @@ import {
   waterTile,
 } from '../b64_textures';
 import type { AssetType, EditingSource, GeckodeStore, Scene, SpriteSlice, SpriteModalMode, Tilemap, Tileset, LibraryAssetType } from './types';
+import { EventBus } from '@/phaser/EventBus';
 import { addSpriteSync, deleteSpriteSync, updateSpriteSync } from '@/hooks/yjs/useWorkspaceSync';
 import { deleteAssetSync, setAssetSync } from '@/hooks/yjs/useAssetSync';
 
@@ -42,13 +43,50 @@ export const TILE_PX = 16;
 export const TILESET_WIDTH = 5;
 const DEFAULT_TILESET_ID = 'tileset_1';
 
+/** Prefix for library tile keys to avoid collisions with user assets */
+export const LIBRARY_TILE_PREFIX = 'lib:';
+
+/** Strip library prefix for display (e.g. "lib:grass" -> "grass") */
+export const getLibraryTileDisplayName = (key: string): string =>
+  key.startsWith(LIBRARY_TILE_PREFIX) ? key.slice(LIBRARY_TILE_PREFIX.length) : key;
+
+const LIBRARY_TILE_NAMES = [
+  'grass', 'dirt', 'stone', 'cobblestone', 'sand',
+  'water', 'lava', 'oakPlanks', 'oakLog', 'leaves',
+  'brick', 'ironOre', 'goldOre', 'diamondOre', 'coalOre',
+  'snow', 'ice', 'gravel', 'tnt', 'bedrock',
+  'glass', 'obsidian',
+] as const;
+
+const createDefaultLibaryTiles = (): Record<string, string> => ({
+  [`${LIBRARY_TILE_PREFIX}grass`]: grassTile,
+  [`${LIBRARY_TILE_PREFIX}dirt`]: dirtTile,
+  [`${LIBRARY_TILE_PREFIX}stone`]: stoneTile,
+  [`${LIBRARY_TILE_PREFIX}cobblestone`]: cobblestoneTile,
+  [`${LIBRARY_TILE_PREFIX}sand`]: sandTile,
+  [`${LIBRARY_TILE_PREFIX}water`]: waterTile,
+  [`${LIBRARY_TILE_PREFIX}lava`]: lavaTile,
+  [`${LIBRARY_TILE_PREFIX}oakPlanks`]: oakPlanksTile,
+  [`${LIBRARY_TILE_PREFIX}oakLog`]: oakLogTile,
+  [`${LIBRARY_TILE_PREFIX}leaves`]: leavesTile,
+  [`${LIBRARY_TILE_PREFIX}brick`]: brickTile,
+  [`${LIBRARY_TILE_PREFIX}ironOre`]: ironOreTile,
+  [`${LIBRARY_TILE_PREFIX}goldOre`]: goldOreTile,
+  [`${LIBRARY_TILE_PREFIX}diamondOre`]: diamondOreTile,
+  [`${LIBRARY_TILE_PREFIX}coalOre`]: coalOreTile,
+  [`${LIBRARY_TILE_PREFIX}snow`]: snowTile,
+  [`${LIBRARY_TILE_PREFIX}ice`]: iceTile,
+  [`${LIBRARY_TILE_PREFIX}gravel`]: gravelTile,
+  [`${LIBRARY_TILE_PREFIX}tnt`]: tntTile,
+  [`${LIBRARY_TILE_PREFIX}bedrock`]: bedrockTile,
+  [`${LIBRARY_TILE_PREFIX}glass`]: glassTile,
+  [`${LIBRARY_TILE_PREFIX}obsidian`]: obsidianTile,
+});
+
 const createDefaultTilesetData = (): (string | null)[][] => {
   const defaults: (string | null)[] = [
-    'grass', 'dirt', 'stone', 'cobblestone', 'sand',
-    'water', 'lava', 'oakPlanks', 'oakLog', 'leaves',
-    'brick', 'ironOre', 'goldOre', 'diamondOre', 'coalOre',
-    'snow', 'ice', 'gravel', 'tnt', 'bedrock',
-    'glass', 'obsidian', null, null, null,
+    ...LIBRARY_TILE_NAMES.map((n) => `${LIBRARY_TILE_PREFIX}${n}`),
+    null, null, null,
   ];
   const data: (string | null)[][] = [];
   for (let i = 0; i < defaults.length; i += TILESET_WIDTH) {
@@ -99,30 +137,7 @@ export const convertToAsset = (asset: LibraryAssetType) : AssetType => String(as
 export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> = (set, get) => ({
   spriteInstances: [],
   textures: {},
-  tiles: {
-    grass: grassTile,
-    dirt: dirtTile,
-    stone: stoneTile,
-    cobblestone: cobblestoneTile,
-    sand: sandTile,
-    water: waterTile,
-    lava: lavaTile,
-    oakPlanks: oakPlanksTile,
-    oakLog: oakLogTile,
-    leaves: leavesTile,
-    brick: brickTile,
-    ironOre: ironOreTile,
-    goldOre: goldOreTile,
-    diamondOre: diamondOreTile,
-    coalOre: coalOreTile,
-    snow: snowTile,
-    ice: iceTile,
-    gravel: gravelTile,
-    tnt: tntTile,
-    bedrock: bedrockTile,
-    glass: glassTile,
-    obsidian: obsidianTile,
-  },
+  tiles: {},
   tilesets: [createDefaultTileset()],
   tileCollidables: {},
   animations: {},
@@ -138,7 +153,7 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
     soccerBall: soccerBall,
     basketBall: basketBall,
   },
-  libaryTiles: {},
+  libaryTiles: createDefaultLibaryTiles(),
   libaryTilesets: {},
   libaryAnimations: {},
   libaryBackgrounds: {},
@@ -152,6 +167,7 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
   editingSource: null,
   editingAssetName: null,
   editingAssetType: null,
+  editingTextureToLoad: null,
   spriteModalMode: null,
   spriteModalSaveTargetTextureName: null,
 
@@ -166,6 +182,7 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
     set({
       spriteModalMode: null,
       spriteModalSaveTargetTextureName: null,
+      editingTextureToLoad: null,
     }),
   setSelectedSpriteId: (newId: string | null) => {
     const { selectedSpriteId: prevId } = get();
@@ -286,7 +303,13 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
   },
 
   /* ── Assets ── */
-  setEditingAsset: (name: string | null, type: AssetType, source: EditingSource) => { set({ editingSource: source, editingAssetName: name, editingAssetType: type }) },
+  getTilesForRendering: () => {
+    const { libaryTiles, tiles } = get();
+    return { ...libaryTiles, ...tiles };
+  },
+  setEditingAsset: (name: string | null, type: AssetType, source: EditingSource) =>
+    set({ editingSource: source, editingAssetName: name, editingAssetType: type, editingTextureToLoad: null }),
+  setEditingTextureToLoad: (name: string | null) => set({ editingTextureToLoad: name }),
 
   setAsset: (name: string, base64Image: string, type: AssetType, syncAfter: boolean = true) => {
     set({ [type]: { ...get()[type], [name]: base64Image } });
@@ -306,6 +329,17 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
         }).catch((err) => {
           console.error(`Failed to load texture ${name}:`, err);
           get().setTextureLoadState(name, 'error');
+        });
+      }
+    }
+
+    if (type === 'tiles') {
+      const { phaserScene } = get();
+      if (phaserScene instanceof EditorScene) {
+        phaserScene.loadTileTextureAsync(name, base64Image).then(() => {
+          EventBus.emit('update-tilemap');
+        }).catch((err) => {
+          console.error(`Failed to load tile ${name}:`, err);
         });
       }
     }
@@ -486,30 +520,7 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
         },
       ],
       textures: { gavinDown: gavinDown, gavinLeft: gavinLeft },
-      tiles: {
-        grass: grassTile,
-        dirt: dirtTile,
-        stone: stoneTile,
-        cobblestone: cobblestoneTile,
-        sand: sandTile,
-        water: waterTile,
-        lava: lavaTile,
-        oakPlanks: oakPlanksTile,
-        oakLog: oakLogTile,
-        leaves: leavesTile,
-        brick: brickTile,
-        ironOre: ironOreTile,
-        goldOre: goldOreTile,
-        diamondOre: diamondOreTile,
-        coalOre: coalOreTile,
-        snow: snowTile,
-        ice: iceTile,
-        gravel: gravelTile,
-        tnt: tntTile,
-        bedrock: bedrockTile,
-        glass: glassTile,
-        obsidian: obsidianTile,
-      },
+      tiles: {},
       tilesets: [createDefaultTileset()],
       tileCollidables: {},
       animations: {},
@@ -522,7 +533,7 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
         soccerBall: soccerBall,
         basketBall: basketBall,
       },
-      libaryTiles: {},
+      libaryTiles: createDefaultLibaryTiles(),
       libaryTilesets: {},
       libaryAnimations: {},
       libaryBackgrounds: {},
@@ -530,6 +541,7 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
       editingSource: null,
       editingAssetName: null,
       editingAssetType: null,
+      editingTextureToLoad: null,
       spriteModalMode: null,
       spriteModalSaveTargetTextureName: null,
       tilemaps: { tilemap_1: createDefaultTilemap(DEFAULT_TILESET_ID) },
