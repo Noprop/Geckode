@@ -537,27 +537,4 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
       activeTilemapId: 'tilemap_1',
     });
   },
-
-  resetAssetsOnly() {
-    console.log(`resetting assets`);
-
-    set({
-      tiles: {},
-      tilesets: [createDefaultTileset()],
-      animations: {},
-      backgrounds: {},
-      libaryTextures: {
-        gavinDown: gavinDown,
-        gavinLeft: gavinLeft,
-        gavinRight: gavinRight,
-        soccerBall: soccerBall,
-        basketBall: basketBall,
-      },
-      libaryTiles: {},
-      libaryTilesets: {},
-      libaryAnimations: {},
-      libaryBackgrounds: {},  
-      assetIds: {}
-    });
-  },
 });

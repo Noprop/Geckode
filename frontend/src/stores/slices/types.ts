@@ -136,7 +136,6 @@ export interface SpriteActions {
   setScenes: (scenes: Scene[]) => void;
 
   resetSpriteStore: () => void;
-  resetAssetsOnly: () => void;
 }
 
 export type SpriteSlice = SpriteState & SpriteActions;
