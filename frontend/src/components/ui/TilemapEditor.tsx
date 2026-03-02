@@ -1062,7 +1062,7 @@ const TilemapEditor = () => {
           <div className='flex gap-2 items-end'>
             {/* Primary tile — larger */}
             <div
-              className={`w-10 h-10 shrink-0 overflow-hidden${effectiveSingleTile && tileTextures[effectiveSingleTile] ? '' : ' bg-slate-300 dark:bg-slate-600'}`}
+              className={`w-16 h-16 shrink-0 overflow-hidden${effectiveSingleTile && tileTextures[effectiveSingleTile] ? '' : ' bg-slate-300 dark:bg-slate-600'}`}
               title='Primary tile (left-click to place)'
             >
               {effectiveSingleTile && tileTextures[effectiveSingleTile] && (
@@ -1080,25 +1080,25 @@ const TilemapEditor = () => {
               <button
                 type='button'
                 onClick={handleSwapTiles}
-                className='w-7 h-4 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer transition'
+                className='w-9 h-6 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer transition'
                 title='Swap primary and secondary tiles'
               >
                 <svg
-                  className='w-3 h-3 rotate-90'
+                  className='w-5 h-5'
                   viewBox='0 0 24 24'
                   fill='none'
                   stroke='currentColor'
-                  strokeWidth='2.5'
+                  strokeWidth='2'
                   strokeLinecap='round'
                   strokeLinejoin='round'
                 >
-                  <path d='M7 16V4m0 0L3 8m4-4l4 4' />
-                  <path d='M17 8v12m0 0l4-4m-4 4l-4-4' />
+                  <path d='M20 19v-6a4 4 0 0 0-4-4H3' />
+                  <path d='M8 14 3 9l5-5' />
                 </svg>
               </button>
               {/* Secondary tile — smaller */}
               <div
-                className={`w-7 h-7 shrink-0 overflow-hidden${selectedSecondaryTile && tileTextures[selectedSecondaryTile] ? '' : ' bg-slate-300 dark:bg-slate-600'}`}
+                className={`w-10 h-10 shrink-0 overflow-hidden${selectedSecondaryTile && tileTextures[selectedSecondaryTile] ? '' : ' bg-slate-300 dark:bg-slate-600'}`}
                 title='Secondary tile (right-click to place)'
               >
                 {selectedSecondaryTile && tileTextures[selectedSecondaryTile] && (

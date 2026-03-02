@@ -20,20 +20,20 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             set -e
-            cd /var/www/geckode
+            cd /var/www/geckode/frontend
 
             git pull origin main
 
             # Frontend
-            pnpm install --frozen-lockfile --dir frontend
-            pnpm run build --filter frontend
+            pnpm i
+            pnpm run build
 
             # Backend TODO: setup for prod server
-            # cd backend
+            # cd ../backend
             # source venv/bin/activate
             # pip install -q -r requirements.txt
             # python manage.py migrate --noinput
             # python manage.py collectstatic --noinput
             # cd ..
 
-            pm2 reload ecosystem.config.js
+            pm2 reload /var/www/geckode/ecosystem.config.js
