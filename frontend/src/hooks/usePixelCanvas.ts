@@ -7,6 +7,11 @@ export const createPixelArray = (width: number, height: number): Uint8ClampedArr
   return new Uint8ClampedArray(width * height * 4);
 };
 
+/** Create a zeroed-out single-byte mask buffer */
+export const createMaskArray = (width: number, height: number): Uint8Array => {
+  return new Uint8Array(width * height);
+};
+
 export function usePixelCanvas(
   gridWidth: number, gridHeight: number, cellSize: number, sizeMod: number,
   options?: { enableKeyboardShortcuts?: boolean; canvasSize?: { w: number; h: number } },
@@ -18,13 +23,17 @@ export function usePixelCanvas(
   // Pixel data layers (refs for perf – no React re-renders during drawing)
   const outputPixelsRef = useRef<Uint8ClampedArray>(createPixelArray(gridWidth, gridHeight));
   const previewPixelsRef = useRef<Uint8ClampedArray>(createPixelArray(gridWidth, gridHeight));
+  const hoverPixelsRef = useRef<Uint8ClampedArray>(createPixelArray(gridWidth, gridHeight));
+  const hoverEraseMaskRef = useRef<Uint8Array>(createMaskArray(gridWidth, gridHeight));
 
   // Undo / Redo stacks
   const undoStackRef = useRef<Uint8ClampedArray[]>([]);
   const redoStackRef = useRef<Uint8ClampedArray[]>([]);
 
-  // Brush hover shadow (grid-cell coordinates; rendered in canvas for pixel-perfect alignment)
-  const hoverRectRef = useRef<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
+  const clearHoverPreview = useCallback(() => {
+    hoverPixelsRef.current.fill(0);
+    hoverEraseMaskRef.current.fill(0);
+  }, []);
 
   // Cached checker-pattern tile
   const checkerTileRef = useRef<HTMLCanvasElement | null>(null);
@@ -60,6 +69,8 @@ export function usePixelCanvas(
     saveToHistory();
     outputPixelsRef.current = createPixelArray(gridWidth, gridHeight);
     previewPixelsRef.current = createPixelArray(gridWidth, gridHeight);
+    hoverPixelsRef.current = createPixelArray(gridWidth, gridHeight);
+    hoverEraseMaskRef.current = createMaskArray(gridWidth, gridHeight);
     setRenderCount((n) => n + 1);
   }, [gridWidth, gridHeight, saveToHistory]);
 
@@ -67,6 +78,8 @@ export function usePixelCanvas(
   const resetPixelArrays = useCallback((w: number, h: number) => {
     outputPixelsRef.current = createPixelArray(w, h);
     previewPixelsRef.current = createPixelArray(w, h);
+    hoverPixelsRef.current = createPixelArray(w, h);
+    hoverEraseMaskRef.current = createMaskArray(w, h);
     undoStackRef.current = [];
     redoStackRef.current = [];
   }, []);
@@ -117,13 +130,23 @@ export function usePixelCanvas(
     const data = imageData.data;
     const outLayer = outputPixelsRef.current;
     const previewLayer = previewPixelsRef.current;
+    const hoverLayer = hoverPixelsRef.current;
+    const hoverEraseMask = hoverEraseMaskRef.current;
 
     for (let py = 0; py < h; py++) {
       const y0 = Math.round((py / h) * ch);
       const y1 = Math.round(((py + 1) / h) * ch);
       for (let px = 0; px < w; px++) {
         const srcIdx = (py * w + px) * 4;
-        const layer = previewLayer[srcIdx + 3] > 0 ? previewLayer : outLayer;
+        const maskIdx = py * w + px;
+        if (hoverEraseMask[maskIdx] !== 0) continue;
+
+        const layer =
+          hoverLayer[srcIdx + 3] > 0
+            ? hoverLayer
+            : previewLayer[srcIdx + 3] > 0
+              ? previewLayer
+              : outLayer;
         if (layer[srcIdx + 3] === 0) continue;
 
         const x0 = Math.round((px / w) * cw);
@@ -168,17 +191,6 @@ export function usePixelCanvas(
       ctx.fillRect(0, 0, cw, ch);
     }
     ctx.globalCompositeOperation = 'source-over';
-
-    // Draw brush hover shadow on top of everything
-    const hover = hoverRectRef.current;
-    if (hover) {
-      const hx0 = Math.round((hover.x0 / w) * cw);
-      const hy0 = Math.round((hover.y0 / h) * ch);
-      const hx1 = Math.round((hover.x1 / w) * cw);
-      const hy1 = Math.round((hover.y1 / h) * ch);
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-      ctx.fillRect(hx0, hy0, hx1 - hx0, hy1 - hy0);
-    }
   }, [cellSize, gridWidth, gridHeight, canvasSizeOpt?.w, canvasSizeOpt?.h]);
 
   // ---- Render preview thumbnail ----
@@ -253,7 +265,9 @@ export function usePixelCanvas(
     previewRef,
     outputPixelsRef,
     previewPixelsRef,
-    hoverRectRef,
+    hoverPixelsRef,
+    hoverEraseMaskRef,
+    clearHoverPreview,
     requestRender,
     saveToHistory,
     undo,

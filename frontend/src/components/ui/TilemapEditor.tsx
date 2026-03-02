@@ -215,7 +215,16 @@ const TilemapEditor = () => {
   const canvasDisplayW = Math.round(pixelW * cellSize);
   const canvasDisplayH = Math.round(pixelH * cellSize);
 
-  const { canvasRef, outputPixelsRef, previewPixelsRef, hoverRectRef, requestRender, resetPixelArrays } = usePixelCanvas(
+  const {
+    canvasRef,
+    outputPixelsRef,
+    previewPixelsRef,
+    hoverPixelsRef,
+    hoverEraseMaskRef,
+    clearHoverPreview,
+    requestRender,
+    resetPixelArrays,
+  } = usePixelCanvas(
     pixelW,
     pixelH,
     cellSize,
@@ -310,6 +319,13 @@ const TilemapEditor = () => {
     ds.brushSize = brushSize;
   }, [activeTool, effectiveSingleTile, selectedSecondaryTile, brushSize]);
 
+  const hoverPreviewResetKey = `${activeTool}:${brushSize}:${effectiveSingleTile ?? ''}:${selectedSecondaryTile ?? ''}`;
+  useEffect(() => {
+    if (!hoverPreviewResetKey) return;
+    clearHoverPreview();
+    requestRender();
+  }, [hoverPreviewResetKey, clearHoverPreview, requestRender]);
+
   // ── Preview cells for shape commit ──
   const previewCellsRef = useRef<{ row: number; col: number }[]>([]);
 
@@ -377,6 +393,76 @@ const TilemapEditor = () => {
       return cells;
     },
     [gridWidthTiles, gridHeightTiles],
+  );
+
+  const updateHoverPreview = useCallback(
+    (row: number, col: number, buttons: number, button: number) => {
+      clearHoverPreview();
+
+      if (!['place', 'line', 'rectangle', 'oval', 'eraser'].includes(activeTool)) {
+        requestRender();
+        return;
+      }
+
+      const cells = expandBrush(row, col, brushSize);
+      const useSecondaryTile = (buttons & 2) === 2 || button === 2;
+      const hoverTileKey = useSecondaryTile ? selectedSecondaryTile : effectiveSingleTile;
+      const hoverTilePixels = hoverTileKey ? tilePixelsRef.current[hoverTileKey] : null;
+      const shouldErasePreview = activeTool === 'eraser' || !hoverTilePixels;
+
+      if (shouldErasePreview) {
+        const eraseMask = hoverEraseMaskRef.current;
+        for (const cell of cells) {
+          eraseMask[cell.row * gridWidthTiles + cell.col] = 1;
+        }
+        requestRender();
+        return;
+      }
+
+      const hoverPixels = hoverPixelsRef.current;
+      for (const cell of cells) {
+        stampTileAtWithAlpha(hoverPixels, hoverTilePixels, cell.row, cell.col, pixelW, TILE_PX, 255);
+      }
+      requestRender();
+    },
+    [
+      activeTool,
+      brushSize,
+      clearHoverPreview,
+      effectiveSingleTile,
+      expandBrush,
+      gridWidthTiles,
+      hoverEraseMaskRef,
+      hoverPixelsRef,
+      pixelW,
+      requestRender,
+      selectedSecondaryTile,
+      tilePixelsRef,
+    ],
+  );
+
+  const clearCanvasHoverPreview = useCallback(() => {
+    setHoverCell(null);
+    clearHoverPreview();
+    requestRender();
+  }, [clearHoverPreview, requestRender]);
+
+  const handleCanvasPointerMove = useCallback(
+    (e: ReactPointerEvent<HTMLCanvasElement>) => {
+      if (!tilemap) return;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      const col = Math.floor(((e.clientX - rect.left) / rect.width) * tilemap.width);
+      const row = Math.floor(((e.clientY - rect.top) / rect.height) * tilemap.height);
+      if (col < 0 || col >= tilemap.width || row < 0 || row >= tilemap.height) {
+        clearCanvasHoverPreview();
+        return;
+      }
+      setHoverCell({ row, col });
+      updateHoverPreview(row, col, e.buttons, e.button);
+    },
+    [tilemap, canvasRef, clearCanvasHoverPreview, updateHoverPreview],
   );
 
   // ── Apply single cell placement (for pen / eraser drag with single tile) ──
@@ -1060,7 +1146,10 @@ const TilemapEditor = () => {
                           }}
                           onDragLeave={() => setDragOverTilesetCell(null)}
                           onDrop={(e) => handleTilesetDrop(e, rowIndex, colIndex)}
-                          className={`group relative aspect-square transition-colors cursor-pointer bg-light-tertiary dark:bg-dark-tertiary ${isDragOver ? '!bg-emerald-100 dark:!bg-emerald-900/30' : ''}`}
+                          className={
+                            `group relative aspect-square transition-colors cursor-pointer bg-light-tertiary dark:bg-dark-tertiary
+                            ${isDragOver && 'bg-emerald-100! dark:bg-emerald-900/30!'}`
+                          }
                           title={tileKey ?? 'Empty'}
                         >
                           {tileKey && tileTextures[tileKey] ? (
@@ -1136,7 +1225,6 @@ const TilemapEditor = () => {
             <span className='text-xs text-slate-500 dark:text-slate-400'>Show collidables</span>
           </label>
         </div>
-
         <div className='flex-1' />
       </div>
 
@@ -1171,34 +1259,8 @@ const TilemapEditor = () => {
                     imageRendering: 'pixelated',
                   }}
                   onPointerDown={handlePointerDown}
-                  onPointerMove={(e) => {
-                    if (!tilemap) return;
-                    const canvas = canvasRef.current;
-                    if (!canvas) return;
-                    const rect = canvas.getBoundingClientRect();
-                    const col = Math.floor(((e.clientX - rect.left) / rect.width) * tilemap.width);
-                    const row = Math.floor(((e.clientY - rect.top) / rect.height) * tilemap.height);
-                    if (col < 0 || col >= tilemap.width || row < 0 || row >= tilemap.height) {
-                      setHoverCell(null);
-                      hoverRectRef.current = null;
-                      requestRender();
-                      return;
-                    }
-                    setHoverCell({ row, col });
-                    const off = Math.floor(brushSize / 2);
-                    hoverRectRef.current = {
-                      x0: Math.max(0, col - off) * TILE_PX,
-                      y0: Math.max(0, row - off) * TILE_PX,
-                      x1: Math.min(tilemap.width, col - off + brushSize) * TILE_PX,
-                      y1: Math.min(tilemap.height, row - off + brushSize) * TILE_PX,
-                    };
-                    requestRender();
-                  }}
-                  onPointerLeave={() => {
-                    setHoverCell(null);
-                    hoverRectRef.current = null;
-                    requestRender();
-                  }}
+                  onPointerMove={handleCanvasPointerMove}
+                  onPointerLeave={clearCanvasHoverPreview}
                   onContextMenu={(e) => e.preventDefault()}
                 />
                 {showCollidables && (

@@ -207,7 +207,7 @@ const SpritePhysicsCurtain = () => {
   );
 
   return (
-    <div className="grid grid-cols-3 gap-x-4 gap-y-2.5 text-xs [grid-auto-rows:minmax(24px,auto)] items-center">
+    <div className="grid grid-cols-3 gap-x-4 gap-y-2.5 text-xs auto-rows-[minmax(24px,auto)] items-center">
       {/* Row 0: Collides with walls | Pushes objects | Gravity */}
       <ToggleIcon
         checked={collidesWithWalls}

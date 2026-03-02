@@ -16,6 +16,22 @@ import type { SpriteInstance } from '@/blockly/spriteRegistry';
 import { addSpriteSync } from '@/hooks/yjs/useWorkspaceSync';
 import { type Tool } from '../SpriteModal/EditorTools';
 
+const BRUSH_PREVIEW_TOOLS: Tool[] = ['pen', 'line', 'rectangle', 'oval'];
+
+const hexToRgb = (hex: string): { r: number; g: number; b: number } | null => {
+  const normalized = hex.trim();
+  const fullHex = normalized.length === 4
+    ? `#${normalized[1]}${normalized[1]}${normalized[2]}${normalized[2]}${normalized[3]}${normalized[3]}`
+    : normalized;
+  const match = /^#([0-9a-f]{6})$/i.exec(fullHex);
+  if (!match) return null;
+  return {
+    r: Number.parseInt(match[1].slice(0, 2), 16),
+    g: Number.parseInt(match[1].slice(2, 4), 16),
+    b: Number.parseInt(match[1].slice(4, 6), 16),
+  };
+};
+
 const SpriteEditor = () => {
   // --- UI state (drives rendering) ---
   const [spriteName, setSpriteName] = useState('mySprite');
@@ -61,7 +77,9 @@ const SpriteEditor = () => {
     previewRef,
     outputPixelsRef,
     previewPixelsRef,
-    hoverRectRef,
+    hoverPixelsRef,
+    hoverEraseMaskRef,
+    clearHoverPreview,
     requestRender,
     saveToHistory,
     undo,
@@ -99,20 +117,61 @@ const SpriteEditor = () => {
     const x = Math.floor(((e.clientX - rect.left) / rect.width) * gridWidth);
     const y = Math.floor(((e.clientY - rect.top) / rect.height) * gridHeight);
     if (x < 0 || x >= gridWidth || y < 0 || y >= gridHeight) { clearHover(); return; }
+
+    clearHoverPreview();
     const offset = Math.floor(brushSize / 2);
-    hoverRectRef.current = {
-      x0: Math.max(0, x - offset),
-      y0: Math.max(0, y - offset),
-      x1: Math.min(gridWidth, x - offset + brushSize),
-      y1: Math.min(gridHeight, y - offset + brushSize),
-    };
+    const startX = Math.max(0, x - offset);
+    const startY = Math.max(0, y - offset);
+    const endX = Math.min(gridWidth, x - offset + brushSize);
+    const endY = Math.min(gridHeight, y - offset + brushSize);
+
+    if (activeTool === 'eraser') {
+      const hoverEraseMask = hoverEraseMaskRef.current;
+      for (let py = startY; py < endY; py++) {
+        for (let px = startX; px < endX; px++) {
+          hoverEraseMask[py * gridWidth + px] = 1;
+        }
+      }
+      requestRender();
+      return;
+    }
+
+    if (!BRUSH_PREVIEW_TOOLS.includes(activeTool)) {
+      requestRender();
+      return;
+    }
+
+    const useSecondaryColor = (e.buttons & 2) === 2 || e.button === 2;
+    const previewColor = useSecondaryColor ? secondaryColor : primaryColor;
+    const rgb = hexToRgb(previewColor);
+    if (!rgb) {
+      requestRender();
+      return;
+    }
+
+    const hoverPixels = hoverPixelsRef.current;
+    for (let py = startY; py < endY; py++) {
+      for (let px = startX; px < endX; px++) {
+        const idx = (py * gridWidth + px) * 4;
+        hoverPixels[idx] = rgb.r;
+        hoverPixels[idx + 1] = rgb.g;
+        hoverPixels[idx + 2] = rgb.b;
+        hoverPixels[idx + 3] = 255;
+      }
+    }
     requestRender();
   };
 
   const clearHover = () => {
-    hoverRectRef.current = null;
+    clearHoverPreview();
     requestRender();
   };
+
+  useEffect(() => {
+    if (!activeTool) return;
+    clearHoverPreview();
+    requestRender();
+  }, [activeTool, clearHoverPreview, requestRender]);
 
   const closeSpriteModal = () => {
     useGeckodeStore.setState({ editingSource: null, editingAssetName: null, editingAssetType: null, editingTextureToLoad: null });
