@@ -9,8 +9,6 @@ import TextureDetailPanel from './DetailPanel';
 import TileEditorModal from '../TileModal/TileEditorModal';
 import TilesetEditorModal from '../TileModal/TilesetEditorModal';
 import { useSnackbar } from '@/hooks/useSnackbar';
-import projectsApi from '@/lib/api/handlers/projects';
-import { Asset } from '@/lib/types/api/assets';
 
 export type SelectedAsset = { name: string; type: AssetType } | null;
 
@@ -38,11 +36,6 @@ const AssetWorkspace = () => {
   const setEditingAsset = useGeckodeStore((s) => s.setEditingAsset);
   const setIsSpriteModalOpen = useGeckodeStore((s) => s.setIsSpriteModalOpen);
   const setSpriteModalContext = useGeckodeStore((s) => s.setSpriteModalContext);
-  const assetIds = useGeckodeStore((s) => s.assetIds);
-  const addAssetId = useGeckodeStore((s) => s.addAssetId);
-  const updateAssetId = useGeckodeStore((s) => s.updateAssetId);
-  const removeAssetId = useGeckodeStore((s) => s.removeAssetId);
-  const projectId = useGeckodeStore((s) => s.projectId);
   const showSnackbar = useSnackbar();
 
   const selectedTileset =
@@ -92,69 +85,13 @@ const AssetWorkspace = () => {
     const nameMap = Object.fromEntries(Object.keys(all).map((k) => [k, '']));
     const newName = createUniqueTextureName(selectedAsset.name, nameMap);
 
-    const uploadSuccess = await addAssetToBackend(newName, selectedBase64, selectedAsset.type);
-    if (uploadSuccess) {
-      setAsset(newName, selectedBase64, selectedAsset.type);
-      showSnackbar(`Successfully duplicated ${selectedAsset.name}!`, 'success');
-      setSelectedAsset({ name: newName, type: selectedAsset.type });
-    } else {
-      showSnackbar(`Failed to duplicate ${selectedAsset.name}!`, 'error');
-    }
+    setAsset(newName, selectedBase64, selectedAsset.type);
+    setSelectedAsset({ name: newName, type: selectedAsset.type });
   };
 
   const handleCopy = async () => {
     if (!selectedBase64) return;
     await navigator.clipboard.writeText(selectedBase64);
-  };
-
-  const addAssetToBackend = async (name: string, base64string: string, assetType = 'textures'): Promise<boolean> => {
-    var success: boolean = true; // if connected to backend, becomes false if request fails
-    console.log({
-      name: name,
-      asset: base64string,
-      asset_type: assetType,
-    });
-    if (projectId) {
-      await projectsApi(projectId)
-        .assetsApi.create({
-          name: name,
-          asset: base64string,
-          asset_type: assetType,
-        })
-        .then((res) => addAssetId(res.name, res.id))
-        .catch(() => (success = false));
-    }
-    return success;
-  };
-
-  const updateTextureInBackend = async (textureName: string, props: Partial<Asset>): Promise<boolean> => {
-    var success: boolean = true; // if connected to backend, becomes false if request fails
-    if (projectId && textureName in assetIds) {
-      const id = assetIds[textureName];
-      await projectsApi(projectId)
-        .assetsApi(id)
-        .update(props)
-        .then(() => {
-          if (props.name) updateAssetId(textureName, props.name); // update asset name if changed
-        })
-        .catch(() => (success = false));
-    }
-    return success;
-  };
-
-  const deleteTextureInBackend = async (textureName: string): Promise<boolean> => {
-    var success: boolean = true; // if connected to backend, becomes false if request fails
-    if (projectId && textureName in assetIds) {
-      const id = assetIds[textureName];
-      await projectsApi(projectId)
-        .assetsApi(id)
-        .delete()
-        .then(() => {
-          removeAssetId(textureName);
-        })
-        .catch(() => (success = false));
-    }
-    return success;
   };
 
   const handleDelete = async () => {
@@ -170,13 +107,7 @@ const AssetWorkspace = () => {
         showSnackbar('A texture may only be deleted if no sprites are using it.', 'error');
         return;
       }
-      const uploadSuccess = await deleteTextureInBackend(selectedAsset.name);
-      if (uploadSuccess) {
-        showSnackbar(`Successfully deleted ${selectedAsset.name}!`, 'success');
-        removeAsset(selectedAsset.name, selectedAsset.type);
-      } else {
-        showSnackbar(`Failed to deleted ${selectedAsset.name}!`, 'error');
-      }
+      removeAsset(selectedAsset.name, selectedAsset.type);
     }
     setSelectedAsset(null);
   };
