@@ -1,14 +1,26 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ChevronDownIcon } from '@radix-ui/react-icons';
+import {
+  Square,
+  Hand,
+  Globe,
+  Box,
+  Move,
+  ArrowDown,
+  ArrowUpFromLine,
+  Blocks,
+  SquareArrowRightExit,
+  ArrowRightToLine,
+  ArrowUpNarrowWide,
+} from 'lucide-react';
 import { useGeckodeStore } from '@/stores/geckodeStore';
 import type { SpritePhysics } from '@/blockly/spriteRegistry';
-import { NumericField } from './SpritePosition';
-import { labelClasses } from './spritePositionUtils';
-
-interface SpritePhysicsCurtainProps {
-  isExpanded: boolean;
-  onToggle: () => void;
-}
+import {
+  labelClasses,
+  numericInputClasses,
+  visibilityButtonBaseClasses,
+  visibilityButtonActiveClasses,
+  visibilityButtonInactiveClasses,
+} from './spritePositionUtils';
 
 const DEFAULT_PHYSICS: SpritePhysics = {
   pushesObjects: false,
@@ -36,7 +48,7 @@ function buildPhysicsFormValues(physics: SpritePhysics | undefined): PhysicsForm
   };
 }
 
-const SpritePhysicsCurtain = ({ isExpanded, onToggle }: SpritePhysicsCurtainProps) => {
+const SpritePhysicsCurtain = () => {
   const selectedSpriteId = useGeckodeStore((state) => state.selectedSpriteId);
   const selectedSprite = useGeckodeStore((s) =>
     s.selectedSpriteId !== null
@@ -114,130 +126,162 @@ const SpritePhysicsCurtain = ({ isExpanded, onToggle }: SpritePhysicsCurtainProp
 
   const disabled = !selectedSprite;
 
-  return (
-    <>
-      {/* Chevron toggle button - always visible, sits in normal flow */}
+  const iconSize = 14;
+  const ToggleIcon = ({
+    checked,
+    onToggle,
+    icon: Icon,
+    label,
+    disabled: d,
+  }: {
+    checked: boolean;
+    onToggle: () => void;
+    icon: React.ComponentType<{ size?: number; className?: string }>;
+    label: string;
+    disabled?: boolean;
+  }) => (
+    <label className={`grid grid-cols-[auto_minmax(0,1fr)] items-center gap-1.5 ${d ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
       <button
         type="button"
         onClick={onToggle}
-        className="w-full h-3 flex items-center justify-center bg-slate-200/60 hover:bg-slate-300/80 dark:bg-slate-700/40 dark:hover:bg-slate-600/60 transition-colors cursor-pointer rounded-sm z-10 relative"
-        title={isExpanded ? 'Hide physics settings' : 'Show physics settings'}
-      >
-        <ChevronDownIcon
-          className={`h-3 w-3 text-slate-500 dark:text-slate-400 transition-transform duration-300 ${
-            isExpanded ? 'rotate-180' : ''
-          }`}
-        />
-      </button>
-
-      {/* Expandable content - overlays on top of content below, stretches to bottom */}
-      <div
-        className={`absolute left-0 right-0 top-3 bottom-0 z-20 bg-light-secondary dark:bg-dark-secondary flex flex-col transition-all duration-300 ease-in-out ${
-          isExpanded ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        disabled={d}
+        className={`${visibilityButtonBaseClasses} rounded-md shrink-0 ${
+          checked ? visibilityButtonActiveClasses : visibilityButtonInactiveClasses
         }`}
+        title={label}
       >
-        <div className="px-0 pt-3 pb-2">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
-              Physics Settings
-            </span>
-          </div>
+        <Icon size={iconSize} className="shrink-0" />
+      </button>
+      <span
+        className={`${labelClasses} select-none`}
+        onClick={(e) => {
+          if (!d) {
+            e.preventDefault();
+            onToggle();
+          }
+        }}
+      >
+        {label}
+      </span>
+    </label>
+  );
 
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs">
-            {/* Pushes objects */}
-            <label className="flex cursor-pointer items-center gap-1.5">
-              <input
-                type="checkbox"
-                checked={pushesObjects}
-                onChange={() => handleToggleField('pushesObjects', !pushesObjects)}
-                disabled={disabled}
-                className="h-3.5 w-3.5 accent-primary-green cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              />
-              <span className={labelClasses}>Pushes objects</span>
-            </label>
+  const NumericWithIcon = ({
+    icon: Icon,
+    label,
+    id,
+    value,
+    onChange,
+    onBlur,
+    disabled: d,
+    min,
+    max,
+  }: {
+    icon: React.ComponentType<{ size?: number; className?: string }>;
+    label: string;
+    id: string;
+    value: string;
+    onChange: (v: string) => void;
+    onBlur: () => void;
+    disabled?: boolean;
+    min?: number;
+    max?: number;
+  }) => (
+    <div className="grid grid-cols-[5rem_auto] items-center gap-1.5">
+      <label htmlFor={id} className="flex items-center gap-1.5 min-w-0">
+        <Icon size={iconSize} className="text-slate-500 dark:text-slate-400 shrink-0" />
+        <span className={labelClasses}>{label}</span>
+      </label>
+      <input
+        id={id}
+        type="number"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
+        disabled={d}
+        min={min}
+        max={max}
+        className={numericInputClasses}
+      />
+    </div>
+  );
 
-            {/* Pushable */}
-            <label className="flex cursor-pointer items-center gap-1.5">
-              <input
-                type="checkbox"
-                checked={pushable}
-                onChange={() => handleToggleField('pushable', !pushable)}
-                disabled={disabled}
-                className="h-3.5 w-3.5 accent-primary-green cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              />
-              <span className={labelClasses}>Pushable</span>
-            </label>
+  return (
+    <div className="grid grid-cols-3 gap-x-4 gap-y-2.5 text-xs [grid-auto-rows:minmax(24px,auto)] items-center">
+      {/* Row 0: Collides with walls | Pushes objects | Gravity */}
+      <ToggleIcon
+        checked={collidesWithWalls}
+        onToggle={() => handleToggleField('collidesWithWalls', !collidesWithWalls)}
+        icon={Blocks}
+        label="Collides with solids"
+        disabled={disabled}
+      />
+      <ToggleIcon
+        checked={pushesObjects}
+        onToggle={() => handleToggleField('pushesObjects', !pushesObjects)}
+        icon={ArrowRightToLine}
+        label="Pushes objects"
+        disabled={disabled}
+      />
+      <NumericWithIcon
+        icon={ArrowDown}
+        label="Gravity"
+        id="sprite-gravity"
+        value={values.gravityY}
+        onChange={(v) => handleInputChange('gravityY', v)}
+        onBlur={handleBlurGravityY}
+        disabled={disabled}
+      />
 
-            {/* Collides with walls */}
-            <label className="flex cursor-pointer items-center gap-1.5">
-              <input
-                type="checkbox"
-                checked={collidesWithWalls}
-                onChange={() => handleToggleField('collidesWithWalls', !collidesWithWalls)}
-                disabled={disabled}
-                className="h-3.5 w-3.5 accent-primary-green cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              />
-              <span className={labelClasses}>Collides with walls</span>
-            </label>
+      {/* Row 1: Is solid | Pushable | Bounce */}
+      <ToggleIcon
+        checked={isSolid}
+        onToggle={() => handleToggleField('isSolid', !isSolid)}
+        icon={Box}
+        label="Is solid"
+        disabled={disabled}
+      />
+      <ToggleIcon
+        checked={pushable}
+        onToggle={() => handleToggleField('pushable', !pushable)}
+        icon={SquareArrowRightExit}
+        label="Pushable"
+        disabled={disabled}
+      />
+      <NumericWithIcon
+        icon={ArrowUpFromLine}
+        label="Bounce"
+        id="sprite-bounce"
+        value={values.bounce}
+        onChange={(v) => handleInputChange('bounce', v)}
+        onBlur={handleBlurBounce}
+        disabled={disabled}
+        min={0}
+        max={1}
+      />
 
-            {/* Is solid */}
-            <label className="flex cursor-pointer items-center gap-1.5">
-              <input
-                type="checkbox"
-                checked={isSolid}
-                onChange={() => handleToggleField('isSolid', !isSolid)}
-                disabled={disabled}
-                className="h-3.5 w-3.5 accent-primary-green cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              />
-              <span className={labelClasses}>Is solid</span>
-            </label>
-
-            {/* Collide World Bounds */}
-            <label className="flex cursor-pointer items-center gap-1.5">
-              <input
-                type="checkbox"
-                checked={collideWorldBounds}
-                onChange={() => handleToggleField('collideWorldBounds', !collideWorldBounds)}
-                disabled={disabled}
-                className="h-3.5 w-3.5 accent-primary-green cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              />
-              <span className={labelClasses}>World Bounds</span>
-            </label>
-
-            {/* Gravity Y */}
-            <NumericField
-              label="Gravity"
-              value={values.gravityY}
-              disabled={disabled}
-              onChange={(v) => handleInputChange('gravityY', v)}
-              onBlur={handleBlurGravityY}
-            />
-
-            {/* Bounce */}
-            <NumericField
-              label="Bounce"
-              value={values.bounce}
-              disabled={disabled}
-              min="0"
-              max="1"
-              onChange={(v) => handleInputChange('bounce', v)}
-              onBlur={handleBlurBounce}
-            />
-
-            {/* Drag */}
-            <NumericField
-              label="Drag"
-              value={values.drag}
-              disabled={disabled}
-              min="0"
-              max="1"
-              onChange={(v) => handleInputChange('drag', v)}
-              onBlur={handleBlurDrag}
-            />
-          </div>
-        </div>
+      {/* Row 2: World Bounds (centered across cols 1–2) | Drag */}
+      <div className="col-span-2 flex justify-center">
+        <ToggleIcon
+          checked={collideWorldBounds}
+          onToggle={() => handleToggleField('collideWorldBounds', !collideWorldBounds)}
+          icon={Globe}
+          label="World Bounds"
+          disabled={disabled}
+        />
       </div>
-    </>
+      <NumericWithIcon
+        icon={ArrowUpNarrowWide}
+        label="Drag"
+        id="sprite-drag"
+        value={values.drag}
+        onChange={(v) => handleInputChange('drag', v)}
+        onBlur={handleBlurDrag}
+        disabled={disabled}
+        min={0}
+        max={1}
+      />
+    </div>
   );
 };
 

@@ -59,7 +59,7 @@ export function NumericField({
   );
 }
 
-const SpritePosition = () => {
+const SpritePosition = ({ borderless }: { borderless?: boolean }) => {
   const selectedSpriteId = useGeckodeStore((s) => s.selectedSpriteId);
   const selectedSprite = useGeckodeStore((s) =>
     s.selectedSpriteId !== null
@@ -211,7 +211,7 @@ const SpritePosition = () => {
   const disabled = !selectedSprite;
 
   return (
-    <div className="w-full pb-3 mb-3 border-b border-slate-300 dark:border-slate-600">
+    <div className={`w-full ${borderless ? '' : 'pb-3 mb-3 border-b border-slate-300 dark:border-slate-600'}`}>
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs">
         <div className="flex items-center gap-2">
           <label htmlFor="sprite-name" className={labelClasses}>

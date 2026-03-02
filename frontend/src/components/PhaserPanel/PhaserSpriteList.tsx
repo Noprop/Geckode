@@ -18,7 +18,7 @@ const PhaserSpriteList = () => {
     if (sprites.length === 0) return;
     if (selectedSpriteId === null)
       setSelectedSpriteId(sprites[0].id);
-  }, []);
+  }, [sprites]);
 
   return (
     <div className="w-2/3 flex flex-col min-h-0 pr-3 border-r border-slate-300 dark:border-slate-600 overflow-hidden">

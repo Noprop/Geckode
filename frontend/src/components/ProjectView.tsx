@@ -192,7 +192,7 @@ const ProjectView = () => {
         )}
       </div>
 
-      <div className='flex flex-col pr-2 pt-2' style={{ width: '480px' }}>
+      <div className='flex flex-col pr-2 pt-2 overflow-x-hidden' style={{ width: '480px' }}>
         <Phaser />
       </div>
     </div>
