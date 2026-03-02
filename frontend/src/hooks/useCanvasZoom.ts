@@ -25,11 +25,11 @@ export function useCanvasZoom(
         )
       : 1;
 
-  // offset 0 → exact fractional fit; otherwise integer steps from floor(baseZoom)
+  // offset 0 → exact fractional fit; otherwise steps from baseZoom
   const cellSize =
     zoomOffset === 0
       ? Math.max(MIN_CELL_SIZE, baseZoom)
-      : Math.max(MIN_CELL_SIZE, Math.min(MAX_CELL_SIZE, Math.floor(baseZoom) + zoomOffset));
+      : Math.max(MIN_CELL_SIZE, Math.min(MAX_CELL_SIZE, baseZoom + zoomOffset));
 
   // Keep scroll centered on zoom changes
   const prevCellSizeRef = useRef(cellSize);
@@ -47,23 +47,23 @@ export function useCanvasZoom(
   const zoomIn = useCallback(() => {
     setZoomOffset((o) => {
       const next = o === 0 ? step : o + step;
-      return Math.floor(baseZoom) + next <= MAX_CELL_SIZE ? next : o;
+      return baseZoom + next <= MAX_CELL_SIZE ? next : o;
     });
   }, [baseZoom, step]);
 
   const zoomOut = useCallback(() => {
     setZoomOffset((o) => {
       const next = o === 0 ? -step : o - step;
-      return Math.floor(baseZoom) + next >= MIN_CELL_SIZE ? next : o;
+      return baseZoom + next >= MIN_CELL_SIZE ? next : o;
     });
   }, [baseZoom, step]);
 
   const canZoomIn = zoomOffset === 0
-    ? Math.floor(baseZoom) + step <= MAX_CELL_SIZE
-    : Math.floor(baseZoom) + zoomOffset + step <= MAX_CELL_SIZE;
+    ? baseZoom + step <= MAX_CELL_SIZE
+    : baseZoom + zoomOffset + step <= MAX_CELL_SIZE;
   const canZoomOut = zoomOffset === 0
-    ? Math.floor(baseZoom) - step >= MIN_CELL_SIZE
-    : Math.floor(baseZoom) + zoomOffset - step >= MIN_CELL_SIZE;
+    ? baseZoom - step >= MIN_CELL_SIZE
+    : baseZoom + zoomOffset - step >= MIN_CELL_SIZE;
 
   // Keep refs so the wheel handler reads the latest values
   const zoomOffsetRef = useRef(zoomOffset);
@@ -86,10 +86,10 @@ export function useCanvasZoom(
         const s = stepRef.current;
         if (e.deltaY > 0) {
           const next = o === 0 ? -s : o - s;
-          if (Math.floor(bz) + next >= MIN_CELL_SIZE) setZoomOffset(next);
+          if (bz + next >= MIN_CELL_SIZE) setZoomOffset(next);
         } else {
           const next = o === 0 ? s : o + s;
-          if (Math.floor(bz) + next <= MAX_CELL_SIZE) setZoomOffset(next);
+          if (bz + next <= MAX_CELL_SIZE) setZoomOffset(next);
         }
       }
     };
