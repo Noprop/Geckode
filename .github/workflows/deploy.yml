@@ -19,12 +19,10 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            source ~/.bashrc
             set -e
             cd /var/www/geckode/frontend
-
             git pull origin main
-
-            # Frontend
             pnpm i
             pnpm run build
 
