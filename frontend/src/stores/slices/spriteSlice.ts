@@ -250,6 +250,50 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
     set({ spriteInstances: updatedInstances });
   },
 
+  duplicateSpriteInstance: (spriteId: string, syncAfter: boolean = true) => {
+    const { spriteInstances, spriteWorkspaces, phaserScene, blocklyWorkspace, selectedSpriteId } = get();
+    const source = spriteInstances.find((i) => i.id === spriteId);
+    if (!source) return;
+
+    const instance: SpriteInstance = {
+      ...source,
+      id: `id_${Date.now()}`,
+      name: createUniqueSpriteName(source.name, spriteInstances),
+    };
+
+    const sourceWorkspace =
+      spriteId === selectedSpriteId && blocklyWorkspace
+        ? blocklyWorkspace
+        : spriteWorkspaces[spriteId];
+
+    let newWorkspace = new Blockly.Workspace();
+    if (sourceWorkspace) {
+      Blockly.Events.disable();
+      try {
+        const state = Blockly.serialization.workspaces.save(sourceWorkspace);
+        Blockly.serialization.workspaces.load(state, newWorkspace);
+      } finally {
+        Blockly.Events.enable();
+      }
+    }
+
+    set({
+      spriteInstances: [...spriteInstances, instance],
+      spriteWorkspaces: {
+        ...spriteWorkspaces,
+        [instance.id]: newWorkspace,
+      },
+    });
+
+    if (phaserScene instanceof EditorScene) {
+      phaserScene.createSprite(instance);
+    }
+
+    if (syncAfter) {
+      addSpriteSync(instance);
+    }
+  },
+
   saveSprite: ({ spriteName, base64Image, syncAfter = true }) => {
     const { editingSource, editingAssetName, textures, spriteWorkspaces, phaserScene } = get();
     let textureName: string;

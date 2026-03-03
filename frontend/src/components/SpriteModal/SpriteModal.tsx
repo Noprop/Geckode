@@ -18,6 +18,7 @@ const SpriteModal = () => {
     useGeckodeStore.setState({ editingSource: null, editingAssetName: null, editingAssetType: null, editingTextureToLoad: null });
     clearSpriteModalContext();
     setIsSpriteModalOpen(false);
+    setActiveTab('editor');
   };
 
   useEffect(() => {
@@ -87,9 +88,27 @@ const SpriteModal = () => {
           </div>
         </div>
 
-        {activeTab === 'library' && <SpriteLibrary setActiveTab={setActiveTab} />}
-        {activeTab === 'assets' && <SpriteAssets setActiveTab={setActiveTab} />}
-        {activeTab === 'editor' && <SpriteEditor />}
+        <div
+          className="flex-1 min-h-0 flex flex-col overflow-hidden"
+          style={{ display: activeTab === 'library' ? 'flex' : 'none' }}
+          aria-hidden={activeTab !== 'library'}
+        >
+          <SpriteLibrary setActiveTab={setActiveTab} />
+        </div>
+        <div
+          className="flex-1 min-h-0 flex flex-col overflow-hidden"
+          style={{ display: activeTab === 'assets' ? 'flex' : 'none' }}
+          aria-hidden={activeTab !== 'assets'}
+        >
+          <SpriteAssets setActiveTab={setActiveTab} />
+        </div>
+        <div
+          className="flex-1 min-h-0 flex flex-col overflow-hidden"
+          style={{ display: activeTab === 'editor' ? 'flex' : 'none' }}
+          aria-hidden={activeTab !== 'editor'}
+        >
+          <SpriteEditor />
+        </div>
       </div>
     </div>
   );
