@@ -48,6 +48,86 @@ function buildPhysicsFormValues(physics: SpritePhysics | undefined): PhysicsForm
   };
 }
 
+const iconSize = 14;
+const ToggleIcon = ({
+  checked,
+  onToggle,
+  icon: Icon,
+  label,
+  disabled: d,
+}: {
+  checked: boolean;
+  onToggle: () => void;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  label: string;
+  disabled?: boolean;
+}) => (
+  <label className={`grid grid-cols-[auto_minmax(0,1fr)] items-center gap-1.5 ${d ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+    <button
+      type="button"
+      onClick={onToggle}
+      disabled={d}
+      className={`${visibilityButtonBaseClasses} rounded-md shrink-0 ${
+        checked ? visibilityButtonActiveClasses : visibilityButtonInactiveClasses
+      }`}
+      title={label}
+    >
+      <Icon size={iconSize} className="shrink-0" />
+    </button>
+    <span
+      className={`${labelClasses} select-none`}
+      onClick={(e) => {
+        if (!d) {
+          e.preventDefault();
+          onToggle();
+        }
+      }}
+    >
+      {label}
+    </span>
+  </label>
+);
+
+const NumericWithIcon = ({
+  icon: Icon,
+  label,
+  id,
+  value,
+  onChange,
+  onBlur,
+  disabled: d,
+  min,
+  max,
+}: {
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  label: string;
+  id: string;
+  value: string;
+  onChange: (v: string) => void;
+  onBlur: () => void;
+  disabled?: boolean;
+  min?: number;
+  max?: number;
+}) => (
+  <div className="grid grid-cols-[5rem_auto] items-center gap-1.5">
+    <label htmlFor={id} className="flex items-center gap-1.5 min-w-0">
+      <Icon size={iconSize} className="text-slate-500 dark:text-slate-400 shrink-0" />
+      <span className={labelClasses}>{label}</span>
+    </label>
+    <input
+      id={id}
+      type="number"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onBlur={onBlur}
+      disabled={d}
+      min={min}
+      max={max}
+      className={numericInputClasses}
+    />
+  </div>
+);
+
 const SpritePhysicsCurtain = () => {
   const selectedSpriteId = useGeckodeStore((state) => state.selectedSpriteId);
   const selectedSprite = useGeckodeStore((s) =>
@@ -125,86 +205,6 @@ const SpritePhysicsCurtain = () => {
   }, [selectedSpriteId, selectedSprite, values.drag, updateSpriteInstance]);
 
   const disabled = !selectedSprite;
-
-  const iconSize = 14;
-  const ToggleIcon = ({
-    checked,
-    onToggle,
-    icon: Icon,
-    label,
-    disabled: d,
-  }: {
-    checked: boolean;
-    onToggle: () => void;
-    icon: React.ComponentType<{ size?: number; className?: string }>;
-    label: string;
-    disabled?: boolean;
-  }) => (
-    <label className={`grid grid-cols-[auto_minmax(0,1fr)] items-center gap-1.5 ${d ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
-      <button
-        type="button"
-        onClick={onToggle}
-        disabled={d}
-        className={`${visibilityButtonBaseClasses} rounded-md shrink-0 ${
-          checked ? visibilityButtonActiveClasses : visibilityButtonInactiveClasses
-        }`}
-        title={label}
-      >
-        <Icon size={iconSize} className="shrink-0" />
-      </button>
-      <span
-        className={`${labelClasses} select-none`}
-        onClick={(e) => {
-          if (!d) {
-            e.preventDefault();
-            onToggle();
-          }
-        }}
-      >
-        {label}
-      </span>
-    </label>
-  );
-
-  const NumericWithIcon = ({
-    icon: Icon,
-    label,
-    id,
-    value,
-    onChange,
-    onBlur,
-    disabled: d,
-    min,
-    max,
-  }: {
-    icon: React.ComponentType<{ size?: number; className?: string }>;
-    label: string;
-    id: string;
-    value: string;
-    onChange: (v: string) => void;
-    onBlur: () => void;
-    disabled?: boolean;
-    min?: number;
-    max?: number;
-  }) => (
-    <div className="grid grid-cols-[5rem_auto] items-center gap-1.5">
-      <label htmlFor={id} className="flex items-center gap-1.5 min-w-0">
-        <Icon size={iconSize} className="text-slate-500 dark:text-slate-400 shrink-0" />
-        <span className={labelClasses}>{label}</span>
-      </label>
-      <input
-        id={id}
-        type="number"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onBlur={onBlur}
-        disabled={d}
-        min={min}
-        max={max}
-        className={numericInputClasses}
-      />
-    </div>
-  );
 
   return (
     <div className="grid grid-cols-3 gap-x-4 gap-y-2.5 text-xs auto-rows-[minmax(24px,auto)] items-center">
