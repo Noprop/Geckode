@@ -1,15 +1,23 @@
 'use client';
 
-import { useState } from 'react';
-import { GitHubLogoIcon, DownloadIcon, ResetIcon } from '@radix-ui/react-icons';
+import { ReactNode, useContext, useEffect, useState } from 'react';
+import { DownloadIcon, ResetIcon } from '@radix-ui/react-icons';
 import { useGeckodeStore } from '@/stores/geckodeStore';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { Modal } from '@/components/ui/modals/Modal';
+import { YjsContext } from '@/contexts/YjsContext';
 
-export default function ProjectControls() {
+export default function ProjectControls(): ReactNode {
   const showSnackbar = useSnackbar();
-  const { projectName, setProjectName, saveProject, persistence } = useGeckodeStore();
-  const [showResetModal, setShowResetModal] = useState(false);
+  const { projectId, projectName, setProjectName, saveProject, persistence } = useGeckodeStore();
+  const documentName = String(projectId ?? '');
+  const yjsContext = useContext(YjsContext);
+  const [showResetModal, setShowResetModal] = useState<boolean>(false);
+  const [persistenceOn, setPersistenceOn] = useState<boolean>(false);
+
+  useEffect(() => {
+    setPersistenceOn(!!persistence);
+  }, [persistence]);
 
   const handleSave = () => {
     saveProject(showSnackbar);
@@ -20,12 +28,26 @@ export default function ProjectControls() {
   };
 
   const handleResetConfirm = () => {
-    persistence?.clearData();
+    if (yjsContext) {
+      yjsContext.disablePersistence(documentName);
+    }
     window.location.reload();
   };
 
   const handleResetCancel = () => {
     setShowResetModal(false);
+  };
+
+  const handleTogglePersistence = () => {
+    if (!yjsContext) return;
+
+    if (persistenceOn) {
+      yjsContext.disablePersistence(documentName);
+      setPersistenceOn(false);
+    } else {
+      yjsContext.enablePersistence(documentName);
+      setPersistenceOn(true);
+    }
   };
 
   return (
@@ -58,9 +80,39 @@ export default function ProjectControls() {
         <button onClick={handleResetClick} title='Reset Project' className='header-btn'>
           <ResetIcon className='w-4 h-4' />
         </button>
-        <button title='GitHub (Coming Soon)' className='header-btn'>
-          <GitHubLogoIcon className='w-4 h-4' />
-        </button>
+        {yjsContext && (
+          <button
+            onClick={handleTogglePersistence}
+            title={persistenceOn ? 'Disable Browser Storage' : 'Enable Browser Storage'}
+            className='header-btn'
+          >
+            <svg
+              xmlns='http://www.w3.org/2000/svg'
+              viewBox='0 0 24 24'
+              fill='none'
+              stroke='currentColor'
+              strokeWidth='2'
+              strokeLinecap='round'
+              strokeLinejoin='round'
+              className='w-4 h-4'
+            >
+              {persistenceOn ? (
+                <>
+                  <ellipse cx='12' cy='6' rx='8' ry='3' />
+                  <path d='M4 6v6c0 1.66 3.58 3 8 3s8-1.34 8-3V6' />
+                  <path d='M4 12v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6' />
+                </>
+              ) : (
+                <>
+                  <ellipse cx='12' cy='6' rx='8' ry='3' />
+                  <path d='M4 6v6c0 1.66 3.58 3 8 3s8-1.34 8-3V6' />
+                  <path d='M4 12v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6' />
+                  <line x1='3' y1='3' x2='21' y2='21' strokeWidth='2.5' />
+                </>
+              )}
+            </svg>
+          </button>
+        )}
         <button title='Download (Coming Soon)' className='header-btn'>
           <DownloadIcon className='w-4 h-4' />
         </button>

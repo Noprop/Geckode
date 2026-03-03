@@ -133,17 +133,16 @@ server.listen();
 console.log('Hocuspocus server running at ws://localhost:1234');
 
 // Listen for project updates coming from Django via Redis pub/sub
-const PROJECT_NAME_CHANNEL = "yjs:project_name_updates";
 const PROJECT_UPDATE_CHANNEL = "yjs:project_updates";
 
-redisSubscriber.subscribe(PROJECT_NAME_CHANNEL, PROJECT_UPDATE_CHANNEL, (err, count) => {
+redisSubscriber.subscribe(PROJECT_UPDATE_CHANNEL, (err, count) => {
   if (err) {
     console.error("Failed to subscribe to project update channels:", err);
     return;
   }
 
   console.log(
-    `Subscribed to Redis channels: ${PROJECT_NAME_CHANNEL}, ${PROJECT_UPDATE_CHANNEL} (${count} channels total).`,
+    `Subscribed to Redis channels: ${PROJECT_UPDATE_CHANNEL} (${count} channels total).`,
   );
 });
 
@@ -151,7 +150,7 @@ redisSubscriber.on("message", (channel, message) => {
   try {
     console.log("[Hocuspocus][Redis] Message received:", { channel, message });
 
-    if (channel !== PROJECT_NAME_CHANNEL && channel !== PROJECT_UPDATE_CHANNEL) {
+    if (channel !== PROJECT_UPDATE_CHANNEL) {
       return;
     }
 
@@ -165,8 +164,7 @@ redisSubscriber.on("message", (channel, message) => {
 
     // Use a direct connection so we can always access the Y.Doc,
     // even if there is no currently active WebSocket connection.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const hocuspocus: any = (server as any).hocuspocus;
+    const hocuspocus = server.hocuspocus;
 
     if (!hocuspocus || !hocuspocus.openDirectConnection) {
       console.log(

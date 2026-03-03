@@ -130,6 +130,8 @@ export const useWorkspaceSync = (documentName: string) => {
 
     let observerCleanup: (() => void) | null = null;
     let initialLoadComplete = false;
+    let remoteActivity = false;
+    let defaultSeedTimeout: NodeJS.Timeout | null = null;
 
     const handleSync = () => {
       // Prevent duplicate calls
@@ -143,6 +145,10 @@ export const useWorkspaceSync = (documentName: string) => {
       const workspacesDeepObserver = (events: Y.YEvent<any>[], transaction: Y.Transaction) => {
         // Skip events from our own client
         if (transaction.origin === doc.clientID) return;
+
+        // Any remote transaction counts as remote activity; this is used to decide
+        // whether it's safe to seed default workspaces/assets.
+        remoteActivity = true;
 
         let storeState = useGeckodeStore.getState();
 
@@ -266,34 +272,45 @@ export const useWorkspaceSync = (documentName: string) => {
       workspaces.observeDeep(workspacesDeepObserver);
 
       if (!hadInitialWorkspaces && !useGeckodeStore.getState().projectId) {
-        const texturesMap = doc.getMap<string>('textures');
-        
-        Object.entries(starterTextures).forEach(([textureName, base64Image]) => {
-          texturesMap.set(textureName, base64Image);
-        });
-    
-        starterSpriteWorkspaces.forEach((workspace) => {
-          const spriteMap = new Y.Map<SpriteInstance>();
-          const blocksMap = new Y.Map<Block>();
-    
-          Object.entries(workspace.sprite).forEach(([key, value]) => {
-            spriteMap.set(key, value as any);
+        // Set a timeout to seed the default workspaces/assets due underterministic loading times
+        defaultSeedTimeout = setTimeout(() => {
+          if (remoteActivity) return;
+
+          if (workspaces.length > 0) return;
+
+          const texturesMap = doc.getMap<string>('textures');
+          if (texturesMap.size > 0) return;
+          
+          Object.entries(starterTextures).forEach(([textureName, base64Image]) => {
+            texturesMap.set(textureName, base64Image);
           });
-    
-          Object.entries(workspace.blocks).forEach(([id, block]) => {
-            blocksMap.set(id, block);
+      
+          starterSpriteWorkspaces.forEach((workspace) => {
+            const spriteMap = new Y.Map<SpriteInstance>();
+            const blocksMap = new Y.Map<Block>();
+      
+            Object.entries(workspace.sprite).forEach(([key, value]) => {
+              spriteMap.set(key, value as any);
+            });
+      
+            Object.entries(workspace.blocks).forEach(([id, block]) => {
+              blocksMap.set(id, block);
+            });
+      
+            const workspaceMap = new Y.Map<any>();
+            workspaceMap.set('sprite', spriteMap);
+            workspaceMap.set('blocks', blocksMap);
+      
+            workspaces.push([workspaceMap]);
           });
-    
-          const workspaceMap = new Y.Map<any>();
-          workspaceMap.set('sprite', spriteMap);
-          workspaceMap.set('blocks', blocksMap);
-    
-          workspaces.push([workspaceMap]);
-        });
+        }, 500);
       }
 
       observerCleanup = () => {
         workspaces.unobserveDeep(workspacesDeepObserver);
+        if (defaultSeedTimeout !== null) {
+          clearTimeout(defaultSeedTimeout);
+        }
       };
     };
 
