@@ -50,6 +50,21 @@ export const LIBRARY_TILE_PREFIX = 'lib:';
 export const getLibraryTileDisplayName = (key: string): string =>
   key.startsWith(LIBRARY_TILE_PREFIX) ? key.slice(LIBRARY_TILE_PREFIX.length) : key;
 
+function replaceSpriteRefsInState(
+  obj: unknown,
+  oldSpriteId: string,
+  newSpriteId: string
+): unknown {
+  if (typeof obj === 'string' && obj === oldSpriteId) return newSpriteId;
+  if (Array.isArray(obj)) return obj.map((item) => replaceSpriteRefsInState(item, oldSpriteId, newSpriteId));
+  if (obj && typeof obj === 'object') {
+    return Object.fromEntries(
+      Object.entries(obj).map(([k, v]) => [k, replaceSpriteRefsInState(v, oldSpriteId, newSpriteId)])
+    );
+  }
+  return obj;
+}
+
 const LIBRARY_TILE_NAMES = [
   'grass', 'dirt', 'stone', 'cobblestone', 'sand',
   'water', 'lava', 'oakPlanks', 'oakLog', 'leaves',
@@ -261,6 +276,9 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
       name: createUniqueSpriteName(source.name, spriteInstances),
     };
 
+    // Add instance to store first so getSpriteDropdownOptions() includes it when loading blocks
+    set({ spriteInstances: [...spriteInstances, instance] });
+
     const sourceWorkspace =
       spriteId === selectedSpriteId && blocklyWorkspace
         ? blocklyWorkspace
@@ -271,16 +289,18 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
       Blockly.Events.disable();
       try {
         const state = Blockly.serialization.workspaces.save(sourceWorkspace);
-        Blockly.serialization.workspaces.load(state, newWorkspace);
+        const replacedState = replaceSpriteRefsInState(state, source.id, instance.id) as Parameters<
+          typeof Blockly.serialization.workspaces.load
+        >[0];
+        Blockly.serialization.workspaces.load(replacedState, newWorkspace);
       } finally {
         Blockly.Events.enable();
       }
     }
 
     set({
-      spriteInstances: [...spriteInstances, instance],
       spriteWorkspaces: {
-        ...spriteWorkspaces,
+        ...get().spriteWorkspaces,
         [instance.id]: newWorkspace,
       },
     });
