@@ -1,10 +1,13 @@
 import { authApi } from "@/lib/api/auth";
+import projectsApi from "@/lib/api/handlers/projects";
 import { AwarenessError, HocuspocusProvider } from "@hocuspocus/provider";
 import { createContext, useEffect } from "react";
 import * as Y from "yjs";
 import { Awareness } from "y-protocols/awareness";
 import { IndexeddbPersistence } from "y-indexeddb";
 import { documentRegistry } from "@/lib/types/yjs/documents";
+
+const WEBSOCKET_FALLBACK_DELAY_MS = 2500;
 
 interface YjsContextType {
   getProvider: (name: string) => HocuspocusProvider;
@@ -130,6 +133,49 @@ const setupProvider = async (name: string): Promise<void> => {
       markDocReady();
     } else {
       persistence.on("synced", () => markDocReady());
+    }
+
+    // When document name is a project ID, fall back to Django if websocket never connects
+    if (name.length > 0) {
+      let fallbackTimeoutId: NodeJS.Timeout | null = null;
+      let fallbackApplied = false;
+
+      const clearFallback = () => {
+        if (fallbackTimeoutId !== null) {
+          clearTimeout(fallbackTimeoutId);
+          fallbackTimeoutId = null;
+        }
+      };
+
+      const applyBackendFallback = async () => {
+        if (fallbackApplied) return;
+        fallbackApplied = true;
+        clearFallback();
+        try {
+          const project = await projectsApi(name).get();
+          if (project?.yjs_blob) {
+            const update = new Uint8Array(
+              typeof Buffer !== "undefined"
+                ? Buffer.from(project.yjs_blob, "base64")
+                : Uint8Array.from(atob(project.yjs_blob), (c) => c.charCodeAt(0))
+            );
+            Y.applyUpdate(doc, update);
+          }
+          if (project?.name != null) {
+            const projectMetaMap = doc.getMap<any>("meta");
+            projectMetaMap.set("name", project.name);
+          }
+          const inst = instances.get(name);
+          if (inst && !inst.synced) markDocReady();
+        } catch (err) {
+          console.error(`Yjs Django fallback for project ${name}:`, err);
+        }
+      };
+
+      // Clear fallback when websocket syncs so we don't fetch from Django
+      provider.on("synced", () => clearFallback());
+
+      fallbackTimeoutId = setTimeout(applyBackendFallback, WEBSOCKET_FALLBACK_DELAY_MS);
     }
 
     pendingSetups.delete(name);

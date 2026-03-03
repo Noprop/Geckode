@@ -28,7 +28,7 @@ export const useAwareness = (
   useEffect(() => {
     if (!blocklyWorkspace) return;
 
-    awareness.setLocalStateField('user', documentName.length === 0 ? undefined : toPublicUser(user!));
+    awareness.setLocalStateField('user', documentName.length === 0 || !user ? undefined : toPublicUser(user));
 
     const handleUpdate = ({ added, updated, removed }: Record<string, Array<any>>) => {
       if (added.length || removed.length) {

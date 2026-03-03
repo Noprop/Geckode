@@ -34,7 +34,7 @@ class Project(Model):
     group = ForeignKey(ProjectGroup, related_name='projects', null=True, blank=True, on_delete=SET_NULL)
     created_at = DateTimeField(auto_now_add=True)
     updated_at = DateTimeField(auto_now=True)
-    name = CharField(max_length=200)
+    name = CharField(max_length=200, blank=True)
     description = TextField(blank=True)
     collaborators = ManyToManyField(User, through='ProjectCollaborator', related_name='shared_projects')
     organizations = ManyToManyField(Organization, through='OrganizationProject', related_name='projects')
