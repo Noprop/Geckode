@@ -202,7 +202,7 @@ export interface EditorActions {
 
   // Editor Actions
   generateCode: () => void;
-  saveProject: (showSnackbar: (msg: string, type: 'success' | 'error') => void) => Promise<void>;
+  saveProject: (showSnackbar: (msg: string, type: 'success' | 'error') => void) => void;
   exportWorkspaceState: () => void;
   undoWorkspace: () => void;
   redoWorkspace: () => void;

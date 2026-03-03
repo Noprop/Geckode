@@ -8,6 +8,8 @@ import { EDITOR_SCENE_KEY, GAME_SCENE_KEY } from "@/phaser/sceneKeys";
 import EditorScene from "@/phaser/scenes/EditorScene";
 import type { EditorSlice, GeckodeStore, WorkspaceOutputType } from "./types";
 import { projectNameSync } from "@/hooks/yjs/useProjectNameSync";
+import { getYDoc } from "@/hooks/yjs/useWorkspaceSync";
+import * as Y from "yjs";
 
 export const createEditorSlice: StateCreator<
   GeckodeStore,
@@ -113,13 +115,10 @@ export const createEditorSlice: StateCreator<
     });
   },
 
-  saveProject: async (showSnackbar) => {
+  saveProject: (showSnackbar) => {
     const {
       projectId,
       projectName,
-      blocklyWorkspace,
-      phaserScene,
-      spriteInstances,
     } = get();
     if (!projectId) {
       console.error(
@@ -127,23 +126,18 @@ export const createEditorSlice: StateCreator<
       );
       return;
     }
-    if (!blocklyWorkspace || !phaserScene) return;
 
-    const workspaceState =
-      Blockly.serialization.workspaces.save(blocklyWorkspace);
-    const phaserState = createPhaserState(phaserScene);
+    const doc = getYDoc();
+    if (!doc) return;
 
-    try {
-      await projectsApi(projectId).update({
-        name: projectName,
-        blocks: workspaceState,
-        game_state: phaserState,
-        sprites: spriteInstances,
-      });
+    projectsApi(projectId).update({
+      name: projectName,
+      yjs_blob: Buffer.from(Y.encodeStateAsUpdate(doc)).toString("base64"),
+    }).then((res) => {
       showSnackbar("Project saved successfully!", "success");
-    } catch (err) {
+    }).catch((err) => {
       showSnackbar("Project could not be saved. Please try again.", "error");
-    }
+    });
   },
 
   exportWorkspaceState: () => {

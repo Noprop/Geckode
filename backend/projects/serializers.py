@@ -83,6 +83,24 @@ class ProjectSerializer(ModelSerializer):
     def update(self, instance, validated_data):
         is_published = validated_data.pop('is_published', None)
 
+        # Handle yjs_blob explicitly so we can accept base64-encoded strings
+        # coming from JSON (e.g. frontend or Postman), and store real bytes
+        # in the BinaryField. In some cases DRF may not include the field in
+        # validated_data, so we also look at initial_data (raw request data).
+        raw_yjs_blob = getattr(self, "initial_data", {}).get("yjs_blob", None)
+        yjs_blob = validated_data.pop("yjs_blob", raw_yjs_blob)
+
+        if yjs_blob is not None:
+            # If the incoming value is a string, treat it as base64
+            if isinstance(yjs_blob, str):
+                try:
+                    instance.yjs_blob = base64.b64decode(yjs_blob)
+                except Exception:
+                    raise ValidationError({"yjs_blob": "Invalid base64-encoded yjs_blob."})
+            else:
+                # Allow passing raw bytes (e.g. from non-JSON clients)
+                instance.yjs_blob = yjs_blob
+
         instance = super().update(instance, validated_data)
 
         if is_published and instance.published_at is None:

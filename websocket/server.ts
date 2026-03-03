@@ -3,6 +3,7 @@ import Redis from "ioredis";
 import * as Y from "yjs";
 
 const redis = new Redis();
+const redisSubscriber = new Redis();
 
 const projectMetaMapKey = "meta";
 const updatedProjectNames: Record<string, string> = {};
@@ -106,7 +107,7 @@ const server = new Server({
     };
 
     if (documentName in updatedProjectNames) {
-      bufferObject['name'] = updatedProjectNames[documentName];
+      bufferObject["name"] = updatedProjectNames[documentName];
       delete updatedProjectNames[documentName];
     }
 
@@ -130,3 +131,95 @@ const server = new Server({
 
 server.listen();
 console.log('Hocuspocus server running at ws://localhost:1234');
+
+// Listen for project updates coming from Django via Redis pub/sub
+const PROJECT_NAME_CHANNEL = "yjs:project_name_updates";
+const PROJECT_UPDATE_CHANNEL = "yjs:project_updates";
+
+redisSubscriber.subscribe(PROJECT_NAME_CHANNEL, PROJECT_UPDATE_CHANNEL, (err, count) => {
+  if (err) {
+    console.error("Failed to subscribe to project update channels:", err);
+    return;
+  }
+
+  console.log(
+    `Subscribed to Redis channels: ${PROJECT_NAME_CHANNEL}, ${PROJECT_UPDATE_CHANNEL} (${count} channels total).`,
+  );
+});
+
+redisSubscriber.on("message", (channel, message) => {
+  try {
+    console.log("[Hocuspocus][Redis] Message received:", { channel, message });
+
+    if (channel !== PROJECT_NAME_CHANNEL && channel !== PROJECT_UPDATE_CHANNEL) {
+      return;
+    }
+
+    const payload = JSON.parse(message) as {
+      id: string;
+      name?: string | null;
+      yjs_blob?: string | null;
+    };
+
+    const { id: documentName, name, yjs_blob } = payload;
+
+    // Use a direct connection so we can always access the Y.Doc,
+    // even if there is no currently active WebSocket connection.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const hocuspocus: any = (server as any).hocuspocus;
+
+    if (!hocuspocus || !hocuspocus.openDirectConnection) {
+      console.log(
+        "[Hocuspocus][Redis] hocuspocus instance or openDirectConnection not available, skipping.",
+      );
+      return;
+    }
+
+    (async () => {
+      try {
+        console.log(
+          `[Hocuspocus][Redis] Opening direct connection for document ${documentName}...`,
+        );
+
+        const docConnection = await hocuspocus.openDirectConnection(documentName, {});
+
+        await docConnection.transact((ydoc: Y.Doc) => {
+          // Merge incoming Yjs state if provided
+          if (yjs_blob) {
+            try {
+              const updateBuffer = Buffer.from(yjs_blob, "base64");
+              console.log(
+                `[Hocuspocus][Redis] Applying Yjs blob update for document ${documentName} (size: ${updateBuffer.length} bytes).`,
+              );
+              Y.applyUpdate(ydoc, updateBuffer);
+            } catch (decodeErr) {
+              console.error(
+                `[Hocuspocus][Redis] Failed to decode/apply yjs_blob for document ${documentName}:`,
+                decodeErr,
+              );
+            }
+          }
+
+          // Update project meta name if provided
+          if (typeof name === "string") {
+            const projectMetaMap = ydoc.getMap<any>(projectMetaMapKey);
+            projectMetaMap.set("name", name);
+          }
+        });
+
+        await docConnection.disconnect();
+
+        console.log(
+          `[Hocuspocus][Redis] Applied external project update for document ${documentName}.`,
+        );
+      } catch (innerErr) {
+        console.error(
+          `[Hocuspocus][Redis] Error while applying project update for document ${documentName}:`,
+          innerErr,
+        );
+      }
+    })();
+  } catch (e) {
+    console.error("[Hocuspocus][Redis] Error handling project name update message:", e);
+  }
+});

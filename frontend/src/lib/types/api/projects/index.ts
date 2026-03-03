@@ -1,7 +1,5 @@
 import { User } from "../users";
 import { BaseFilters } from "..";
-import { PhaserExport } from "@/phaser/PhaserStateManager";
-import { SpriteInstance } from "@/blockly/spriteRegistry";
 
 export interface Project {
   id: number;
@@ -14,9 +12,7 @@ export interface Project {
   fork_count: number;
   thumbnail: string | null;
   permission: ProjectPermissions | "owner";
-  blocks?: JSON;
-  game_state?: PhaserExport;
-  sprites?: SpriteInstance[];
+  yjs_blob?: string | null;
 }
 
 export interface ProjectFilters extends BaseFilters {
@@ -30,10 +26,9 @@ export interface ProjectPayload {
   name: string;
   description?: string;
   thumbnail?: File | null;
-  blocks?: {[key: string]: any};
-  game_state?: {[key: string]: any};
-  sprites?: {[key: string]: any};
   permission: ProjectPermissions | "owner";
+  // When sending over JSON, this should be a base64-encoded string.
+  yjs_blob?: string;
 }
 
 export const projectSortKeys: (keyof Project)[] = [
