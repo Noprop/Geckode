@@ -380,7 +380,7 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
     if (type === 'tiles') {
       const { phaserScene } = get();
       if (phaserScene instanceof EditorScene) {
-        phaserScene.loadTileTextureAsync(name, base64Image).then(() => {
+        phaserScene.updateTileTextureAsync(name, base64Image).then(() => {
           EventBus.emit('update-tilemap');
         }).catch((err) => {
           console.error(`Failed to load tile ${name}:`, err);
