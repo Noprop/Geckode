@@ -1,4 +1,4 @@
-from django.db.models import Model, ImageField, ForeignKey, CASCADE, DateTimeField, CharField, TextField, SET_NULL, ManyToManyField, JSONField
+from django.db.models import Model, ImageField, ForeignKey, CASCADE, DateTimeField, CharField, TextField, SET_NULL, ManyToManyField, BinaryField
 from accounts.models import User
 from organizations.models import Organization
 from utils.permissions import create_permissions_allowed_hierarchy
@@ -28,7 +28,7 @@ class Project(Model):
         ('invite', 'Can invite and code'),
         ('admin', 'Can change project details'),
     ]
-    PROJECT_STATE_FIELDS = ['blocks', 'game_state', 'assets']
+    PROJECT_STATE_FIELDS = ['yjs_blob']
 
     owner = ForeignKey(User, related_name='projects', on_delete=CASCADE)
     group = ForeignKey(ProjectGroup, related_name='projects', null=True, blank=True, on_delete=SET_NULL)
@@ -40,10 +40,8 @@ class Project(Model):
     organizations = ManyToManyField(Organization, through='OrganizationProject', related_name='projects')
     published_at = DateTimeField(null=True, blank=True)
     forked_by = ManyToManyField(User, related_name='forked_projects', blank=True)
-    blocks = JSONField(default=dict, blank=True)
-    game_state = JSONField(default=dict, blank=True)
     thumbnail = ImageField(upload_to=project_thumbnail_path, blank=True, null=True)
-    sprites = JSONField(default=list, blank=True) # This is temporary and definitely should be its own model
+    yjs_blob = BinaryField(null=True, blank=True)
 
     def has_permission(self, user, required_permission, published_gives_permission=True):
         if user == self.owner:

@@ -6,26 +6,31 @@ import { getYDoc } from "./useWorkspaceSync";
 
 export const useProjectNameSync = (documentName: string) => {
   const { doc, isSynced, onSynced } = useYjs(documentName);
-  const projectNameText = doc.getText('projectName');
+  const projectMetaMap = doc.getMap<any>('meta');
   const setProjectName = useGeckodeStore((s) => s.setProjectName);
 
   useEffect(() => {
     const handleSync = () => {
       // Load initial project name
-      const initialName = projectNameText.toString();
-      if (initialName) {
+      const initialName = projectMetaMap.get("name");
+      if (typeof initialName === "string") {
         setProjectName(initialName, false);
       }
 
       // Set up observer for future changes
-      const projectNameTextObserver = (event: Y.YTextEvent, transaction: Y.Transaction) => {
+      const projectMetaMapObserver = (event: Y.YMapEvent<any>, transaction: Y.Transaction) => {
         if (transaction.origin === doc.clientID) return;
-        setProjectName(projectNameText.toString(), false);
+
+        event.changes.keys.forEach((change, key) => {
+          if (change.action !== "delete" && key === "name") {
+            setProjectName(projectMetaMap.get(key), false);
+          }
+        });
       };
 
-      projectNameText.observe(projectNameTextObserver);
+      projectMetaMap.observe(projectMetaMapObserver);
 
-      return () => projectNameText.unobserve(projectNameTextObserver);
+      return () => projectMetaMap.unobserve(projectMetaMapObserver);
     };
 
     // Register sync callback
@@ -41,17 +46,16 @@ export const useProjectNameSync = (documentName: string) => {
     }
 
     return cleanup;
-  }, [doc, projectNameText, setProjectName, onSynced, isSynced]);
+  }, [doc, projectMetaMap, setProjectName, onSynced, isSynced]);
 };
 
 export const projectNameSync = (projectName: string) => {
   const doc = getYDoc();
   if (!doc) return;
 
-  const projectNameText = doc.getText('projectName');
+  const projectMetaMap = doc.getMap<any>("meta");
 
   doc.transact(() => {
-    projectNameText.delete(0, projectNameText.length);
-    projectNameText.insert(0, projectName);
+    projectMetaMap.set("name", projectName);
   }, doc.clientID);
 };

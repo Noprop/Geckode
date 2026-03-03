@@ -1,10 +1,11 @@
-import { Server } from '@hocuspocus/server';
-import * as Blockly from 'blockly';
-import { customBlocks } from './customBlocks.js';
+import { Server } from "@hocuspocus/server";
+import Redis from "ioredis";
+import * as Y from "yjs";
 
-const workspaces: Record<string, Blockly.Workspace> = {};
+const redis = new Redis();
 
-Blockly.defineBlocksWithJsonArray(customBlocks);
+const projectMetaMapKey = "meta";
+const updatedProjectNames: Record<string, string> = {};
 
 const server = new Server({
   port: 1234,
@@ -29,9 +30,8 @@ const server = new Server({
       if (!res.ok) throw new Error("Invalid token");
 
       const data = await res.json();
-      //console.log('after auth', data);
 
-      if (data.permission === 'view') {
+      if (data.permission === "view") {
         connectionConfig.readOnly = true;
       }
 
@@ -67,22 +67,52 @@ const server = new Server({
 
     console.log('documentName', documentName);
 
-    const blocksMap = document.getMap('blocks');
+    const res = await fetch(`http://localhost:8000/api/projects/${documentName}/`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${context.token}`,
+      },
+    });
 
-    blocksMap.observe((event) => {
-      console.log('blocks', blocksMap.toJSON());
+    if (!res.ok) throw new Error("Invalid token");
+
+    const data = await res.json();
+
+    if (data.yjs_blob) {
+      console.log("applying yjs blob update on initial document load");
+      Y.applyUpdate(document, Buffer.from(data.yjs_blob, 'base64'));
+    }
+
+    const projectMetaMap = document.getMap<any>(projectMetaMapKey);
+    projectMetaMap.set("name", data.name ?? '');
+
+    projectMetaMap.observe((event: Y.YMapEvent<any>) => {
+      event.changes.keys.forEach((change, key) => {
+        if (key === "name" && change.action === "update") {
+          updatedProjectNames[documentName] = projectMetaMap.get(key);
+        }
+      });
     });
 
     return document;
   },
 
-  async afterUnloadDocument({ documentName }) {
-    if (workspaces.hasOwnProperty(documentName)) {
-      if (workspaces[documentName]) {
-        workspaces[documentName].dispose();
-      }
-      delete workspaces[documentName];
+  async onStoreDocument({ document, documentName }) {
+    console.log("storing document", documentName);
+    if (!documentName.length) return;
+
+    let bufferObject = {
+      blob: Buffer.from(Y.encodeStateAsUpdate(document)),
+    };
+
+    if (documentName in updatedProjectNames) {
+      bufferObject['name'] = updatedProjectNames[documentName];
+      delete updatedProjectNames[documentName];
     }
+
+    await redis.hset(`yjs:buffer:${documentName}`, bufferObject);
+    await redis.lpush('yjs:updates_queue', documentName);
+    console.log('stored document', documentName);
   },
 
   async onConnect(data) {
