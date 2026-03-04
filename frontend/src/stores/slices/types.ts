@@ -102,6 +102,7 @@ export interface SpriteActions {
   /* Sprites */
   setSpriteInstances: (instances: SpriteInstance[]) => void;
   removeSpriteInstance: (spriteId: string, syncAfter?: boolean) => void;
+  duplicateSpriteInstance: (spriteId: string, syncAfter?: boolean) => void;
   updateSpriteInstance: (spriteId: string, updates: Partial<SpriteInstance>, syncAfter?: boolean) => void;
   updateInstanceOrder: (spriteIdx: number, newIdx: number) => void;
   saveSprite: (params: { spriteName: string; base64Image: string; syncAfter?: boolean; }) => string;

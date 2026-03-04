@@ -22,6 +22,7 @@ const TileEditorModal = ({ isOpen, onClose, onAddTileToSlot }: TileEditorModalPr
   const handleClose = () => {
     useGeckodeStore.setState({ editingSource: null, editingAssetName: null, editingAssetType: null, editingTextureToLoad: null });
     onClose();
+    setActiveTab('editor');
   };
 
   useEffect(() => {
@@ -95,9 +96,27 @@ const TileEditorModal = ({ isOpen, onClose, onAddTileToSlot }: TileEditorModalPr
           </div>
         </div>
 
-        {activeTab === 'library' && <TileLibrary setActiveTab={setActiveTab} />}
-        {activeTab === 'assets' && <TileAssets setActiveTab={setActiveTab} />}
-        {activeTab === 'editor' && <TileEditor onClose={handleClose} onAddTileToSlot={onAddTileToSlot} />}
+        <div
+          className="flex-1 min-h-0 flex flex-col overflow-hidden"
+          style={{ display: activeTab === 'library' ? 'flex' : 'none' }}
+          aria-hidden={activeTab !== 'library'}
+        >
+          <TileLibrary setActiveTab={setActiveTab} />
+        </div>
+        <div
+          className="flex-1 min-h-0 flex flex-col overflow-hidden"
+          style={{ display: activeTab === 'assets' ? 'flex' : 'none' }}
+          aria-hidden={activeTab !== 'assets'}
+        >
+          <TileAssets setActiveTab={setActiveTab} />
+        </div>
+        <div
+          className="flex-1 min-h-0 flex flex-col overflow-hidden"
+          style={{ display: activeTab === 'editor' ? 'flex' : 'none' }}
+          aria-hidden={activeTab !== 'editor'}
+        >
+          <TileEditor onClose={handleClose} onAddTileToSlot={onAddTileToSlot} />
+        </div>
       </div>
     </div>
   );

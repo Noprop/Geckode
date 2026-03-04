@@ -1,7 +1,18 @@
 import { useEffect, useState } from 'react';
+import * as ContextMenu from '@radix-ui/react-context-menu';
 import { useGeckodeStore } from '@/stores/geckodeStore';
 import { Button } from '../ui/Button';
 import { Cross2Icon } from '@radix-ui/react-icons';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const PhaserSpriteList = () => {
   const sprites = useGeckodeStore((state) => state.spriteInstances);
@@ -10,16 +21,47 @@ const PhaserSpriteList = () => {
   const selectedSpriteId = useGeckodeStore((state) => state.selectedSpriteId);
   const setSelectedSpriteId = useGeckodeStore((state) => state.setSelectedSpriteId);
   const removeSpriteInstance = useGeckodeStore((state) => state.removeSpriteInstance);
+  const duplicateSpriteInstance = useGeckodeStore((state) => state.duplicateSpriteInstance);
   const textures = useGeckodeStore((state) => state.textures);
   const libaryTextures = useGeckodeStore((state) => state.libaryTextures);
   const canEditProject = useGeckodeStore((state) => state.canEditProject);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [spriteIdToDelete, setSpriteIdToDelete] = useState<string | null>(null);
+  const [isContextMenuOpen, setIsContextMenuOpen] = useState(false);
 
   useEffect(() => {
     if (sprites.length === 0) return;
     if (selectedSpriteId === null)
       setSelectedSpriteId(sprites[0].id);
   }, [sprites]);
+
+  const openDeleteConfirm = (spriteId: string) => {
+    setSpriteIdToDelete(spriteId);
+  };
+
+  const handleConfirmDelete = () => {
+    if (spriteIdToDelete) {
+      removeSpriteInstance(spriteIdToDelete);
+      setSpriteIdToDelete(null);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setSpriteIdToDelete(null);
+  };
+
+  useEffect(() => {
+    if (canEditProject) return;
+    handleCancelDelete();
+    setIsContextMenuOpen((prev) => {
+      if (prev) {
+        // Force close the context menu when the user is no longer allowed to edit the project
+        const event = new KeyboardEvent('keydown', { key: 'Escape' });
+        document.dispatchEvent(event);
+      }
+      return prev;
+    });
+  }, [canEditProject]);
 
   return (
     <div className="w-2/3 flex flex-col min-h-0 pr-3 border-r border-slate-300 dark:border-slate-600 overflow-hidden">
@@ -59,66 +101,121 @@ const PhaserSpriteList = () => {
                 const textureUrl = textures[sprite.textureName] ?? libaryTextures[sprite.textureName];
 
                 return (
-                  <div
-                    key={sprite.id}
-                    onClick={() => setSelectedSpriteId(sprite.id)}
-                    onDoubleClick={() => {
-                      if (!canEditProject) return;
-                      useGeckodeStore.setState({
-                        editingSource: 'asset',
-                        editingAssetName: sprite.textureName,
-                        editingAssetType: 'textures',
-                      });
-                      setSpriteModalContext('phaser_edit', sprite.textureName);
-                      setIsSpriteModalOpen(true);
-                    }}
-                    onMouseEnter={() => setHoveredId(sprite.id)}
-                    onMouseLeave={() => setHoveredId(null)}
-                    className={`relative aspect-square rounded-lg border-2 cursor-pointer transition-all overflow-hidden select-none ${isSelected
-                        ? 'border-primary-green bg-primary-green/10 shadow-md ring-2 ring-primary-green/30'
-                        : 'border-slate-200 bg-slate-50 hover:border-primary-green/50 dark:border-slate-600 dark:bg-dark-hover dark:hover:border-primary-green/50'
-                      }`}
-                  >
-                    <div className="w-full h-full flex items-center justify-center">
-                      {textureUrl ? (
-                        <img
-                          src={textureUrl}
-                          alt={sprite.name}
-                          className="w-10 h-10 object-contain"
-                          style={{ imageRendering: 'pixelated' }}
-                          draggable={false}
-                        />
-                      ) : (
-                        <div className="w-10 h-10 rounded-md bg-slate-200 dark:bg-slate-600 flex items-center justify-center text-lg font-bold text-slate-400 dark:text-slate-400">
-                          {sprite.name.charAt(0).toUpperCase()}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Sprite Name Label */}
-                    <div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/70 to-transparent px-1 py-1">
-                      <p className="text-[9px] text-white truncate text-center font-medium">{sprite.name}</p>
-                    </div>
-
-                    {(isSelected || isHovered) && canEditProject && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeSpriteInstance(sprite.id)
+                  <ContextMenu.Root key={sprite.id} modal={false} onOpenChange={setIsContextMenuOpen}>
+                    <ContextMenu.Trigger asChild disabled={!canEditProject}>
+                      <div
+                        onClick={() => setSelectedSpriteId(sprite.id)}
+                        onDoubleClick={() => {
+                          if (!canEditProject) return;
+                          useGeckodeStore.setState({
+                            editingSource: 'asset',
+                            editingAssetName: sprite.textureName,
+                            editingAssetType: 'textures',
+                          });
+                          setSpriteModalContext('phaser_edit', sprite.textureName);
+                          setIsSpriteModalOpen(true);
                         }}
-                        className="absolute top-1 right-1 rounded-full bg-slate-700/80 hover:bg-red-500 text-white p-0.5 transition shadow"
-                        title="Delete sprite"
+                        onMouseEnter={() => setHoveredId(sprite.id)}
+                        onMouseLeave={() => setHoveredId(null)}
+                        className={`relative aspect-square rounded-lg border-2 cursor-pointer transition-all overflow-hidden select-none ${isSelected
+                            ? 'border-primary-green bg-primary-green/10 shadow-md ring-2 ring-primary-green/30'
+                            : 'border-slate-200 bg-slate-50 hover:border-primary-green/50 dark:border-slate-600 dark:bg-dark-hover dark:hover:border-primary-green/50'
+                          }`}
                       >
-                        <Cross2Icon className="h-3 w-3" />
-                      </button>
-                    )}
-                  </div>
+                        <div className="w-full h-full flex items-center justify-center">
+                          {textureUrl ? (
+                            <img
+                              src={textureUrl}
+                              alt={sprite.name}
+                              className="w-10 h-10 object-contain"
+                              style={{ imageRendering: 'pixelated' }}
+                              draggable={false}
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-md bg-slate-200 dark:bg-slate-600 flex items-center justify-center text-lg font-bold text-slate-400 dark:text-slate-400">
+                              {sprite.name.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Sprite Name Label */}
+                        <div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/70 to-transparent px-1 py-1">
+                          <p className="text-[9px] text-white truncate text-center font-medium">{sprite.name}</p>
+                        </div>
+
+                        {(isSelected || isHovered) && canEditProject && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openDeleteConfirm(sprite.id);
+                            }}
+                            className="absolute top-1 right-1 rounded-full bg-slate-700/80 hover:bg-red-500 text-white p-0.5 transition shadow"
+                            title="Delete sprite"
+                          >
+                            <Cross2Icon className="h-3 w-3" />
+                          </button>
+                        )}
+                      </div>
+                    </ContextMenu.Trigger>
+                    <ContextMenu.Portal>
+                      <ContextMenu.Content
+                        className="min-w-[140px] rounded-md border border-slate-200 bg-white p-1 shadow-md dark:border-slate-700 dark:bg-slate-800"
+                      >
+                        <ContextMenu.Item
+                          className="relative flex cursor-default select-none items-center rounded px-2 py-1.5 text-sm outline-none hover:bg-slate-100 focus:bg-slate-100 dark:hover:bg-slate-700 dark:focus:bg-slate-700"
+                          onSelect={() => {
+                            useGeckodeStore.setState({
+                              editingSource: 'asset',
+                              editingAssetName: sprite.textureName,
+                              editingAssetType: 'textures',
+                            });
+                            setSpriteModalContext('phaser_edit', sprite.textureName);
+                            setIsSpriteModalOpen(true);
+                          }}
+                        >
+                          Edit
+                        </ContextMenu.Item>
+                        <ContextMenu.Item
+                          className="relative flex cursor-default select-none items-center rounded px-2 py-1.5 text-sm outline-none hover:bg-slate-100 focus:bg-slate-100 dark:hover:bg-slate-700 dark:focus:bg-slate-700"
+                          onSelect={() => duplicateSpriteInstance(sprite.id)}
+                        >
+                          Duplicate
+                        </ContextMenu.Item>
+                        <ContextMenu.Item
+                          className="relative flex cursor-default select-none items-center rounded px-2 py-1.5 text-sm outline-none hover:bg-red-50 hover:text-red-600 focus:bg-red-50 focus:text-red-600 dark:hover:bg-red-900/20 dark:focus:bg-red-900/20"
+                          onSelect={() => openDeleteConfirm(sprite.id)}
+                        >
+                          Delete
+                        </ContextMenu.Item>
+                      </ContextMenu.Content>
+                    </ContextMenu.Portal>
+                  </ContextMenu.Root>
                 );
             })}
           </div>
         )}
       </div>
+
+      <AlertDialog open={spriteIdToDelete !== null} onOpenChange={(open) => !open && handleCancelDelete()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-red-500">Delete Sprite</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this sprite? This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelDelete}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-red-500 hover:bg-red-600 focus:ring-red-500"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

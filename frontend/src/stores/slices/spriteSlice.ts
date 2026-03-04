@@ -50,6 +50,21 @@ export const LIBRARY_TILE_PREFIX = 'lib:';
 export const getLibraryTileDisplayName = (key: string): string =>
   key.startsWith(LIBRARY_TILE_PREFIX) ? key.slice(LIBRARY_TILE_PREFIX.length) : key;
 
+function replaceSpriteRefsInState(
+  obj: unknown,
+  oldSpriteId: string,
+  newSpriteId: string
+): unknown {
+  if (typeof obj === 'string' && obj === oldSpriteId) return newSpriteId;
+  if (Array.isArray(obj)) return obj.map((item) => replaceSpriteRefsInState(item, oldSpriteId, newSpriteId));
+  if (obj && typeof obj === 'object') {
+    return Object.fromEntries(
+      Object.entries(obj).map(([k, v]) => [k, replaceSpriteRefsInState(v, oldSpriteId, newSpriteId)])
+    );
+  }
+  return obj;
+}
+
 const LIBRARY_TILE_NAMES = [
   'grass', 'dirt', 'stone', 'cobblestone', 'sand',
   'water', 'lava', 'oakPlanks', 'oakLog', 'leaves',
@@ -250,6 +265,55 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
     set({ spriteInstances: updatedInstances });
   },
 
+  duplicateSpriteInstance: (spriteId: string, syncAfter: boolean = true) => {
+    const { spriteInstances, spriteWorkspaces, phaserScene, blocklyWorkspace, selectedSpriteId } = get();
+    const source = spriteInstances.find((i) => i.id === spriteId);
+    if (!source) return;
+
+    const instance: SpriteInstance = {
+      ...source,
+      id: `id_${Date.now()}`,
+      name: createUniqueSpriteName(source.name, spriteInstances),
+    };
+
+    // Add instance to store first so getSpriteDropdownOptions() includes it when loading blocks
+    set({ spriteInstances: [...spriteInstances, instance] });
+
+    const sourceWorkspace =
+      spriteId === selectedSpriteId && blocklyWorkspace
+        ? blocklyWorkspace
+        : spriteWorkspaces[spriteId];
+
+    let newWorkspace = new Blockly.Workspace();
+    if (sourceWorkspace) {
+      Blockly.Events.disable();
+      try {
+        const state = Blockly.serialization.workspaces.save(sourceWorkspace);
+        const replacedState = replaceSpriteRefsInState(state, source.id, instance.id) as Parameters<
+          typeof Blockly.serialization.workspaces.load
+        >[0];
+        Blockly.serialization.workspaces.load(replacedState, newWorkspace);
+      } finally {
+        Blockly.Events.enable();
+      }
+    }
+
+    set({
+      spriteWorkspaces: {
+        ...get().spriteWorkspaces,
+        [instance.id]: newWorkspace,
+      },
+    });
+
+    if (phaserScene instanceof EditorScene) {
+      phaserScene.createSprite(instance);
+    }
+
+    if (syncAfter) {
+      addSpriteSync(instance);
+    }
+  },
+
   saveSprite: ({ spriteName, base64Image, syncAfter = true }) => {
     const { editingSource, editingAssetName, textures, spriteWorkspaces, phaserScene } = get();
     let textureName: string;
@@ -336,7 +400,7 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
     if (type === 'tiles') {
       const { phaserScene } = get();
       if (phaserScene instanceof EditorScene) {
-        phaserScene.loadTileTextureAsync(name, base64Image).then(() => {
+        phaserScene.updateTileTextureAsync(name, base64Image).then(() => {
           EventBus.emit('update-tilemap');
         }).catch((err) => {
           console.error(`Failed to load tile ${name}:`, err);
