@@ -76,14 +76,23 @@ class Project(Model):
             invitee=user,
         ).delete()
 
-    def get_permission(self, user):
+    def get_permission(self, user: User) -> str | None:
         if user == self.owner:
             return 'owner'
 
+        permissions_allowed = create_permissions_allowed_hierarchy(self.PERMISSION_CHOICES)
+
         try:
-            return ProjectCollaborator.objects.get(project=self, collaborator=user).permission
-        except:
+            permissions_list = [ProjectCollaborator.objects.get(project=self, collaborator=user).permission]
+        except ProjectCollaborator.DoesNotExist:
+            permissions_list = []
+
+        permissions_list.extend(OrganizationProject.objects.filter(project=self, organization__members=user).values_list('permission', flat=True))
+
+        if len(permissions_list) == 0:
             return None
+
+        return min(permissions_list, key=lambda x: len(permissions_allowed.get(x, [])))
 
 class ProjectCollaborator(Model):
     project = ForeignKey(Project, related_name='project_collaborators', on_delete=CASCADE)

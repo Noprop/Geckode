@@ -1,13 +1,28 @@
 import base64
 import json
-from django.db.models.signals import pre_save, post_save
+from django.db.models.signals import pre_save, post_save, post_delete
 from django.dispatch import receiver
 from redis import Redis
-from .models import Project, ProjectCollaborator
+
+from accounts.models import User
+from .models import OrganizationProject, Project, ProjectCollaborator
 
 redis_client = Redis(host="localhost", port=6379, db=0)
+CLIENT_MAP_PREFIX = "yjs:clients"
 PROJECT_UPDATE_CHANNEL = "yjs:project_updates"
 PROJECT_COLLABORATOR_UPDATE_CHANNEL = "yjs:project_collaborator_updates"
+
+def get_project_connected_users(project_id: int) -> list[int]:
+    """
+    Return a list of user IDs that currently have at least one client
+    connected to the given document/project.
+    """
+    key = f"{CLIENT_MAP_PREFIX}:{project_id}"
+    # Field names are user IDs; we don't need the client lists if we only care
+    # about which users are present.
+    user_id_bytes = redis_client.hkeys(key)
+    print("users obtained from get_project_connected_users", [int(uid.decode("utf-8")) for uid in user_id_bytes])
+    return [int(uid.decode("utf-8")) for uid in user_id_bytes]
 
 @receiver(pre_save, sender=Project)
 def store_previous_project_name(sender, instance: Project, **kwargs) -> None:
@@ -60,7 +75,7 @@ def publish_project_change(sender, instance: Project, created: bool, **kwargs) -
             PROJECT_UPDATE_CHANNEL,
             json.dumps(
                 {
-                    "id": str(instance.pk),
+                    "project_id": instance.pk,
                     "name": instance.name,
                     "yjs_blob": encoded_blob,
                 }
@@ -72,38 +87,57 @@ def publish_project_change(sender, instance: Project, created: bool, **kwargs) -
             f"{instance.pk} to Redis: {exc}"
         )
 
-@receiver(pre_save, sender=ProjectCollaborator)
-def store_previous_project_collaborator_permission(sender, instance: ProjectCollaborator, **kwargs) -> None:
-    if not instance.pk:
-        return
-
-    try:
-        previous = ProjectCollaborator.objects.get(pk=instance.pk)
-        instance._old_permission = previous.permission
-    except ProjectCollaborator.DoesNotExist:
-        instance._old_permission = None
-
-@receiver(post_save, sender=ProjectCollaborator)
-def publish_project_collaborator_change(sender, instance: ProjectCollaborator, created: bool, **kwargs) -> None:
-    old_permission = getattr(instance, "_old_permission", None)
-
-    if created or old_permission == instance.permission:
-        return
-
+def publish_project_collaborator_permission(instance: ProjectCollaborator, source: str) -> None:
     try:
         redis_client.publish(
             PROJECT_COLLABORATOR_UPDATE_CHANNEL,
             json.dumps(
                 {
-                    "id": str(instance.pk),
-                    "project_id": str(instance.project_id),
-                    "collaborator_id": str(instance.collaborator_id),
-                    "permission": instance.permission,
+                    "project_id": instance.project_id,
+                    "collaborators": {
+                        instance.collaborator_id: instance.project.get_permission(instance.collaborator),
+                    },
                 }
             )
         )
     except Exception as exc:
         print(
-            "post_save(ProjectCollaborator): error publishing permission change for project collaborator "
-            f"{instance.pk} to Redis: {exc}"
+            f"{source}(ProjectCollaborator): error publishing permission change for project collaborator "
+            f"{instance.project_id} to Redis: {exc}"
         )
+
+@receiver(post_save, sender=ProjectCollaborator)
+def publish_project_collaborator_change(sender, instance: ProjectCollaborator, created: bool, **kwargs) -> None:
+    publish_project_collaborator_permission(instance, "post_save")
+
+@receiver(post_delete, sender=ProjectCollaborator)
+def publish_project_collaborator_delete(sender, instance: ProjectCollaborator, **kwargs) -> None:
+    publish_project_collaborator_permission(instance, "post_delete")
+
+def publish_organization_project_permission(instance: OrganizationProject, source: str) -> None:
+    try:
+        redis_client.publish(
+            PROJECT_COLLABORATOR_UPDATE_CHANNEL,
+            json.dumps(
+                {
+                    "project_id": instance.project_id,
+                    "collaborators": {
+                        id: instance.project.get_permission(User.objects.get(pk=id))
+                        for id in get_project_connected_users(instance.project_id)
+                    }
+                }
+            )
+        )
+    except Exception as exc:
+        print(
+            f"{source}(ProjectOrganization): error publishing permission change for project/organization "
+            f"{instance.project_id}/{instance.organization_id} to Redis: {exc}"
+        )
+
+@receiver(post_save, sender=OrganizationProject)
+def publish_organization_project_change(sender, instance: OrganizationProject, created: bool, **kwargs) -> None:
+    publish_organization_project_permission(instance, "post_save")
+
+@receiver(post_delete, sender=OrganizationProject)
+def publish_organization_project_delete(sender, instance: OrganizationProject, **kwargs) -> None:
+    publish_organization_project_permission(instance, "post_delete")

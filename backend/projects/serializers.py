@@ -133,6 +133,20 @@ class ProjectCollaboratorSerializer(ModelSerializer):
         validated_data.pop('collaborator_id', None)
         return super().update(instance, validated_data)
 
+    def validate(self, attrs):
+        if 'view' in self.context and hasattr(self.context['view'], 'kwargs'):
+            if 'request' in self.context:
+                try:
+                    user = self.context['request'].user
+                    project = Project.objects.get(id=self.context['view'].kwargs.get('project_pk'))
+
+                    if not project.has_permission(user, attrs['permission']):
+                        raise ValidationError({'permission': 'Cannot give a collaborator a higher permission class to the project than yourself.'})
+                except Project.DoesNotExist:
+                    pass
+
+        return attrs
+
 class OrganizationProjectSerializer(ModelSerializer):
     project = ProjectSerializer(read_only=True)
     project_id = PrimaryKeyRelatedField(queryset=Project.objects.all(), write_only=True, source='project')

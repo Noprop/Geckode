@@ -8,6 +8,98 @@ const redisSubscriber = new Redis();
 const projectMetaMapKey = "meta";
 const updatedProjectNames: Record<string, string> = {};
 
+const CLIENT_MAP_PREFIX = "yjs:clients";
+
+const getClientMapKey = (documentName: string) => `${CLIENT_MAP_PREFIX}:${documentName}`;
+
+const resetClientMaps = async () => {
+  try {
+    const keys = await redis.keys(`${CLIENT_MAP_PREFIX}:*`);
+    if (keys.length > 0) {
+      await redis.del(...keys);
+    }
+    console.log("[Hocuspocus][Clients] Reset client maps on startup.");
+  } catch (err) {
+    console.error("[Hocuspocus][Clients] Failed to reset client maps on startup:", err);
+  }
+};
+
+const addClientToDocument = async ({
+  documentName,
+  userId,
+  clientId,
+}: {
+  documentName: string;
+  userId: string | number;
+  clientId: string | number;
+}) => {
+  if (!documentName || !userId || clientId === undefined || clientId === null) return;
+
+  const key = getClientMapKey(documentName);
+  const field = String(userId);
+  const existing = await redis.hget(key, field);
+
+  let clients: string[] = [];
+  if (existing) {
+    try {
+      clients = JSON.parse(existing);
+    } catch {
+      clients = [];
+    }
+  }
+
+  const clientIdStr = String(clientId);
+  if (!clients.includes(clientIdStr)) {
+    clients.push(clientIdStr);
+    await redis.hset(key, { [field]: JSON.stringify(clients) });
+  }
+};
+
+const removeClientFromDocument = async ({
+  documentName,
+  userId,
+  clientId,
+}: {
+  documentName: string;
+  userId: string | number;
+  clientId: string | number;
+}) => {
+  if (!documentName || !userId || clientId === undefined || clientId === null) return;
+
+  const key = getClientMapKey(documentName);
+  const field = String(userId);
+  const existing = await redis.hget(key, field);
+
+  if (!existing) {
+    return;
+  }
+
+  let clients: string[] = [];
+  try {
+    clients = JSON.parse(existing);
+  } catch {
+    clients = [];
+  }
+
+  const clientIdStr = String(clientId);
+  const nextClients = clients.filter((id) => id !== clientIdStr);
+
+  if (nextClients.length === 0) {
+    await redis.hdel(key, field);
+  } else {
+    await redis.hset(key, { [field]: JSON.stringify(nextClients) });
+  }
+};
+
+const clearDocumentClients = async (documentName: string) => {
+  if (!documentName) return;
+  const key = getClientMapKey(documentName);
+  await redis.del(key);
+};
+
+// Clear any stale client maps when the server starts.
+resetClientMaps();
+
 const server = new Server({
   port: 1234,
   debounce: 3000,
@@ -20,31 +112,28 @@ const server = new Server({
     // This is temporary for development on the main page
     if (documentName.length === 0) return true;
 
-    try {
-      const res = await fetch(`http://localhost:8000/api/projects/${documentName}/`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+    const res = await fetch(`http://localhost:8000/api/projects/${documentName}/check-user-permission/`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
-      if (!res.ok) throw new Error("Invalid token");
+    // Throwing an error refuses the connection
+    if (!res.ok) throw new Error("Invalid token");
 
-      const data = await res.json();
+    const data = await res.json();
 
-      if (data.permission === "view") {
-        connectionConfig.readOnly = true;
-      }
-
-      return {
-        token,
-        permission: data.permission,
-        sentPermission: false,
-      };
-    } catch (err) {
-      console.log("Authentication failed:", err);
-      return false;
+    if (data.permission === "view") {
+      connectionConfig.readOnly = true;
     }
+
+    return {
+      token,
+      userId: data.user_id,
+      permission: data.permission,
+      sentPermission: false,
+    };
   },
 
   async connected({ connection, context, documentName }) {
@@ -53,8 +142,31 @@ const server = new Server({
       connection.requestToken();
     }, 4 * 60 * 1000);
 
+    const userId = context?.userId;
+    const clientId = connection.document.clientID;
+
+    if (documentName && userId) {
+      addClientToDocument({
+        documentName,
+        userId,
+        clientId,
+      }).catch((err) => {
+        console.error("[Hocuspocus][Clients] Failed to add client to document:", err);
+      });
+    }
+
     connection.onClose(() => {
       clearInterval(tokenRefreshInterval);
+
+      if (documentName && userId) {
+        removeClientFromDocument({
+          documentName,
+          userId,
+          clientId,
+        }).catch((err) => {
+          console.error("[Hocuspocus][Clients] Failed to remove client from document:", err);
+        });
+      }
     });
 
     if (documentName.length > 0 && !context?.sentPermission) {
@@ -132,12 +244,16 @@ const server = new Server({
     console.log("CONNECT");
   },
 
-  async onDisconnect({ clientsCount, ...data }) {
+  async onDisconnect({ clientsCount, documentName }) {
     console.log("DISCONNECT");
 
     if (clientsCount === 0) {
-      console.log(`Last client disconnected from ${data.documentName}.`);
+      console.log(`Last client disconnected from ${documentName}.`);
     }
+  },
+
+  async afterUnloadDocument({ documentName }) {
+    
   },
 });
 
@@ -175,12 +291,17 @@ redisSubscriber.on("message", (channel, message) => {
   }
 
   const payload = JSON.parse(message) as any;
+  const { project_id: projectId } = payload as {
+    project_id: number;
+  };
+  const documentName = String(projectId);
 
   (async () => {
     try {
+      const docConnection = await hocuspocus.openDirectConnection(documentName);
+
       if (channel === PROJECT_UPDATE_CHANNEL) {
-        const { id: documentName, name, yjs_blob } = payload as {
-          id: string;
+        const { name, yjs_blob } = payload as {
           name?: string | null;
           yjs_blob?: string | null;
         };
@@ -188,8 +309,6 @@ redisSubscriber.on("message", (channel, message) => {
         console.log(
           `[Hocuspocus][Redis] Opening direct connection for document ${documentName}...`,
         );
-
-        const docConnection = await hocuspocus.openDirectConnection(documentName);
 
         await docConnection.transact((ydoc: Y.Doc) => {
           // Merge incoming Yjs state if provided
@@ -215,35 +334,35 @@ redisSubscriber.on("message", (channel, message) => {
           }
         });
 
-        await docConnection.disconnect();
-
         console.log(
           `[Hocuspocus][Redis] Applied external project update for document ${documentName}.`,
         );
       } else if (channel === PROJECT_COLLABORATOR_UPDATE_CHANNEL) {
-        const { project_id, collaborator_id, permission } = payload as {
-          project_id: string;
-          collaborator_id: string;
-          permission: string;
+        const { project_id, collaborators } = payload as {
+          project_id: number;
+          collaborators: Record<number, string>;
         };
 
         console.log(
           `[Hocuspocus][Redis] Broadcasting collaborator permission update for project ${project_id} to connected clients...`,
         );
 
-        const docConnection = await hocuspocus.openDirectConnection(project_id);
+        docConnection.document.getConnections().forEach(connection => {
+          const userId = connection.context?.userId;
 
-        // Broadcast to all clients in this project document
-        docConnection.document.broadcastStateless(
-          JSON.stringify({
-            type: "project_collaborator_permission",
-            collaboratorId: collaborator_id,
-            permission,
-          }),
-        );
-
-        await docConnection.disconnect();
+          if (userId in collaborators) {
+            connection.readOnly = collaborators[userId] === "view";
+            connection.sendStateless(
+              JSON.stringify({
+                type: "project_permission",
+                permission: collaborators[userId],
+              }),
+            );
+          }
+        });
       }
+
+      await docConnection.disconnect();
     } catch (innerErr) {
       console.error(
         `[Hocuspocus][Redis] Error while applying Redis update:`,

@@ -104,6 +104,14 @@ class ProjectViewSet(ModelViewSet):
 
         return Response({"status": "forked"}, status=HTTP_200_OK)
 
+    @action(detail=True, methods=['get'], url_path='check-user-permission')
+    def check_user_permission(self, request, pk=None):
+        project = self.get_object()
+        return Response({
+            "user_id": request.user.id,
+            "permission": project.get_permission(request.user),
+        }, status=HTTP_200_OK)
+
 class ProjectCollaboratorViewSet(ModelViewSet):
     queryset = ProjectCollaborator.objects.all()
     serializer_class = ProjectCollaboratorSerializer
@@ -132,7 +140,7 @@ class ProjectCollaboratorViewSet(ModelViewSet):
     def get_permissions(self):
         return super().get_permissions() + [
             create_user_permission_class(
-                'admin' if self.action in ['partial_update', 'destroy'] else 'invite' if self.action == 'create' else 'view',
+                'admin' if self.action == 'destroy' else 'invite' if self.action in ['create', 'partial_update'] else 'view',
                 user_override_fields=['collaborator'] if self.action == 'destroy' and str(self.request.user.id) == self.kwargs.get('pk') else [],
                 primary_pk_class=Project,
                 lookup='project_pk',

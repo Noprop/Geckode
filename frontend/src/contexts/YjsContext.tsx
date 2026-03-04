@@ -6,7 +6,6 @@ import * as Y from "yjs";
 import { Awareness } from "y-protocols/awareness";
 import { IndexeddbPersistence } from "y-indexeddb";
 import { documentRegistry } from "@/lib/types/yjs/documents";
-import { getCurrentUser } from "./currentUser";
 
 const WEBSOCKET_FALLBACK_DELAY_MS = 2500;
 
@@ -125,16 +124,10 @@ const setupProvider = async (name: string): Promise<void> => {
 
         // Update the user's project permission from the websocket server
         if (payload.type === "project_permission") {
-          void import("@/stores/geckodeStore").then(({ useGeckodeStore }) =>
+          void import("@/stores/geckodeStore").then(({ useGeckodeStore }) => {
+            if (!payload.permission) window.location.href = "/projects";
             useGeckodeStore.getState().setProjectPermission(payload.permission)
-          );
-        } else if (
-          payload.type === "project_collaborator_permission" &&
-          getCurrentUser()?.id === Number(payload.collaboratorId)
-        ) {
-          void import("@/stores/geckodeStore").then(({ useGeckodeStore }) =>
-            useGeckodeStore.getState().setProjectPermission(payload.permission)
-          );
+          });
         }
       },
     });

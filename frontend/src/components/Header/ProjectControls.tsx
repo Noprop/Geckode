@@ -12,7 +12,7 @@ import projectsApi from '@/lib/api/handlers/projects';
 
 export default function ProjectControls(): ReactNode {
   const showSnackbar = useSnackbar();
-  const { projectId, projectName, setProjectName, saveProject, persistence, canEditProject } = useGeckodeStore();
+  const { projectId, projectName, setProjectName, saveProject, persistence, canEditProject, projectPermission } = useGeckodeStore();
   const documentName = String(projectId ?? '');
   const yjsContext = useContext(YjsContext);
   const [showResetModal, setShowResetModal] = useState<boolean>(false);
@@ -22,6 +22,14 @@ export default function ProjectControls(): ReactNode {
   useEffect(() => {
     setPersistenceOn(!!persistence);
   }, [persistence]);
+
+  useEffect(() => {
+    setShareModalProjectData(data =>
+      data
+        ? { ...data, permission: projectPermission, name: projectName }
+        : null
+    );
+  }, [projectPermission, projectName]);
 
   const handleSave = () => {
     saveProject(showSnackbar);
