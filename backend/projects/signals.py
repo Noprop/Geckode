@@ -3,10 +3,11 @@ import json
 from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
 from redis import Redis
-from .models import Project
+from .models import Project, ProjectCollaborator
 
 redis_client = Redis(host="localhost", port=6379, db=0)
 PROJECT_UPDATE_CHANNEL = "yjs:project_updates"
+PROJECT_COLLABORATOR_UPDATE_CHANNEL = "yjs:project_collaborator_updates"
 
 @receiver(pre_save, sender=Project)
 def store_previous_project_name(sender, instance: Project, **kwargs) -> None:
@@ -55,19 +56,54 @@ def publish_project_change(sender, instance: Project, created: bool, **kwargs) -
         else:
             encoded_blob = None
 
-        payload = json.dumps(
-            {
-                "id": str(instance.pk),
-                "name": instance.name,
-                "yjs_blob": encoded_blob,
-            }
+        redis_client.publish(
+            PROJECT_UPDATE_CHANNEL,
+            json.dumps(
+                {
+                    "id": str(instance.pk),
+                    "name": instance.name,
+                    "yjs_blob": encoded_blob,
+                }
+            )
         )
-
-        redis_client.publish(PROJECT_UPDATE_CHANNEL, payload)
-    except Exception as exc:  # pragma: no cover - defensive logging
-        # Redis errors shouldn't break the main request flow
+    except Exception as exc:
         print(
             "post_save(Project): error publishing name change for project "
             f"{instance.pk} to Redis: {exc}"
         )
 
+@receiver(pre_save, sender=ProjectCollaborator)
+def store_previous_project_collaborator_permission(sender, instance: ProjectCollaborator, **kwargs) -> None:
+    if not instance.pk:
+        return
+
+    try:
+        previous = ProjectCollaborator.objects.get(pk=instance.pk)
+        instance._old_permission = previous.permission
+    except ProjectCollaborator.DoesNotExist:
+        instance._old_permission = None
+
+@receiver(post_save, sender=ProjectCollaborator)
+def publish_project_collaborator_change(sender, instance: ProjectCollaborator, created: bool, **kwargs) -> None:
+    old_permission = getattr(instance, "_old_permission", None)
+
+    if created or old_permission == instance.permission:
+        return
+
+    try:
+        redis_client.publish(
+            PROJECT_COLLABORATOR_UPDATE_CHANNEL,
+            json.dumps(
+                {
+                    "id": str(instance.pk),
+                    "project_id": str(instance.project_id),
+                    "collaborator_id": str(instance.collaborator_id),
+                    "permission": instance.permission,
+                }
+            )
+        )
+    except Exception as exc:
+        print(
+            "post_save(ProjectCollaborator): error publishing permission change for project collaborator "
+            f"{instance.pk} to Redis: {exc}"
+        )

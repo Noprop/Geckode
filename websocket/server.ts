@@ -146,52 +146,50 @@ console.log('Hocuspocus server running at ws://localhost:1234');
 
 // Listen for project updates coming from Django via Redis pub/sub
 const PROJECT_UPDATE_CHANNEL = "yjs:project_updates";
+const PROJECT_COLLABORATOR_UPDATE_CHANNEL = "yjs:project_collaborator_updates";
+const PROJECT_UPDATE_CHANNELS = [PROJECT_UPDATE_CHANNEL, PROJECT_COLLABORATOR_UPDATE_CHANNEL];
 
-redisSubscriber.subscribe(PROJECT_UPDATE_CHANNEL, (err, count) => {
+redisSubscriber.subscribe(...PROJECT_UPDATE_CHANNELS, (err, count) => {
   if (err) {
     console.error("Failed to subscribe to project update channels:", err);
     return;
   }
-
-  console.log(
-    `Subscribed to Redis channels: ${PROJECT_UPDATE_CHANNEL} (${count} channels total).`,
-  );
 });
 
 redisSubscriber.on("message", (channel, message) => {
-  try {
-    console.log("[Hocuspocus][Redis] Message received:", { channel, message });
+  console.log("[Hocuspocus][Redis] Message received:", { channel, message });
 
-    if (channel !== PROJECT_UPDATE_CHANNEL) {
-      return;
-    }
+  if (!PROJECT_UPDATE_CHANNELS.includes(channel)) {
+    return;
+  }
 
-    const payload = JSON.parse(message) as {
-      id: string;
-      name?: string | null;
-      yjs_blob?: string | null;
-    };
+  // Use a direct connection so we can always access the Y.Doc,
+  // even if there is no currently active WebSocket connection.
+  const hocuspocus = server.hocuspocus;
 
-    const { id: documentName, name, yjs_blob } = payload;
+  if (!hocuspocus || !hocuspocus.openDirectConnection) {
+    console.log(
+      "[Hocuspocus][Redis] hocuspocus instance or openDirectConnection not available, skipping.",
+    );
+    return;
+  }
 
-    // Use a direct connection so we can always access the Y.Doc,
-    // even if there is no currently active WebSocket connection.
-    const hocuspocus = server.hocuspocus;
+  const payload = JSON.parse(message) as any;
 
-    if (!hocuspocus || !hocuspocus.openDirectConnection) {
-      console.log(
-        "[Hocuspocus][Redis] hocuspocus instance or openDirectConnection not available, skipping.",
-      );
-      return;
-    }
+  (async () => {
+    try {
+      if (channel === PROJECT_UPDATE_CHANNEL) {
+        const { id: documentName, name, yjs_blob } = payload as {
+          id: string;
+          name?: string | null;
+          yjs_blob?: string | null;
+        };
 
-    (async () => {
-      try {
         console.log(
           `[Hocuspocus][Redis] Opening direct connection for document ${documentName}...`,
         );
 
-        const docConnection = await hocuspocus.openDirectConnection(documentName, {});
+        const docConnection = await hocuspocus.openDirectConnection(documentName);
 
         await docConnection.transact((ydoc: Y.Doc) => {
           // Merge incoming Yjs state if provided
@@ -222,14 +220,35 @@ redisSubscriber.on("message", (channel, message) => {
         console.log(
           `[Hocuspocus][Redis] Applied external project update for document ${documentName}.`,
         );
-      } catch (innerErr) {
-        console.error(
-          `[Hocuspocus][Redis] Error while applying project update for document ${documentName}:`,
-          innerErr,
+      } else if (channel === PROJECT_COLLABORATOR_UPDATE_CHANNEL) {
+        const { project_id, collaborator_id, permission } = payload as {
+          project_id: string;
+          collaborator_id: string;
+          permission: string;
+        };
+
+        console.log(
+          `[Hocuspocus][Redis] Broadcasting collaborator permission update for project ${project_id} to connected clients...`,
         );
+
+        const docConnection = await hocuspocus.openDirectConnection(project_id);
+
+        // Broadcast to all clients in this project document
+        docConnection.document.broadcastStateless(
+          JSON.stringify({
+            type: "project_collaborator_permission",
+            collaboratorId: collaborator_id,
+            permission,
+          }),
+        );
+
+        await docConnection.disconnect();
       }
-    })();
-  } catch (e) {
-    console.error("[Hocuspocus][Redis] Error handling project name update message:", e);
-  }
+    } catch (innerErr) {
+      console.error(
+        `[Hocuspocus][Redis] Error while applying Redis update:`,
+        innerErr,
+      );
+    }
+  })();
 });

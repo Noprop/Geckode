@@ -6,6 +6,7 @@ import * as Y from "yjs";
 import { Awareness } from "y-protocols/awareness";
 import { IndexeddbPersistence } from "y-indexeddb";
 import { documentRegistry } from "@/lib/types/yjs/documents";
+import { getCurrentUser } from "./currentUser";
 
 const WEBSOCKET_FALLBACK_DELAY_MS = 2500;
 
@@ -125,10 +126,14 @@ const setupProvider = async (name: string): Promise<void> => {
         // Update the user's project permission from the websocket server
         if (payload.type === "project_permission") {
           void import("@/stores/geckodeStore").then(({ useGeckodeStore }) =>
-            useGeckodeStore.setState({
-              projectPermission: payload.permission,
-              canEditProject: payload.permission !== "view",
-            })
+            useGeckodeStore.getState().setProjectPermission(payload.permission)
+          );
+        } else if (
+          payload.type === "project_collaborator_permission" &&
+          getCurrentUser()?.id === Number(payload.collaboratorId)
+        ) {
+          void import("@/stores/geckodeStore").then(({ useGeckodeStore }) =>
+            useGeckodeStore.getState().setProjectPermission(payload.permission)
           );
         }
       },
@@ -180,10 +185,7 @@ const setupProvider = async (name: string): Promise<void> => {
           }
           if (project?.permission) {
             void import("@/stores/geckodeStore").then(({ useGeckodeStore }) =>
-              useGeckodeStore.setState({
-                projectPermission: project.permission,
-                canEditProject: project.permission !== "view",
-              })
+              useGeckodeStore.getState().setProjectPermission(project.permission)
             );
           }
           const inst = instances.get(name);
@@ -199,10 +201,7 @@ const setupProvider = async (name: string): Promise<void> => {
       fallbackTimeoutId = setTimeout(applyBackendFallback, WEBSOCKET_FALLBACK_DELAY_MS);
     } else {
       void import("@/stores/geckodeStore").then(({ useGeckodeStore }) =>
-        useGeckodeStore.setState({
-          projectPermission: "code",
-          canEditProject: true,
-        })
+        useGeckodeStore.getState().setProjectPermission("code")
       );
     }
 

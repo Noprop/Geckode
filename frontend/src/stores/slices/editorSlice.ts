@@ -56,7 +56,9 @@ export const createEditorSlice: StateCreator<
       projectNameSync(projectName);
     }
   },
-  setProjectPermission: (projectPermission) => set({ projectPermission }),
+  setProjectPermission: (projectPermission) => {
+    set({ projectPermission, canEditProject: projectPermission !== "view" });
+  },
   setCanEditProject: (canEditProject) => set({ canEditProject }),
   setPhaserState: (phaserState) => set({ phaserState }),
 
