@@ -1,5 +1,5 @@
 import * as Blockly from "blockly/core";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useYjs } from "./useYjs";
 import { Block } from "@/lib/types/yjs/blocks";
 import { getBlocksFromSerializedBlock, serializeBlock } from "@/lib/blockly/serialization";
@@ -79,6 +79,39 @@ const createBlockEventsListener = (
   }, doc.clientID);
 };
 
+/**
+ * Applies editability (deletable, movable, editable) to all blocks in a workspace.
+ * When canEdit is false, locks all blocks. When true, restores from blocksMap (Yjs source of truth).
+ * Events are disabled during the update so lock/unlock does not sync back to Yjs.
+ */
+export const applyBlocksEditability = (
+  workspace: Blockly.Workspace | null,
+  blocksMap: Y.Map<Block> | undefined,
+  canEdit: boolean,
+) => {
+  if (!workspace) return;
+
+  const blocks = workspace.getAllBlocks(false);
+  Blockly.Events.disable();
+
+  try {
+    for (const block of blocks) {
+      if (canEdit && blocksMap) {
+        const data = blocksMap.get(block.id);
+        block.setDeletable(data?.deletable ?? true);
+        block.setMovable(data?.movable ?? true);
+        block.setEditable(data?.editable ?? true);
+      } else {
+        block.setDeletable(false);
+        block.setMovable(false);
+        block.setEditable(false);
+      }
+    }
+  } finally {
+    Blockly.Events.enable();
+  }
+};
+
 export const blocksMapChangesHandler = (
   spriteId: string,
   workspace: Blockly.Workspace,
@@ -125,6 +158,16 @@ export const blocksMapChangesHandler = (
       );
 
       block.setDisabledReason(!(data.enabled ?? true), '');
+
+      if (!useGeckodeStore.getState().canEditProject) {
+        block.setDeletable(false);
+        block.setMovable(false);
+        block.setEditable(false);
+      } else {
+        block.setDeletable(data?.deletable ?? true);
+        block.setMovable(data?.movable ?? true);
+        block.setEditable(data?.editable ?? true);
+      }
     } else if (change.action === 'update') {
       const data = blocksMap.get(key);
       if (!data) return;
@@ -204,6 +247,12 @@ export const blocksMapChangesHandler = (
       Object.entries(connectionBlocks).forEach(([inputName, childBlock]) => {
         if (childBlock) connectBlocks(childBlock, block, inputName);
       });
+
+      if (!useGeckodeStore.getState().canEditProject) {
+        block.setDeletable(false);
+        block.setMovable(false);
+        block.setEditable(false);
+      }
     } else if (change.action === 'delete') {
       console.log('attempting to remove block by id', key);
       workspace.getBlockById(key)?.dispose();
@@ -334,6 +383,8 @@ export const useBlockSync = (documentName: string) => {
   const selectedSpriteId = useGeckodeStore((s) => s.selectedSpriteId);
   const spriteWorkspaces = useGeckodeStore((s) => s.spriteWorkspaces);
   const spriteInstances = useGeckodeStore((s) => s.spriteInstances);
+  const canEditProject = useGeckodeStore((s) => s.canEditProject);
+  const prevCanEditProject = useRef<boolean | null>(true);
   const { doc, awareness } = useYjs(documentName);
   const { stopBlockDragPolling } = useAwareness(documentName);
   const workspaces = doc.getArray<Y.Map<any>>('workspaces');
@@ -341,6 +392,36 @@ export const useBlockSync = (documentName: string) => {
   useEffect(() => {
     awareness.setLocalStateField('selectedSpriteId', selectedSpriteId);
   }, [awareness, selectedSpriteId]);
+
+  // When canEditProject changes, lock or restore block editability in all workspaces.
+  // Restore uses Yjs blocksMap as source of truth so blocks that were non-movable etc. stay that way.
+  useEffect(() => {
+    if (!blocklyWorkspace || !workspaces.length || prevCanEditProject.current === canEditProject) return;
+
+    console.log('canEditProject changed', prevCanEditProject.current, canEditProject);
+
+    const selectedIndex = spriteInstances.findIndex((instance) => instance.id === selectedSpriteId);
+    const selectedBlocksMap = selectedIndex >= 0
+      ? (workspaces.get(selectedIndex)?.get('blocks') as Y.Map<Block> | undefined)
+      : undefined;
+
+    // Apply to the visible workspace (selected sprite's blocks are shown in blocklyWorkspace)
+    applyBlocksEditability(blocklyWorkspace, selectedBlocksMap, canEditProject);
+
+    // Apply to every sprite's workspace so state is correct when switching sprites
+    spriteInstances.forEach((instance, index) => {
+      const ws = spriteWorkspaces[instance.id];
+      const blocksMap = workspaces.get(index)?.get('blocks') as Y.Map<Block> | undefined;
+      applyBlocksEditability(ws ?? null, blocksMap, canEditProject);
+    });
+
+    const toolbox = blocklyWorkspace.getToolbox();
+    toolbox?.setVisible(canEditProject);
+    toolbox?.getFlyout()?.setVisible(canEditProject);
+    Blockly.svgResize(blocklyWorkspace);
+
+    prevCanEditProject.current = canEditProject;
+  }, [prevCanEditProject, canEditProject, blocklyWorkspace, spriteWorkspaces, spriteInstances, selectedSpriteId, workspaces]);
 
   useEffect(() => {
     if (!blocklyWorkspace) return;

@@ -56,6 +56,7 @@ const SpritePhysicsCurtain = () => {
       : null,
   );
   const updateSpriteInstance = useGeckodeStore((state) => state.updateSpriteInstance);
+  const canEditProject = useGeckodeStore((state) => state.canEditProject);
 
   const physics = selectedSprite?.physics;
   const pushesObjects = physics?.pushesObjects ?? DEFAULT_PHYSICS.pushesObjects;
@@ -124,7 +125,7 @@ const SpritePhysicsCurtain = () => {
     setValues((prev) => ({ ...prev, drag: String(finalValue) }));
   }, [selectedSpriteId, selectedSprite, values.drag, updateSpriteInstance]);
 
-  const disabled = !selectedSprite;
+  const disabled = !selectedSprite || !canEditProject;
 
   const iconSize = 14;
   const ToggleIcon = ({

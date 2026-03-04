@@ -14,6 +14,7 @@ const SpriteModal = () => {
   const setIsSpriteModalOpen = useGeckodeStore((state) => state.setIsSpriteModalOpen);
   const clearSpriteModalContext = useGeckodeStore((state) => state.clearSpriteModalContext);
   const isSpriteModalOpen = useGeckodeStore((state) => state.isSpriteModalOpen);
+  const canEditProject = useGeckodeStore((state) => state.canEditProject);
   const handleClose = () => {
     useGeckodeStore.setState({ editingSource: null, editingAssetName: null, editingAssetType: null, editingTextureToLoad: null });
     clearSpriteModalContext();
@@ -30,6 +31,12 @@ const SpriteModal = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isSpriteModalOpen, handleClose]);
+
+  useEffect(() => {
+    if (!canEditProject) {
+      handleClose();
+    }
+  }, [canEditProject]);
 
   if (!isSpriteModalOpen) return <></>;
 

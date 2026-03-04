@@ -59,6 +59,7 @@ const TilesetEditor = ({ onClose }: { onClose: () => void }) => {
   const editingAssetName = useGeckodeStore((s) => s.editingAssetName);
   const editingAssetType = useGeckodeStore((s) => s.editingAssetType);
   const setEditingAsset = useGeckodeStore((s) => s.setEditingAsset);
+  const canEditProject = useGeckodeStore((state) => state.canEditProject);
 
   // For preview generation only
   const { tilePixelsRef, isReady } = useTilePixelCache(tileTextures);
@@ -70,6 +71,12 @@ const TilesetEditor = ({ onClose }: { onClose: () => void }) => {
       if (keys.length > 0) setSelectedTileKey(keys[0]);
     }
   }, [tileTextures, selectedTileKey]);
+
+  useEffect(() => {
+    if (!canEditProject) {
+      onClose();
+    }
+  }, [canEditProject]);
 
   // Tile palette pagination
   const tileKeys = Object.keys(tileTextures);

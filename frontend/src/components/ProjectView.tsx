@@ -35,6 +35,7 @@ const ProjectView = () => {
     spriteIdsUpdated,
     isEditorScene,
     setProjectId,
+    canEditProject,
   } = useGeckodeStore();
   const debouncedEditorChanges = useMultiDebounce({
     values: { spriteIdsUpdated, isEditorScene },
@@ -101,7 +102,7 @@ const ProjectView = () => {
           <AssetWorkspace />
         </div>
 
-        {view === 'blocks' && (
+        {view === 'blocks' && canEditProject && (
           <div className='absolute bottom-8 right-[30px] flex items-center gap-2.5 z-20 pointer-events-auto'>
             <button
               onClick={undoWorkspace}

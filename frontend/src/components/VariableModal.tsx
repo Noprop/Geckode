@@ -13,8 +13,21 @@ interface Props {
 
 const VariableModal = ({ showVariableModal, setShowVariableModal }: Props) => {
   const showSnackbar = useSnackbar();
+  const canEditProject = useGeckodeStore((state) => state.canEditProject);
   const workspace = useGeckodeStore((state) => state.blocklyWorkspace);
   const variableInputRef = useRef<InputBoxRef | null>(null);
+
+  const handleClose = () => {
+    setShowVariableModal(false);
+    const flyout = workspace?.getFlyout();
+    if (flyout) flyout.autoClose = true;
+  };
+
+  useEffect(() => {
+    if (!canEditProject) {
+      handleClose();
+    }
+  }, [canEditProject]);
 
   useEffect(() => {
     if (showVariableModal) {
@@ -23,12 +36,6 @@ const VariableModal = ({ showVariableModal, setShowVariableModal }: Props) => {
   }, [showVariableModal]);
 
   if (!showVariableModal) return null;
-
-  const handleClose = () => {
-    setShowVariableModal(false);
-    const flyout = workspace?.getFlyout();
-    if (flyout) flyout.autoClose = true;
-  };
 
   const handleCreate = () => {
     if (!workspace || !variableInputRef.current) {

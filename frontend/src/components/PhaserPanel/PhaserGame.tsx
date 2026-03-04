@@ -6,9 +6,11 @@ import { EventBus } from '@/phaser/EventBus';
 import type EditorScene from '@/phaser/scenes/EditorScene';
 import { useGeckodeStore } from '@/stores/geckodeStore';
 import GameScene from '@/phaser/scenes/GameScene';
+import { EDITOR_SCENE_KEY } from '@/phaser/sceneKeys';
 
 const PhaserGame = () => {
   const isConverting = useGeckodeStore((state) => state.isConverting);
+  const canEditProject = useGeckodeStore((state) => state.canEditProject);
   const phaserRef = useRef<Phaser.Game | null>(null);
 
   useLayoutEffect(() => {
@@ -29,6 +31,9 @@ const PhaserGame = () => {
       // Send current pause state to newly ready scene (listener is already set up)
       const isEditorScene = useGeckodeStore.getState().isEditorScene;
       EventBus.emit('editor-scene-changed', isEditorScene);
+      if (scene.key === EDITOR_SCENE_KEY) {
+        (scene as EditorScene).setSpritesDraggable(useGeckodeStore.getState().canEditProject);
+      }
     };
 
     EventBus.on('current-scene-ready', handler);
@@ -36,6 +41,15 @@ const PhaserGame = () => {
       EventBus.off('current-scene-ready', handler);
     };
   }, []);
+
+  useEffect(() => {
+    const scene = useGeckodeStore.getState().phaserScene;
+    if (scene?.key === EDITOR_SCENE_KEY) {
+      // Refresh the editor scene so sprites + cursors are fully reinitialized
+      // with the current canEditProject state (avoids stale cursor state).
+      scene.scene.restart();
+    }
+  }, [canEditProject]);
 
   useEffect(() => {
     const container = document.getElementById('game-container') as HTMLDivElement;

@@ -1,4 +1,5 @@
 import * as Blockly from "blockly/core";
+import { useGeckodeStore } from "@/stores/geckodeStore";
 
 export const applyClientBlockProperties = (
   workspace: Blockly.Workspace,
@@ -6,10 +7,12 @@ export const applyClientBlockProperties = (
   oldBlockId?: string,
   blockId?: string,
 ) => {
+  const canEditProject = useGeckodeStore.getState().canEditProject;
+
   if (oldBlockId) {
     const block = workspace.getBlockById(oldBlockId) as Blockly.BlockSvg;
     if (!block) return;
-    block.setMovable(true);
+    block.setMovable(canEditProject);
 
     const path = block.pathObject.svgPath || block.getSvgRoot();
     path.classList.remove(`stroke-${colour}`, "stroke-4");

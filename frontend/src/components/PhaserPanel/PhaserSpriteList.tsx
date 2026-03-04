@@ -12,6 +12,7 @@ const PhaserSpriteList = () => {
   const removeSpriteInstance = useGeckodeStore((state) => state.removeSpriteInstance);
   const textures = useGeckodeStore((state) => state.textures);
   const libaryTextures = useGeckodeStore((state) => state.libaryTextures);
+  const canEditProject = useGeckodeStore((state) => state.canEditProject);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -38,6 +39,7 @@ const PhaserSpriteList = () => {
             setIsSpriteModalOpen(true);
           }}
           title="Add new sprite"
+          disabled={!canEditProject}
         >
           + Add
         </Button>
@@ -61,6 +63,7 @@ const PhaserSpriteList = () => {
                     key={sprite.id}
                     onClick={() => setSelectedSpriteId(sprite.id)}
                     onDoubleClick={() => {
+                      if (!canEditProject) return;
                       useGeckodeStore.setState({
                         editingSource: 'asset',
                         editingAssetName: sprite.textureName,
@@ -97,7 +100,7 @@ const PhaserSpriteList = () => {
                       <p className="text-[9px] text-white truncate text-center font-medium">{sprite.name}</p>
                     </div>
 
-                    {(isSelected || isHovered) && (
+                    {(isSelected || isHovered) && canEditProject && (
                       <button
                         type="button"
                         onClick={(e) => {

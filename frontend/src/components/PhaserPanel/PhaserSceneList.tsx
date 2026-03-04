@@ -5,8 +5,10 @@ const PhaserSceneList = () => {
   const setSpriteModalContext = useGeckodeStore((state) => state.setSpriteModalContext);
   const scenes = useGeckodeStore((s) => s.scenes);
   const tilemaps = useGeckodeStore((s) => s.tilemaps);
+  const canEditProject = useGeckodeStore((s) => s.canEditProject);
 
   const handleSceneClick = () => {
+    if (!canEditProject) return;
     useGeckodeStore.setState({
       editingSource: 'new',
       editingAssetName: null,

@@ -165,9 +165,19 @@ export default class EditorScene extends Phaser.Scene {
     this.spriteLayer.add(sprite);
     this.spriteLayer.bringToTop(sprite);
     this.editorSprites.set(instance.id, sprite);
-    sprite.setInteractive({ cursor: 'grab' });
-    this.input.setDraggable(sprite);
+    const canEditProject = useGeckodeStore.getState().canEditProject;
+    sprite.setInteractive({ cursor: canEditProject ? 'grab' : 'default' });
+    this.input.setDraggable(sprite, canEditProject);
   }
+
+  /** Enable or disable dragging for all editor sprites (e.g. when canEditProject changes). */
+  public setSpritesDraggable(canEdit: boolean): void {
+    for (const sprite of this.editorSprites.values()) {
+      sprite.setInteractive({ cursor: canEdit ? 'grab' : 'default' });
+      this.input.setDraggable(sprite, canEdit);
+    }
+  }
+
   public removeSprite(id: string) {
     const sprite = this.editorSprites.get(id);
     if (sprite) {

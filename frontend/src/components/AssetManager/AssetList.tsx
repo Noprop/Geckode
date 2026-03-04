@@ -23,6 +23,7 @@ const AssetList = ({ filter, activeTab, onTabChange, selectedAsset, onSelectAsse
   const assets = useGeckodeStore((s) => s[filter]);
   const tileTextures = useGeckodeStore((s) => s.tiles);
   const updateTileset = useGeckodeStore((s) => s.updateTileset);
+  const canEditProject = useGeckodeStore((state) => state.canEditProject);
 
   const { tilePixelsRef, isReady } = useTilePixelCache(tileTextures);
 
@@ -101,23 +102,25 @@ const AssetList = ({ filter, activeTab, onTabChange, selectedAsset, onSelectAsse
       {/* Asset grid */}
       <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4">
         <div className="flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={onCreateNew}
-            className="group flex w-[120px] flex-col items-center justify-center gap-1 rounded-md border-2 border-dashed border-slate-300 bg-white/60 py-8 transition hover:border-primary-green hover:bg-primary-green/5 dark:border-slate-600 dark:bg-dark-secondary/60 dark:hover:border-primary-green"
-          >
-            <PlusIcon className="h-6 w-6 text-slate-400 group-hover:text-primary-green dark:text-slate-500" />
-            <span className="text-[11px] font-semibold text-slate-400 group-hover:text-primary-green dark:text-slate-500">
-              New {TAB_CONFIG.find((tab) => tab.id === filter)?.label.slice(0, -1)}
-            </span>
-          </button>
+          {canEditProject && (
+            <button
+              type="button"
+              onClick={onCreateNew}
+              className="group flex w-[120px] flex-col items-center justify-center gap-1 rounded-md border-2 border-dashed border-slate-300 bg-white/60 py-8 transition hover:border-primary-green hover:bg-primary-green/5 dark:border-slate-600 dark:bg-dark-secondary/60 dark:hover:border-primary-green"
+            >
+              <PlusIcon className="h-6 w-6 text-slate-400 group-hover:text-primary-green dark:text-slate-500" />
+              <span className="text-[11px] font-semibold text-slate-400 group-hover:text-primary-green dark:text-slate-500">
+                New {TAB_CONFIG.find((tab) => tab.id === filter)?.label.slice(0, -1)}
+              </span>
+            </button>
+          )}
 
           {entries.map((entry) => (
             <button
               type="button"
               key={`${entry.type}-${entry.name}`}
               onClick={() => onSelectAsset({ name: entry.name, type: entry.type })}
-              onDoubleClick={() => onDoubleClickAsset?.({ name: entry.name, type: entry.type })}
+              onDoubleClick={() => canEditProject && onDoubleClickAsset?.({ name: entry.name, type: entry.type })}
               className={`group relative flex w-[120px] cursor-pointer flex-col overflow-hidden rounded-md border bg-white shadow-sm transition dark:bg-dark-secondary ${
                 isSelected(entry)
                   ? 'border-primary-green ring-2 ring-primary-green/30'

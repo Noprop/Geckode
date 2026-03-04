@@ -1,7 +1,7 @@
 'use client';
 
 import { ReactNode, useContext, useEffect, useState } from 'react';
-import { DownloadIcon, ResetIcon } from '@radix-ui/react-icons';
+import { ResetIcon } from '@radix-ui/react-icons';
 import { useGeckodeStore } from '@/stores/geckodeStore';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { Modal } from '@/components/ui/modals/Modal';
@@ -9,7 +9,7 @@ import { YjsContext } from '@/contexts/YjsContext';
 
 export default function ProjectControls(): ReactNode {
   const showSnackbar = useSnackbar();
-  const { projectId, projectName, setProjectName, saveProject, persistence } = useGeckodeStore();
+  const { projectId, projectName, setProjectName, saveProject, persistence, canEditProject } = useGeckodeStore();
   const documentName = String(projectId ?? '');
   const yjsContext = useContext(YjsContext);
   const [showResetModal, setShowResetModal] = useState<boolean>(false);
@@ -60,26 +60,29 @@ export default function ProjectControls(): ReactNode {
           placeholder='Project Name'
           className='h-8 px-3 rounded-md bg-white/15 text-white text-sm placeholder-white/60 outline-none border border-white/20 transition focus:bg-white/25 focus:border-white/40'
           style={{ width: '160px' }}
+          disabled={!canEditProject}
         />
-        <button onClick={handleSave} title='Save Project' className='header-btn'>
-          <svg
-            xmlns='http://www.w3.org/2000/svg'
-            viewBox='0 0 24 24'
-            fill='none'
-            stroke='currentColor'
-            strokeWidth='2.5'
-            strokeLinecap='round'
-            strokeLinejoin='round'
-            className='w-4 h-4'
-          >
-            <path d='M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z' />
-            <polyline points='17 21 17 13 7 13 7 21' />
-            <polyline points='7 3 7 8 15 8' />
-          </svg>
-        </button>
-        <button onClick={handleResetClick} title='Reset Project' className='header-btn'>
-          <ResetIcon className='w-4 h-4' />
-        </button>
+        {canEditProject && (<>
+          <button onClick={handleSave} title='Save Project' className='header-btn'>
+            <svg
+              xmlns='http://www.w3.org/2000/svg'
+              viewBox='0 0 24 24'
+              fill='none'
+              stroke='currentColor'
+              strokeWidth='2.5'
+              strokeLinecap='round'
+              strokeLinejoin='round'
+              className='w-4 h-4'
+            >
+              <path d='M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z' />
+              <polyline points='17 21 17 13 7 13 7 21' />
+              <polyline points='7 3 7 8 15 8' />
+            </svg>
+          </button>
+          <button onClick={handleResetClick} title='Reset Project' className='header-btn'>
+            <ResetIcon className='w-4 h-4' />
+          </button>
+        </>)}
         {yjsContext && (
           <button
             onClick={handleTogglePersistence}
@@ -113,9 +116,6 @@ export default function ProjectControls(): ReactNode {
             </svg>
           </button>
         )}
-        <button title='Download (Coming Soon)' className='header-btn'>
-          <DownloadIcon className='w-4 h-4' />
-        </button>
       </div>
 
       {showResetModal && (

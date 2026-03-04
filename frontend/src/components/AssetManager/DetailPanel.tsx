@@ -3,6 +3,7 @@
 import { Pencil2Icon, CopyIcon, TrashIcon } from '@radix-ui/react-icons';
 import { Files } from 'lucide-react';
 import { type SelectedAsset } from './Overview';
+import { useGeckodeStore } from '@/stores/geckodeStore';
 
 interface TextureDetailPanelProps {
   selectedAsset: SelectedAsset;
@@ -14,6 +15,8 @@ interface TextureDetailPanelProps {
 }
 
 const TextureDetailPanel = ({ selectedAsset, base64, onEdit, onDuplicate, onCopy, onDelete }: TextureDetailPanelProps) => {
+  const canEditProject = useGeckodeStore((state) => state.canEditProject);
+
   if (!selectedAsset || !base64) {
     return (
       <div className="flex w-[120px] shrink-0 flex-col items-center justify-center border-r border-slate-200 bg-white/50 px-3 pb-3 text-center dark:border-slate-700 dark:bg-dark-secondary/50">
@@ -37,20 +40,22 @@ const TextureDetailPanel = ({ selectedAsset, base64, onEdit, onDuplicate, onCopy
         {selectedAsset.name}
       </p>
 
-      <div className="mt-3 flex flex-col gap-1.5">
-        <button type="button" onClick={onEdit} className="flex items-center gap-1.5 rounded px-2 py-1.5 text-[11px] font-medium text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700">
-          <Pencil2Icon className="h-3 w-3" /> Edit
-        </button>
-        <button type="button" onClick={onDuplicate} className="flex items-center gap-1.5 rounded px-2 py-1.5 text-[11px] font-medium text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700">
-          <Files className="h-3 w-3" /> Duplicate
-        </button>
-        <button type="button" onClick={onCopy} className="flex items-center gap-1.5 rounded px-2 py-1.5 text-[11px] font-medium text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700">
-          <CopyIcon className="h-3 w-3" /> Copy
-        </button>
-        <button type="button" onClick={onDelete} className="flex items-center gap-1.5 rounded px-2 py-1.5 text-[11px] font-medium text-red-500 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20">
-          <TrashIcon className="h-3 w-3" /> Delete
-        </button>
-      </div>
+      {canEditProject && (
+        <div className="mt-3 flex flex-col gap-1.5">
+          <button type="button" onClick={onEdit} className="flex items-center gap-1.5 rounded px-2 py-1.5 text-[11px] font-medium text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700">
+            <Pencil2Icon className="h-3 w-3" /> Edit
+          </button>
+          <button type="button" onClick={onDuplicate} className="flex items-center gap-1.5 rounded px-2 py-1.5 text-[11px] font-medium text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700">
+            <Files className="h-3 w-3" /> Duplicate
+          </button>
+          <button type="button" onClick={onCopy} className="flex items-center gap-1.5 rounded px-2 py-1.5 text-[11px] font-medium text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700">
+            <CopyIcon className="h-3 w-3" /> Copy
+          </button>
+          <button type="button" onClick={onDelete} className="flex items-center gap-1.5 rounded px-2 py-1.5 text-[11px] font-medium text-red-500 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20">
+            <TrashIcon className="h-3 w-3" /> Delete
+          </button>
+        </div>
+      )}
     </div>
   );
 };

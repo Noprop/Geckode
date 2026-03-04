@@ -68,6 +68,7 @@ const SpritePosition = ({ borderless }: { borderless?: boolean }) => {
   );
   const updateSpriteInstance = useGeckodeStore((s) => s.updateSpriteInstance);
   const setSelectedSpriteId = useGeckodeStore((s) => s.setSelectedSpriteId);
+  const canEditProject = useGeckodeStore((state) => state.canEditProject);
 
   const phaserGame = useGeckodeStore((s) => s.phaserGame);
   const centerX = useMemo(
@@ -208,7 +209,7 @@ const SpritePosition = ({ borderless }: { borderless?: boolean }) => {
     [selectedSpriteId, updateSpriteInstance],
   );
 
-  const disabled = !selectedSprite;
+  const disabled = !selectedSprite || !canEditProject;
 
   return (
     <div className={`w-full ${borderless ? '' : 'pb-3 mb-3 border-b border-slate-300 dark:border-slate-600'}`}>

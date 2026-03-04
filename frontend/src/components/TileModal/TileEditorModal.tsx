@@ -16,6 +16,7 @@ interface TileEditorModalProps {
 }
 
 const TileEditorModal = ({ isOpen, onClose, onAddTileToSlot }: TileEditorModalProps) => {
+  const canEditProject = useGeckodeStore((state) => state.canEditProject);
   const [activeTab, setActiveTab] = useState<TabId>('editor');
 
   const handleClose = () => {
@@ -31,6 +32,12 @@ const TileEditorModal = ({ isOpen, onClose, onAddTileToSlot }: TileEditorModalPr
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
+
+  useEffect(() => {
+    if (!canEditProject) {
+      handleClose();
+    }
+  }, [canEditProject]);
 
   if (!isOpen) return null;
 
