@@ -7,6 +7,7 @@ import type { PhaserExport } from "@/phaser/PhaserStateManager";
 import type EditorScene from "@/phaser/scenes/EditorScene";
 import type GameScene from "@/phaser/scenes/GameScene";
 import { IndexeddbPersistence } from "y-indexeddb";
+import { ProjectPermissions } from "@/lib/types/api/projects";
 
 // Re-export for consumers
 export type { SpriteDefinition, SpriteInstance };
@@ -172,6 +173,8 @@ export interface EditorState {
   // Project state
   projectId: number | null;
   projectName: string;
+  projectPermission: ProjectPermissions | "owner";
+  canEditProject: boolean;
   phaserState: PhaserExport | null;
   canUndo: boolean;
   canRedo: boolean;
@@ -194,6 +197,8 @@ export interface EditorActions {
   setPhaserGame: (phaserGame: Phaser.Game) => void;
   setProjectId: (id: number | null) => void;
   setProjectName: (name: string, syncAfter?: boolean) => void;
+  setProjectPermission: (permission: ProjectPermissions | "owner") => void;
+  setCanEditProject: (canEditProject: boolean) => void;
   setPhaserState: (phaserState: PhaserExport | null) => void;
   updateUndoRedoState: () => void;
 

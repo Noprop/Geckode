@@ -25,6 +25,8 @@ export const createEditorSlice: StateCreator<
   // Project state
   projectId: null,
   projectName: "",
+  projectPermission: "view",
+  canEditProject: false,
   phaserState: null,
   canUndo: false,
   canRedo: false,
@@ -54,6 +56,8 @@ export const createEditorSlice: StateCreator<
       projectNameSync(projectName);
     }
   },
+  setProjectPermission: (projectPermission) => set({ projectPermission }),
+  setCanEditProject: (canEditProject) => set({ canEditProject }),
   setPhaserState: (phaserState) => set({ phaserState }),
 
   updateUndoRedoState: () => {

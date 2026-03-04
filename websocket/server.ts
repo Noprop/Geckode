@@ -38,6 +38,8 @@ const server = new Server({
 
       return {
         token,
+        permission: data.permission,
+        sentPermission: false,
       };
     } catch (err) {
       console.log("Authentication failed:", err);
@@ -45,7 +47,7 @@ const server = new Server({
     }
   },
 
-  async connected({ connection }) {
+  async connected({ connection, context, documentName }) {
     const tokenRefreshInterval = setInterval(() => {
       console.log(`Requesting token sync for client ${connection.document.clientID}`);
       connection.requestToken();
@@ -54,6 +56,16 @@ const server = new Server({
     connection.onClose(() => {
       clearInterval(tokenRefreshInterval);
     });
+
+    if (documentName.length > 0 && !context?.sentPermission) {
+      context.sentPermission = true;
+      connection.sendStateless(
+        JSON.stringify({
+          type: "project_permission",
+          permission: context.permission,
+        }),
+      );
+    }
   },
 
   async onLoadDocument({ document, documentName, context }) {

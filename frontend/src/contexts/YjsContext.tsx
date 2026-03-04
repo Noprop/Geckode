@@ -119,6 +119,19 @@ const setupProvider = async (name: string): Promise<void> => {
       name,
       document: doc,
       token: name.length === 0 ? () => "" : authApi.getAccessToken,
+      onStateless: (event) => {
+        const payload = JSON.parse(event.payload);
+
+        // Update the user's project permission from the websocket server
+        if (payload.type === "project_permission") {
+          void import("@/stores/geckodeStore").then(({ useGeckodeStore }) =>
+            useGeckodeStore.setState({
+              projectPermission: payload.permission,
+              canEditProject: payload.permission !== "view",
+            })
+          );
+        }
+      },
     });
 
     const current = instances.get(name);
@@ -161,9 +174,17 @@ const setupProvider = async (name: string): Promise<void> => {
             );
             Y.applyUpdate(doc, update);
           }
-          if (project?.name != null) {
+          if (project?.name) {
             const projectMetaMap = doc.getMap<any>("meta");
             projectMetaMap.set("name", project.name);
+          }
+          if (project?.permission) {
+            void import("@/stores/geckodeStore").then(({ useGeckodeStore }) =>
+              useGeckodeStore.setState({
+                projectPermission: project.permission,
+                canEditProject: project.permission !== "view",
+              })
+            );
           }
           const inst = instances.get(name);
           if (inst && !inst.synced) markDocReady();
@@ -176,6 +197,13 @@ const setupProvider = async (name: string): Promise<void> => {
       provider.on("synced", () => clearFallback());
 
       fallbackTimeoutId = setTimeout(applyBackendFallback, WEBSOCKET_FALLBACK_DELAY_MS);
+    } else {
+      void import("@/stores/geckodeStore").then(({ useGeckodeStore }) =>
+        useGeckodeStore.setState({
+          projectPermission: "code",
+          canEditProject: true,
+        })
+      );
     }
 
     pendingSetups.delete(name);
