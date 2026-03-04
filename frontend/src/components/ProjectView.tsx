@@ -9,7 +9,6 @@ import Phaser from './PhaserPanel/Phaser';
 import AssetWorkspace from './AssetManager/Overview';
 import TilemapEditor from '@/components/ui/TilemapEditor';
 import projectsApi from '@/lib/api/handlers/projects';
-import assetsApi from '@/lib/api/handlers/assets';
 import { useParams } from 'next/navigation';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { extractAxiosErrMsg } from '@/lib/api/axios';
@@ -43,7 +42,6 @@ const ProjectView = () => {
     setProjectId,
     setAsset,
     addAssetId,
-    addLibraryAsset,
     resetAssetsOnly,
   } = useGeckodeStore();
   const debouncedEditorChanges = useMultiDebounce({
@@ -74,15 +72,6 @@ const ProjectView = () => {
           }
         })
         .catch((err) => showSnackbar(extractAxiosErrMsg(err, 'Failed to get project assets!'), 'error'));
-
-      assetsApi
-        .list({ asset_type: 'textures' })
-        .then((res) => {
-          for (var asset of res.results) {
-            addLibraryAsset(asset.name, asset.asset, 'libaryTextures');
-          }
-        })
-        .catch((err) => showSnackbar(extractAxiosErrMsg(err, 'Failed to get library assets!'), 'error'));
     }
 
     return () => setProjectId(null);

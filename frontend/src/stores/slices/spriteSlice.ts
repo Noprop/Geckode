@@ -92,10 +92,6 @@ export const createUniqueSpriteName = (name: string, instances: { name: string }
   return createUniqueSpriteName(`${name.slice(0, -1)}${lastDigit + 1}`, instances);
 };
 
-export const convertToLibraryAsset = (asset: AssetType) : LibraryAssetType => "library" + String(asset)[0].toLowerCase() + String(asset).slice(1) as LibraryAssetType;
-export const convertToAsset = (asset: LibraryAssetType) : AssetType => String(asset).slice(7).toLowerCase() as AssetType
-
-
 export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> = (set, get) => ({
   spriteInstances: [],
   textures: {},
@@ -387,13 +383,6 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
   removeAssetId: (name: string) => {
     const { [name]: _, ...rest } = get()["assetIds"];
     set({ ["assetIds"]: rest });
-  },
-
-  addLibraryAsset: (name: string, base64Image: string, type) => { set({ [type]: { ...get()[type], [name]: base64Image } }); },
-  updateLibraryAsset: (name: string, base64Image: string, type) => { set({ [type]: { ...get()[type], [name]: base64Image } }); },
-  removeLibraryAsset: (name: string, type) => {
-    const { [name]: _, ...rest } = get()[type];
-    set({ [type]: rest });
   },
 
   /* ── Tilemaps ── */

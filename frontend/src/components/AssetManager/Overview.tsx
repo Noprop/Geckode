@@ -92,14 +92,9 @@ const AssetWorkspace = () => {
     const nameMap = Object.fromEntries(Object.keys(all).map((k) => [k, '']));
     const newName = createUniqueTextureName(selectedAsset.name, nameMap);
 
-    const uploadSuccess = await addAssetToBackend(newName, selectedBase64, selectedAsset.type);
-    if (uploadSuccess) {
-      setAsset(newName, selectedBase64, selectedAsset.type);
-      showSnackbar(`Successfully duplicated ${selectedAsset.name}!`, 'success');
-      setSelectedAsset({ name: newName, type: selectedAsset.type });
-    } else {
-      showSnackbar(`Failed to duplicate ${selectedAsset.name}!`, 'error');
-    }
+    setAsset(newName, selectedBase64, selectedAsset.type);
+    showSnackbar(`Successfully duplicated ${selectedAsset.name}!`, 'success');
+    setSelectedAsset({ name: newName, type: selectedAsset.type });
   };
 
   const handleCopy = async () => {
@@ -170,13 +165,8 @@ const AssetWorkspace = () => {
         showSnackbar('A texture may only be deleted if no sprites are using it.', 'error');
         return;
       }
-      const uploadSuccess = await deleteTextureInBackend(selectedAsset.name);
-      if (uploadSuccess) {
-        showSnackbar(`Successfully deleted ${selectedAsset.name}!`, 'success');
-        removeAsset(selectedAsset.name, selectedAsset.type);
-      } else {
-        showSnackbar(`Failed to deleted ${selectedAsset.name}!`, 'error');
-      }
+      showSnackbar(`Successfully deleted ${selectedAsset.name}!`, 'success');
+      removeAsset(selectedAsset.name, selectedAsset.type);
     }
     setSelectedAsset(null);
   };

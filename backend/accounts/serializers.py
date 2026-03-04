@@ -1,16 +1,59 @@
-from rest_framework.serializers import CharField, ModelSerializer, ValidationError
+from rest_framework.serializers import CharField, ModelSerializer, ValidationError, SerializerMethodField
 from django.contrib.auth.password_validation import validate_password
 from .models import User
 from rest_framework.views import APIView
+from projects.models import ProjectInvitation
+from organizations.models import OrganizationInvitation
+
+
+# for listing pending invitations to users (located here to prevent cyclic import errors)
+class OrgInviteListSerializer(ModelSerializer):
+    class Meta:
+        model = OrganizationInvitation
+        fields = ['id', 'organization', 'inviter', 'permission', 'invitee']
+        
+    # invitee is already known, remove it
+    def to_representation(self, instance: OrganizationInvitation):
+        representation = super().to_representation(instance)
+        representation.pop("invitee")
+        return representation
+
+class PrjInviteListSerializer(ModelSerializer):
+    class Meta:
+        model = ProjectInvitation
+        fields = ['id', 'project', 'inviter', 'permission', 'invitee']
+    
+    # invitee is already known, remove it
+    def to_representation(self, instance: OrganizationInvitation):
+        representation = super().to_representation(instance)
+        representation.pop("invitee")
+        return representation
+
 
 class UserSerializer(ModelSerializer):
     password = CharField(write_only=True, required=False, validators=[validate_password])
     password2 = CharField(write_only=True, required=False)
+    organization_invitations = SerializerMethodField(read_only=True)
+    project_invitations = SerializerMethodField(read_only=True)
+
+    # get all invitations directed
+    def get_organization_invitations(self, instance : User):
+        return OrgInviteListSerializer(
+            OrganizationInvitation.objects.filter(invitee__id=instance.pk).distinct(),
+            many=True
+        ).data
+
+    def get_project_invitations(self, instance : User):
+        return PrjInviteListSerializer(
+            ProjectInvitation.objects.filter(invitee__id=instance.pk).distinct(),
+            many=True
+        ).data
+
 
     class Meta:
         model = User
         fields = ['id', 'created_at', 'username', 'email', 'first_name', 'last_name',
-                  'password', 'password2', 'is_staff', 'is_superuser', 'avatar'
+                  'password', 'password2', 'is_staff', 'is_superuser', 'avatar', 'organization_invitations', 'project_invitations'
                  ]
         read_only_fields = ['created_at', 'is_staff', 'is_superuser']
 

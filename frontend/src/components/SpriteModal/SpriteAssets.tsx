@@ -55,13 +55,9 @@ const SpriteAssets = ({ setActiveTab }: SpriteAssetsProps) => {
         return;
       }
 
-      const uploadSuccess: boolean = await deleteTextureInBackend(textureName);
-
-      if (uploadSuccess) {
-        e.stopPropagation();
-        removeAsset(textureName, 'textures');
-        showSnackbar(`Successfully deleted ${textureName}!`, 'success');
-      } else showSnackbar(`Failed to delete ${textureName}!`, 'error');
+      e.stopPropagation();
+      removeAsset(textureName, 'textures');
+      showSnackbar(`Successfully deleted ${textureName}!`, 'success');
     },
     [removeAsset],
   );

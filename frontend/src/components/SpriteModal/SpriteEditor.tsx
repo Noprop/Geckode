@@ -538,17 +538,11 @@ const SpriteEditor = () => {
       const targetTextureName = currentSaveTargetTextureName ?? currentEditingAssetName;
       if (!targetTextureName) return;
 
-      const uploadSuccess = await updateTextureInBackend(targetTextureName, { asset: base64Image });
-
-      if (uploadSuccess) {
-        setAsset(targetTextureName, base64Image, 'textures');
-        if (isEditorScene) {
-          await phaserScene.updateSpriteTextureAsync(targetTextureName, base64Image);
-        }
-        showSnackbar(`Successfully updated ${targetTextureName}!`, 'success');
-      } else {
-        showSnackbar(`Failed to update ${targetTextureName}!`, 'error');
+      setAsset(targetTextureName, base64Image, 'textures');
+      if (isEditorScene) {
+        await phaserScene.updateSpriteTextureAsync(targetTextureName, base64Image);
       }
+      showSnackbar(`Successfully updated ${targetTextureName}!`, 'success');
       closeSpriteModal();
       return;
     }
@@ -559,29 +553,16 @@ const SpriteEditor = () => {
       if (targetTextureName) {
         console.log('asset manager - if');
 
-        const uploadSuccess = await updateTextureInBackend(targetTextureName, { asset: base64Image });
-
-        if (uploadSuccess) {
-          setAsset(targetTextureName, base64Image, 'textures');
-          if (isEditorScene) {
-            await phaserScene.updateSpriteTextureAsync(targetTextureName, base64Image);
-          }
-          showSnackbar(`Successfully updated ${targetTextureName}!`, 'success');
-        } else {
-          showSnackbar(`Failed to update ${targetTextureName}!`, 'error');
+        setAsset(targetTextureName, base64Image, 'textures');
+        if (isEditorScene) {
+          await phaserScene.updateSpriteTextureAsync(targetTextureName, base64Image);
         }
+        showSnackbar(`Successfully updated ${targetTextureName}!`, 'success');
       } else {
         const newTextureName = createUniqueTextureName(spriteName, { ...currentTextures, ...libaryTextures });
 
-        // upload to backend
-        const uploadSuccess = await addTextureToBackend(newTextureName, base64Image);
-
-        if (uploadSuccess) {
-          setAsset(newTextureName, base64Image, 'textures');
-          showSnackbar(`Successfully created texture ${newTextureName}!`, 'success');
-        } else {
-          showSnackbar(`Failed to create texture!`, 'error');
-        }
+        setAsset(newTextureName, base64Image, 'textures');
+        showSnackbar(`Successfully created texture ${newTextureName}!`, 'success');
       }
       closeSpriteModal();
       return;
@@ -601,20 +582,14 @@ const SpriteEditor = () => {
 
     const newTextureName = createUniqueTextureName(spriteName, { ...currentTextures, ...libaryTextures });
 
-    const uploadSuccess = await addTextureToBackend(newTextureName, base64Image);
-
-    if (uploadSuccess) {
-      setAsset(newTextureName, base64Image, 'textures');
-      console.log('texture name added new: ', newTextureName);
-      if (isEditorScene) {
-        await phaserScene.loadSpriteTextureAsync(newTextureName, base64Image);
-      }
-      createAndInsertSprite(newTextureName);
-      showSnackbar(`Successfully created ${currentEditingAssetName}!`, 'success');
-      closeSpriteModal();
-    } else {
-      showSnackbar(`Failed to create texture!`, 'error');
+    setAsset(newTextureName, base64Image, 'textures');
+    console.log('texture name added new: ', newTextureName);
+    if (isEditorScene) {
+      await phaserScene.loadSpriteTextureAsync(newTextureName, base64Image);
     }
+    createAndInsertSprite(newTextureName);
+    showSnackbar(`Successfully created ${newTextureName}!`, 'success');
+    closeSpriteModal();
   };
 
   // Load existing texture when editing from library or asset (use offscreen canvas to avoid checkerboard in pixel data)

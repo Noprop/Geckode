@@ -114,10 +114,7 @@ export interface SpriteActions {
   updateAssetId: (oldName: string,  newName: string) => void;
   removeAssetId: (name: string) => void;
 
-  addLibraryAsset: (name: string, base64Image: string, type: LibraryAssetType) => void;
-  updateLibraryAsset: (name: string, base64Image: string, type: LibraryAssetType) => void;
-  removeLibraryAsset: (name: string, type: LibraryAssetType) => void;
-
+  
   /* Tilesets */
   addTileset: (tileset: Tileset) => void;
   updateTileset: (id: string, tileset: Tileset) => void;
