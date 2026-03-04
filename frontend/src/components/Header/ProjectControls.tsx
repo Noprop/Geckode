@@ -1,11 +1,14 @@
 'use client';
 
 import { ReactNode, useContext, useEffect, useState } from 'react';
-import { ResetIcon } from '@radix-ui/react-icons';
+import { ResetIcon, Share1Icon } from '@radix-ui/react-icons';
 import { useGeckodeStore } from '@/stores/geckodeStore';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { Modal } from '@/components/ui/modals/Modal';
 import { YjsContext } from '@/contexts/YjsContext';
+import { ProjectShareModal } from '../ui/modals/ProjectShareModal';
+import { Project } from '@/lib/types/api/projects';
+import projectsApi from '@/lib/api/handlers/projects';
 
 export default function ProjectControls(): ReactNode {
   const showSnackbar = useSnackbar();
@@ -14,6 +17,7 @@ export default function ProjectControls(): ReactNode {
   const yjsContext = useContext(YjsContext);
   const [showResetModal, setShowResetModal] = useState<boolean>(false);
   const [persistenceOn, setPersistenceOn] = useState<boolean>(false);
+  const [shareModalProjectData, setShareModalProjectData] = useState<Project | null>(null);
 
   useEffect(() => {
     setPersistenceOn(!!persistence);
@@ -116,6 +120,20 @@ export default function ProjectControls(): ReactNode {
             </svg>
           </button>
         )}
+        <button
+          onClick={() => {
+            if (!projectId) return;
+            projectsApi(projectId).get().then((project) => {
+              setShareModalProjectData(project);
+            }).catch(() => {
+              showSnackbar("Was not able to fetch project data. Please try again.", "error");
+            });
+          }}
+          title="Share Project"
+          className='header-btn'
+        >
+          <Share1Icon className='w-4 h-4' />
+        </button>
       </div>
 
       {showResetModal && (
@@ -139,6 +157,12 @@ export default function ProjectControls(): ReactNode {
               </button>
             </>
           }
+        />
+      )}
+      {shareModalProjectData && (
+        <ProjectShareModal
+          onClose={() => setShareModalProjectData(null)}
+          project={shareModalProjectData}
         />
       )}
     </>
