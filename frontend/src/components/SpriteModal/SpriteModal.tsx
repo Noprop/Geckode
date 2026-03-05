@@ -20,7 +20,8 @@ const SpriteModal = () => {
   const editingAssetName = useGeckodeStore((state) => state.editingAssetName);
   const editingSource = useGeckodeStore((state) => state.editingSource);
   const textures = useGeckodeStore((state) => state.textures);
-  const selectedSpriteIdRef = useRef<string | null>(selectedSpriteId);
+  const libaryTextures = useGeckodeStore((state) => state.libaryTextures);
+  const selectedSpriteIdRef = useRef<string | null>(null);
 
   const handleClose = () => {
     useGeckodeStore.setState({ editingSource: null, editingAssetName: null, editingAssetType: null, editingTextureToLoad: null });
@@ -43,7 +44,7 @@ const SpriteModal = () => {
       editingSource === 'asset' &&
       editingAssetName &&
       editingAssetType === 'textures' &&
-      !(editingAssetName in textures)
+      !(editingAssetName in textures || editingAssetName in libaryTextures)
     ) {
       handleClose();
     }
