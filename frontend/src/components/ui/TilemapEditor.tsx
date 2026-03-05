@@ -3,17 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { DragEvent as ReactDragEvent, PointerEvent as ReactPointerEvent } from 'react';
 import { EraserIcon, Pencil2Icon } from '@radix-ui/react-icons';
-import { Trash2Icon, PlusIcon, Box } from 'lucide-react';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { Trash2Icon, PlusIcon, Box, TrashIcon } from 'lucide-react';
 import { PencilIcon, BucketIcon, LineIcon, CircleIcon } from '@/components/icons';
 import { useGeckodeStore } from '@/stores/geckodeStore';
 import type { TilemapTool, Tileset } from '@/stores/geckodeStore';
@@ -34,6 +24,8 @@ import {
   visibilityButtonActiveClasses,
   visibilityButtonInactiveClasses,
 } from '@/components/PhaserPanel/spritePositionUtils';
+import { Modal } from './modals/Modal';
+import { Button } from './Button';
 
 // ── Tool button ──
 const ToolButton = ({
@@ -897,29 +889,37 @@ const TilemapEditor = () => {
         }}
         onAddTileToSlot={handleTileAdded}
       />
-      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className='text-red-500 text-2xl'>Delete Tile</AlertDialogTitle>
-            <AlertDialogDescription>
-              There are {tilemapCellsUsingSelectedTile} tiles using this tile. This cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                handleDeleteTile();
-                setDeleteConfirmOpen(false);
-                undoStackRef.current = [];
-                redoStackRef.current = [];
-              }}
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {deleteConfirmOpen && (
+        <Modal
+          title="Delete Tile"
+          icon={TrashIcon}
+          onClose={() => setDeleteConfirmOpen(false)}
+          className="bg-red-500"
+          text="Are you sure you want to delete this tile? This cannot be undone."
+          subtitle={`There are ${tilemapCellsUsingSelectedTile} tiles using this tile.`}
+          actions={
+            <>
+              <Button
+                className="btn-deny ml-3"
+                onClick={() => {
+                  handleDeleteTile();
+                  setDeleteConfirmOpen(false);
+                  undoStackRef.current = [];
+                  redoStackRef.current = [];
+                }}
+              >
+                Delete
+              </Button>
+              <Button
+                className="btn-neutral"
+                onClick={() => setDeleteConfirmOpen(false)}
+              >
+                Cancel
+              </Button>
+            </>
+          }
+        />
+      )}
       {/* Left sidebar — brush size, tools, tileset palette */}
       <div className='w-[250px] flex flex-col gap-3 p-2 bg-light-secondary dark:bg-dark-secondary border-r border-slate-200 dark:border-slate-700'>
         {/* Brush size */}
