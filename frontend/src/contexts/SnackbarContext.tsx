@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useState, useCallback, useRef } from "react";
+import { createContext, useState, useCallback, useRef, useEffect } from "react";
 
 type SnackbarType = "success" | "error" | "info";
 
@@ -15,10 +15,13 @@ interface SnackbarMessage {
   type?: SnackbarType;
 }
 
-export function SnackbarProvider({ children }: { children: React.ReactNode }) {
-  const [snackbar, setSnackbar] = useState<SnackbarMessage | null>(null);
-  const [visible, setVisible] = useState(false);
+type SnackbarStateRef = {
+  setSnackbar: (msg: SnackbarMessage | null) => void;
+  setVisible: (visible: boolean) => void;
+};
 
+export function SnackbarProvider({ children }: { children: React.ReactNode }) {
+  const stateRef = useRef<SnackbarStateRef | null>(null);
   const visibleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const snackbarTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -27,14 +30,47 @@ export function SnackbarProvider({ children }: { children: React.ReactNode }) {
       if (visibleTimeoutRef.current) clearTimeout(visibleTimeoutRef.current);
       if (snackbarTimeoutRef.current) clearTimeout(snackbarTimeoutRef.current);
 
-      setSnackbar({ message: msg, type });
-      setVisible(true);
+      stateRef.current?.setSnackbar({ message: msg, type });
+      stateRef.current?.setVisible(true);
 
-      visibleTimeoutRef.current = setTimeout(() => setVisible(false), 3000);
-      snackbarTimeoutRef.current = setTimeout(() => setSnackbar(null), 3500);
+      visibleTimeoutRef.current = setTimeout(() => {
+        stateRef.current?.setVisible(false);
+      }, 3000);
+      snackbarTimeoutRef.current = setTimeout(() => {
+        stateRef.current?.setSnackbar(null);
+      }, 3500);
     },
     []
   );
+
+  return (
+    <SnackbarContext.Provider value={{ showSnackbar }}>
+      {children}
+      <SnackbarDisplay stateRef={stateRef} />
+    </SnackbarContext.Provider>
+  );
+}
+
+function SnackbarDisplay({ stateRef }: { stateRef: React.RefObject<SnackbarStateRef | null> }) {
+  const [mounted, setMounted] = useState(false);
+  const [snackbar, setSnackbar] = useState<SnackbarMessage | null>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    stateRef.current = { setSnackbar, setVisible };
+    return () => {
+      stateRef.current = null;
+    };
+  }, [mounted, stateRef]);
+
+  if (!mounted) {
+    return null;
+  }
 
   const bgColor = {
     success: "bg-green-500",
@@ -43,21 +79,17 @@ export function SnackbarProvider({ children }: { children: React.ReactNode }) {
   }[snackbar?.type || "info"];
 
   return (
-    <SnackbarContext.Provider value={{ showSnackbar }}>
-      {children}
-
-      <div
-        className={`
-          z-101 fixed bottom-4 left-1/2 transform -translate-x-1/2
-          px-4 py-2 rounded shadow-lg text-white
-          transition-all duration-300
-          ${bgColor}
-          ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}
-          pointer-events-none
-        `}
-      >
-        {snackbar?.message}
-      </div>
-    </SnackbarContext.Provider>
+    <div
+      className={`
+        z-101 fixed bottom-4 left-1/2 transform -translate-x-1/2
+        px-4 py-2 rounded shadow-lg text-white
+        transition-all duration-300
+        ${bgColor}
+        ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}
+        pointer-events-none
+      `}
+    >
+      {snackbar?.message}
+    </div>
   );
 }

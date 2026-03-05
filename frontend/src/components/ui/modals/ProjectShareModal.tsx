@@ -20,7 +20,7 @@ import { User, UserFilters, UserPayload, UserSortKeys } from "@/lib/types/api/us
 import { BaseFilters } from "@/lib/types/api";
 import { BaseApiInnerReturn, createBaseApi } from "@/lib/api/base";
 import { Row } from "@tanstack/react-table";
-import { Organization, OrganizationFilters, OrganizationPayload, organizationSortKeys, OrganizationSortKeys } from "@/lib/types/api/organizations";
+import { Organization, OrganizationFilters, OrganizationPayload, OrganizationSortKeys } from "@/lib/types/api/organizations";
 import { ProjectOrganization, ProjectOrganizationFilters, ProjectOrganizationPayload, projectOrganizationSortKeys, ProjectOrganizationSortKeys } from "@/lib/types/api/projects/organizations";
 import organizationsApi from "@/lib/api/handlers/organizations";
 
@@ -253,7 +253,7 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
                 })
               ),
               style: "w-3 pr-3",
-              disabled: !["owner", "manager"].includes(project.permission ?? ''),
+              disabled: !["owner", "admin"].includes(project.permission ?? ''),
             }
           }}
           defaultSortField="id"

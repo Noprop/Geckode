@@ -224,33 +224,58 @@ export const Table = <
         />
       </div>
     ),
-    select: (value, column, rowId) => (
-      <SelectionBox
-        defaultValue={value}
-        options={column.options}
-        disabled={column?.disabled}
-        onChange={(e) => {
-          api(
-            (Array.isArray(columns.id.key)
-              ? columns.id.key
-              : [columns.id.key]
-            ).reduce((acc: any, key) => acc?.[key], data[rowId]),
-          )
-            .update({
-              [(Array.isArray(column.key)
-                ? (column.key as string[]).at(-1)
-                : column.key) as keyof TData]: e.target.value,
-            } as unknown as Partial<TPayload>)
-            .catch(() => {
-              showSnackbar(
-                "Something went wrong. Please try again later.",
-                "error",
-              );
-            });
-        }}
-        className="w-full"
-      />
-    ),
+    select: (value, column, rowId) => {
+      const path = Array.isArray(column.key)
+        ? (column.key as string[])
+        : [column.key as string];
+
+      const setRowValueAtPath = (row: TData, path: string[], newValue: unknown): TData => {
+        if (path.length === 1) {
+          return { ...row, [path[0]]: newValue } as TData;
+        }
+        const [first, ...rest] = path;
+        return {
+          ...row,
+          [first]: setRowValueAtPath((row as any)?.[first] ?? {}, rest, newValue),
+        } as TData;
+      };
+
+      return (
+        <SelectionBox
+          defaultValue={value}
+          options={column.options}
+          disabled={column?.disabled}
+          onChange={(e) => {
+            const newValue = e.target.value;
+            api(
+              (Array.isArray(columns.id.key)
+                ? columns.id.key
+                : [columns.id.key]
+              ).reduce((acc: any, key) => acc?.[key], data[rowId]),
+            )
+              .update({
+                [(Array.isArray(column.key)
+                  ? (column.key as string[]).at(-1)
+                  : column.key) as keyof TData]: newValue,
+              } as unknown as Partial<TPayload>)
+              .then(() => {
+                setData((prev) =>
+                  prev.map((row, i) =>
+                    i === rowId ? setRowValueAtPath({ ...row }, path, newValue) : row,
+                  ),
+                );
+              })
+              .catch(() => {
+                showSnackbar(
+                  "Something went wrong. Please try again later.",
+                  "error",
+                );
+              });
+          }}
+          className="w-full"
+        />
+      );
+    },
   };
   const defaultRenderer = (value: any) => value?.toString() ?? "";
 
