@@ -3,7 +3,7 @@ from django.dispatch import receiver
 from .models import User
 
 @receiver(pre_save, sender=User)
-def delete_old_avatar_on_change(sender, instance: User, **kwargs) -> None:
+def delete_old_avatar_on_user_change(sender, instance: User, **kwargs) -> None:
     """
     Delete the old avatar file from storage when a new one is uploaded.
     """
@@ -22,7 +22,6 @@ def delete_old_avatar_on_change(sender, instance: User, **kwargs) -> None:
     # If avatar changed and old file exists, delete the old file
     if old_avatar and old_avatar != new_avatar:
         old_avatar.delete(save=False)
-
 
 @receiver(post_delete, sender=User)
 def delete_avatar_on_user_delete(sender, instance: User, **kwargs) -> None:
