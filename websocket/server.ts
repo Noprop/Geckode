@@ -97,6 +97,14 @@ const clearDocumentClients = async (documentName: string) => {
   await redis.del(key);
 };
 
+/** Returns true if the document has at least one connected client (in Redis). */
+const documentHasConnectedClients = async (documentName: string): Promise<boolean> => {
+  if (!documentName) return false;
+  const key = getClientMapKey(documentName);
+  const count = await redis.hlen(key);
+  return count > 0;
+};
+
 // Clear any stale client maps when the server starts.
 resetClientMaps();
 
@@ -298,6 +306,14 @@ redisSubscriber.on("message", (channel, message) => {
 
   (async () => {
     try {
+      const hasClients = await documentHasConnectedClients(documentName);
+      if (!hasClients) {
+        console.log(
+          `[Hocuspocus][Redis] Skipping update for document ${documentName} (no connected clients).`,
+        );
+        return;
+      }
+
       const docConnection = await hocuspocus.openDirectConnection(documentName);
 
       if (channel === PROJECT_UPDATE_CHANNEL) {
