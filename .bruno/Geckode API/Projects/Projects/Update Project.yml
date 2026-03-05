@@ -1,0 +1,18 @@
+info:
+  name: Update Project
+  type: http
+  seq: 4
+
+http:
+  method: PATCH
+  url: "{{baseURL}}{{projectsAPI}}20/"
+  body:
+    type: json
+    data: "{\r\n    \"name\": \"test43223\"\r\n}"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

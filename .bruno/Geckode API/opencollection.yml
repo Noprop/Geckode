@@ -1,0 +1,79 @@
+opencollection: 1.0.0
+
+info:
+  name: Geckode API
+config:
+  proxy:
+    inherit: true
+    config:
+      protocol: http
+      hostname: ""
+      port: ""
+      auth:
+        username: ""
+        password: ""
+      bypassProxy: ""
+
+request:
+  variables:
+    - name: baseURL
+      value: http://127.0.0.1:8000
+    - name: accountsAPI
+      value: /api/accounts
+    - name: loginPath
+      value: login/
+    - name: username
+      value: Jeremy737
+    - name: password
+      value: Password123!
+    - name: organizationsAPI
+      value: /api/organizations/
+    - name: username2
+      value: test
+    - name: invitationsPath
+      value: invitations/
+    - name: membersPath
+      value: members/
+    - name: organization
+      value: "1"
+    - name: member
+      value: "2"
+    - name: username4
+      value: test2
+    - name: projectsAPI
+      value: /api/projects/
+    - name: collaboratorsPath
+      value: collaborators/
+    - name: projectGroupsAPI
+      value: /api/project-groups/
+    - name: usersAPI
+      value: /api/users/
+    - name: logoutPath
+      value: logout/
+    - name: csrfToken
+      value: TyowoU872Zlr8q6umr52NJ9NvzqARHUJ
+    - name: forkPath
+      value: fork/
+    - name: projectsPath
+      value: projects/
+    - name: joinPath
+      value: join/
+    - name: bannedMembersPath
+      value: banned-members/
+    - name: spritesPath
+      value: ""
+    - name: spritesAPI
+      value: ""
+  scripts:
+    - type: before-request
+      code: |-
+        const loginUrl = bru.getEnvVar("baseURL") + bru.getEnvVar("usersAPI") + bru.getEnvVar("loginPath");
+        if (req.getUrl() !== loginUrl) {
+          req.setHeader("X-CSRFToken", bru.getVar("csrfToken"));
+        }
+bundled: false
+extensions:
+  bruno:
+    ignore:
+      - node_modules
+      - .git

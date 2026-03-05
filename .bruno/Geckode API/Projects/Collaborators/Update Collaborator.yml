@@ -1,0 +1,22 @@
+info:
+  name: Update Collaborator
+  type: http
+  seq: 4
+
+http:
+  method: PATCH
+  url: "{{baseURL}}{{projectsAPI}}1/{{collaboratorsPath}}1/"
+  body:
+    type: json
+    data: "{\r
+
+      \    \"permission\": \"invite\"\r
+
+      }"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -1,0 +1,18 @@
+info:
+  name: Update Sprite Library
+  type: http
+  seq: 7
+
+http:
+  method: PATCH
+  url: "{{baseURL}}{{projectsAPI}}13/{{spriteLibrariesPath}}5/"
+  body:
+    type: json
+    data: "{\r\n    \"name\": \"My Lib 3\"\r\n}"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

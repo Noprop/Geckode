@@ -1,7 +1,7 @@
 import { BaseFilters } from ".";
 import { pick } from "..";
-import { OrganizationInvitation } from './organizations/invitations';
-import { ProjectInvitation } from './projects/invitations';
+import { ListOrganizationInvitation } from './organizations/invitations';
+import { ListProjectInvitation } from './projects/invitations';
 
 export interface User {
   id: number;
@@ -13,8 +13,8 @@ export interface User {
   is_staff?: boolean;
   is_superuser?: boolean;
   avatar: string | null;
-  organization_invitations: OrganizationInvitation[];
-  project_invitations: ProjectInvitation[];
+  organization_invitations: ListOrganizationInvitation[];
+  project_invitations: ListProjectInvitation[];
 }
 
 export const publicUserKeys = [

@@ -1,0 +1,22 @@
+info:
+  name: Update Sprite (Public)
+  type: http
+  seq: 6
+
+http:
+  method: PATCH
+  url: "{{baseURL}}{{spritesLibrariesAPI}}1/{{spritesPath}}2/"
+  body:
+    type: json
+    data: "{\r
+
+      \    \"permission\": \"contribute\"\r
+
+      }"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

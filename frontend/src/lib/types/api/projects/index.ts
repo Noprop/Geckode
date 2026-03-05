@@ -19,6 +19,12 @@ export interface Project {
   sprites?: SpriteInstance[];
 }
 
+export interface ProjectLite {
+    id: number | string;
+    name: string;
+    thumbnail: string;
+}
+
 export interface ProjectFilters extends BaseFilters {
   owner?: number;
   group?: number;

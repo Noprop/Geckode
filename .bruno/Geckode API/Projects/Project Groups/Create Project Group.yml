@@ -1,0 +1,18 @@
+info:
+  name: Create Project Group
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{baseURL}}{{projectGroupsAPI}}"
+  body:
+    type: json
+    data: "{\r\n    \"name\": \"test\"\r\n}"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

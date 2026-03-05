@@ -5,9 +5,10 @@ import { InputBox, InputBoxRef } from '@/components/ui/inputs/InputBox';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { authApi } from '@/lib/api/auth';
 import { extractAxiosErrMsg } from '@/lib/api/axios';
+import { convertFormData } from '@/lib/api/base';
 import usersApi from '@/lib/api/handlers/users';
 import { User, UserPayload } from '@/lib/types/api/users';
-import { Button } from '@radix-ui/themes';
+import { Button } from '@/components/ui/Button';
 import React, { useEffect, useRef, useState } from 'react';
 
 // TODO: Make ability to change password!
@@ -40,7 +41,7 @@ const AccountSettings = () => {
 
     user &&
       usersApi(user.id)
-        .update(payload)
+        .update(convertFormData(payload))
         .then((res) => {
           snackbar('Updated User!', 'success');
           setUser(res);
@@ -81,10 +82,10 @@ const AccountSettings = () => {
         <h1>Avatar:</h1>
         <DragAndDrop ref={dropboxRef} accept='image/*' multiple={false} />
         <div className='w-max h-10 mt-8 flex'>
-          <Button className='btn-confirm rounded-md px-3' onClick={updateUser}>
+          <Button className='bg-primary-green px-2' onClick={updateUser}>
             Save Changes
           </Button>
-          <Button className='btn-neutral ml-3' onClick={resetPage}>
+          <Button className='bg-light-tertiary dark:bg-dark-tertiary ml-3' onClick={resetPage}>
             Cancel
           </Button>
         </div>

@@ -2,12 +2,23 @@ from rest_framework.serializers import CharField, ModelSerializer, ValidationErr
 from django.contrib.auth.password_validation import validate_password
 from .models import User
 from rest_framework.views import APIView
-from projects.models import ProjectInvitation
-from organizations.models import OrganizationInvitation
-
+from projects.models import ProjectInvitation, Project
+from organizations.models import OrganizationInvitation, Organization
 
 # for listing pending invitations to users (located here to prevent cyclic import errors)
-class OrgInviteListSerializer(ModelSerializer):
+class OrganizationLiteSerializer(ModelSerializer):
+    class Meta:
+        model = Organization
+        fields = ['id', 'name', 'slug', 'thumbnail']
+
+class ProjectLiteSerializer(ModelSerializer):
+    class Meta:
+        model = Project
+        fields = ['id', 'name', 'thumbnail']
+
+class OrgInviteListSerializer(ModelSerializer):  
+    organization = OrganizationLiteSerializer(read_only=True)
+
     class Meta:
         model = OrganizationInvitation
         fields = ['id', 'organization', 'inviter', 'permission', 'invitee']
@@ -19,6 +30,7 @@ class OrgInviteListSerializer(ModelSerializer):
         return representation
 
 class PrjInviteListSerializer(ModelSerializer):
+    project = ProjectLiteSerializer(read_only=True)
     class Meta:
         model = ProjectInvitation
         fields = ['id', 'project', 'inviter', 'permission', 'invitee']

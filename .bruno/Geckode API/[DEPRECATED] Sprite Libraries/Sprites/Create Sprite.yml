@@ -1,0 +1,28 @@
+info:
+  name: Create Sprite
+  type: http
+  seq: 9
+
+http:
+  method: POST
+  url: "{{baseURL}}{{projectsAPI}}13/{{spriteLibrariesPath}}5/{{spritesPath}}"
+  body:
+    type: multipart-form
+    data:
+      - name: name
+        type: text
+        value: Sprite 1
+      - name: sprite_library_id
+        type: text
+        value: "2"
+      - name: texture
+        type: file
+        value:
+          - /home/jonathan/Pictures/0.jpg
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

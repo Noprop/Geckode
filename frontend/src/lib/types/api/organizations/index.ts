@@ -15,6 +15,13 @@ export interface Organization {
   projects_count?: number;
 }
 
+export interface OrganizationLite {
+    id: number | string;
+    name: string;
+    slug: string;
+    thumbnail: string;
+}
+
 export interface OrganizationFilters extends BaseFilters {
   owner?: number;
   is_public?: boolean;

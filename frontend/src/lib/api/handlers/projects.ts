@@ -5,6 +5,7 @@ import { ProjectCollaborator, ProjectCollaboratorFilters, ProjectCollaboratorPay
 import { ProjectOrganization, ProjectOrganizationFilters, ProjectOrganizationPayload } from "@/lib/types/api/projects/organizations";
 import { ProjectInvitation, ProjectInvitationFilters, ProjectInvitationPayload } from "@/lib/types/api/projects/invitations";
 import { Asset, AssetFilters, AssetPayload } from "@/lib/types/api/assets/index";
+import api from '../axios';
 
 export const PROJECTS_API_URL = 'projects/';
 export const PROJECT_GROUPS_API_URL = 'project-groups/';
@@ -28,7 +29,9 @@ const projectsApi = createBaseApi<Project, ProjectPayload, ProjectFilters>({
   })(),
   invitationsApi: (id: number | string) => createBaseApi<ProjectInvitation, ProjectInvitationPayload, ProjectInvitationFilters>({
     baseUrl: projectInvitationsApiUrl(id),
-  })(),
+  })({
+    accept: (invId: string|number) => api.post(`${projectInvitationsApiUrl(id)}${invId}/accept/`).then()
+  }),
   assetsApi: (id: number | string) => createBaseApi<Asset, AssetPayload, AssetFilters>({
       baseUrl: assetsApiUrl(id)
   })(),

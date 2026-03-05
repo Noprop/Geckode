@@ -1,0 +1,15 @@
+info:
+  name: Fork Project
+  type: http
+  seq: 6
+
+http:
+  method: POST
+  url: "{{baseURL}}{{projectsAPI}}12/{{forkPath}}"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

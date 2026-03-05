@@ -1,12 +1,20 @@
 import { User } from "../users";
 import { BaseFilters } from "..";
-import { ProjectPermissions } from ".";
+import {ProjectLite, ProjectPermissions } from ".";
 
 export interface ProjectInvitation {
   id: number;
   invited_at: string;
   invitee: User;
   inviter: User;
+  permission: ProjectPermissions;
+}
+
+// used in list views (i.e. the user serializer)
+export interface ListProjectInvitation {
+  id: number | string;
+  project: ProjectLite;
+  inviter: number | string;
   permission: ProjectPermissions;
 }
 

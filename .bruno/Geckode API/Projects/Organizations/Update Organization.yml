@@ -1,0 +1,22 @@
+info:
+  name: Update Organization
+  type: http
+  seq: 2
+
+http:
+  method: PATCH
+  url: "{{baseURL}}{{projectsAPI}}33/organizations/2/"
+  body:
+    type: json
+    data: "{\r
+
+      \    \"permission\": \"view\"\r
+
+      }"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

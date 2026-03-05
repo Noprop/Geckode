@@ -1,0 +1,15 @@
+info:
+  name: Delete Sprite
+  type: http
+  seq: 7
+
+http:
+  method: DELETE
+  url: "{{baseURL}}{{projectsAPI}}13/{{spriteLibrariesPath}}5/{{spritesPath}}2/"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

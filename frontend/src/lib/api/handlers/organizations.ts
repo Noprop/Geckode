@@ -4,6 +4,7 @@ import { OrganizationMember, OrganizationMemberFilters, OrganizationMemberPayloa
 import { OrganizationInvitation, OrganizationInvitationFilters, OrganizationInvitationPayload } from "@/lib/types/api/organizations/invitations";
 import { OrganizationBannedMember, OrganizationBannedMemberFilters, OrganizationBannedMemberPayload } from "@/lib/types/api/organizations/banned-members";
 import { OrganizationProject, OrganizationProjectFilters, OrganizationProjectPayload } from "@/lib/types/api/organizations/projects";
+import api from '../axios';
 
 export const ORGANIZATIONS_API_URL = 'organizations/';
 export const organizationInvitationsApiUrl = (id: number | string) => `${ORGANIZATIONS_API_URL}${id}/invitations/`;
@@ -16,7 +17,9 @@ const organizationsApi = createBaseApi<Organization, OrganizationPayload, Organi
 })({
   invitationsApi: (id: number | string) => createBaseApi<OrganizationInvitation, OrganizationInvitationPayload, OrganizationInvitationFilters>({
     baseUrl: organizationInvitationsApiUrl(id)
-  })(),
+  })({
+    accept: (invId: string|number) => api.post(`${organizationInvitationsApiUrl(id)}${invId}/accept/`).then()
+  }),
   members: (id: number | string) => createBaseApi<OrganizationMember, OrganizationMemberPayload, OrganizationMemberFilters>({
     baseUrl: organizationMembersApiUrl(id)
   })(),

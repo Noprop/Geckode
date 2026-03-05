@@ -33,7 +33,7 @@ class LogoutView(APIView):
 
 class UserDetailsView(APIView):
     def get(self, request : Request):
-        return Response(UserSerializer(request.user).data)
+        return Response(UserSerializer(request.user, context={'request': request}).data)
 
 class GetJWTToken(APIView):
     def get(self, request):

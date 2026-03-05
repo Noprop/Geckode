@@ -1,0 +1,18 @@
+info:
+  name: Create Public Sprite Library
+  type: http
+  seq: 6
+
+http:
+  method: POST
+  url: "{{baseURL}}{{spritesLibrariesAPI}}"
+  body:
+    type: json
+    data: "{\r\n    \"name\": \"Hello\"\r\n}"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

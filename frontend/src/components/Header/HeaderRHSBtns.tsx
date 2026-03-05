@@ -72,7 +72,7 @@ const HeaderRHSBtns = () => {
           !user || !user.avatar ? (
             <PersonIcon className='w-5 h-5' />
           ) : (
-            <Image src={user.avatar} alt='' className='h-5 w-5 rounded-full'></Image>
+            <img src={user.avatar} alt='' className='h-5 w-5 rounded-full' />
           )
         }
       </DropDownButton>

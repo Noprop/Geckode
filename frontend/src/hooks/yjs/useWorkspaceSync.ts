@@ -317,7 +317,7 @@ export function getYDoc(): Y.Doc | undefined {
   return documentRegistry.get(String(projectId ?? ''));
 }
 
-export const addSpriteSync = (instance: SpriteInstance) => {
+export const addSpriteSync = (instance: SpriteInstance, duplicatedFromSpriteIndex?: number) => {
   const doc = getYDoc();
   if (!doc) return;
 
@@ -335,7 +335,17 @@ export const addSpriteSync = (instance: SpriteInstance) => {
     spriteUnobservers[instance.id] = createSpriteObserver(instance.id, instanceMap, doc);
 
     wrapperMap.set('sprite', instanceMap);
-    wrapperMap.set('blocks', new Y.Map());
+
+    const blocksMap = new Y.Map<Block>();
+    if (duplicatedFromSpriteIndex !== undefined) {
+      const sourceBlocksMap = workspaces.get(duplicatedFromSpriteIndex)?.get('blocks');
+      if (sourceBlocksMap instanceof Y.Map) {
+        sourceBlocksMap.forEach((block, key) => {
+          blocksMap.set(key, block);
+        });
+      }
+    }
+    wrapperMap.set('blocks', blocksMap);
 
     console.log('pushing new ymap to workspaces');
 

@@ -66,7 +66,7 @@ export function createBaseApi<
 
       const methods = {
         get: (config?: AxiosRequestConfig) => unwrap<Required<TData>>(api.get(url, config)),
-        update: (data: Partial<TPayload>, config?: AxiosRequestConfig) => unwrap<Required<TData>>(api.patch(url, data, config)),
+        update: (data: Partial<TPayload> | FormData, config?: AxiosRequestConfig) => unwrap<Required<TData>>(api.patch(url, data, config)),
         delete: (config?: AxiosRequestConfig) => unwrap<void>(api.delete(url, config)),
       };
 

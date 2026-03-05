@@ -265,8 +265,6 @@ const SpriteEditor = () => {
       const targetTextureName =
         currentSaveTargetTextureName ?? (currentEditingSource === 'asset' ? currentEditingAssetName : null);
       if (targetTextureName) {
-        console.log('asset manager - if');
-
         setAsset(targetTextureName, base64Image, 'textures');
         if (isEditorScene) {
           await phaserScene.updateSpriteTextureAsync(targetTextureName, base64Image);
