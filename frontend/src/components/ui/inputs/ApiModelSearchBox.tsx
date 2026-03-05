@@ -74,7 +74,8 @@ export const ApiModelSearchBox = <
         disabled={disabled}
       />
       {hasTyped && (
-        <div 
+        <div
+          onMouseDown={(e) => e.preventDefault()}
           className={`absolute top-full left-0 w-full mt-1 bg-light-bg
                       dark:bg-dark-secondary border rounded-lg shadow-xl
                       z-50 max-h-60 overflow-y-auto

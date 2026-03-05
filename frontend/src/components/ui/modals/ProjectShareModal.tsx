@@ -2,7 +2,7 @@ import { Share1Icon, PersonIcon, BackpackIcon, TrashIcon } from "@radix-ui/react
 import { Modal } from "./Modal";
 import { Button } from "../Button";
 import { Project, projectPermissions } from "@/lib/types/api/projects";
-import { Ref, useImperativeHandle, useRef, useState } from "react";
+import { Ref, useCallback, useImperativeHandle, useRef, useState } from "react";
 import projectsApi from "@/lib/api/handlers/projects";
 import {
   ProjectCollaborator,
@@ -41,6 +41,44 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
   const projectApi = projectsApi(project.id);
   const collaboratorsApi = projectApi.collaborators;
   const projectOrganizationsApi = projectApi.organizations;
+
+  const handleUserRowClick = useCallback(
+    (row: Row<User>, onSuccess: () => void) => {
+      collaboratorsApi
+        .create({
+          collaborator_id: Number(row.getValue("id")),
+          permission: "view",
+        })
+        .then(() => {
+          showSnackbar("Successfully added the user as a collaborator.", "success");
+          tableRef.current?.refresh();
+          onSuccess();
+        })
+        .catch(() => {
+          showSnackbar("An error occured when adding the user as a collaborator.", "error");
+        });
+    },
+    [collaboratorsApi, showSnackbar]
+  );
+
+  const handleOrganizationRowClick = useCallback(
+    (row: Row<Organization>, onSuccess: () => void) => {
+      organizationsApi(row.getValue("id")).projects
+        .create({
+          project_id: project.id,
+          permission: "view",
+        })
+        .then(() => {
+          showSnackbar("Successfully shared the project with the organization.", "success");
+          tableRef.current?.refresh();
+          onSuccess();
+        })
+        .catch(() => {
+          showSnackbar("An error occured when sharing the project with the organization.", "error");
+        });
+    },
+    [project.id, showSnackbar]
+  );
 
   return (
     <Modal
@@ -94,21 +132,7 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
               type: "user",
             }
           }}
-          handleRowClick={(row, onSuccess) => {
-            collaboratorsApi
-              .create({
-                collaborator_id: Number(row.getValue('id')),
-                permission: 'view',
-              })
-              .then(() => {
-                showSnackbar("Successfully added the user as a collaborator.", "success");
-                tableRef.current?.refresh();
-                onSuccess();
-              })
-              .catch(() => {
-                showSnackbar("An error occured when adding the user as a collaborator.", "error");
-              });
-          }}
+          handleRowClick={handleUserRowClick}
           canUse={["owner", "admin", "invite"].includes(project.permission ?? '')}
         />
         <ProjectShareTable<
@@ -198,21 +222,7 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
               key: "slug",
             },
           }}
-          handleRowClick={(row, onSuccess) => {
-            organizationsApi(row.getValue('id')).projects
-              .create({
-                project_id: project.id,
-                permission: 'view',
-              })
-              .then(() => {
-                showSnackbar("Successfully shared the project with the organization.", "success");
-                tableRef.current?.refresh();
-                onSuccess();
-              })
-              .catch(() => {
-                showSnackbar("An error occured when sharing the project with the organization.", "error");
-              });
-          }}
+          handleRowClick={handleOrganizationRowClick}
           canUse={["owner", "admin"].includes(project.permission ?? '')}
         />
         <ProjectShareTable<
