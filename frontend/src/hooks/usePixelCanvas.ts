@@ -7,9 +7,14 @@ export const createPixelArray = (width: number, height: number): Uint8ClampedArr
   return new Uint8ClampedArray(width * height * 4);
 };
 
+/** Create a zeroed-out single-byte mask buffer */
+export const createMaskArray = (width: number, height: number): Uint8Array => {
+  return new Uint8Array(width * height);
+};
+
 export function usePixelCanvas(
   gridWidth: number, gridHeight: number, cellSize: number, sizeMod: number,
-  options?: { enableKeyboardShortcuts?: boolean },
+  options?: { enableKeyboardShortcuts?: boolean; canvasSize?: { w: number; h: number } },
 ) {
   const enableKB = options?.enableKeyboardShortcuts ?? true;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -18,10 +23,17 @@ export function usePixelCanvas(
   // Pixel data layers (refs for perf – no React re-renders during drawing)
   const outputPixelsRef = useRef<Uint8ClampedArray>(createPixelArray(gridWidth, gridHeight));
   const previewPixelsRef = useRef<Uint8ClampedArray>(createPixelArray(gridWidth, gridHeight));
+  const hoverPixelsRef = useRef<Uint8ClampedArray>(createPixelArray(gridWidth, gridHeight));
+  const hoverEraseMaskRef = useRef<Uint8Array>(createMaskArray(gridWidth, gridHeight));
 
   // Undo / Redo stacks
   const undoStackRef = useRef<Uint8ClampedArray[]>([]);
   const redoStackRef = useRef<Uint8ClampedArray[]>([]);
+
+  const clearHoverPreview = useCallback(() => {
+    hoverPixelsRef.current.fill(0);
+    hoverEraseMaskRef.current.fill(0);
+  }, []);
 
   // Cached checker-pattern tile
   const checkerTileRef = useRef<HTMLCanvasElement | null>(null);
@@ -57,6 +69,8 @@ export function usePixelCanvas(
     saveToHistory();
     outputPixelsRef.current = createPixelArray(gridWidth, gridHeight);
     previewPixelsRef.current = createPixelArray(gridWidth, gridHeight);
+    hoverPixelsRef.current = createPixelArray(gridWidth, gridHeight);
+    hoverEraseMaskRef.current = createMaskArray(gridWidth, gridHeight);
     setRenderCount((n) => n + 1);
   }, [gridWidth, gridHeight, saveToHistory]);
 
@@ -64,6 +78,8 @@ export function usePixelCanvas(
   const resetPixelArrays = useCallback((w: number, h: number) => {
     outputPixelsRef.current = createPixelArray(w, h);
     previewPixelsRef.current = createPixelArray(w, h);
+    hoverPixelsRef.current = createPixelArray(w, h);
+    hoverEraseMaskRef.current = createMaskArray(w, h);
     undoStackRef.current = [];
     redoStackRef.current = [];
   }, []);
@@ -78,10 +94,10 @@ export function usePixelCanvas(
       tile.height = size * 2;
       const tileCtx = tile.getContext('2d')!;
 
-      tileCtx.fillStyle = '#9e9e9e';
+      tileCtx.fillStyle = '#b8b8b8';
       tileCtx.fillRect(0, 0, size, size);
       tileCtx.fillRect(size, size, size, size);
-      tileCtx.fillStyle = '#6e6e6e';
+      tileCtx.fillStyle = '#9e9e9e';
       tileCtx.fillRect(size, 0, size, size);
       tileCtx.fillRect(0, size, size, size);
 
@@ -92,33 +108,52 @@ export function usePixelCanvas(
   };
 
   // ---- Render main canvas ----
+  const canvasSizeOpt = options?.canvasSize;
   const renderCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const size = Math.max(1, Math.round(cellSize));
     const w = gridWidth;
     const h = gridHeight;
-    canvas.width = w * size;
-    canvas.height = h * size;
+
+    // When an explicit canvasSize is provided, use it as the internal
+    // resolution so tile boundaries match CSS-level overlays exactly.
+    const cw = canvasSizeOpt ? canvasSizeOpt.w : w * Math.max(1, Math.round(cellSize));
+    const ch = canvasSizeOpt ? canvasSizeOpt.h : h * Math.max(1, Math.round(cellSize));
+    canvas.width = cw;
+    canvas.height = ch;
     ctx.imageSmoothingEnabled = false;
 
-    const imageData = ctx.createImageData(canvas.width, canvas.height);
+    const imageData = ctx.createImageData(cw, ch);
     const data = imageData.data;
     const outLayer = outputPixelsRef.current;
     const previewLayer = previewPixelsRef.current;
+    const hoverLayer = hoverPixelsRef.current;
+    const hoverEraseMask = hoverEraseMaskRef.current;
 
     for (let py = 0; py < h; py++) {
+      const y0 = Math.round((py / h) * ch);
+      const y1 = Math.round(((py + 1) / h) * ch);
       for (let px = 0; px < w; px++) {
         const srcIdx = (py * w + px) * 4;
-        const layer = previewLayer[srcIdx + 3] > 0 ? previewLayer : outLayer;
+        const maskIdx = py * w + px;
+        if (hoverEraseMask[maskIdx] !== 0) continue;
+
+        const layer =
+          hoverLayer[srcIdx + 3] > 0
+            ? hoverLayer
+            : previewLayer[srcIdx + 3] > 0
+              ? previewLayer
+              : outLayer;
         if (layer[srcIdx + 3] === 0) continue;
 
-        for (let dy = 0; dy < size; dy++) {
-          for (let dx = 0; dx < size; dx++) {
-            const dstIdx = ((py * size + dy) * canvas.width + (px * size + dx)) * 4;
+        const x0 = Math.round((px / w) * cw);
+        const x1 = Math.round(((px + 1) / w) * cw);
+        for (let dy = y0; dy < y1; dy++) {
+          for (let dx = x0; dx < x1; dx++) {
+            const dstIdx = (dy * cw + dx) * 4;
             data[dstIdx] = layer[srcIdx];
             data[dstIdx + 1] = layer[srcIdx + 1];
             data[dstIdx + 2] = layer[srcIdx + 2];
@@ -130,10 +165,33 @@ export function usePixelCanvas(
 
     ctx.putImageData(imageData, 0, 0);
     ctx.globalCompositeOperation = 'destination-over';
-    ctx.fillStyle = getCheckerPattern(ctx, size);
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    if (canvasSizeOpt) {
+      // 4 checker squares per tile (2×2) when sizeMod < 1; else 1 per sizeMod units (TilemapEditor)
+      const step = sizeMod < 1 ? sizeMod : Math.max(1, Math.round(sizeMod));
+      const gridCols = Math.ceil(w / step);
+      const gridRows = Math.ceil(h / step);
+      const colors = ['#b8b8b8', '#9e9e9e'];
+      for (let gr = 0; gr < gridRows; gr++) {
+        const py0 = gr * step;
+        const py1 = Math.min(h, py0 + step);
+        const cy0 = Math.round((py0 / h) * ch);
+        const cy1 = Math.round((py1 / h) * ch);
+        for (let gc = 0; gc < gridCols; gc++) {
+          const px0 = gc * step;
+          const px1 = Math.min(w, px0 + step);
+          const cx0 = Math.round((px0 / w) * cw);
+          const cx1 = Math.round((px1 / w) * cw);
+          ctx.fillStyle = colors[(gc + gr) % 2];
+          ctx.fillRect(cx0, cy0, cx1 - cx0, cy1 - cy0);
+        }
+      }
+    } else {
+      const checkerSize = Math.max(1, Math.round(cellSize));
+      ctx.fillStyle = getCheckerPattern(ctx, checkerSize);
+      ctx.fillRect(0, 0, cw, ch);
+    }
     ctx.globalCompositeOperation = 'source-over';
-  }, [cellSize, gridWidth, gridHeight]);
+  }, [cellSize, gridWidth, gridHeight, canvasSizeOpt?.w, canvasSizeOpt?.h]);
 
   // ---- Render preview thumbnail ----
   const renderPreview = useCallback(() => {
@@ -207,6 +265,9 @@ export function usePixelCanvas(
     previewRef,
     outputPixelsRef,
     previewPixelsRef,
+    hoverPixelsRef,
+    hoverEraseMaskRef,
+    clearHoverPreview,
     requestRender,
     saveToHistory,
     undo,

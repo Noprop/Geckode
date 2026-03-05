@@ -84,6 +84,8 @@ export interface SpriteState {
   editingSource: EditingSource | null;
   editingAssetName: string | null;
   editingAssetType: AssetType | null;
+  /** When set, load this texture into the canvas but keep save target as editingAssetName (used when picking from library while editing an asset) */
+  editingTextureToLoad: string | null;
   spriteModalMode: SpriteModalMode | null;
   spriteModalSaveTargetTextureName: string | null;
 }
@@ -92,17 +94,20 @@ export interface SpriteActions {
   setSelectedSpriteId: (spriteId: string | null) => void;
   setIsSpriteModalOpen: (isOpen: boolean) => void;
   setEditingAsset: (name: string | null, type: AssetType, source: EditingSource) => void;
+  setEditingTextureToLoad: (name: string | null) => void;
   setSpriteModalContext: (mode: SpriteModalMode, saveTargetTextureName?: string | null) => void;
   clearSpriteModalContext: () => void;
 
   /* Sprites */
   setSpriteInstances: (instances: SpriteInstance[]) => void;
   removeSpriteInstance: (spriteId: string, syncAfter?: boolean) => void;
+  duplicateSpriteInstance: (spriteId: string, syncAfter?: boolean) => void;
   updateSpriteInstance: (spriteId: string, updates: Partial<SpriteInstance>, syncAfter?: boolean) => void;
   updateInstanceOrder: (spriteIdx: number, newIdx: number) => void;
   saveSprite: (params: { spriteName: string; base64Image: string; syncAfter?: boolean; }) => string;
 
   /* Assets */
+  getTilesForRendering: () => Record<string, string>;
   setAsset: (name: string, base64Image: string, type: AssetType, syncAfter?: boolean) => void;
   removeAsset: (name: string, type: Exclude<AssetType, 'tilesets'>, syncAfter?: boolean) => void;
 
@@ -133,7 +138,6 @@ export interface SpriteActions {
   setScenes: (scenes: Scene[]) => void;
 
   resetSpriteStore: () => void;
-  resetAssetsOnly: () => void;
 }
 
 export type SpriteSlice = SpriteState & SpriteActions;

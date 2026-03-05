@@ -3,7 +3,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { TrashIcon } from '@radix-ui/react-icons';
 import { useGeckodeStore } from '@/stores/geckodeStore';
-import projectsApi from '@/lib/api/handlers/projects';
 import { useSnackbar } from '@/hooks/useSnackbar';
 
 type TabId = 'library' | 'editor' | 'assets';
@@ -17,9 +16,6 @@ const SpriteAssets = ({ setActiveTab }: SpriteAssetsProps) => {
   const textures = useGeckodeStore((s) => s.textures);
   const setEditingAsset = useGeckodeStore((s) => s.setEditingAsset);
   const removeAsset = useGeckodeStore((s) => s.removeAsset);
-  const assetIds = useGeckodeStore((s) => s.assetIds);
-  const removeAssetId = useGeckodeStore((s) => s.removeAssetId);
-  const projectId = useGeckodeStore((s) => s.projectId);
   const showSnackbar = useSnackbar();
 
   const filteredEntries = useMemo(() => {
@@ -32,21 +28,6 @@ const SpriteAssets = ({ setActiveTab }: SpriteAssetsProps) => {
     setActiveTab('editor');
   };
 
-  const deleteTextureInBackend = async (textureName: string): Promise<boolean> => {
-    var success: boolean = true; // if connected to backend, becomes false if request fails
-    if (projectId && textureName in assetIds) {
-      const id = assetIds[textureName];
-      await projectsApi(projectId)
-        .assetsApi(id)
-        .delete()
-        .then(() => {
-          removeAssetId(textureName);
-        })
-        .catch(() => (success = false));
-    }
-    return success;
-  };
-
   const handleDelete = useCallback(
     async (e: React.MouseEvent, textureName: string) => {
       e.stopPropagation();
@@ -55,7 +36,6 @@ const SpriteAssets = ({ setActiveTab }: SpriteAssetsProps) => {
         return;
       }
 
-      e.stopPropagation();
       removeAsset(textureName, 'textures');
       showSnackbar(`Successfully deleted ${textureName}!`, 'success');
     },

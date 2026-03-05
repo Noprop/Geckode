@@ -57,8 +57,9 @@ export default class EditorScene extends Phaser.Scene {
       }
     }
 
-    for (const tile of Object.keys(useGeckodeStore.getState().tiles)) {
-      const base64Image = useGeckodeStore.getState().tiles[tile];
+    const tilesForRendering = useGeckodeStore.getState().getTilesForRendering();
+    for (const tile of Object.keys(tilesForRendering)) {
+      const base64Image = tilesForRendering[tile];
       const tileKey = "tile-" + tile;
       if (!base64Image || this.textures.exists(tileKey)) continue;
       this.load.image(tileKey, base64Image);
@@ -292,7 +293,7 @@ export default class EditorScene extends Phaser.Scene {
   }
 
   private generateTilesetTexture(): void {
-    const { tiles } = useGeckodeStore.getState();
+    const tiles = useGeckodeStore.getState().getTilesForRendering();
     const tileKeys = Object.keys(tiles);
 
     // Build mapping: index 0 = empty, 1+ = each tile key

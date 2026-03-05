@@ -49,6 +49,8 @@ vi.mock('@/stores/geckodeStore', () => ({
   useGeckodeStore: {
     getState: () => ({
       tiles: {},
+      libaryTiles: {},
+      getTilesForRendering: () => ({}),
       tilemaps: {},
       activeTilemapId: 'tilemap_1',
       tileCollidables: {},

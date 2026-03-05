@@ -63,7 +63,7 @@ export default class GameScene extends Phaser.Scene {
   public toLogicalY(y: number): number { return -y; }
 
   preload() {
-    const { tiles } = useGeckodeStore.getState();
+    const tiles = useGeckodeStore.getState().getTilesForRendering();
     for (const tileKey of Object.keys(tiles)) {
       const base64Image = tiles[tileKey];
       const textureKey = 'tile-' + tileKey;
@@ -634,7 +634,7 @@ export default class GameScene extends Phaser.Scene {
   // ─── Tilemap helpers ──────────────────────────────────────────────────
 
   private generateTilesetTexture(): void {
-    const { tiles } = useGeckodeStore.getState();
+    const tiles = useGeckodeStore.getState().getTilesForRendering();
     const tileKeys = Object.keys(tiles);
 
     // Build mapping: index 0 = empty, 1+ = each tile key

@@ -8,10 +8,7 @@ import Phaser from './PhaserPanel/Phaser';
 
 import AssetWorkspace from './AssetManager/Overview';
 import TilemapEditor from '@/components/ui/TilemapEditor';
-import projectsApi from '@/lib/api/handlers/projects';
 import { useParams } from 'next/navigation';
-import { useSnackbar } from '@/hooks/useSnackbar';
-import { extractAxiosErrMsg } from '@/lib/api/axios';
 import { useWorkspaceSync } from '@/hooks/yjs/useWorkspaceSync';
 import useMultiDebounce from '@/hooks/useMultiDebounce';
 
@@ -30,20 +27,8 @@ import useMultiDebounce from '@/hooks/useMultiDebounce';
 const ProjectView = () => {
   const { projectID } = useParams();
   const { view } = useWorkspaceView();
-  const showSnackbar = useSnackbar();
-  const {
-    undoWorkspace,
-    redoWorkspace,
-    canUndo,
-    canRedo,
-    spriteIdsUpdated,
-    isEditorScene,
-    projectId,
-    setProjectId,
-    setAsset,
-    addAssetId,
-    resetAssetsOnly,
-  } = useGeckodeStore();
+  const { undoWorkspace, redoWorkspace, canUndo, canRedo, spriteIdsUpdated, isEditorScene, setProjectId } =
+    useGeckodeStore();
   const debouncedEditorChanges = useMultiDebounce({
     values: { spriteIdsUpdated, isEditorScene },
     delays: {
@@ -55,24 +40,6 @@ const ProjectView = () => {
   // Keep store projectId in sync with route so Yjs documentRegistry resolves the right doc
   useEffect(() => {
     setProjectId(projectID != null && !Number.isNaN(projectID) ? Number(projectID) : null);
-
-    // clear all previous sprites and rebuild
-    resetAssetsOnly();
-
-    // set project ID and pull all assets
-    if (projectId) {
-      const prjId = Number(projectID);
-
-      projectsApi(prjId)
-        .assetsApi.list({ asset_type: 'textures' })
-        .then((res) => {
-          for (var asset of res.results) {
-            setAsset(asset.name, asset.asset, 'textures');
-            addAssetId(asset.name, asset.id);
-          }
-        })
-        .catch((err) => showSnackbar(extractAxiosErrMsg(err, 'Failed to get project assets!'), 'error'));
-    }
 
     return () => setProjectId(null);
   }, [projectID, setProjectId]);
@@ -181,7 +148,7 @@ const ProjectView = () => {
         )}
       </div>
 
-      <div className='flex flex-col pr-2 pt-2' style={{ width: '480px' }}>
+      <div className='flex flex-col pr-2 pt-2 overflow-x-hidden' style={{ width: '480px' }}>
         <Phaser />
       </div>
     </div>

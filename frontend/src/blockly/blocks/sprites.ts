@@ -331,24 +331,12 @@ javascriptGenerator.forBlock['isTouching'] = function (block, generator) {
 
   const spriteKey1 = generator.valueToCode(block, 'SPRITE1', Order.NONE) || '';
   const spriteKey2 = generator.valueToCode(block, 'SPRITE2', Order.NONE) || '';
-  if (
-    useGeckodeStore
-      .getState()
-      .spriteInstances.map((s) => s.id)
-      .includes(spriteKey1) &&
-    useGeckodeStore
-      .getState()
-      .spriteInstances.map((s) => s.id)
-      .includes(spriteKey2) &&
-    !isIsolated(block)
-  ) {
-    const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
-    const spriteName1 = `scene.getSprite(${spriteKey1 === currentSpriteId ? 'thisSprite' : spriteKey1})`;
-    const spriteName2 = `scene.getSprite(${spriteKey2 === currentSpriteId ? 'thisSprite' : spriteKey2})`;
+  
+  const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
+  const spriteName1 = `scene.getSprite(${spriteKey1 === currentSpriteId ? 'thisSprite' : spriteKey1})`;
+  const spriteName2 = `scene.getSprite(${spriteKey2 === currentSpriteId ? 'thisSprite' : spriteKey2})`;
 
-    return [`scene.isTouching(${spriteName1}, ${spriteName2})`, Order.NONE];
-  }
-  return [`false`, Order.NONE];
+  return [`scene.isTouching(${spriteName1}, ${spriteName2})`, Order.NONE];
 };
 
 const moveWithArrows = {

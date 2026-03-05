@@ -79,7 +79,7 @@ export const labelClasses = "font-semibold text-slate-600 dark:text-slate-400";
 export const iconClasses = "text-slate-500 dark:text-slate-400";
 
 export const visibilityButtonBaseClasses =
-  "rounded-md p-1.5 border transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
+  "rounded-md p-1.5 border cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
 export const visibilityButtonActiveClasses =
   "border-primary-green bg-primary-green text-white";
 export const visibilityButtonInactiveClasses =
