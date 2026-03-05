@@ -20,6 +20,11 @@ const PhaserSpriteList = () => {
   const [spriteIdToDelete, setSpriteIdToDelete] = useState<string | null>(null);
 
   useEffect(() => {
+    setSpriteIdToDelete((prev) =>
+      sprites.findIndex((sprite) => sprite.id === prev) === -1
+        ? null
+        : prev
+    );
     if (sprites.length === 0) return;
     if (selectedSpriteId === null)
       setSelectedSpriteId(sprites[0].id);

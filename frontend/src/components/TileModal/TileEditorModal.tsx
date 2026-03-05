@@ -17,12 +17,29 @@ interface TileEditorModalProps {
 
 const TileEditorModal = ({ isOpen, onClose, onAddTileToSlot }: TileEditorModalProps) => {
   const [activeTab, setActiveTab] = useState<TabId>('editor');
+  const editingSource = useGeckodeStore((s) => s.editingSource);
+  const editingAssetName = useGeckodeStore((s) => s.editingAssetName);
+  const editingAssetType = useGeckodeStore((s) => s.editingAssetType);
+  const tiles = useGeckodeStore((s) => s.tiles);
 
   const handleClose = () => {
     useGeckodeStore.setState({ editingSource: null, editingAssetName: null, editingAssetType: null, editingTextureToLoad: null });
     onClose();
     setActiveTab('editor');
   };
+
+  // Close modal if the tile asset is deleted remotely
+  useEffect(() => {
+    if (
+      isOpen &&
+      editingSource === 'asset' &&
+      editingAssetName &&
+      editingAssetType === 'tiles' &&
+      !(editingAssetName in tiles)
+    ) {
+      handleClose();
+    }
+  }, [isOpen, editingSource, editingAssetName, editingAssetType, tiles]);
 
   useEffect(() => {
     if (!isOpen) return;
