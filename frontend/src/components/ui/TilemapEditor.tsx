@@ -303,6 +303,13 @@ const TilemapEditor = () => {
     brushSize: 1,
     drawingButton: 0,
   });
+  const panStateRef = useRef({
+    isPanning: false,
+    startX: 0,
+    startY: 0,
+    scrollLeft: 0,
+    scrollTop: 0,
+  });
   useEffect(() => {
     const ds = drawStateRef.current;
     ds.activeTool = activeTool;
@@ -588,6 +595,17 @@ const TilemapEditor = () => {
   // ── Pointer handlers ──
   const handlePointerDown = (e: ReactPointerEvent<HTMLCanvasElement>) => {
     e.preventDefault();
+    if (e.button === 1) {
+      const scrollEl = scrollContainerRef.current;
+      if (!scrollEl) return;
+      const pan = panStateRef.current;
+      pan.isPanning = true;
+      pan.startX = e.clientX;
+      pan.startY = e.clientY;
+      pan.scrollLeft = scrollEl.scrollLeft;
+      pan.scrollTop = scrollEl.scrollTop;
+      return;
+    }
     const cell = getCellFromEvent(e);
     if (!cell || !tilemap) return;
     const ds = drawStateRef.current;
@@ -627,6 +645,18 @@ const TilemapEditor = () => {
 
   useEffect(() => {
     const handleMove = (e: PointerEvent) => {
+      const pan = panStateRef.current;
+      if (pan.isPanning) {
+        const scrollEl = scrollContainerRef.current;
+        if (scrollEl) {
+          const dx = e.clientX - pan.startX;
+          const dy = e.clientY - pan.startY;
+          scrollEl.scrollLeft = pan.scrollLeft - dx;
+          scrollEl.scrollTop = pan.scrollTop - dy;
+        }
+        return;
+      }
+
       const ds = drawStateRef.current;
       if (!ds.isDrawing) return;
       const cell = getCellFromEvent(e);
@@ -652,6 +682,10 @@ const TilemapEditor = () => {
     };
 
     const handleUp = () => {
+      const pan = panStateRef.current;
+      if (pan.isPanning) {
+        pan.isPanning = false;
+      }
       const ds = drawStateRef.current;
       if (!ds.isDrawing) return;
 

@@ -13,6 +13,7 @@ export function useCanvasZoom(
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const lastZoomFocalRef = useRef<{ x: number; y: number } | null>(null);
 
   // Subtract wrapper padding (p-4 = 16px each side = 32px total) so the canvas
   // at default zoom fits within the container without triggering scrollbars.
@@ -39,12 +40,25 @@ export function useCanvasZoom(
     const el = scrollContainerRef.current;
     if (!el || prev === cellSize) return;
 
-    const s = cellSize / prev;
-    el.scrollLeft = el.scrollLeft * s + (el.clientWidth / 2) * (s - 1);
-    el.scrollTop = el.scrollTop * s + (el.clientHeight / 2) * (s - 1);
+    const scale = cellSize / prev;
+    const focal = lastZoomFocalRef.current;
+    const clientX = focal?.x ?? el.clientWidth / 2;
+    const clientY = focal?.y ?? el.clientHeight / 2;
+
+    const worldX = el.scrollLeft + clientX;
+    const worldY = el.scrollTop + clientY;
+
+    el.scrollLeft = worldX * scale - clientX;
+    el.scrollTop = worldY * scale - clientY;
   }, [cellSize]);
 
   const zoomIn = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (el) {
+      lastZoomFocalRef.current = { x: el.clientWidth / 2, y: el.clientHeight / 2 };
+    } else {
+      lastZoomFocalRef.current = null;
+    }
     setZoomOffset((o) => {
       const next = o === 0 ? step : o + step;
       return baseZoom + next <= MAX_CELL_SIZE ? next : o;
@@ -52,6 +66,12 @@ export function useCanvasZoom(
   }, [baseZoom, step]);
 
   const zoomOut = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (el) {
+      lastZoomFocalRef.current = { x: el.clientWidth / 2, y: el.clientHeight / 2 };
+    } else {
+      lastZoomFocalRef.current = null;
+    }
     setZoomOffset((o) => {
       const next = o === 0 ? -step : o - step;
       return baseZoom + next >= MIN_CELL_SIZE ? next : o;
@@ -81,6 +101,19 @@ export function useCanvasZoom(
     const handleWheel = (e: WheelEvent) => {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
+        const scrollEl = scrollContainerRef.current;
+        if (scrollEl) {
+          const rect = scrollEl.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
+          if (x >= 0 && x <= rect.width && y >= 0 && y <= rect.height) {
+            lastZoomFocalRef.current = { x, y };
+          } else {
+            lastZoomFocalRef.current = { x: rect.width / 2, y: rect.height / 2 };
+          }
+        } else {
+          lastZoomFocalRef.current = null;
+        }
         const bz = baseZoomRef.current;
         const o = zoomOffsetRef.current;
         const s = stepRef.current;
