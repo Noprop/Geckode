@@ -1,0 +1,30 @@
+info:
+  name: Update Asset
+  type: http
+  seq: 5
+
+http:
+  method: PATCH
+  url: "{{baseURL}}{{projectsAPI}}18/{{spritesPath}}2/"
+  body:
+    type: multipart-form
+    data:
+      - name: asset_file
+        type: file
+        value:
+          - /home/jonathan/Work/Capstone/Geckode/frontend/public/sample-sprites/baby_chicken.png
+        disabled: true
+      - name: name
+        type: text
+        value: bb chicken
+        disabled: true
+      - name: asset
+        type: text
+        value: data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAHhlWElmTU0AKgAAAAgABAEaAAUAAAABAAAAPgEbAAUAAAABAAAARgEoAAMAAAABAAIAAIdpAAQAAAABAAAATgAAAAAAAABIAAAAAQAAAEgAAAABAAOgAQADAAAAAQABAACgAgAEAAAAAQAAABCgAwAEAAAAAQAAABAAAAAAB9pFxQAAAAlwSFlzAAALEwAACxMBAJqcGAAAAPpJREFUOBF1UrENAjEMTBAjUCGaLxiBkpY5mADEBIgRYBYqWmiZgOIbmCPknDickxApb/t8F9vJe+ecjzvEXa8aA69ZPVCE583akPe3u8ZGY4LICCxUUQcruuJArCXUhmEQ14+jQmxFO2EEPqpByFV7WK1DjPZDFKOTYtlHDhxgccvqjqCtX5YLIe1e70S2o5gR5ERum+dmnziiKXdACQcBx/AZ45wZgRNpwv43P69o+QCwzX/Qk7PY5GP1EE4rveG/FhxwjRgBEp/nQ4R4rt4GDZxcSM6Yyjd/5tdD8rYzhn/+cXSFk9H6DpTctpgyDb88oyorC0EjYs4XwOR9Ndum5OoAAAAASUVORK5CYII=
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

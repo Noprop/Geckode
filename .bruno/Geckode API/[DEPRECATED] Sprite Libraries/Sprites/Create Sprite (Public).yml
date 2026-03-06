@@ -1,0 +1,25 @@
+info:
+  name: Create Sprite (Public)
+  type: http
+  seq: 10
+
+http:
+  method: POST
+  url: "{{baseURL}}{{spritesLibrariesAPI}}4/{{spritesPath}}"
+  body:
+    type: multipart-form
+    data:
+      - name: name
+        type: text
+        value: bob
+      - name: texture
+        type: file
+        value:
+          - /home/jonathan/Pictures/0.jpg
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

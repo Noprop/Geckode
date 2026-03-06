@@ -1,0 +1,27 @@
+info:
+  name: Get Collaborators
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseURL}}{{projectsAPI}}13/{{collaboratorsPath}}?ordering=id"
+  params:
+    - name: search
+      value: sampl
+      type: query
+      disabled: true
+    - name: permission
+      value: view
+      type: query
+      disabled: true
+    - name: ordering
+      value: id
+      type: query
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

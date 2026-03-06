@@ -1,0 +1,26 @@
+info:
+  name: Get Organization Projects
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseURL}}{{organizationsAPI}}1/{{projectsPath}}?owner=1&ordering=-id"
+  params:
+    - name: search
+      value: fork
+      type: query
+      disabled: true
+    - name: owner
+      value: "1"
+      type: query
+    - name: ordering
+      value: -id
+      type: query
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -1,0 +1,25 @@
+info:
+  name: Update Asset (Public)
+  type: http
+  seq: 6
+
+http:
+  method: PATCH
+  url: "{{baseURL}}{{spritesAPI}}15/"
+  body:
+    type: multipart-form
+    data:
+      - name: name
+        type: text
+        value: cow
+      - name: texture_file
+        type: file
+        value:
+          - /home/jonathan/Work/Capstone/Geckode/frontend/public/sample-sprites/cow.png
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -1,0 +1,24 @@
+info:
+  name: Get Sprites (Public)
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: "{{baseURL}}{{spritesLibrariesAPI}}2/{{spritesPath}}"
+  params:
+    - name: search
+      value: test2
+      type: query
+      disabled: true
+    - name: ordering
+      value: -id
+      type: query
+      disabled: true
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

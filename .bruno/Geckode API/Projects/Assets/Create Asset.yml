@@ -1,0 +1,29 @@
+info:
+  name: Create Asset
+  type: http
+  seq: 9
+
+http:
+  method: POST
+  url: "{{baseURL}}{{projectsAPI}}18/{{spritesPath}}"
+  body:
+    type: multipart-form
+    data:
+      - name: name
+        type: text
+        value: asset 2
+      - name: asset_file
+        type: file
+        value:
+          - /home/jonathan/Work/Capstone/Geckode/frontend/public/sample-sprites/potato.png
+        disabled: true
+      - name: asset
+        type: text
+        value: data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAW0lEQVR4AezSywkAIAwD0OoEbuVY4lhu5QZKDoJILIXeRKH4gb5AMYpzfUDk1RmkVof1e9AZ9FwCAxhMAdaMNwarABJRaL6VCiARpSEqsFKBrPO5m4Czab+7gQkAAP//+XUalQAAAAZJREFUAwDfNRQhiDIi0QAAAABJRU5ErkJggg==
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -1,0 +1,15 @@
+info:
+  name: Accept Invitation
+  type: http
+  seq: 5
+
+http:
+  method: POST
+  url: "{{baseURL}}{{organizationsAPI}}1/{{invitationsPath}}1/accept/"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

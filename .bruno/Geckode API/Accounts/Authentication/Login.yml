@@ -1,0 +1,33 @@
+info:
+  name: Login
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{baseURL}}{{usersAPI}}{{loginPath}}"
+  body:
+    type: json
+    data: |-
+      {
+          "username": "jnth",
+          "password": "{{password}}"
+      }
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        const cookies = res.headers['set-cookie'];
+        const csrfToken = cookies
+          .find(c => c.trim().startsWith('csrftoken='))
+          ?.split(';')[0]
+          ?.split('=')[1];
+
+        bru.setVar("csrfToken", csrfToken);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

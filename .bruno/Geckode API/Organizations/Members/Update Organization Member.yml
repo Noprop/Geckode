@@ -1,0 +1,22 @@
+info:
+  name: Update Organization Member
+  type: http
+  seq: 3
+
+http:
+  method: PATCH
+  url: "{{baseURL}}{{organizationsAPI}}1/{{membersPath}}2/"
+  body:
+    type: json
+    data: "{\r
+
+      \    \"permission\": \"contribute\"\r
+
+      }"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

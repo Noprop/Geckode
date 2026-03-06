@@ -1,0 +1,32 @@
+info:
+  name: Get Invitations
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseURL}}{{projectsAPI}}13/{{invitationsPath}}"
+  params:
+    - name: search
+      value: test2
+      type: query
+      disabled: true
+    - name: ordering
+      value: -inviter_last_name
+      type: query
+      disabled: true
+    - name: permission
+      value: invite
+      type: query
+      disabled: true
+    - name: page
+      value: "1"
+      type: query
+      disabled: true
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -1,0 +1,24 @@
+info:
+  name: Get Assets
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseURL}}{{projectsAPI}}18/{{spritesPath}}"
+  params:
+    - name: search
+      value: test2
+      type: query
+      disabled: true
+    - name: ordering
+      value: -id
+      type: query
+      disabled: true
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

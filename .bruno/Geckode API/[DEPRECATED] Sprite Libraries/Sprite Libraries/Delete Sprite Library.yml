@@ -1,0 +1,18 @@
+info:
+  name: Delete Sprite Library
+  type: http
+  seq: 9
+
+http:
+  method: DELETE
+  url: "{{baseURL}}{{projectsAPI}}13/{{spriteLibrariesPath}}3/"
+  body:
+    type: text
+    data: ""
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

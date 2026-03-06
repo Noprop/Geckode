@@ -1,0 +1,24 @@
+info:
+  name: Update Project Group
+  type: http
+  seq: 4
+
+http:
+  method: PATCH
+  url: "{{baseURL}}{{projectGroupsAPI}}1/"
+  body:
+    type: json
+    data: "{\r
+
+      \    \"name\": \"test2\",\r
+
+      \    \"projects\": [3]\r
+
+      }"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

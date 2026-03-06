@@ -1,0 +1,24 @@
+info:
+  name: Create Collaborator
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{baseURL}}{{projectsAPI}}1/{{collaboratorsPath}}"
+  body:
+    type: json
+    data: "{\r
+
+      \    \"collaborator_id\": 2,\r
+
+      \    \"permission\": \"code\"\r
+
+      }"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

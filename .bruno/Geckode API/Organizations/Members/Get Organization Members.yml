@@ -1,0 +1,24 @@
+info:
+  name: Get Organization Members
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseURL}}{{organizationsAPI}}2/{{membersPath}}"
+  params:
+    - name: search
+      value: test2
+      type: query
+      disabled: true
+    - name: ordering
+      value: -id
+      type: query
+      disabled: true
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

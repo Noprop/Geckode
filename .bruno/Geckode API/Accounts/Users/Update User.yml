@@ -1,0 +1,22 @@
+info:
+  name: Update User
+  type: http
+  seq: 4
+
+http:
+  method: PATCH
+  url: "{{baseURL}}{{usersAPI}}5/"
+  body:
+    type: json
+    data: "{\r
+
+      \    \"first_name\": \"Jeremy\"\r
+
+      }"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

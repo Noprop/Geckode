@@ -1,0 +1,7 @@
+info:
+  name: "[DEPRECATED] Sprite Libraries"
+  type: folder
+  seq: 4
+
+request:
+  auth: inherit

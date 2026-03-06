@@ -1,0 +1,18 @@
+info:
+  name: Create Sprite Library
+  type: http
+  seq: 5
+
+http:
+  method: POST
+  url: "{{baseURL}}{{projectsAPI}}13/{{spriteLibrariesPath}}"
+  body:
+    type: json
+    data: "{\r\n    \"name\": \"Hi\"\r\n}"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

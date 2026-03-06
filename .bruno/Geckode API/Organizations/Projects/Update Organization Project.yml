@@ -1,0 +1,22 @@
+info:
+  name: Update Organization Project
+  type: http
+  seq: 4
+
+http:
+  method: PATCH
+  url: "{{baseURL}}{{organizationsAPI}}4/{{projectsPath}}3/"
+  body:
+    type: json
+    data: "{\r
+
+      \    \"permission\": \"admin\"\r
+
+      }"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

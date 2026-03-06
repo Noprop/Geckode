@@ -1,0 +1,18 @@
+info:
+  name: Update Public Sprite Library
+  type: http
+  seq: 8
+
+http:
+  method: PATCH
+  url: "{{baseURL}}{{spritesLibrariesAPI}}4/"
+  body:
+    type: json
+    data: "{\r\n    \"project\" : null\r\n}"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
