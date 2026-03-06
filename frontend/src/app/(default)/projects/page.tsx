@@ -97,12 +97,12 @@ export default function ProjectsPage() {
             key: "owner",
             type: "user",
           },
-          "Created At": {
-            key: "created_at",
-            type: "datetime",
-          },
-          "Updated At": {
+          "Last Updated": {
             key: "updated_at",
+            type: "time-since",
+          },
+          "Created": {
+            key: "created_at",
             type: "datetime",
           },
         }}

@@ -35,6 +35,7 @@ import {
 } from "@radix-ui/react-icons";
 import { BaseApiInnerReturn, createBaseApi } from "@/lib/api/base";
 import useMultiDebounce from "@/hooks/useMultiDebounce";
+import { formatTimeSince } from "@/lib/time";
 
 export interface TableRef<TData, TFilters> {
   refresh: () => void;
@@ -70,7 +71,14 @@ interface TableProps<TData, TSortKeys, TApi, TFilters> {
   initialSearch?: string;
 }
 
-type ColumnTypes = "user" | "avatar" | "datetime" | "thumbnail" | "select" | "other";
+type ColumnTypes =
+  | "user"
+  | "avatar"
+  | "datetime"
+  | "time-since"
+  | "thumbnail"
+  | "select"
+  | "other";
 
 interface TableAction<TData> {
   rowIcon: IconType;
@@ -214,6 +222,7 @@ export const Table = <
       <UserIcon user={value} variant="avatar" size="lg" />
     ),
     datetime: (value) => new Date(value).toLocaleString(),
+    "time-since": (value) => formatTimeSince(value),
     thumbnail: (value) => (
       <div className="h-13 w-13 overflow-hidden rounded-xs">
         <img
