@@ -40,6 +40,14 @@ import { formatTimeSince } from "@/lib/time";
 export interface TableRef<TData, TFilters> {
   refresh: () => void;
   data: TData[];
+  setData: Dispatch<SetStateAction<TData[]>>;
+  setTotalCount: Dispatch<SetStateAction<number>>;
+  updateRowById: (
+    rowId: number | string,
+    updater: (row: TData) => TData,
+  ) => void;
+  addRowIfSpace: (rowId: number | string, row: TData) => void;
+  removeRowById: (rowId: number | string) => void;
   filters: Filters<TFilters>;
   setFilters: Dispatch<SetStateAction<Filters<TFilters>>>;
   searchInput: string;
@@ -69,6 +77,7 @@ interface TableProps<TData, TSortKeys, TApi, TFilters> {
   initialFilters?: Filters<TFilters>;
   showControls?: boolean;
   initialSearch?: string;
+  getRowIdValue?: (row: TData) => number | string | null | undefined;
 }
 
 type ColumnTypes =
@@ -136,6 +145,7 @@ export const Table = <
   initialFilters = {},
   showControls = true,
   initialSearch = "",
+  getRowIdValue,
 }: TableProps<TData, TSortKeys, TApi, TFilters>) => {
   const showSnackbar = useSnackbar();
   const pageNumberInputRef = useRef<InputBoxRef | null>(null);
@@ -160,6 +170,24 @@ export const Table = <
       filters: 300,
     },
   });
+
+  const getValueAtPath = (row: TData, path: string[]) =>
+    path.reduce((acc: any, key) => acc?.[key], row);
+
+  const inferRowId = (row: TData): number | string | null | undefined => {
+    if (getRowIdValue) {
+      return getRowIdValue(row);
+    }
+
+    const idColumnKey = columns?.id?.key;
+    if (!idColumnKey) return undefined;
+
+    const idPath = Array.isArray(idColumnKey)
+      ? (idColumnKey as string[])
+      : [idColumnKey as string];
+
+    return getValueAtPath(row, idPath);
+  };
 
   const fetchData = () => {
     setLoading(true);
@@ -393,6 +421,61 @@ export const Table = <
   useImperativeHandle(ref, () => ({
     refresh: fetchData,
     data,
+    setData,
+    setTotalCount,
+    updateRowById: (rowId, updater) => {
+      const normalizedRowId = String(rowId);
+      setData((previousRows) =>
+        previousRows.map((row) => {
+          const currentRowId = inferRowId(row);
+          if (currentRowId === null || currentRowId === undefined) return row;
+          if (String(currentRowId) !== normalizedRowId) return row;
+          return updater(row);
+        }),
+      );
+    },
+    addRowIfSpace: (rowId, row) => {
+      const normalizedRowId = String(rowId);
+      let inserted = false;
+      let alreadyPresent = false;
+
+      setData((previousRows) => {
+        alreadyPresent = previousRows.some((existingRow) => {
+          const existingRowId = inferRowId(existingRow);
+          if (existingRowId === null || existingRowId === undefined) return false;
+          return String(existingRowId) === normalizedRowId;
+        });
+
+        if (alreadyPresent || previousRows.length >= pagination.pageSize) {
+          return previousRows;
+        }
+
+        inserted = true;
+        return [...previousRows, row];
+      });
+
+      if (inserted) {
+        setTotalCount((previousCount) => previousCount + 1);
+      }
+    },
+    removeRowById: (rowId) => {
+      const normalizedRowId = String(rowId);
+      let removedCount = 0;
+
+      setData((previousRows) =>
+        previousRows.filter((row) => {
+          const currentRowId = inferRowId(row);
+          if (currentRowId === null || currentRowId === undefined) return true;
+          const shouldRemove = String(currentRowId) === normalizedRowId;
+          if (shouldRemove) removedCount += 1;
+          return !shouldRemove;
+        }),
+      );
+
+      if (removedCount > 0) {
+        setTotalCount((previousCount) => Math.max(0, previousCount - removedCount));
+      }
+    },
     filters,
     setFilters,
     searchInput,

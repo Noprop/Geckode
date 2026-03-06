@@ -5,6 +5,7 @@ from django.dispatch import receiver
 from redis import Redis
 from accounts.models import User
 from .models import OrganizationProject, Project, ProjectCollaborator
+from .serializers import ProjectCollaboratorSerializer, ProjectOrganizationSerializer
 
 ### Thumbnail deletion signals
 
@@ -120,15 +121,27 @@ def publish_project_change(sender, instance: Project, created: bool, **kwargs) -
             f"{instance.pk} to Redis: {exc}"
         )
 
-def publish_project_collaborator_permission(instance: ProjectCollaborator, source: str) -> None:
+def publish_project_collaborator_permission(
+    instance: ProjectCollaborator,
+    source: str,
+    *,
+    event: str,
+    project_collaborator: dict | None = None,
+) -> None:
+    effective_permission = instance.project.get_permission(instance.collaborator)
+
     try:
         redis_client.publish(
             PROJECT_COLLABORATOR_UPDATE_CHANNEL,
             json.dumps(
                 {
                     "project_id": instance.project_id,
+                    "event": event,
+                    "collaborator_id": instance.collaborator_id,
+                    "permission": instance.permission,
+                    "project_collaborator": project_collaborator,
                     "collaborators": {
-                        instance.collaborator_id: instance.project.get_permission(instance.collaborator),
+                        instance.collaborator_id: effective_permission,
                     },
                 }
             )
@@ -141,19 +154,39 @@ def publish_project_collaborator_permission(instance: ProjectCollaborator, sourc
 
 @receiver(post_save, sender=ProjectCollaborator)
 def publish_project_collaborator_change(sender, instance: ProjectCollaborator, created: bool, **kwargs) -> None:
-    publish_project_collaborator_permission(instance, "post_save")
+    publish_project_collaborator_permission(
+        instance,
+        "post_save",
+        event="collaborator_added" if created else "collaborator_permission_updated",
+        project_collaborator=ProjectCollaboratorSerializer(instance).data if created else None,
+    )
 
 @receiver(post_delete, sender=ProjectCollaborator)
 def publish_project_collaborator_delete(sender, instance: ProjectCollaborator, **kwargs) -> None:
-    publish_project_collaborator_permission(instance, "post_delete")
+    publish_project_collaborator_permission(
+        instance,
+        "post_delete",
+        event="collaborator_removed",
+    )
 
-def publish_organization_project_permission(instance: OrganizationProject, source: str) -> None:
+def publish_organization_project_permission(
+    instance: OrganizationProject,
+    source: str,
+    *,
+    event: str,
+    project_organization: dict | None = None,
+) -> None:
     try:
         redis_client.publish(
             PROJECT_COLLABORATOR_UPDATE_CHANNEL,
             json.dumps(
                 {
                     "project_id": instance.project_id,
+                    "event": event,
+                    "project_organization_id": instance.pk,
+                    "organization_id": instance.organization_id,
+                    "permission": instance.permission,
+                    "project_organization": project_organization,
                     "collaborators": {
                         id: instance.project.get_permission(User.objects.get(pk=id))
                         for id in get_project_connected_users(instance.project_id)
@@ -169,8 +202,17 @@ def publish_organization_project_permission(instance: OrganizationProject, sourc
 
 @receiver(post_save, sender=OrganizationProject)
 def publish_organization_project_change(sender, instance: OrganizationProject, created: bool, **kwargs) -> None:
-    publish_organization_project_permission(instance, "post_save")
+    publish_organization_project_permission(
+        instance,
+        "post_save",
+        event="organization_added" if created else "organization_permission_updated",
+        project_organization=ProjectOrganizationSerializer(instance).data if created else None,
+    )
 
 @receiver(post_delete, sender=OrganizationProject)
 def publish_organization_project_delete(sender, instance: OrganizationProject, **kwargs) -> None:
-    publish_organization_project_permission(instance, "post_delete")
+    publish_organization_project_permission(
+        instance,
+        "post_delete",
+        event="organization_removed",
+    )

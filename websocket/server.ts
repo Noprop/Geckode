@@ -261,7 +261,7 @@ const server = new Server({
   },
 
   async afterUnloadDocument({ documentName }) {
-    
+    clearDocumentClients(documentName);
   },
 });
 
@@ -354,9 +354,26 @@ redisSubscriber.on("message", (channel, message) => {
           `[Hocuspocus][Redis] Applied external project update for document ${documentName}.`,
         );
       } else if (channel === PROJECT_COLLABORATOR_UPDATE_CHANNEL) {
-        const { project_id, collaborators } = payload as {
+        const {
+          project_id,
+          collaborators,
+          event,
+          collaborator_id,
+          organization_id,
+          project_organization_id,
+          permission,
+          project_collaborator,
+          project_organization,
+        } = payload as {
           project_id: number;
-          collaborators: Record<number, string>;
+          collaborators: Record<number, string | null>;
+          event?: string;
+          collaborator_id?: number;
+          organization_id?: number;
+          project_organization_id?: number;
+          permission?: string | null;
+          project_collaborator?: Record<string, any> | null;
+          project_organization?: Record<string, any> | null;
         };
 
         console.log(
@@ -372,6 +389,41 @@ redisSubscriber.on("message", (channel, message) => {
               JSON.stringify({
                 type: "project_permission",
                 permission: collaborators[userId],
+              }),
+            );
+          }
+
+          if (
+            event &&
+            collaborator_id !== undefined &&
+            collaborator_id !== null &&
+            event.startsWith("collaborator_")
+          ) {
+            connection.sendStateless(
+              JSON.stringify({
+                type: "project_collaborator_change",
+                event,
+                project_id,
+                collaborator_id,
+                permission: permission ?? null,
+                project_collaborator: project_collaborator ?? null,
+              }),
+            );
+          } else if (
+            event &&
+            organization_id !== undefined &&
+            organization_id !== null &&
+            event.startsWith("organization_")
+          ) {
+            connection.sendStateless(
+              JSON.stringify({
+                type: "project_organization_change",
+                event,
+                project_id,
+                organization_id,
+                project_organization_id,
+                permission: permission ?? null,
+                project_organization: project_organization ?? null,
               }),
             );
           }

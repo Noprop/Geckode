@@ -2,7 +2,7 @@ import { Share1Icon, PersonIcon, BackpackIcon, TrashIcon } from "@radix-ui/react
 import { Modal } from "./Modal";
 import { Button } from "../Button";
 import { Project, projectPermissions } from "@/lib/types/api/projects";
-import { Ref, useCallback, useImperativeHandle, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import projectsApi from "@/lib/api/handlers/projects";
 import {
   ProjectCollaborator,
@@ -21,8 +21,18 @@ import { BaseFilters } from "@/lib/types/api";
 import { BaseApiInnerReturn, createBaseApi } from "@/lib/api/base";
 import { Row } from "@tanstack/react-table";
 import { Organization, OrganizationFilters, OrganizationPayload, OrganizationSortKeys } from "@/lib/types/api/organizations";
-import { ProjectOrganization, ProjectOrganizationFilters, ProjectOrganizationPayload, projectOrganizationSortKeys, ProjectOrganizationSortKeys } from "@/lib/types/api/projects/organizations";
+import {
+  ProjectOrganization,
+  ProjectOrganizationFilters,
+  ProjectOrganizationPayload,
+  projectOrganizationSortKeys,
+  ProjectOrganizationSortKeys,
+} from "@/lib/types/api/projects/organizations";
 import organizationsApi from "@/lib/api/handlers/organizations";
+import {
+  PROJECT_COLLABORATOR_CHANGE_EVENT,
+  PROJECT_ORGANIZATION_CHANGE_EVENT,
+} from "@/contexts/YjsContext";
 
 interface ProjectShareModalProps {
   onClose: () => void;
@@ -34,13 +44,18 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
   project,
 }) => {
   const showSnackbar = useSnackbar();
-  const tableRef = useRef<ProjectShareTableRef>(null);
+  const collaboratorTableRef =
+    useRef<TableRef<ProjectCollaborator, ProjectCollaboratorFilters>>(null);
+  const organizationTableRef =
+    useRef<TableRef<ProjectOrganization, ProjectOrganizationFilters>>(null);
 
   const [tab, setTab] = useState<"users" | "organizations">("users");
 
   const projectApi = projectsApi(project.id);
   const collaboratorsApi = projectApi.collaborators;
   const projectOrganizationsApi = projectApi.organizations;
+  const isProjectPermission = (value: unknown): value is keyof typeof projectPermissions =>
+    typeof value === "string" && value in projectPermissions;
 
   const handleUserRowClick = useCallback(
     (row: Row<User>, onSuccess: () => void) => {
@@ -51,7 +66,7 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
         })
         .then(() => {
           showSnackbar("Successfully added the user as a collaborator.", "success");
-          tableRef.current?.refresh();
+          collaboratorTableRef.current?.refresh();
           onSuccess();
         })
         .catch(() => {
@@ -70,7 +85,7 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
         })
         .then(() => {
           showSnackbar("Successfully shared the project with the organization.", "success");
-          tableRef.current?.refresh();
+          organizationTableRef.current?.refresh();
           onSuccess();
         })
         .catch(() => {
@@ -79,6 +94,105 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
     },
     [project.id, showSnackbar]
   );
+
+  useEffect(() => {
+    const handleProjectCollaboratorChange = (
+      event: Event,
+    ) => {
+      if (tab !== "users") return;
+
+      const customEvent = event as CustomEvent<{
+        project_id: number;
+        event: "collaborator_added" | "collaborator_permission_updated" | "collaborator_removed";
+        collaborator_id: number;
+        permission?: string | null;
+        project_collaborator?: ProjectCollaborator | null;
+      }>;
+      const payload = customEvent.detail;
+
+      if (!payload || payload.project_id !== project.id) return;
+
+      if (
+        payload.event === "collaborator_permission_updated" &&
+        isProjectPermission(payload.permission)
+      ) {
+        const permission = payload.permission;
+        collaboratorTableRef.current?.updateRowById(payload.collaborator_id, (row) => ({
+          ...row,
+          permission,
+        }));
+      } else if (payload.event === "collaborator_added" && payload.project_collaborator) {
+        collaboratorTableRef.current?.addRowIfSpace(
+          payload.collaborator_id,
+          payload.project_collaborator,
+        );
+      } else if (payload.event === "collaborator_removed") {
+        collaboratorTableRef.current?.removeRowById(payload.collaborator_id);
+      }
+    };
+
+    window.addEventListener(
+      PROJECT_COLLABORATOR_CHANGE_EVENT,
+      handleProjectCollaboratorChange as EventListener,
+    );
+
+    return () => {
+      window.removeEventListener(
+        PROJECT_COLLABORATOR_CHANGE_EVENT,
+        handleProjectCollaboratorChange as EventListener,
+      );
+    };
+  }, [project.id, tab]);
+
+  useEffect(() => {
+    const handleProjectOrganizationChange = (
+      event: Event,
+    ) => {
+      if (tab !== "organizations") return;
+
+      const customEvent = event as CustomEvent<{
+        project_id: number;
+        event: "organization_added" | "organization_permission_updated" | "organization_removed";
+        organization_id: number;
+        project_organization_id?: number;
+        permission?: string | null;
+        project_organization?: ProjectOrganization | null;
+      }>;
+      const payload = customEvent.detail;
+
+      if (!payload || payload.project_id !== project.id) return;
+
+      if (
+        payload.event === "organization_permission_updated" &&
+        isProjectPermission(payload.permission)
+      ) {
+        const permission = payload.permission;
+        organizationTableRef.current?.updateRowById(payload.organization_id, (row) => ({
+          ...row,
+          permission,
+        }));
+      } else if (payload.event === "organization_added" && payload.project_organization) {
+        organizationTableRef.current?.addRowIfSpace(
+          payload.organization_id,
+          payload.project_organization,
+        );
+      } else if (payload.event === "organization_removed") {
+        organizationTableRef.current?.removeRowById(payload.organization_id);
+      }
+    };
+
+    window.addEventListener(
+      PROJECT_ORGANIZATION_CHANGE_EVENT,
+      handleProjectOrganizationChange as EventListener,
+    );
+
+    return () => {
+      window.removeEventListener(
+        PROJECT_ORGANIZATION_CHANGE_EVENT,
+        handleProjectOrganizationChange as EventListener,
+      );
+    };
+  }, [project.id, tab]);
 
   return (
     <Modal
@@ -135,7 +249,7 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
           handleRowClick={handleUserRowClick}
           canUse={["owner", "admin", "invite"].includes(project.permission ?? '')}
         />
-        <ProjectShareTable<
+        <Table<
           ProjectCollaborator,
           ProjectCollaboratorPayload,
           ProjectCollaboratorFilters,
@@ -143,8 +257,7 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
           typeof collaboratorsApi
         >
           key="collaborator-table"
-          ref={tableRef}
-          project={project}
+          ref={collaboratorTableRef}
           api={collaboratorsApi}
           sortKeys={projectCollaboratorSortKeys}
           columns={{
@@ -176,19 +289,34 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
           }}
           defaultSortField="id"
           defaultSortDirection="desc"
-          handleRowDelete={(collaborator) => {
-            const collaboratorId = collaborator.collaborator.id;
-            if (!collaboratorId) return;
-            collaboratorsApi(collaboratorId)
-              .delete()
-              .then(() => {
-                showSnackbar("Succesfully removed the user from the project!", "success");
-                tableRef.current?.refresh();
-              })
-              .catch(() =>
-                showSnackbar("Something went wrong. Please try again.", "error")
-              );
-          }}
+          getRowIdValue={(collaborator) => collaborator.collaborator.id}
+          defaultPageSize={5}
+          pageSizeOptions={[3, 5, 10]}
+          enableSearch={false}
+          rowStyle="py-2"
+          noResultsMessage="You have not shared this project with another user yet."
+          actions={[
+            {
+              rowIcon: TrashIcon,
+              rowIconSize: 24,
+              rowIconClicked: (index) => {
+                const collaborator = collaboratorTableRef.current?.data[index];
+                const collaboratorId = collaborator?.collaborator?.id;
+                if (!collaboratorId) return;
+                collaboratorsApi(collaboratorId)
+                  .delete()
+                  .then(() => {
+                    showSnackbar("Succesfully removed the user from the project!", "success");
+                    collaboratorTableRef.current?.refresh();
+                  })
+                  .catch(() =>
+                    showSnackbar("Something went wrong. Please try again.", "error")
+                  );
+              },
+              rowIconClassName: "hover:text-red-500 mt-1",
+              canUse: () => ["owner", "admin"].includes(project.permission ?? ''),
+            },
+          ]}
         />
       </> : tab === 'organizations' ? <>
         <ProjectShareSearchBox<
@@ -225,7 +353,7 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
           handleRowClick={handleOrganizationRowClick}
           canUse={["owner", "admin"].includes(project.permission ?? '')}
         />
-        <ProjectShareTable<
+        <Table<
           ProjectOrganization,
           ProjectOrganizationPayload,
           ProjectOrganizationFilters,
@@ -233,8 +361,7 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
           typeof projectOrganizationsApi
         >
           key="project-organization-table"
-          ref={tableRef}
-          project={project}
+          ref={organizationTableRef}
           api={projectOrganizationsApi}
           sortKeys={projectOrganizationSortKeys}
           columns={{
@@ -268,19 +395,34 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
           }}
           defaultSortField="id"
           defaultSortDirection="desc"
-          handleRowDelete={(projectOrganization) => {
-            const organizationId = projectOrganization.organization.id;
-            if (!organizationId) return;
-            organizationsApi(organizationId).projects(project.id)
-              .delete()
-              .then(() => {
-                showSnackbar("Succesfully removed the project from the organization!", "success");
-                tableRef.current?.refresh();
-              })
-              .catch(() =>
-                showSnackbar("Something went wrong. Please try again.", "error")
-              );
-          }}
+          getRowIdValue={(projectOrganization) => projectOrganization.organization.id}
+          defaultPageSize={5}
+          pageSizeOptions={[3, 5, 10]}
+          enableSearch={false}
+          rowStyle="py-2"
+          noResultsMessage="You have not shared this project with an organization yet."
+          actions={[
+            {
+              rowIcon: TrashIcon,
+              rowIconSize: 24,
+              rowIconClicked: (index) => {
+                const projectOrganization = organizationTableRef.current?.data[index];
+                const organizationId = projectOrganization?.organization?.id;
+                if (!organizationId) return;
+                organizationsApi(organizationId).projects(project.id)
+                  .delete()
+                  .then(() => {
+                    showSnackbar("Succesfully removed the project from the organization!", "success");
+                    organizationTableRef.current?.refresh();
+                  })
+                  .catch(() =>
+                    showSnackbar("Something went wrong. Please try again.", "error")
+                  );
+              },
+              rowIconClassName: "hover:text-red-500 mt-1",
+              canUse: () => ["owner", "admin"].includes(project.permission ?? ''),
+            },
+          ]}
         />
       </> : null}
     </Modal>
@@ -338,78 +480,6 @@ const ProjectShareSearchBox = <
           }
         )
       }}
-    />
-  );
-}
-
-interface ProjectShareTableRef {
-  refresh: () => void;
-}
-
-interface ProjectShareTableProps<TData, TSortKeys, TApi> {
-  ref?: Ref<ProjectShareTableRef>;
-  project: Project;
-  api: TApi;
-  sortKeys: TSortKeys[];
-  columns?: TableColumns<TData>;
-  defaultSortField?: TSortKeys;
-  defaultSortDirection?: 'asc' | 'desc';
-  handleRowDelete?: (data: TData) => void;
-}
-
-const ProjectShareTable = <
-  TData extends Record<string, any>,
-  TPayload extends Record<string, any>,
-  TFilters extends BaseFilters,
-  TSortKeys extends string,
-  TApi extends BaseApiInnerReturn<typeof createBaseApi<TData, TPayload, TFilters>>,
->({
-  ref,
-  project,
-  api,
-  sortKeys,
-  columns = {},
-  defaultSortField,
-  defaultSortDirection,
-  handleRowDelete = () => {},
-}: ProjectShareTableProps<TData, TSortKeys, TApi>) => {
-  const tableRef = useRef<TableRef<TData, TFilters>>(null);
-
-  useImperativeHandle(ref, () => ({
-    refresh: () => { tableRef?.current?.refresh() },
-  }));
-
-  return (
-    <Table<
-      TData,
-      TPayload,
-      TFilters,
-      TSortKeys,
-      typeof api
-    >
-      ref={tableRef}
-      api={api}
-      columns={columns}
-      sortKeys={sortKeys}
-      defaultSortField={defaultSortField}
-      defaultSortDirection={defaultSortDirection}
-      defaultPageSize={5}
-      pageSizeOptions={[3, 5, 10]}
-      enableSearch={false}
-      rowStyle="py-2"
-      noResultsMessage="You have not shared this project yet."
-      actions={[
-        {
-          rowIcon: TrashIcon,
-          rowIconSize: 24,
-          rowIconClicked: (index) => {
-            if (!tableRef.current) return;
-            handleRowDelete(tableRef.current?.data[index]);
-          },
-          rowIconClassName: "hover:text-red-500 mt-1",
-          canUse: () => ["owner", "admin"].includes(project.permission ?? ''),
-        },
-      ]}
     />
   );
 }

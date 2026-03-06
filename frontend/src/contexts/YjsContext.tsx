@@ -6,8 +6,14 @@ import * as Y from "yjs";
 import { Awareness } from "y-protocols/awareness";
 import { IndexeddbPersistence } from "y-indexeddb";
 import { documentRegistry } from "@/lib/types/yjs/documents";
+import { ProjectCollaborator } from "@/lib/types/api/projects/collaborators";
+import { ProjectOrganization } from "@/lib/types/api/projects/organizations";
 
 const WEBSOCKET_FALLBACK_DELAY_MS = 2500;
+export const PROJECT_COLLABORATOR_CHANGE_EVENT =
+  "yjs:project-collaborator-change";
+export const PROJECT_ORGANIZATION_CHANGE_EVENT =
+  "yjs:project-organization-change";
 
 interface YjsContextType {
   getProvider: (name: string) => HocuspocusProvider;
@@ -36,6 +42,25 @@ let providerCount = 0;
 
 const getPersistenceKey = (name: string) =>
   name.length === 0 ? "yjs-doc-homepage" : `yjs-doc-${name}`;
+
+interface ProjectCollaboratorChangePayload {
+  type: "project_collaborator_change";
+  event: "collaborator_added" | "collaborator_permission_updated" | "collaborator_removed";
+  project_id: number;
+  collaborator_id: number;
+  permission?: string | null;
+  project_collaborator?: ProjectCollaborator | null;
+}
+
+interface ProjectOrganizationChangePayload {
+  type: "project_organization_change";
+  event: "organization_added" | "organization_permission_updated" | "organization_removed";
+  project_id: number;
+  organization_id: number;
+  project_organization_id?: number;
+  permission?: string | null;
+  project_organization?: ProjectOrganization | null;
+}
 
 const ensureInstance = (name: string): InstanceData => {
   let instance = instances.get(name);
@@ -120,7 +145,14 @@ const setupProvider = async (name: string): Promise<void> => {
       document: doc,
       token: name.length === 0 ? () => "" : authApi.getAccessToken,
       onStateless: (event) => {
-        const payload = JSON.parse(event.payload);
+        let payload: any;
+
+        try {
+          payload = JSON.parse(event.payload);
+        } catch (err) {
+          console.error("Failed to parse stateless websocket payload:", err);
+          return;
+        }
 
         // Update the user's project permission from the websocket server
         if (payload.type === "project_permission") {
@@ -128,6 +160,20 @@ const setupProvider = async (name: string): Promise<void> => {
             if (!payload.permission) window.location.href = "/projects";
             useGeckodeStore.getState().setProjectPermission(payload.permission)
           });
+        } else if (payload.type === "project_collaborator_change") {
+          window.dispatchEvent(
+            new CustomEvent<ProjectCollaboratorChangePayload>(
+              PROJECT_COLLABORATOR_CHANGE_EVENT,
+              { detail: payload as ProjectCollaboratorChangePayload },
+            ),
+          );
+        } else if (payload.type === "project_organization_change") {
+          window.dispatchEvent(
+            new CustomEvent<ProjectOrganizationChangePayload>(
+              PROJECT_ORGANIZATION_CHANGE_EVENT,
+              { detail: payload as ProjectOrganizationChangePayload },
+            ),
+          );
         }
       },
     });
