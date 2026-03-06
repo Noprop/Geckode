@@ -1,7 +1,6 @@
 "use client";
 
 import organizationsApi from "@/lib/api/handlers/organizations";
-import { authApi } from "@/lib/api/auth";
 import {
   Organization,
   OrganizationFilters,
@@ -9,7 +8,7 @@ import {
   OrganizationPayload,
   organizationSortKeys,
 } from "@/lib/types/api/organizations";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Table, TableRef } from "@/components/ui/Table";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/modals/Modal";
@@ -19,6 +18,7 @@ import DragAndDrop, { DragAndDropRef } from "@/components/DragAndDrop";
 import { ExclamationTriangleIcon, ExitIcon, FilePlusIcon, GearIcon, TrashIcon } from "@radix-ui/react-icons";
 import { useRouter } from "next/navigation";
 import { extractAxiosErrMsg } from "@/lib/api/axios";
+import { useUser } from "@/contexts/UserContext";
 
 //spaces -> dashes, non-alphanumeric characters removed
 export const createSlug = (val: string) => {
@@ -31,7 +31,7 @@ export const createSlug = (val: string) => {
 
 export default function OrganizationsPage() {
   const showSnackbar = useSnackbar();
-
+  const user = useUser();
   const router = useRouter();
 
   const dropboxRef = useRef<DragAndDropRef>(null);
@@ -39,24 +39,10 @@ export default function OrganizationsPage() {
   const organizationNameRef = useRef<InputBoxRef | null>(null);
   const autoOrganizationOpenRef = useRef<InputBoxRef | null>(null);
 
-  const [userId, setUserId] = useState<number>(-1);
   const [slug, setSlug] = useState<string>("");
 
   const [showModal, setShowModal] = useState<null | "create" | "delete" | "leave">(null);
   const [rowIndex, setRowIndex] = useState<number>(0);
-
-  useEffect(() => {
-    const fetchUserInfo = () => {
-      authApi
-        .getUserDetails()
-        .then((res) => {
-          setUserId(res.id);
-        })
-        .catch((err) => showSnackbar(extractAxiosErrMsg(err, "Something went wrong. Please try again."), "error"));
-    };
-
-    fetchUserInfo();
-  }, []);
 
   const createOrganization = () => {
     const orgName = organizationNameRef?.current?.inputValue || "";
@@ -139,7 +125,7 @@ export default function OrganizationsPage() {
               setShowModal("delete");
             },
             rowIconClassName: "hover:text-red-500 mt-1",
-            canUse: (organization) => organization.owner.id === userId,
+            canUse: (organization) => organization.owner.id === user?.id,
           },
           {
             rowIcon: ExitIcon,
@@ -149,6 +135,7 @@ export default function OrganizationsPage() {
               setShowModal("leave");
             },
             rowIconClassName: "hover:text-yellow-600 mt-1",
+            canUse: (organization) => organization.owner.id !== user?.id,
           },
           {
             rowIcon: GearIcon,
