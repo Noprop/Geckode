@@ -212,6 +212,8 @@ export interface EditorActions {
   exportWorkspaceState: () => void;
   undoWorkspace: () => void;
   redoWorkspace: () => void;
+  zoomWorkspaceIn: () => void;
+  zoomWorkspaceOut: () => void;
   toggleEditor: () => void;
   resetProject: () => void;
   markSpriteAsUpdated: (id: string) => void;

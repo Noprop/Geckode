@@ -171,6 +171,20 @@ export const createEditorSlice: StateCreator<
     setTimeout(updateUndoRedoState, 10);
   },
 
+  zoomWorkspaceIn: () => {
+    const { blocklyWorkspace } = get();
+    if (!blocklyWorkspace) return;
+    blocklyWorkspace.markFocused();
+    blocklyWorkspace.zoomCenter(1);
+  },
+
+  zoomWorkspaceOut: () => {
+    const { blocklyWorkspace } = get();
+    if (!blocklyWorkspace) return;
+    blocklyWorkspace.markFocused();
+    blocklyWorkspace.zoomCenter(-1);
+  },
+
   toggleEditor: () => {
     const { isEditorScene, phaserScene, spriteInstances, generateCode } = get();
     if (!phaserScene)

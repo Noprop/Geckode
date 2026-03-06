@@ -30,6 +30,8 @@ const ProjectView = () => {
   const {
     undoWorkspace,
     redoWorkspace,
+    zoomWorkspaceIn,
+    zoomWorkspaceOut,
     canUndo,
     canRedo,
     spriteIdsUpdated,
@@ -102,55 +104,75 @@ const ProjectView = () => {
           <AssetWorkspace />
         </div>
 
-        {view === 'blocks' && canEditProject && (
+        {view === 'blocks' && (
           <div className='absolute bottom-8 right-[30px] flex items-center gap-2.5 z-20 pointer-events-auto'>
+            {canEditProject && (<>
+              <button
+                onClick={undoWorkspace}
+                disabled={!canUndo}
+                className={`
+                  w-10.5 h-10.5 flex items-center justify-center rounded text-white transition-all
+                  ${
+                    canUndo
+                      ? 'bg-primary-green hover:bg-primary-green/90 hover:translate-y-px hover:shadow-[0_2px_0_0_#1a5c3a] active:translate-y-[3px] active:shadow-none shadow-[0_4px_0_0_#1a5c3a] cursor-pointer'
+                      : 'bg-slate-400 dark:bg-slate-600 shadow-[0_4px_0_0_#64748b] dark:shadow-[0_4px_0_0_#334155] opacity-90'
+                  }
+                `}
+                title='Undo'
+              >
+                <svg aria-hidden='true' focusable='false' viewBox='0 0 16 16' width='20' height='20' fill='currentColor'>
+                  <path d='M1.22 6.28a.749.749 0 0 1 0-1.06l3.5-3.5a.749.749 0 1 1 1.06 1.06L3.561 5h7.188l.001.007L10.749 5c.058 0 .116.007.171.019A4.501 4.501 0 0 1 10.5 14H8.796a.75.75 0 0 1 0-1.5H10.5a3 3 0 1 0 0-6H3.561L5.78 8.72a.749.749 0 1 1-1.06 1.06l-3.5-3.5Z'></path>
+                </svg>
+              </button>
+              <button
+                onClick={redoWorkspace}
+                disabled={!canRedo}
+                className={`
+                  w-10.5 h-10.5 flex items-center justify-center rounded text-white transition-all
+                  ${
+                    canRedo
+                      ? 'bg-primary-green hover:bg-primary-green/90 hover:translate-y-px hover:shadow-[0_2px_0_0_#1a5c3a] active:translate-y-[3px] active:shadow-none shadow-[0_4px_0_0_#1a5c3a] cursor-pointer'
+                      : 'bg-slate-400 dark:bg-slate-600 shadow-[0_4px_0_0_#64748b] dark:shadow-[0_4px_0_0_#334155] opacity-90'
+                  }
+                `}
+                title='Redo'
+              >
+                <span
+                  style={{
+                    display: 'inline-block',
+                    transform: 'rotate(180deg) scaleY(-1)',
+                  }}
+                >
+                  <svg
+                    aria-hidden='true'
+                    focusable='false'
+                    viewBox='0 0 16 16'
+                    width='20'
+                    height='20'
+                    fill='currentColor'
+                  >
+                    <path d='M1.22 6.28a.749.749 0 0 1 0-1.06l3.5-3.5a.749.749 0 1 1 1.06 1.06L3.561 5h7.188l.001.007L10.749 5c.058 0 .116.007.171.019A4.501 4.501 0 0 1 10.5 14H8.796a.75.75 0 0 1 0-1.5H10.5a3 3 0 1 0 0-6H3.561L5.78 8.72a.749.749 0 1 1-1.06 1.06l-3.5-3.5Z'></path>
+                  </svg>
+                </span>
+              </button>
+            </>)}
             <button
-              onClick={undoWorkspace}
-              disabled={!canUndo}
-              className={`
-                w-10.5 h-10.5 flex items-center justify-center rounded text-white transition-all
-                ${
-                  canUndo
-                    ? 'bg-primary-green hover:bg-primary-green/90 hover:translate-y-px hover:shadow-[0_2px_0_0_#1a5c3a] active:translate-y-[3px] active:shadow-none shadow-[0_4px_0_0_#1a5c3a] cursor-pointer'
-                    : 'bg-slate-400 dark:bg-slate-600 shadow-[0_4px_0_0_#64748b] dark:shadow-[0_4px_0_0_#334155] opacity-90'
-                }
-              `}
-              title='Undo'
+              onClick={zoomWorkspaceOut}
+              className='w-10.5 h-10.5 flex items-center justify-center rounded text-white transition-all bg-primary-green hover:bg-primary-green/90 hover:translate-y-px hover:shadow-[0_2px_0_0_#1a5c3a] active:translate-y-[3px] active:shadow-none shadow-[0_4px_0_0_#1a5c3a] cursor-pointer'
+              title='Zoom Out'
             >
               <svg aria-hidden='true' focusable='false' viewBox='0 0 16 16' width='20' height='20' fill='currentColor'>
-                <path d='M1.22 6.28a.749.749 0 0 1 0-1.06l3.5-3.5a.749.749 0 1 1 1.06 1.06L3.561 5h7.188l.001.007L10.749 5c.058 0 .116.007.171.019A4.501 4.501 0 0 1 10.5 14H8.796a.75.75 0 0 1 0-1.5H10.5a3 3 0 1 0 0-6H3.561L5.78 8.72a.749.749 0 1 1-1.06 1.06l-3.5-3.5Z'></path>
+                <path d='M2.75 8a.75.75 0 0 1 .75-.75h9a.75.75 0 0 1 0 1.5h-9A.75.75 0 0 1 2.75 8Z'></path>
               </svg>
             </button>
             <button
-              onClick={redoWorkspace}
-              disabled={!canRedo}
-              className={`
-                w-10.5 h-10.5 flex items-center justify-center rounded text-white transition-all
-                ${
-                  canRedo
-                    ? 'bg-primary-green hover:bg-primary-green/90 hover:translate-y-px hover:shadow-[0_2px_0_0_#1a5c3a] active:translate-y-[3px] active:shadow-none shadow-[0_4px_0_0_#1a5c3a] cursor-pointer'
-                    : 'bg-slate-400 dark:bg-slate-600 shadow-[0_4px_0_0_#64748b] dark:shadow-[0_4px_0_0_#334155] opacity-90'
-                }
-              `}
-              title='Redo'
+              onClick={zoomWorkspaceIn}
+              className='w-10.5 h-10.5 flex items-center justify-center rounded text-white transition-all bg-primary-green hover:bg-primary-green/90 hover:translate-y-px hover:shadow-[0_2px_0_0_#1a5c3a] active:translate-y-[3px] active:shadow-none shadow-[0_4px_0_0_#1a5c3a] cursor-pointer'
+              title='Zoom In'
             >
-              <span
-                style={{
-                  display: 'inline-block',
-                  transform: 'rotate(180deg) scaleY(-1)',
-                }}
-              >
-                <svg
-                  aria-hidden='true'
-                  focusable='false'
-                  viewBox='0 0 16 16'
-                  width='20'
-                  height='20'
-                  fill='currentColor'
-                >
-                  <path d='M1.22 6.28a.749.749 0 0 1 0-1.06l3.5-3.5a.749.749 0 1 1 1.06 1.06L3.561 5h7.188l.001.007L10.749 5c.058 0 .116.007.171.019A4.501 4.501 0 0 1 10.5 14H8.796a.75.75 0 0 1 0-1.5H10.5a3 3 0 1 0 0-6H3.561L5.78 8.72a.749.749 0 1 1-1.06 1.06l-3.5-3.5Z'></path>
-                </svg>
-              </span>
+              <svg aria-hidden='true' focusable='false' viewBox='0 0 16 16' width='20' height='20' fill='currentColor'>
+                <path d='M8.75 3.75a.75.75 0 0 0-1.5 0v3.5h-3.5a.75.75 0 0 0 0 1.5h3.5v3.5a.75.75 0 0 0 1.5 0v-3.5h3.5a.75.75 0 0 0 0-1.5h-3.5v-3.5Z'></path>
+              </svg>
             </button>
           </div>
         )}
