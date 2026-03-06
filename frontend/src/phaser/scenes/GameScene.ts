@@ -1003,4 +1003,20 @@ export default class GameScene extends Phaser.Scene {
     return 0;
   }
 
+  private cameraToWorldX(x: number) {
+    return -x - this.scale.width/2;
+  }
+
+  private worldToCameraX(x: number) {
+    return -x + this.scale.width/2;
+  }
+
+  private cameraToWorldY(y: number) {
+    return y + this.scale.height/2;
+  }
+
+  private worldToCameraY(y: number) {
+    return y - this.scale.height/2;
+  }
+
 }

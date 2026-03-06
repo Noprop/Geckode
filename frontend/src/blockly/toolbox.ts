@@ -470,6 +470,20 @@ const getToolbox = () => {
           },
           {
             kind: 'block',
+            type: 'changeCamera',
+            inputs: {
+              VALUE: {
+                shadow: {
+                  type: 'math_number',
+                  fields: {
+                    NUM: 10,
+                  },
+                },
+              },
+            },
+          },
+          {
+            kind: 'block',
             type: 'resetCamera',
           },
         ]

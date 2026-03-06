@@ -7,7 +7,7 @@ const cameraToXY = {
   type: 'cameraToXY',
   tooltip: 'Center the camera on a position',
   helpUrl: '',
-  message0: 'Center camera x:%1 y:%2',
+  message0: 'center camera x:%1 y:%2',
   args0: [
     {
       type: 'input_value',
@@ -28,7 +28,36 @@ javascriptGenerator.forBlock['cameraToXY'] = function (block, generator) {
   const x = generator.valueToCode(block, 'x', Order.NONE) || 0;
   const y = generator.valueToCode(block, 'y', Order.NONE) || 0;
 
-  return `scene.cameras.main.centerOn(${x},-(${y}))\n`;
+  return `scene.cameras.main.x = scene.worldToCameraX(${x})\nscene.cameras.main.y = scene.worldToCameraY(${y})\n`;
+};
+
+const changeCamera = {
+  type: 'changeCamera',
+  tooltip: 'Change the position of the camera',
+  helpUrl: '',
+  message0: 'change camera %1 by %2',
+  args0: [
+    {
+      type: 'field_dropdown',
+      name: 'PROPERTY',
+      options: [['x','x'], ['y','y']],
+    },
+    {
+      type: 'input_value',
+      name: 'VALUE',
+    },
+  ],
+  previousStatement: null,
+  nextStatement: null,
+  inputsInline: true,
+  colour: '%{BKY_CAMERA_HUE}',
+};
+
+javascriptGenerator.forBlock['changeCamera'] = function (block, generator) {
+  const property = block.getFieldValue('PROPERTY');
+  const value = generator.valueToCode(block, 'VALUE', Order.NONE) || 0;
+
+  return property == 'x' ? `scene.cameras.main.x += ${value}\n`: `scene.cameras.main.y -= ${value}\n`;
 };
 
 const resetCamera = {
@@ -52,5 +81,6 @@ javascriptGenerator.forBlock['resetCamera'] = function (block, generator) {
 
 export const cameraBlocks = [
   cameraToXY,
+  changeCamera,
   resetCamera
 ];
