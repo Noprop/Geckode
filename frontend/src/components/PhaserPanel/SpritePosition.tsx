@@ -193,8 +193,8 @@ const SpritePosition = ({ borderless }: { borderless?: boolean }) => {
   const disabled = !selectedSprite || !canEditProject;
 
   return (
-    <div className="w-full">
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs">
+    <div className="w-full flex flex-col gap-2 text-xs">
+      <div className="flex items-center gap-5">
         <div className="flex items-center gap-2">
           <label htmlFor="sprite-name" className={labelClasses}>
             Sprite
@@ -232,19 +232,10 @@ const SpritePosition = ({ borderless }: { borderless?: boolean }) => {
           onChange={(v) => handleInputChange("y", v)}
           onBlur={handleBlurY}
         />
+      </div>
 
-        {/* TODO: probably add this back in later */}
-        {/* <label className="flex cursor-pointer items-center gap-1.5">
-          <input
-            type="checkbox"
-            checked={values.snapToGrid}
-            onChange={() => handleToggle("snapToGrid", !values.snapToGrid)}
-            disabled={disabled}
-            className="h-3.5 w-3.5 accent-primary-green cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-          />
-          <span className={labelClasses}>Snap</span>
-        </label> */}
-
+      {/* Row 2: Show, Scale X, Scale Y */}
+      <div className="flex items-center gap-5">
         <fieldset className="flex items-center gap-0 border-0 p-0 m-0">
           <legend className={`${labelClasses} mr-2 sr-only`}>
             Show sprite
