@@ -207,6 +207,31 @@ export default class EditorScene extends Phaser.Scene {
       sprite.setScale(updates.scaleX ?? sprite.scaleX, updates.scaleY ?? sprite.scaleY);
     }
     if (updates.direction !== undefined) sprite.setAngle(updates.direction);
+    if (updates.textureName !== undefined) {
+      const nextTextureName = updates.textureName;
+      const textureKey = 'sprite-' + nextTextureName;
+      if (this.textures.exists(textureKey)) {
+        sprite.setTexture(textureKey);
+      } else {
+        const { textures, libaryTextures, textureLoadingState, setTextureLoadState } = useGeckodeStore.getState();
+        const base64Image = textures[nextTextureName] ?? libaryTextures[nextTextureName];
+
+        if (base64Image && textureLoadingState[nextTextureName] !== 'loading') {
+          setTextureLoadState(nextTextureName, 'loading');
+          this.loadSpriteTextureAsync(nextTextureName, base64Image).then(() => {
+            setTextureLoadState(nextTextureName, 'loaded');
+            const latestSprite = this.editorSprites.get(id);
+            if (latestSprite) {
+              latestSprite.setTexture(textureKey);
+            }
+            this.processPendingSpritesForTexture(nextTextureName);
+          }).catch((err) => {
+            console.error(`Failed to load texture ${nextTextureName}:`, err);
+            setTextureLoadState(nextTextureName, 'error');
+          });
+        }
+      }
+    }
   }
 
   // -- Texture management -- //

@@ -47,6 +47,8 @@ const SpriteEditor = () => {
   const setIsSpriteModalOpen = useGeckodeStore((s) => s.setIsSpriteModalOpen);
   const clearSpriteModalContext = useGeckodeStore((s) => s.clearSpriteModalContext);
   const setAsset = useGeckodeStore((s) => s.setAsset);
+  const removeAsset = useGeckodeStore((s) => s.removeAsset);
+  const updateSpriteInstance = useGeckodeStore((s) => s.updateSpriteInstance);
   const libaryTextures = useGeckodeStore((s) => s.libaryTextures);
   const textures = useGeckodeStore((s) => s.textures);
   const editingSource = useGeckodeStore((s) => s.editingSource);
@@ -54,6 +56,7 @@ const SpriteEditor = () => {
   const editingTextureToLoad = useGeckodeStore((s) => s.editingTextureToLoad);
   const spriteModalMode = useGeckodeStore((s) => s.spriteModalMode);
   const spriteModalSaveTargetTextureName = useGeckodeStore((s) => s.spriteModalSaveTargetTextureName);
+  const selectedSpriteId = useGeckodeStore((s) => s.selectedSpriteId);
   const phaserScene = useGeckodeStore((s) => s.phaserScene);
 
   // --- Custom hooks ---
@@ -228,6 +231,8 @@ const SpriteEditor = () => {
   };
 
   const handlePrimaryAction = async () => {
+    if (spriteName.trim().length === 0) return;
+
     const base64Image = createBase64FromCanvas();
     const {
       editingSource: currentEditingSource,
@@ -244,10 +249,38 @@ const SpriteEditor = () => {
       const targetTextureName = currentSaveTargetTextureName ?? currentEditingAssetName;
       if (!targetTextureName) return;
 
-      setAsset(targetTextureName, base64Image, 'textures');
+      const requestedTextureName = spriteName.trim();
+      const isTargetLibraryTexture = targetTextureName in libaryTextures;
+      const desiredTextureName = requestedTextureName.length > 0 ? requestedTextureName : targetTextureName;
+      const nextTextureName = isTargetLibraryTexture
+        ? createUniqueTextureName(desiredTextureName, { ...currentTextures, ...libaryTextures })
+        : desiredTextureName;
+      const shouldRenameTexture = nextTextureName !== targetTextureName;
+
+      setAsset(nextTextureName, base64Image, 'textures');
+
+      if (shouldRenameTexture) {
+        if (isTargetLibraryTexture) {
+          // Editing a library-backed sprite should only retarget the sprite being edited.
+          if (selectedSpriteId) {
+            updateSpriteInstance(selectedSpriteId, { textureName: nextTextureName });
+          }
+        } else {
+          const currentState = useGeckodeStore.getState();
+
+          currentState.spriteInstances
+            .filter((sprite) => sprite.textureName === targetTextureName)
+            .forEach((sprite) => {
+              // Keep all sprite texture references in sync locally and in Yjs.
+              updateSpriteInstance(sprite.id, { textureName: nextTextureName });
+            });
+
+          removeAsset(targetTextureName, 'textures');
+        }
+      }
 
       if (isEditorScene) {
-        await phaserScene.updateSpriteTextureAsync(targetTextureName, base64Image);
+        await phaserScene.updateSpriteTextureAsync(nextTextureName, base64Image);
       }
 
       closeSpriteModal();
@@ -258,9 +291,35 @@ const SpriteEditor = () => {
       const targetTextureName =
         currentSaveTargetTextureName ?? (currentEditingSource === 'asset' ? currentEditingAssetName : null);
       if (targetTextureName) {
-        setAsset(targetTextureName, base64Image, 'textures');
-        if (isEditorScene) {
-          await phaserScene.updateSpriteTextureAsync(targetTextureName, base64Image);
+        const requestedTextureName = spriteName.trim();
+        const shouldRenameTexture =
+          currentEditingSource === 'asset'
+          && requestedTextureName.length > 0
+          && requestedTextureName !== targetTextureName;
+
+        if (shouldRenameTexture) {
+          const renamedTextureName = requestedTextureName;
+
+          setAsset(renamedTextureName, base64Image, 'textures');
+
+          const currentState = useGeckodeStore.getState();
+          currentState.spriteInstances
+            .filter((sprite) => sprite.textureName === targetTextureName)
+            .forEach((sprite) => {
+              // Keep sprite texture references in sync locally and in Yjs.
+              updateSpriteInstance(sprite.id, { textureName: renamedTextureName });
+            });
+
+          removeAsset(targetTextureName, 'textures');
+
+          if (isEditorScene) {
+            await phaserScene.updateSpriteTextureAsync(renamedTextureName, base64Image);
+          }
+        } else {
+          setAsset(targetTextureName, base64Image, 'textures');
+          if (isEditorScene) {
+            await phaserScene.updateSpriteTextureAsync(targetTextureName, base64Image);
+          }
         }
       } else {
         const newTextureName = createUniqueTextureName(spriteName, { ...currentTextures, ...libaryTextures });
@@ -276,6 +335,17 @@ const SpriteEditor = () => {
       console.log('texture name added library: ', currentEditingAssetName);
       if (isEditorScene) {
         await phaserScene.loadSpriteTextureAsync(currentEditingAssetName, libraryTextureBase64);
+      }
+      createAndInsertSprite(currentEditingAssetName);
+      closeSpriteModal();
+      return;
+    }
+
+    if (currentEditingSource === 'asset' && currentEditingAssetName && !isCanvasDirty) {
+      const existingTextureBase64 = currentTextures[currentEditingAssetName];
+      if (!existingTextureBase64) return;
+      if (isEditorScene) {
+        await phaserScene.loadSpriteTextureAsync(currentEditingAssetName, existingTextureBase64);
       }
       createAndInsertSprite(currentEditingAssetName);
       closeSpriteModal();
@@ -353,11 +423,18 @@ const SpriteEditor = () => {
 
   const isSaveMode = spriteModalMode === 'phaser_edit' || spriteModalMode === 'asset_manager';
   const isAddMode = spriteModalMode === 'phaser_add';
+  const isNameEmpty = spriteName.trim().length === 0;
   const isSaveDisabled =
     isSaveMode && spriteModalMode === 'asset_manager' && editingSource === 'library' && !isCanvasDirty;
   const isMissingEditTarget =
     spriteModalMode === 'phaser_edit' && !spriteModalSaveTargetTextureName && !editingAssetName;
-  const isPrimaryActionDisabled = isSaveDisabled || isMissingEditTarget;
+  const isPrimaryActionDisabled = isSaveDisabled || isMissingEditTarget || isNameEmpty;
+  const namePlaceholder =
+    spriteModalMode === 'asset_manager'
+      ? 'Texture name'
+      : spriteModalMode === 'phaser_edit'
+        ? 'Updated texture name'
+        : 'New sprite name';
 
   return (
     <div className='flex-1 min-h-0 flex border-t border-slate-200 bg-slate-800 dark:border-slate-700'>
@@ -413,7 +490,7 @@ const SpriteEditor = () => {
             type='text'
             value={spriteName}
             onChange={(e) => setSpriteName(e.target.value)}
-            placeholder='Sprite name'
+            placeholder={namePlaceholder}
             className='flex-1 h-9 px-3 rounded bg-slate-600 border border-slate-500 text-sm text-white placeholder:text-slate-400 outline-none focus:border-primary-green'
           />
           <Button
@@ -421,7 +498,9 @@ const SpriteEditor = () => {
             onClick={handlePrimaryAction}
             disabled={isPrimaryActionDisabled}
             title={
-              isSaveMode
+              isNameEmpty
+                ? 'Enter a name'
+                : isSaveMode
                 ? isSaveDisabled
                   ? 'Make a canvas edit before saving'
                   : 'Save changes'

@@ -159,7 +159,6 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
   backgrounds: {},
 
   textureLoadingState: {},
-  assetIds: {},
 
   libaryTextures: {
     gavinDown: gavinDown,
@@ -314,13 +313,13 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
   },
 
   saveSprite: ({ spriteName, base64Image, syncAfter = true }) => {
-    const { editingSource, editingAssetName, textures, spriteWorkspaces, phaserScene } = get();
+    const { editingSource, editingAssetName, textures, libaryTextures, spriteWorkspaces, phaserScene } = get();
     let textureName: string;
 
     if (editingSource === 'asset' && editingAssetName) {
       textureName = editingAssetName;
     } else {
-      textureName = createUniqueTextureName(spriteName, textures);
+      textureName = createUniqueTextureName(spriteName, { ...textures, ...libaryTextures });
     }
     set({ 
       textures: { ...get().textures, [textureName]: base64Image },
@@ -391,7 +390,7 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
       // Only load texture immediately if in EditorScene
       // GameScene will pick up changes when user switches back
       if (phaserScene instanceof EditorScene) {
-        phaserScene.loadSpriteTextureAsync(name, base64Image).then(() => {
+        phaserScene.updateSpriteTextureAsync(name, base64Image).then(() => {
           get().setTextureLoadState(name, 'loaded');
         }).catch((err) => {
           console.error(`Failed to load texture ${name}:`, err);
@@ -416,8 +415,26 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
     }
   },
   removeAsset: (name: string, type: Exclude<AssetType, 'tilesets'>, syncAfter: boolean = true) => {
+    const { libaryTextures, phaserScene } = get();
     const { [name]: _, ...rest } = get()[type];
-    set({ [type]: rest });
+    if (type === 'textures') {
+      const { [name]: __, ...remainingTextureLoadingState } = get().textureLoadingState;
+      set({ [type]: rest, textureLoadingState: remainingTextureLoadingState });
+    } else {
+      set({ [type]: rest });
+    }
+
+    if (type === 'textures' && name in libaryTextures) {
+      const libraryTextureBase64 = libaryTextures[name];
+      if (phaserScene instanceof EditorScene && libraryTextureBase64) {
+        phaserScene.updateSpriteTextureAsync(name, libraryTextureBase64).then(() => {
+          get().setTextureLoadState(name, 'loaded');
+        }).catch((err) => {
+          console.error(`Failed to restore library texture ${name}:`, err);
+          get().setTextureLoadState(name, 'error');
+        });
+      }
+    }
 
     if (syncAfter) {
       deleteAssetSync(name, type);
@@ -475,19 +492,6 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
   /* ── Tile Collidables ── */
   setTileCollidable: (tileKey: string, collidable: boolean) => {
     set({ tileCollidables: { ...get().tileCollidables, [tileKey]: collidable } });
-  },
-
-  /* Asset Ids */
-  addAssetId: (name: string, id: string|number) => {
-    set({["assetIds"]: { ...get()["assetIds"], [name] : id }})
-  },
-  updateAssetId: (oldName: string,  newName: string) => { // assign id to newName and delete the old name record
-    const { [oldName]: id, ...rest } = get()["assetIds"];
-    set({ ["assetIds"]: {...rest, [newName]: id} });
-  },
-  removeAssetId: (name: string) => {
-    const { [name]: _, ...rest } = get()["assetIds"];
-    set({ ["assetIds"]: rest });
   },
 
   addLibraryAsset: (name: string, base64Image: string, type) => { set({ [type]: { ...get()[type], [name]: base64Image } }); },

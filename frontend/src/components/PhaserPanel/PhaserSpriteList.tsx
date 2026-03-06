@@ -104,6 +104,7 @@ const PhaserSpriteList = () => {
                         onMouseDown={() => setSelectedSpriteId(sprite.id)}
                         onDoubleClick={() => {
                           if (!canEditProject) return;
+                          setSelectedSpriteId(sprite.id);
                           useGeckodeStore.setState({
                             editingSource: 'asset',
                             editingAssetName: sprite.textureName,
@@ -161,6 +162,7 @@ const PhaserSpriteList = () => {
                         <ContextMenu.Item
                           className="relative flex cursor-default select-none items-center rounded px-2 py-1.5 text-sm outline-none hover:bg-slate-100 focus:bg-slate-100 dark:hover:bg-slate-700 dark:focus:bg-slate-700"
                           onSelect={() => {
+                            setSelectedSpriteId(sprite.id);
                             useGeckodeStore.setState({
                               editingSource: 'asset',
                               editingAssetName: sprite.textureName,
