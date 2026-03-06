@@ -533,7 +533,7 @@ export const Table = <
 
       {showControls && (
         <div className="flex justify-between items-center mt-4">
-          <div className="ml-2">
+          <div className="mx-2">
             <span>Display</span>
             <SelectionBox
               className="ml-2 mr-2"
@@ -551,8 +551,8 @@ export const Table = <
             />
             <span>per page</span>
           </div>
-          <div>
-            <span style={{ margin: "0 10px", fontWeight: "bold" }}>
+          <div className="flex items-center">
+            <span className="font-bold mx-2">
               {totalCount ? pagination.pageIndex * pagination.pageSize + 1 : 0}{" "}
               -{" "}
               {Math.min(
@@ -585,24 +585,28 @@ export const Table = <
               }}
               disabled={pagination.pageIndex === 0}
             />
-            <InputBox
-              ref={pageNumberInputRef}
-              value={String(pagination.pageIndex + 1)}
-              className="w-15 h-9 text-center ml-4 border"
-              onChange={(e) => {
-                setPagination((prev) => ({
-                  ...prev,
-                  pageIndex:
-                    Math.min(
-                      Math.ceil(totalCount / pagination.pageSize),
-                      Math.max(Number(e.target.value.replace(/\D/g, "")), 1),
-                    ) - 1,
-                }));
-              }}
-            />
-            <span style={{ margin: "0 10px" }}>
-              of {Math.max(1, Math.ceil(totalCount / pagination.pageSize))}
-            </span>
+            <div className="flex items-center mx-3">
+              <div className="w-15 flex items-center justify-center">
+                <InputBox
+                  ref={pageNumberInputRef}
+                  value={String(pagination.pageIndex + 1)}
+                  className="h-9 text-center border"
+                  onChange={(e) => {
+                    setPagination((prev) => ({
+                      ...prev,
+                      pageIndex:
+                        Math.min(
+                          Math.ceil(totalCount / pagination.pageSize),
+                          Math.max(Number(e.target.value.replace(/\D/g, "")), 1),
+                        ) - 1,
+                    }));
+                  }}
+                />
+              </div>
+              <span className="ml-2">
+                of {Math.max(1, Math.ceil(totalCount / pagination.pageSize))}
+              </span>
+            </div>
             <Icon
               icon={ChevronRightIcon}
               size={15}

@@ -62,11 +62,10 @@ export const InputBox = ({
     })
   );
 
-  const baseInputClass = overrideClassName ? '' : 'border p-2 rounded-md';
   const errorInputClass = hasError ? 'border-red-500 dark:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/50' : '';
 
   return (
-    <div className="group relative">
+    <div className={`group relative`}>
       <input
         ref={inputRef}
         placeholder={placeholder}
@@ -79,7 +78,7 @@ export const InputBox = ({
           onChange(e);
         }}
         required={required}
-        className={`${baseInputClass} ${errorInputClass} ${className}`}
+        className={`${errorInputClass} ${overrideClassName ? "" : "border p-2 rounded-md w-full"} ${className}`}
         disabled={disabled}
         onFocus={onFocus}
         onBlur={onBlur}
