@@ -44,6 +44,15 @@ class Organization(Model):
             permission__in=create_permissions_allowed_hierarchy(self.PERMISSION_CHOICES).get(required_permission, [])
         ).exists()
 
+    def get_permission(self, user : User) -> str | None:
+        if user == self.owner:
+            return 'owner'
+
+        return OrganizationMember.objects.filter(
+            organization=self,
+            member=user,
+        ).values_list('permission', flat=True).first()
+
     def has_member(self, user : User, include_owner=True) -> bool:
         if include_owner and user == self.owner:
             return True

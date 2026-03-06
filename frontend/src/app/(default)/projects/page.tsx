@@ -40,7 +40,6 @@ export default function ProjectsPage() {
                 thumnail: dropboxRef.current?.files![0],
               }
             : {}),
-          permission: "owner",
         }),
       )
       .then((project) => {
@@ -88,7 +87,7 @@ export default function ProjectsPage() {
             key: "thumbnail",
             type: "thumbnail",
             hideLabel: true,
-            style: "w-20",
+            style: "w-18",
           },
           Name: {
             key: "name",

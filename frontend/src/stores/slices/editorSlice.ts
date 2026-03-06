@@ -10,6 +10,11 @@ import type { EditorSlice, GeckodeStore, WorkspaceOutputType } from "./types";
 import { projectNameSync } from "@/hooks/yjs/useProjectNameSync";
 import { getYDoc } from "@/hooks/yjs/useWorkspaceSync";
 import * as Y from "yjs";
+import {
+  enablePersistence as yjsEnablePersistence,
+  disablePersistence as yjsDisablePersistence,
+  getPersistence as yjsGetPersistence,
+} from "@/contexts/YjsContext";
 
 export const createEditorSlice: StateCreator<
   GeckodeStore,
@@ -270,39 +275,19 @@ export const createEditorSlice: StateCreator<
     }
   },
 
-  resetProject: () => {
-    const { blocklyWorkspace, phaserScene, resetSpriteStore } = get();
-
-    // Reset sprite store first to get new sprite IDs
-    resetSpriteStore();
-
-    // Clear and reset Blockly workspace
-    if (blocklyWorkspace) {
-      Blockly.Events.disable();
-      blocklyWorkspace.clear();
-      Blockly.Events.enable();
-    }
-
-    // Reset Phaser scene sprites if in editor mode
-    if (phaserScene instanceof EditorScene) {
-      phaserScene.removeSprites();
-    }
-
-    // Clear workspace maps and set the new sprite ID
-    set({
-      spriteWorkspaces: {},
-      spriteOutputs: {},
-      selectedSpriteId: null,
-      canUndo: false,
-      canRedo: false,
-    });
-
-    console.log("[editorStore] Project reset to default state");
-  },
-
   markSpriteAsUpdated: (id: string) => {
     set((s) => ({
       spriteIdsUpdated: Array.from(new Set([...s.spriteIdsUpdated, id])),
     }));
+  },
+
+  enablePersistence: (documentName: string) => {
+    yjsEnablePersistence(documentName);
+    set({ persistence: yjsGetPersistence(documentName) });
+  },
+
+  disablePersistence: (documentName: string) => {
+    yjsDisablePersistence(documentName);
+    set({ persistence: null });
   },
 });

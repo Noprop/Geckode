@@ -61,6 +61,7 @@ class OrganizationMemberFilter(PrefixedFilterSet):
             for field1, field2 in search_fields
         ],
         'joined_at',
+        ('member__username', 'member'),
     ]
 
     invited_by = NumberFilter(field_name='invited_by__id')

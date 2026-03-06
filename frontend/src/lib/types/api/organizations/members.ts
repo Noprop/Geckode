@@ -18,7 +18,6 @@ export interface OrganizationMemberPayload {
 }
 
 export const organizationMemberSortKeys: (keyof OrganizationMember)[] = [
-  "permission",
   "joined_at",
   "member",
   "invited_by",

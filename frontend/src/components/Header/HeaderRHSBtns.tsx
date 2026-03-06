@@ -7,6 +7,7 @@ import Image from 'next/image';
 import { useUser } from '@/contexts/UserContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { authApi } from '@/lib/api/auth';
+import { UserIcon } from '../ui/UserIcon';
 
 // buttons placed on the right hand side of the editor
 
@@ -72,7 +73,7 @@ const HeaderRHSBtns = () => {
           !user || !user.avatar ? (
             <PersonIcon className='w-5 h-5' />
           ) : (
-            <Image src={user.avatar} alt='' className='h-5 w-5 rounded-full'></Image>
+            <UserIcon user={user} variant="avatar" size="md" />
           )
         }
       </DropDownButton>

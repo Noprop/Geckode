@@ -26,8 +26,6 @@ export interface ProjectPayload {
   name: string;
   description?: string;
   thumbnail?: File | null;
-  permission: ProjectPermissions | "owner";
-  // When sending over JSON, this should be a base64-encoded string.
   yjs_blob?: string;
 }
 

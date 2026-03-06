@@ -1,12 +1,9 @@
-import DragAndDrop from "@/components/DragAndDrop";
 import { Button } from "@/components/ui/Button";
-import { InputBox, InputBoxRef } from "@/components/ui/inputs/InputBox";
 import { Modal } from "@/components/ui/modals/Modal";
 import { Table, TableRef } from "@/components/ui/Table";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import organizationsApi from "@/lib/api/handlers/organizations";
-import usersApi from "@/lib/api/handlers/users";
-import { Organization } from "@/lib/types/api/organizations";
+import { Organization, organizationPermissions } from "@/lib/types/api/organizations";
 import { OrganizationInvitation } from "@/lib/types/api/organizations/invitations";
 import {
   OrganizationMember,
@@ -18,7 +15,7 @@ import {
 import { projectPermissions } from "@/lib/types/api/projects";
 import { User } from "@/lib/types/api/users";
 import { FilePlusIcon, TrashIcon } from "@radix-ui/react-icons";
-import { ReactElement, useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import UserSelect, { ListUserStatus, UserSelectRef } from "./UserSelect";
 import { extractAxiosErrMsg } from "@/lib/api/axios";
 
@@ -38,6 +35,8 @@ export const ManageMembers = ({ org, setOrg, user }: Props) => {
   const userInviteRef = useRef<UserSelectRef>(null);
 
   const [showModal, setShowModal] = useState<"remove" | "invite" | null>(null);
+
+  const canInvite = ["owner", "admin", "manage", "invite"].includes(org.permission ?? '');
 
   // gets all invites already sent out by organization
   const getCurrentInvites = () => {
@@ -105,17 +104,32 @@ export const ManageMembers = ({ org, setOrg, user }: Props) => {
         ref={tableRef}
         api={orgMemberApi}
         columns={{
-          Avatar: {
-            key: ["member", "avatar"],
-            type: "thumbnail",
+          id: {
+            key: ["member", "id"],
+            hidden: true,
           },
-          Username: {
+          Avatar: {
+            key: "member",
+            type: "avatar",
+            hideLabel: true,
+            style: "w-14",
+          },
+          Member: {
             key: "member",
             type: "user",
           },
-          Permission: {
-            key: "permission",
-          },
+          ...(canInvite ? {
+            Permission: {
+              key: "permission",
+              type: "select",
+              options: Object.entries(organizationPermissions).map(
+                ([value, label]) => ({
+                  value, label
+                })
+              ),
+              style: "w-40",
+            },
+          } : {}),
         }}
         sortKeys={organizationMemberSortKeys}
         //defaultSortField="permission"
@@ -126,11 +140,14 @@ export const ManageMembers = ({ org, setOrg, user }: Props) => {
             rowIconSize: 24,
             rowIconClicked: () => setShowModal("remove"),
             rowIconClassName: "hover:text-red-500 mt-1",
-            canUse: (a) => org.owner.id === user?.id, // WILL NEED TO CHANGE TO PROPER PERMISSIONS!!!
+            canUse: (member) => (
+              ["owner", "admin", "manage"].includes(org.permission ?? '') &&
+              !["owner", "admin", "manage"].includes(member.permission ?? '')
+            ),
           },
         ]}
         extras={
-          <>
+          canInvite && (
             <Button
               onClick={() => {
                 setShowModal("invite");
@@ -140,7 +157,7 @@ export const ManageMembers = ({ org, setOrg, user }: Props) => {
             >
               Invite Users
             </Button>
-          </>
+          )
         }
         rowStyle="py-2"
       />
@@ -167,10 +184,12 @@ export const ManageMembers = ({ org, setOrg, user }: Props) => {
           <p>Username:</p>
           <div className="flex flex-col w-90">
             <UserSelect ref={userInviteRef} determineUserStatus={determineUserStatus} />
-
             <p>Permission:</p>
             <select ref={permissionDropdownView} className="bg-white text-black mb-3 p-2 rounded-md">
-              {Object.entries(projectPermissions).map(([key, label]) => (
+              {Object.entries(organizationPermissions).slice(
+                0,
+                [...Object.keys(organizationPermissions), "owner"].findIndex((permission) => permission === org.permission) - 1
+              ).map(([key, label]) => (
                 <option key={key} value={key}>
                   {label}
                 </option>

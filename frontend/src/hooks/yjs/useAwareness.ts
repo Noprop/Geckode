@@ -7,7 +7,7 @@ import { toPublicUser } from "@/lib/types/api/users";
 import { useUser } from "@/contexts/UserContext";
 import { useGeckodeStore } from "@/stores/geckodeStore";
 import { useLayoutStore } from "@/stores/layoutStore";
-import { getClientColourTailwind } from "@/lib/yjs/clients";
+import { getClientColourHex } from "@/lib/yjs/clients";
 
 export const useAwareness = (
   documentName: string,
@@ -30,21 +30,16 @@ export const useAwareness = (
 
     awareness.setLocalStateField('user', documentName.length === 0 || !user ? undefined : toPublicUser(user));
 
-    const handleUpdate = ({ added, updated, removed }: Record<string, Array<any>>) => {
-      if (added.length || removed.length) {
-        useLayoutStore.setState((s) => ({
-          clients: [
-            ...s.clients.filter(({ id }) => !removed.includes(id)),
-            ...added.map(id => ({
-              id: id,
-              user: awareness.getStates().get(id)?.user,
-            })),
-          ],
-        }));
-      }
+    const handleUpdate = ({ added, updated, removed }: { added: number[]; updated: number[]; removed: number[] }) => {
+      useLayoutStore.setState({
+        clients: Array.from(awareness.getStates().entries()).map(([id, state]) => ({
+          id: Number(id),
+          user: state.user,
+        })).filter(({ id }) => id !== doc.clientID),
+      });
 
       if (updated.length) {
-        updated.forEach(clientId => {
+        updated.forEach((clientId) => {
           if (clientId === doc.clientID) return;
 
           const clientAwareness = awareness.getStates().get(clientId);
@@ -66,14 +61,18 @@ export const useAwareness = (
           }
 
           const currentBlockSelectionState = awareness.getStates().get(clientId)?.blockSelection;
-          const clientColour = getClientColourTailwind(
+          const clientColourHex = getClientColourHex(
             useLayoutStore.getState().clients.findIndex((client) => client.id === Number(clientId))
           );
 
           if (currentBlockSelectionState) {
             applyClientBlockProperties(
               blocklyWorkspace,
-              clientColour,
+              {
+                clientId: Number(clientId),
+                user: clientAwareness?.user,
+                colourHex: clientColourHex,
+              },
               currentBlockSelectionState.oldBlockId,
               currentBlockSelectionState.blockId,
             );

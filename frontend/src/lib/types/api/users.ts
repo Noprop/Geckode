@@ -48,3 +48,8 @@ export const userSortKeys: (keyof User)[] = [
 ];
 
 export type UserSortKeys = (typeof userSortKeys)[number];
+
+export const getUserFullName = (user?: PublicUser | null) => {
+  const full = `${user?.first_name ?? ""} ${user?.last_name ?? ""}`.trim();
+  return full.length ? full : user?.username ?? "Unknown User";
+};
