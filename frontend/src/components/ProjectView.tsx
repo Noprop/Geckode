@@ -78,7 +78,7 @@ const ProjectView = () => {
 
   return (
     <div className='flex h-[calc(100vh-4rem)]'>
-      <div className='relative flex-1 min-h-0 min-w-0 bg-light-whiteboard dark:bg-dark-whiteboard mr-2 overflow-hidden'>
+      <div className='relative flex-1 min-h-0 min-w-0 bg-light-whiteboard dark:bg-dark-whiteboard overflow-hidden'>
         <div
           className={`absolute inset-0 transition-opacity duration-150 ${
             view === 'blocks' ? 'opacity-100' : 'opacity-0 pointer-events-none'
@@ -178,9 +178,7 @@ const ProjectView = () => {
         )}
       </div>
 
-      <div className='flex flex-col pr-2 pt-2 overflow-x-hidden' style={{ width: '480px' }}>
-        <Phaser />
-      </div>
+      <Phaser />
     </div>
   );
 };

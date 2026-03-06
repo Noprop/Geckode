@@ -174,25 +174,6 @@ const SpritePosition = ({ borderless }: { borderless?: boolean }) => {
     }
   }, [selectedSpriteId, selectedSprite, values.scaleY, updateSpriteInstance]);
 
-  const handleBlurDirection = useCallback(() => {
-    if (selectedSpriteId === null || !selectedSprite) return;
-    const finalValue = resolveBlurValue(
-      values.direction,
-      "direction",
-      FIELD_DEFAULTS.direction,
-    );
-    if (selectedSprite.direction !== finalValue) {
-      updateSpriteInstance(selectedSpriteId, {
-        direction: finalValue as number,
-      });
-    }
-  }, [
-    selectedSpriteId,
-    selectedSprite,
-    values.direction,
-    updateSpriteInstance,
-  ]);
-
   const handleToggle = useCallback(
     (field: "snapToGrid" | "visible", value: boolean) => {
       if (selectedSpriteId === null) return;
@@ -316,15 +297,6 @@ const SpritePosition = ({ borderless }: { borderless?: boolean }) => {
           max="200"
           onChange={(v) => handleInputChange("scaleY", v)}
           onBlur={handleBlurScaleY}
-        />
-        <NumericField
-          label="Direction"
-          value={values.direction}
-          disabled={disabled}
-          min="-180"
-          max="180"
-          onChange={(v) => handleInputChange("direction", v)}
-          onBlur={handleBlurDirection}
         />
       </div>
     </div>

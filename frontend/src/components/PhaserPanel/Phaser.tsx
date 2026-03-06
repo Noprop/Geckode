@@ -1,13 +1,13 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useGeckodeStore } from '@/stores/geckodeStore';
-import * as Blockly from 'blockly/core';
 import { PlayIcon, StopIcon } from '@/components/icons';
 import PhaserGame from './PhaserGame';
 import SpriteModal from '../SpriteModal/SpriteModal';
-import SpritePosition from './SpritePosition';
+import SpritePosition, { NumericField } from './SpritePosition';
 import PhaserSpriteList from './PhaserSpriteList';
 import PhaserSceneList from './PhaserSceneList';
 import SpritePhysicsCurtain from './SpritePhysicsCurtain';
+import { FIELD_DEFAULTS, resolveBlurValue } from './spritePositionUtils';
 
 type PropertiesTab = 'general' | 'physics' | 'hitbox';
 
@@ -58,20 +58,37 @@ const Phaser = () => {
   const { isEditorScene, toggleEditor } = useGeckodeStore();
   const [activeTab, setActiveTab] = useState<PropertiesTab>('general');
 
+  const selectedSpriteId = useGeckodeStore((s) => s.selectedSpriteId);
+  const selectedSprite = useGeckodeStore((s) =>
+    s.selectedSpriteId !== null
+      ? s.spriteInstances.find((i) => i.id === s.selectedSpriteId) ?? null
+      : null,
+  );
+  const updateSpriteInstance = useGeckodeStore((s) => s.updateSpriteInstance);
+  const canEditProject = useGeckodeStore((s) => s.canEditProject);
+  const disabled = !selectedSprite || !canEditProject;
+
+  const [directionValue, setDirectionValue] = useState(
+    String(selectedSprite?.direction ?? FIELD_DEFAULTS.direction),
+  );
+
+  useEffect(() => {
+    setDirectionValue(String(selectedSprite?.direction ?? FIELD_DEFAULTS.direction));
+  }, [selectedSprite]);
+
+  const handleBlurDirection = useCallback(() => {
+    if (selectedSpriteId === null || !selectedSprite) return;
+    const finalValue = resolveBlurValue(directionValue, 'direction', FIELD_DEFAULTS.direction);
+    if (selectedSprite.direction !== finalValue) {
+      updateSpriteInstance(selectedSpriteId, { direction: finalValue as number });
+    }
+  }, [selectedSpriteId, selectedSprite, directionValue, updateSpriteInstance]);
+
   return (
-    <div className="flex-1 min-h-0 flex flex-col overflow-x-hidden w-full">
-      <div
-        onPointerDown={() => {
-          if (typeof Blockly.hideChaff === 'function') Blockly.hideChaff();
-          (document.getElementById('game-container') as HTMLElement).focus();
-        }}
-      >
-        <PhaserGame />
-      </div>
+    <div className="flex min-h-0 flex-col overflow-x-hidden w-full" style={{ width: '496px' }}>
+      <PhaserGame />
 
-      {/* Centered 450px column — matches game canvas width */}
       <div className="flex flex-col flex-1 min-h-0 w-[450px] mx-auto">
-
         {/* Play/stop button + tab strip */}
         <div className="flex items-end h-10 gap-2 mt-1">
           <button
@@ -108,22 +125,26 @@ const Phaser = () => {
           </div>
         </div>
 
-      <section className="flex-1 rounded-lg bg-light-secondary p-3 text-sm shadow dark:bg-dark-secondary flex flex-col min-h-0 overflow-hidden">
-        {/* Properties area: all tabs rendered in the same grid cell so height stays constant */}
+        <section className="flex-1 rounded-lg mt-3 bg-light-secondary text-sm shadow dark:bg-dark-secondary flex flex-col min-h-0 overflow-hidden">
         <div className="pb-3 mb-3 border-b border-slate-300 dark:border-slate-600">
-          <div className="grid">
-            <div style={{ gridArea: '1/1' }} className={activeTab !== 'general' ? 'invisible' : ''}>
-              <SpritePosition borderless />
-            </div>
-            <div style={{ gridArea: '1/1' }} className={activeTab !== 'physics' ? 'invisible' : ''}>
-              <SpritePhysicsCurtain />
-            </div>
-            <div style={{ gridArea: '1/1' }} className={activeTab !== 'hitbox' ? 'invisible' : ''}>
+            {activeTab === 'general' && <SpritePosition borderless />}
+            {activeTab === 'physics' && <SpritePhysicsCurtain />}
+            {activeTab === 'hitbox' && (
+              <div className="flex flex-col gap-2">
               <div className="flex items-center justify-center py-2">
                 <span className="text-xs text-slate-400 dark:text-slate-500">Hitbox editor coming soon</span>
               </div>
+                <NumericField
+                  label="Direction"
+                  value={directionValue}
+                  disabled={disabled}
+                  min="-180"
+                  max="180"
+                  onChange={(v) => setDirectionValue(v)}
+                  onBlur={handleBlurDirection}
+                />
             </div>
-          </div>
+            )}
         </div>
 
         {/* Sprite and scene lists — always visible */}

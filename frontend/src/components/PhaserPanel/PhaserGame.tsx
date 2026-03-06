@@ -7,6 +7,7 @@ import type EditorScene from '@/phaser/scenes/EditorScene';
 import { useGeckodeStore } from '@/stores/geckodeStore';
 import GameScene from '@/phaser/scenes/GameScene';
 import { EDITOR_SCENE_KEY } from '@/phaser/sceneKeys';
+import * as Blockly from 'blockly/core';
 
 const PhaserGame = () => {
   const isConverting = useGeckodeStore((state) => state.isConverting);
@@ -75,15 +76,21 @@ const PhaserGame = () => {
   }, []);
 
   return (
-    <div className="relative flex justify-center">
+    <div
+      className="relative flex justify-center rounded-md"
+      style={{ width: "480px", marginLeft: "8px", marginRight: "8px", marginTop: "8px" }}
+      onPointerDown={() => {
+        if (typeof Blockly.hideChaff === 'function') Blockly.hideChaff();
+        (document.getElementById('game-container') as HTMLElement).focus();
+      }}
+    >
       <div
         id="game-container"
         tabIndex={0}
-        className="rounded-md outline-none border-2 border-transparent focus:border-primary-green transition-all duration-200"
+        className="rounded-sm overflow-hidden outline-none ring-0 focus:ring-2 focus:ring-primary-green transition-all duration-75"
         style={{
-          width: '450px',
+          width: '480px',
           height: '360px',
-          overflow: 'hidden',
         }}
       />
       {isConverting && (
