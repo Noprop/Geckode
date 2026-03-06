@@ -448,17 +448,20 @@ const getToolbox = () => {
         contents: [
           {
             kind: 'block',
-            type: 'cameraToXY',
+            type: 'setCameraTarget',
             inputs: {
-              x: {
+              SPRITE: {
                 shadow: {
-                  type: 'math_number',
-                  fields: {
-                    NUM: 0,
-                  },
+                  type: 'spriteGhost',
                 },
               },
-              y: {
+            },
+          },
+          {
+            kind: 'block',
+            type: 'setCamera',
+            inputs: {
+              VALUE: {
                 shadow: {
                   type: 'math_number',
                   fields: {

@@ -86,14 +86,6 @@ export default class GameScene extends Phaser.Scene {
     this.cloneRegistry.clear();
     this.cloneCounter = 0;
 
-    // Set world bounds for our custom collision system
-    this.worldBounds = {
-      left: 0,
-      top: this.toWorldY(this.scale.height),
-      right: this.scale.width,
-      bottom: 0,
-    };
-
     // Create the tilemap first (sits below everything)
     const { tilemaps, activeTilemapId, tileCollidables } = useGeckodeStore.getState();
     const selectedTilemap = tilemaps[activeTilemapId ?? 'tilemap_1'] ?? tilemaps['tilemap_1'];
@@ -125,7 +117,18 @@ export default class GameScene extends Phaser.Scene {
     // Tell React which scene is active (will trigger pause state sync)
     EventBus.emit('current-scene-ready', this);
 
-    this.cameras.main.centerOn(this.scale.width/2, this.toWorldY(this.scale.height/2));
+    // Set world bounds for our custom collision system
+    this.worldBounds = {
+      left: 0,
+      top: -this.tilemapData.length * 16,
+      right: this.tilemapData[0].length * 16,
+      bottom: 0,
+    };
+
+    const camera = this.cameras.main
+    camera.centerOn(this.scale.width/2, this.toWorldY(this.scale.height/2));
+    camera.setBounds(0, -this.tilemapData.length * 16, this.tilemapData[0].length * 16, this.tilemapData.length * 16);
+    camera.useBounds = true;
     this.started = false;
   }
 
@@ -1001,22 +1004,6 @@ export default class GameScene extends Phaser.Scene {
       return (90 + degrees) % 360;
     }
     return 0;
-  }
-
-  private cameraToWorldX(x: number) {
-    return -x - this.scale.width/2;
-  }
-
-  private worldToCameraX(x: number) {
-    return -x + this.scale.width/2;
-  }
-
-  private cameraToWorldY(y: number) {
-    return y + this.scale.height/2;
-  }
-
-  private worldToCameraY(y: number) {
-    return y - this.scale.height/2;
   }
 
 }

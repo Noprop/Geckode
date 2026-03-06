@@ -3,19 +3,15 @@ import { useGeckodeStore } from '@/stores/geckodeStore';
 import { isIsolated } from '@/blockly/index';
 
 
-const cameraToXY = {
-  type: 'cameraToXY',
-  tooltip: 'Center the camera on a position',
+const setCameraTarget = {
+  type: 'setCameraTarget',
+  tooltip: 'Start following a sprite with the camera',
   helpUrl: '',
-  message0: 'center camera x:%1 y:%2',
+  message0: 'set camera target to %1',
   args0: [
     {
       type: 'input_value',
-      name: 'x',
-    },
-    {
-      type: 'input_value',
-      name: 'y',
+      name: 'SPRITE',
     },
   ],
   previousStatement: null,
@@ -24,11 +20,42 @@ const cameraToXY = {
   colour: '%{BKY_CAMERA_HUE}',
 };
 
-javascriptGenerator.forBlock['cameraToXY'] = function (block, generator) {
-  const x = generator.valueToCode(block, 'x', Order.NONE) || 0;
-  const y = generator.valueToCode(block, 'y', Order.NONE) || 0;
+javascriptGenerator.forBlock['setCameraTarget'] = function (block, generator) {
+  const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
+  const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
+  const spriteName = spriteKey === `"${currentSpriteId}"` ? 'thisSprite' : spriteKey;
+  const spriteRef = `scene.getSprite(${spriteName})`;
 
-  return `scene.cameras.main.x = scene.worldToCameraX(${x})\nscene.cameras.main.y = scene.worldToCameraY(${y})\n`;
+  return `scene.cameras.main.startFollow(${spriteRef})\n`;
+};
+
+const setCamera = {
+  type: 'setCamera',
+  tooltip: 'Set the position of the camera',
+  helpUrl: '',
+  message0: 'set camera %1 to %2',
+  args0: [
+    {
+      type: 'field_dropdown',
+      name: 'PROPERTY',
+      options: [['x','x'], ['y','y']],
+    },
+    {
+      type: 'input_value',
+      name: 'VALUE',
+    },
+  ],
+  previousStatement: null,
+  nextStatement: null,
+  inputsInline: true,
+  colour: '%{BKY_CAMERA_HUE}',
+};
+
+javascriptGenerator.forBlock['setCamera'] = function (block, generator) {
+  const property = block.getFieldValue('PROPERTY');
+  const value = generator.valueToCode(block, 'VALUE', Order.NONE) || 0;
+
+  return property == 'x' ? `scene.cameras.main.centerOnX(${value})\n`: `scene.cameras.main.centerOnY(-${value})\n`;
 };
 
 const changeCamera = {
@@ -57,14 +84,15 @@ javascriptGenerator.forBlock['changeCamera'] = function (block, generator) {
   const property = block.getFieldValue('PROPERTY');
   const value = generator.valueToCode(block, 'VALUE', Order.NONE) || 0;
 
-  return property == 'x' ? `scene.cameras.main.x += ${value}\n`: `scene.cameras.main.y -= ${value}\n`;
+  return property == 'x' ? `scene.cameras.main.scrollX += ${value}\n`
+  : `scene.cameras.main.scrollY -= ${value}\n`;
 };
 
 const resetCamera = {
   type: 'resetCamera',
-  tooltip: 'Return the camera to the default position',
+  tooltip: 'Stop following a sprite with the camera',
   helpUrl: '',
-  message0: 'Reset Camera',
+  message0: 'stop camera follow',
   args0: [
 
   ],
@@ -75,12 +103,13 @@ const resetCamera = {
 };
 
 javascriptGenerator.forBlock['resetCamera'] = function (block, generator) {
-  return `scene.cameras.main.centerOn(scene.scale.width/2, scene.toWorldY(scene.scale.height/2));`;
+  return `scene.cameras.main.stopFollow()\n`;
 };
 
 
 export const cameraBlocks = [
-  cameraToXY,
+  setCameraTarget,
+  setCamera,
   changeCamera,
   resetCamera
 ];
