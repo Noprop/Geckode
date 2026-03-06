@@ -5,7 +5,6 @@ import HeaderRHSBtns from '@/components/Header/HeaderRHSBtns';
 import { ClientsDisplay } from '@/components/ui/ClientsDisplay';
 import TabSelector from '@/components/ui/selectors/TabSelector';
 import { useWorkspaceView, WorkspaceView } from '@/contexts/WorkspaceViewContext';
-import { YjsProvider } from '@/contexts/YjsContext';
 import { DrawingPinFilledIcon, ImageIcon } from '@radix-ui/react-icons';
 import dynamic from 'next/dynamic';
 
@@ -17,7 +16,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const { view, setView } = useWorkspaceView();
 
   return (
-    <YjsProvider>
+    <>
       <Header
         lhs={<ProjectControls />}
         middle={
@@ -45,6 +44,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <main className='flex-1 flex flex-col bg-light-secondary dark:bg-dark-secondary' id='app'>
         {children}
       </main>
-    </YjsProvider>
+    </>
   );
 }

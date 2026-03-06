@@ -10,6 +10,11 @@ import type { EditorSlice, GeckodeStore, WorkspaceOutputType } from "./types";
 import { projectNameSync } from "@/hooks/yjs/useProjectNameSync";
 import { getYDoc } from "@/hooks/yjs/useWorkspaceSync";
 import * as Y from "yjs";
+import {
+  enablePersistence as yjsEnablePersistence,
+  disablePersistence as yjsDisablePersistence,
+  getPersistence as yjsGetPersistence,
+} from "@/contexts/YjsContext";
 
 export const createEditorSlice: StateCreator<
   GeckodeStore,
@@ -304,5 +309,15 @@ export const createEditorSlice: StateCreator<
     set((s) => ({
       spriteIdsUpdated: Array.from(new Set([...s.spriteIdsUpdated, id])),
     }));
+  },
+
+  enablePersistence: (documentName: string) => {
+    yjsEnablePersistence(documentName);
+    set({ persistence: yjsGetPersistence(documentName) });
+  },
+
+  disablePersistence: (documentName: string) => {
+    yjsDisablePersistence(documentName);
+    set({ persistence: null });
   },
 });

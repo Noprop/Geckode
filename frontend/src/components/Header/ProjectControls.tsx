@@ -1,20 +1,28 @@
 'use client';
 
-import { ReactNode, useContext, useEffect, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { ResetIcon, Share1Icon } from '@radix-ui/react-icons';
 import { useGeckodeStore } from '@/stores/geckodeStore';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { Modal } from '@/components/ui/modals/Modal';
-import { YjsContext } from '@/contexts/YjsContext';
 import { ProjectShareModal } from '../ui/modals/ProjectShareModal';
 import { Project } from '@/lib/types/api/projects';
 import projectsApi from '@/lib/api/handlers/projects';
 
 export default function ProjectControls(): ReactNode {
   const showSnackbar = useSnackbar();
-  const { projectId, projectName, setProjectName, saveProject, persistence, canEditProject, projectPermission } = useGeckodeStore();
+  const {
+    projectId,
+    projectName,
+    setProjectName,
+    saveProject,
+    persistence,
+    canEditProject,
+    projectPermission,
+    enablePersistence,
+    disablePersistence,
+  } = useGeckodeStore();
   const documentName = String(projectId ?? '');
-  const yjsContext = useContext(YjsContext);
   const [showResetModal, setShowResetModal] = useState<boolean>(false);
   const [persistenceOn, setPersistenceOn] = useState<boolean>(false);
   const [shareModalProjectData, setShareModalProjectData] = useState<Project | null>(null);
@@ -40,9 +48,7 @@ export default function ProjectControls(): ReactNode {
   };
 
   const handleResetConfirm = () => {
-    if (yjsContext) {
-      yjsContext.disablePersistence(documentName);
-    }
+    disablePersistence(documentName);
     window.location.reload();
   };
 
@@ -51,13 +57,11 @@ export default function ProjectControls(): ReactNode {
   };
 
   const handleTogglePersistence = () => {
-    if (!yjsContext) return;
-
     if (persistenceOn) {
-      yjsContext.disablePersistence(documentName);
+      disablePersistence(documentName);
       setPersistenceOn(false);
     } else {
-      yjsContext.enablePersistence(documentName);
+      enablePersistence(documentName);
       setPersistenceOn(true);
     }
   };
@@ -95,39 +99,37 @@ export default function ProjectControls(): ReactNode {
             <ResetIcon className='w-4 h-4' />
           </button>
         </>)}
-        {yjsContext && (
-          <button
-            onClick={handleTogglePersistence}
-            title={persistenceOn ? 'Disable Browser Storage' : 'Enable Browser Storage'}
-            className='header-btn'
+        <button
+          onClick={handleTogglePersistence}
+          title={persistenceOn ? 'Disable Browser Storage' : 'Enable Browser Storage'}
+          className='header-btn'
+        >
+          <svg
+            xmlns='http://www.w3.org/2000/svg'
+            viewBox='0 0 24 24'
+            fill='none'
+            stroke='currentColor'
+            strokeWidth='2'
+            strokeLinecap='round'
+            strokeLinejoin='round'
+            className='w-4 h-4'
           >
-            <svg
-              xmlns='http://www.w3.org/2000/svg'
-              viewBox='0 0 24 24'
-              fill='none'
-              stroke='currentColor'
-              strokeWidth='2'
-              strokeLinecap='round'
-              strokeLinejoin='round'
-              className='w-4 h-4'
-            >
-              {persistenceOn ? (
-                <>
-                  <ellipse cx='12' cy='6' rx='8' ry='3' />
-                  <path d='M4 6v6c0 1.66 3.58 3 8 3s8-1.34 8-3V6' />
-                  <path d='M4 12v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6' />
-                </>
-              ) : (
-                <>
-                  <ellipse cx='12' cy='6' rx='8' ry='3' />
-                  <path d='M4 6v6c0 1.66 3.58 3 8 3s8-1.34 8-3V6' />
-                  <path d='M4 12v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6' />
-                  <line x1='3' y1='3' x2='21' y2='21' strokeWidth='2.5' />
-                </>
-              )}
-            </svg>
-          </button>
-        )}
+            {persistenceOn ? (
+              <>
+                <ellipse cx='12' cy='6' rx='8' ry='3' />
+                <path d='M4 6v6c0 1.66 3.58 3 8 3s8-1.34 8-3V6' />
+                <path d='M4 12v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6' />
+              </>
+            ) : (
+              <>
+                <ellipse cx='12' cy='6' rx='8' ry='3' />
+                <path d='M4 6v6c0 1.66 3.58 3 8 3s8-1.34 8-3V6' />
+                <path d='M4 12v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6' />
+                <line x1='3' y1='3' x2='21' y2='21' strokeWidth='2.5' />
+              </>
+            )}
+          </svg>
+        </button>
         <button
           onClick={() => {
             if (!projectId) return;

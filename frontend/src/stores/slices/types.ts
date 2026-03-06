@@ -217,6 +217,10 @@ export interface EditorActions {
   toggleEditor: () => void;
   resetProject: () => void;
   markSpriteAsUpdated: (id: string) => void;
+
+  /* Persistence (Yjs IndexedDB) */
+  enablePersistence: (documentName: string) => void;
+  disablePersistence: (documentName: string) => void;
 }
 
 export type EditorSlice = EditorState & EditorActions;

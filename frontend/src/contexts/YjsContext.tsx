@@ -294,6 +294,11 @@ const disablePersistenceInternal = (name: string) => {
   } catch {}
 };
 
+/** Exported for use by editorSlice - enables calling persistence without React context */
+export const enablePersistence = enablePersistenceInternal;
+export const disablePersistence = disablePersistenceInternal;
+export const getPersistence = getPersistenceInternal;
+
 export const YjsProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     providerCount += 1;
