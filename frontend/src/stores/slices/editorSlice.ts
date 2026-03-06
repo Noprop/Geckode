@@ -275,36 +275,6 @@ export const createEditorSlice: StateCreator<
     }
   },
 
-  resetProject: () => {
-    const { blocklyWorkspace, phaserScene, resetSpriteStore } = get();
-
-    // Reset sprite store first to get new sprite IDs
-    resetSpriteStore();
-
-    // Clear and reset Blockly workspace
-    if (blocklyWorkspace) {
-      Blockly.Events.disable();
-      blocklyWorkspace.clear();
-      Blockly.Events.enable();
-    }
-
-    // Reset Phaser scene sprites if in editor mode
-    if (phaserScene instanceof EditorScene) {
-      phaserScene.removeSprites();
-    }
-
-    // Clear workspace maps and set the new sprite ID
-    set({
-      spriteWorkspaces: {},
-      spriteOutputs: {},
-      selectedSpriteId: null,
-      canUndo: false,
-      canRedo: false,
-    });
-
-    console.log("[editorStore] Project reset to default state");
-  },
-
   markSpriteAsUpdated: (id: string) => {
     set((s) => ({
       spriteIdsUpdated: Array.from(new Set([...s.spriteIdsUpdated, id])),

@@ -215,7 +215,6 @@ export interface EditorActions {
   zoomWorkspaceIn: () => void;
   zoomWorkspaceOut: () => void;
   toggleEditor: () => void;
-  resetProject: () => void;
   markSpriteAsUpdated: (id: string) => void;
 
   /* Persistence (Yjs IndexedDB) */

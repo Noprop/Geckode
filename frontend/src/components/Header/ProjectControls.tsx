@@ -1,10 +1,9 @@
 'use client';
 
 import { ReactNode, useEffect, useState } from 'react';
-import { ResetIcon, Share1Icon } from '@radix-ui/react-icons';
+import { Share1Icon } from '@radix-ui/react-icons';
 import { useGeckodeStore } from '@/stores/geckodeStore';
 import { useSnackbar } from '@/hooks/useSnackbar';
-import { Modal } from '@/components/ui/modals/Modal';
 import { ProjectShareModal } from '../ui/modals/ProjectShareModal';
 import { Project } from '@/lib/types/api/projects';
 import projectsApi from '@/lib/api/handlers/projects';
@@ -23,7 +22,6 @@ export default function ProjectControls(): ReactNode {
     disablePersistence,
   } = useGeckodeStore();
   const documentName = String(projectId ?? '');
-  const [showResetModal, setShowResetModal] = useState<boolean>(false);
   const [persistenceOn, setPersistenceOn] = useState<boolean>(false);
   const [shareModalProjectData, setShareModalProjectData] = useState<Project | null>(null);
 
@@ -41,19 +39,6 @@ export default function ProjectControls(): ReactNode {
 
   const handleSave = () => {
     saveProject(showSnackbar);
-  };
-
-  const handleResetClick = () => {
-    setShowResetModal(true);
-  };
-
-  const handleResetConfirm = () => {
-    disablePersistence(documentName);
-    window.location.reload();
-  };
-
-  const handleResetCancel = () => {
-    setShowResetModal(false);
   };
 
   const handleTogglePersistence = () => {
@@ -78,7 +63,7 @@ export default function ProjectControls(): ReactNode {
           style={{ width: '160px' }}
           disabled={!canEditProject}
         />
-        {canEditProject && (<>
+        {canEditProject && (
           <button onClick={handleSave} title='Save Project' className='header-btn'>
             <svg
               xmlns='http://www.w3.org/2000/svg'
@@ -95,10 +80,7 @@ export default function ProjectControls(): ReactNode {
               <polyline points='7 3 7 8 15 8' />
             </svg>
           </button>
-          <button onClick={handleResetClick} title='Reset Project' className='header-btn'>
-            <ResetIcon className='w-4 h-4' />
-          </button>
-        </>)}
+        )}
         <button
           onClick={handleTogglePersistence}
           title={persistenceOn ? 'Disable Browser Storage' : 'Enable Browser Storage'}
@@ -146,29 +128,6 @@ export default function ProjectControls(): ReactNode {
         </button>
       </div>
 
-      {showResetModal && (
-        <Modal
-          title='Reset Project'
-          text='Are you sure you want to reset the project? This will clear all blocks and sprites, keeping only the default hero sprites. This action cannot be undone.'
-          onClose={handleResetCancel}
-          actions={
-            <>
-              <button
-                onClick={handleResetConfirm}
-                className='inline-flex w-full justify-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 sm:ml-3 sm:w-auto'
-              >
-                Reset
-              </button>
-              <button
-                onClick={handleResetCancel}
-                className='mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto'
-              >
-                Cancel
-              </button>
-            </>
-          }
-        />
-      )}
       {shareModalProjectData && (
         <ProjectShareModal
           onClose={() => setShareModalProjectData(null)}
