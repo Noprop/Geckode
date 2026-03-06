@@ -1,5 +1,4 @@
 import axios, { AxiosError, AxiosRequestConfig } from 'axios';
-import { redirect } from 'next/navigation';
 
 export const BASE_API_URL = 'http://localhost:8000/api/'
 
@@ -70,6 +69,21 @@ export const extractAxiosErrMsg = (err : AxiosError, placeholderMsg: string = ""
   catch {
     return placeholderMsg;
   }
+}
+
+/** Extract per-field validation errors from a 400 response. Keys are field names, values are arrays of messages. */
+export const extractAxiosFieldErrors = (err: AxiosError): Record<string, string[]> => {
+  if (err.response?.status !== 400 || err.response?.data == null) return {};
+  const data = err.response.data as Record<string, unknown>;
+  const out: Record<string, string[]> = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (Array.isArray(value) && value.every((v): v is string => typeof v === 'string')) {
+      out[key] = value;
+    } else if (typeof value === 'string') {
+      out[key] = [value];
+    }
+  }
+  return out;
 }
 
 export default api;
