@@ -13,6 +13,7 @@ export interface Organization {
   default_member_permission?: string;
   members_count?: number;
   projects_count?: number;
+  permission?: OrganizationPermissions | "owner";
 }
 
 export interface OrganizationFilters extends BaseFilters {
@@ -41,3 +42,13 @@ export const organizationSortKeys: (keyof Organization)[] = [
 ];
 
 export type OrganizationSortKeys = (typeof organizationSortKeys)[number];
+
+export const organizationPermissions = {
+  "view": "View",
+  "contribute": "Contribute",
+  "invite": "Invite",
+  "manage": "Manage",
+  "admin": "Admin",
+} as const;
+
+export type OrganizationPermissions = keyof typeof organizationPermissions;

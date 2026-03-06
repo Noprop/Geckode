@@ -84,7 +84,8 @@ class ProjectViewSet(ModelViewSet):
         if not project.has_permission(request.user, 'admin'):
             for field in request.data.keys():
                 if field not in Project.PROJECT_STATE_FIELDS:
-                    raise PermissionDenied(f"You cannot modify '{field}'.")
+                    if field != 'name' or not project.has_permission(request.user, 'code'):
+                        raise PermissionDenied(f"You cannot modify '{field}'.")
 
         return super().partial_update(request, *args, **kwargs)
 
