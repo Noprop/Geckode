@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Cross2Icon, Pencil2Icon, ImageIcon, ArchiveIcon } from '@radix-ui/react-icons';
 import SpriteLibrary from './SpriteLibrary';
 import SpriteAssets from './SpriteAssets';
@@ -15,12 +15,41 @@ const SpriteModal = () => {
   const clearSpriteModalContext = useGeckodeStore((state) => state.clearSpriteModalContext);
   const isSpriteModalOpen = useGeckodeStore((state) => state.isSpriteModalOpen);
   const canEditProject = useGeckodeStore((state) => state.canEditProject);
+  const selectedSpriteId = useGeckodeStore((state) => state.selectedSpriteId);
+  const spriteModalMode = useGeckodeStore((state) => state.spriteModalMode);
+  const editingAssetType = useGeckodeStore((state) => state.editingAssetType);
+  const editingAssetName = useGeckodeStore((state) => state.editingAssetName);
+  const editingSource = useGeckodeStore((state) => state.editingSource);
+  const textures = useGeckodeStore((state) => state.textures);
+  const libaryTextures = useGeckodeStore((state) => state.libaryTextures);
+  const selectedSpriteIdRef = useRef<string | null>(null);
+
   const handleClose = () => {
     useGeckodeStore.setState({ editingSource: null, editingAssetName: null, editingAssetType: null, editingTextureToLoad: null });
     clearSpriteModalContext();
     setIsSpriteModalOpen(false);
     setActiveTab('editor');
   };
+
+  // Close modal if the sprite is deleted remotely
+  useEffect(() => {
+    if (spriteModalMode === 'phaser_edit' && selectedSpriteId !== selectedSpriteIdRef?.current) {
+      handleClose();
+    }
+    selectedSpriteIdRef.current = selectedSpriteId;
+  }, [selectedSpriteId, spriteModalMode]);
+
+  // Close modal if the texture is deleted remotely
+  useEffect(() => {
+    if (
+      editingSource === 'asset' &&
+      editingAssetName &&
+      editingAssetType === 'textures' &&
+      !(editingAssetName in textures || editingAssetName in libaryTextures)
+    ) {
+      handleClose();
+    }
+  }, [editingAssetType, editingAssetName, editingSource, textures]);
 
   useEffect(() => {
     if (!isSpriteModalOpen) return;

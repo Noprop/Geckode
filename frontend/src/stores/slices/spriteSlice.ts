@@ -265,10 +265,11 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
     set({ spriteInstances: updatedInstances });
   },
 
-  duplicateSpriteInstance: (spriteId: string, syncAfter: boolean = true) => {
+  duplicateSpriteInstance: (spriteId: string) => {
     const { spriteInstances, spriteWorkspaces, phaserScene, blocklyWorkspace, selectedSpriteId } = get();
-    const source = spriteInstances.find((i) => i.id === spriteId);
-    if (!source) return;
+    const index = spriteInstances.findIndex((i) => i.id === spriteId);
+    if (index === -1) return;
+    const source = spriteInstances[index];
 
     const instance: SpriteInstance = {
       ...source,
@@ -309,9 +310,7 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
       phaserScene.createSprite(instance);
     }
 
-    if (syncAfter) {
-      addSpriteSync(instance);
-    }
+    addSpriteSync(instance, index);
   },
 
   saveSprite: ({ spriteName, base64Image, syncAfter = true }) => {

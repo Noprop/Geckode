@@ -3,16 +3,8 @@ import * as ContextMenu from '@radix-ui/react-context-menu';
 import { useGeckodeStore } from '@/stores/geckodeStore';
 import { Button } from '../ui/Button';
 import { Cross2Icon } from '@radix-ui/react-icons';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { Modal } from '../ui/modals/Modal';
+import { TrashIcon } from 'lucide-react';
 
 const PhaserSpriteList = () => {
   const sprites = useGeckodeStore((state) => state.spriteInstances);
@@ -30,6 +22,11 @@ const PhaserSpriteList = () => {
   const [isContextMenuOpen, setIsContextMenuOpen] = useState(false);
 
   useEffect(() => {
+    setSpriteIdToDelete((prev) =>
+      sprites.findIndex((sprite) => sprite.id === prev) === -1
+        ? null
+        : prev
+    );
     if (sprites.length === 0) return;
     if (selectedSpriteId === null)
       setSelectedSpriteId(sprites[0].id);
@@ -197,25 +194,22 @@ const PhaserSpriteList = () => {
         )}
       </div>
 
-      <AlertDialog open={spriteIdToDelete !== null} onOpenChange={(open) => !open && handleCancelDelete()}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-red-500">Delete Sprite</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this sprite? This cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleCancelDelete}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmDelete}
-              className="bg-red-500 hover:bg-red-600 focus:ring-red-500"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {spriteIdToDelete && (
+        <Modal
+          title="Delete Sprite"
+          icon={TrashIcon}
+          onClose={handleCancelDelete}
+          text="Are you sure you want to delete this sprite? This cannot be undone."
+          subtitle={sprites.find((sprite) => sprite.id === spriteIdToDelete)?.name}
+          className="bg-red-500"
+          actions={
+            <>
+              <Button onClick={handleConfirmDelete} className="btn-deny ml-3">Delete</Button>
+              <Button onClick={handleCancelDelete} className="btn-neutral">Cancel</Button>
+            </>
+          }
+        />
+      )}
     </div>
   );
 };

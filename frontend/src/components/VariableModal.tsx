@@ -85,7 +85,6 @@ const VariableModal = ({ showVariableModal, setShowVariableModal }: Props) => {
             className="bg-white text-black my-3 border-0"
             onKeyDown={(e) => {
               if (e.key === 'Enter') handleCreate();
-              if (e.key === 'Escape') handleClose();
             }}
           />
         </div>
