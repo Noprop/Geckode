@@ -193,7 +193,7 @@ const SpritePosition = ({ borderless }: { borderless?: boolean }) => {
   const disabled = !selectedSprite || !canEditProject;
 
   return (
-    <div className={`w-full ${borderless ? '' : 'pb-3 mb-3 border-b border-slate-300 dark:border-slate-600'}`}>
+    <div className="w-full">
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs">
         <div className="flex items-center gap-2">
           <label htmlFor="sprite-name" className={labelClasses}>

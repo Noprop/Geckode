@@ -61,8 +61,8 @@ const PhaserSpriteList = () => {
   }, [canEditProject]);
 
   return (
-    <div className="w-2/3 flex flex-col min-h-0 pr-3 border-r border-slate-300 dark:border-slate-600 overflow-hidden">
-      <div className="flex items-center justify-between py-2">
+    <div className="flex flex-col w-3/4 min-h-0 pr-3 border-r border-slate-300 dark:border-slate-600 overflow-hidden">
+      <div className="flex items-center justify-between pt-2">
         <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
           Sprites
         </span>
@@ -91,7 +91,7 @@ const PhaserSpriteList = () => {
             <p className="text-xs">No sprites yet</p>
           </div>
         ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(75px,1fr))] gap-2 pr-1">
+            <div className="grid grid-cols-4 gap-2 p-1 pr-2.5">
               {sprites.map((sprite) => {
                 const isSelected = sprite.id === selectedSpriteId;
                 const isHovered = sprite.id === hoveredId;
@@ -101,7 +101,7 @@ const PhaserSpriteList = () => {
                   <ContextMenu.Root key={sprite.id} modal={false} onOpenChange={setIsContextMenuOpen}>
                     <ContextMenu.Trigger asChild disabled={!canEditProject}>
                       <div
-                        onClick={() => setSelectedSpriteId(sprite.id)}
+                        onMouseDown={() => setSelectedSpriteId(sprite.id)}
                         onDoubleClick={() => {
                           if (!canEditProject) return;
                           useGeckodeStore.setState({
@@ -114,30 +114,29 @@ const PhaserSpriteList = () => {
                         }}
                         onMouseEnter={() => setHoveredId(sprite.id)}
                         onMouseLeave={() => setHoveredId(null)}
-                        className={`relative aspect-square rounded-lg border-2 cursor-pointer transition-all overflow-hidden select-none ${isSelected
-                            ? 'border-primary-green bg-primary-green/10 shadow-md ring-2 ring-primary-green/30'
-                            : 'border-slate-200 bg-slate-50 hover:border-primary-green/50 dark:border-slate-600 dark:bg-dark-hover dark:hover:border-primary-green/50'
-                          }`}
+                        className={`relative rounded cursor-pointer transition-all select-none ${isSelected
+                          ? 'shadow-md'
+                          : 'border border-slate-200 hover:border-accent-purple/50 dark:border-slate-600 dark:hover:border-accent-purple/50'
+                          } bg-slate-50 dark:bg-dark-hover`}
                       >
-                        <div className="w-full h-full flex items-center justify-center">
+                        <div className="overflow-hidden rounded-t flex items-center justify-center py-3.5">
                           {textureUrl ? (
                             <img
                               src={textureUrl}
                               alt={sprite.name}
-                              className="w-10 h-10 object-contain"
+                              className="w-9 h-9 object-contain"
                               style={{ imageRendering: 'pixelated' }}
                               draggable={false}
                             />
                           ) : (
-                            <div className="w-10 h-10 rounded-md bg-slate-200 dark:bg-slate-600 flex items-center justify-center text-lg font-bold text-slate-400 dark:text-slate-400">
+                              <div className="w-9 h-9 rounded-sm bg-slate-200 dark:bg-slate-600 flex items-center justify-center text-base font-bold text-slate-400 dark:text-slate-400">
                               {sprite.name.charAt(0).toUpperCase()}
                             </div>
                           )}
                         </div>
 
-                        {/* Sprite Name Label */}
-                        <div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/70 to-transparent px-1 py-1">
-                          <p className="text-[9px] text-white truncate text-center font-medium">{sprite.name}</p>
+                        <div className={`px-1 py-0.5 rounded-b ${isSelected ? 'bg-accent-purple' : 'bg-slate-100 dark:bg-dark-tertiary'}`}>
+                          <p className={`text-[9px] truncate text-center font-medium ${isSelected ? 'text-white' : 'text-slate-600 dark:text-slate-300'}`}>{sprite.name}</p>
                         </div>
 
                         {(isSelected || isHovered) && canEditProject && (
@@ -147,7 +146,7 @@ const PhaserSpriteList = () => {
                               e.stopPropagation();
                               openDeleteConfirm(sprite.id);
                             }}
-                            className="absolute top-1 right-1 rounded-full bg-slate-700/80 hover:bg-red-500 text-white p-0.5 transition shadow"
+                            className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 rounded-full bg-accent-purple hover:bg-accent-purple/80 text-white p-0.5 transition shadow z-10 cursor-pointer"
                             title="Delete sprite"
                           >
                             <Cross2Icon className="h-3 w-3" />

@@ -85,10 +85,10 @@ const Phaser = () => {
   }, [selectedSpriteId, selectedSprite, directionValue, updateSpriteInstance]);
 
   return (
-    <div className="flex min-h-0 flex-col overflow-x-hidden w-full" style={{ width: '496px' }}>
+    <div className="flex min-h-0 flex-col overflow-x-hidden" style={{ width: '500px' }}>
       <PhaserGame />
 
-      <div className="flex flex-col flex-1 min-h-0 w-[450px] mx-auto">
+      <div className="flex flex-col flex-1 min-h-0 w-[480px] mx-auto">
         {/* Play/stop button + tab strip */}
         <div className="flex items-end h-10 gap-2 mt-1">
           <button
@@ -99,7 +99,6 @@ const Phaser = () => {
             {isEditorScene ? <PlayIcon /> : <StopIcon />}
           </button>
 
-          {/* Tabs — border-b draws the connecting line; active tab overlaps it with -mb-[2px] */}
           <div className="flex items-end gap-1 flex-1 min-w-0 border-b-2 border-slate-300 dark:border-slate-600">
             {TABS.map((tab) => {
               const isActive = activeTab === tab.id;
@@ -125,15 +124,15 @@ const Phaser = () => {
           </div>
         </div>
 
-        <section className="flex-1 rounded-lg mt-3 bg-light-secondary text-sm shadow dark:bg-dark-secondary flex flex-col min-h-0 overflow-hidden">
-        <div className="pb-3 mb-3 border-b border-slate-300 dark:border-slate-600">
-            {activeTab === 'general' && <SpritePosition borderless />}
+        <section className="flex-1 bg-light-secondary text-sm shadow dark:bg-dark-secondary flex flex-col min-h-0 overflow-hidden">
+          <div className="py-3 border-b border-slate-300 dark:border-slate-600">
+            {activeTab === 'general' && <SpritePosition />}
             {activeTab === 'physics' && <SpritePhysicsCurtain />}
             {activeTab === 'hitbox' && (
               <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-center py-2">
-                <span className="text-xs text-slate-400 dark:text-slate-500">Hitbox editor coming soon</span>
-              </div>
+                <div className="flex items-center justify-center py-2">
+                  <span className="text-xs text-slate-400 dark:text-slate-500">Hitbox editor coming soon</span>
+                </div>
                 <NumericField
                   label="Direction"
                   value={directionValue}
@@ -143,20 +142,18 @@ const Phaser = () => {
                   onChange={(v) => setDirectionValue(v)}
                   onBlur={handleBlurDirection}
                 />
-            </div>
+              </div>
             )}
-        </div>
+          </div>
 
-        {/* Sprite and scene lists — always visible */}
-        <div className="flex flex-1 gap-0 min-h-0 overflow-hidden">
-          <PhaserSpriteList />
-          <PhaserSceneList />
-        </div>
-
-        <SpriteModal />
-      </section>
-
+          {/* Sprite list (3/4) + Scene list (1/4) */}
+          <div className="flex flex-1 gap-0 min-h-0 overflow-hidden">
+            <PhaserSpriteList />
+            <PhaserSceneList />
+          </div>
+        </section>
       </div>
+      <SpriteModal />
     </div>
   );
 };

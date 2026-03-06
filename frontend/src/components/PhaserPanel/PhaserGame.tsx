@@ -78,7 +78,7 @@ const PhaserGame = () => {
   return (
     <div
       className="relative flex justify-center rounded-md"
-      style={{ width: "480px", marginLeft: "8px", marginRight: "8px", marginTop: "8px" }}
+      style={{ width: "480px", marginLeft: "10px", marginRight: "10px", marginTop: "10px" }}
       onPointerDown={() => {
         if (typeof Blockly.hideChaff === 'function') Blockly.hideChaff();
         (document.getElementById('game-container') as HTMLElement).focus();

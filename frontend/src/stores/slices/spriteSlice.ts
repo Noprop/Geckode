@@ -338,12 +338,16 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
       });
     }
 
+    const phaserGameRef = get().phaserGame;
+    const spawnX = phaserGameRef ? Math.round(phaserGameRef.scale.width / 2) : 128;
+    const spawnY = phaserGameRef ? Math.round(phaserGameRef.scale.height / 2) : 96;
+
     const instance: SpriteInstance = {
       name: createUniqueSpriteName(spriteName, get().spriteInstances),
       textureName,
       id: `id_${Date.now()}`,
-      x: 0,
-      y: 0,
+      x: spawnX,
+      y: spawnY,
       visible: true,
       scaleX: 1,
       scaleY: 1,

@@ -10,7 +10,8 @@
   /* main design colors */
   --color-primary-green: #25A76F;
   --color-accent-green: #a7f1cd;
-  --color-secondary: #975df5; /* pastel purple for buttons */
+  --color-secondary: #975df5;
+  --color-accent-purple: #975df5;
   /* --color-secondary: #d6782f; pastel orange for buttons */
 
   /* Light theme - clean, high contrast */

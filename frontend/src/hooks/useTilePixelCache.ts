@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-type TilePixelCache = Record<string, Uint8ClampedArray>;
+export type TilePixelCache = Record<string, Uint8ClampedArray>;
 export type TileAverage = { r: number; g: number; b: number; a: number };
 
 /** Alpha-weighted average colour of a 16×16 RGBA tile. */
