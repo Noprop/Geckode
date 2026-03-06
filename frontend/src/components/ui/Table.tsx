@@ -20,6 +20,7 @@ import {
 } from "@tanstack/react-table";
 import { BaseFilters } from "@/lib/types/api";
 import { Icon, IconType } from "./Icon";
+import { UserIcon } from "./UserIcon";
 import { InputBox, InputBoxRef } from "./inputs/InputBox";
 import { Option, SelectionBox } from "./selectors/SelectionBox";
 import { useSnackbar } from "@/hooks/useSnackbar";
@@ -69,7 +70,7 @@ interface TableProps<TData, TSortKeys, TApi, TFilters> {
   initialSearch?: string;
 }
 
-type ColumnTypes = "user" | "datetime" | "thumbnail" | "select" | "other";
+type ColumnTypes = "user" | "avatar" | "datetime" | "thumbnail" | "select" | "other";
 
 interface TableAction<TData> {
   rowIcon: IconType;
@@ -207,16 +208,14 @@ export const Table = <
     >
   > = {
     user: (value) => (
-      <div className="flex flex-col">
-        <span className="text-base font-semibold">
-          {value.first_name} {value.last_name}
-        </span>
-        <span className="sm:italic text-xs">{value.username}</span>
-      </div>
+      <UserIcon user={value} variant="inline" />
+    ),
+    avatar: (value) => (
+      <UserIcon user={value} variant="avatar" size="lg" />
     ),
     datetime: (value) => new Date(value).toLocaleString(),
     thumbnail: (value) => (
-      <div className="h-13 w-13 overflow-hidden rounded-full">
+      <div className="h-13 w-13 overflow-hidden rounded-xs">
         <img
           src={value || "/user-icon.png"}
           alt="Thumbnail/Icon"
@@ -441,7 +440,7 @@ export const Table = <
                       visible && (
                         <th
                           key={header.id}
-                          className="text-left select-none px-3"
+                          className="text-left select-none px-2"
                           onClick={
                             canSort
                               ? header.column.getToggleSortingHandler()
@@ -503,7 +502,7 @@ export const Table = <
                   {row.getVisibleCells().map((cell) => (
                     <td
                       key={cell.id}
-                      className={`border-b border-gray-500 ${rowStyle}
+                      className={`border-b border-gray-500 px-2 ${rowStyle}
                                 ${
                                   (cell.column.columnDef.meta as any)?.style ??
                                   ""

@@ -123,9 +123,9 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
           }}
           columns={{
             Avatar: {
-              key: "avatar",
-              type: "thumbnail",
-              style: "w-18",
+              key: ".",
+              type: "avatar",
+              style: "w-14",
             },
             User: {
               key: ".",
@@ -153,10 +153,10 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
               hidden: true,
             },
             Avatar: {
-              key: ["collaborator", "avatar"],
-              type: "thumbnail",
+              key: "collaborator",
+              type: "avatar",
               hideLabel: true,
-              style: "w-18",
+              style: "w-14",
             },
             User: {
               key: "collaborator",
