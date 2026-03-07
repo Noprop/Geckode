@@ -124,7 +124,7 @@ export interface SpriteActions {
   removeTileset: (id: string) => void;
 
   /* Tile collidables */
-  setTileCollidable: (tileKey: string, collidable: boolean) => void;
+  setTileCollidable: (tileKey: string, collidable: boolean, syncAfter?: boolean) => void;
 
   /* Tilemaps */
   updateTilemapCell: (tilemapId: string, row: number, col: number, tileKey: string | null) => void;

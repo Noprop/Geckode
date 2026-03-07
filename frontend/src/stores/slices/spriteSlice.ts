@@ -37,6 +37,7 @@ import { addSpriteSync, deleteSpriteSync, updateSpriteSync } from '@/hooks/yjs/u
 import { deleteAssetSync, setAssetSync } from '@/hooks/yjs/useAssetSync';
 import { setTilemapCellSync, setTilemapDataSync, setTilemapMetaSync } from '@/hooks/yjs/useTilemapSync';
 import { deleteTilesetSync, setTilesetPreviewSync, upsertTilesetSync } from '@/hooks/yjs/useTilesetSync';
+import { setTileCollidableSync } from '@/hooks/yjs/useTileCollidableSync';
 
 export const createEmptyTilemapData = (height: number, width: number): (string | null)[][] =>
   Array.from({ length: height }, () => Array.from({ length: width }, () => null));
@@ -560,6 +561,10 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
           const changedTilemap = nextTilemaps[id];
           if (changedTilemap) setTilemapDataSync(id, changedTilemap);
         });
+
+        if (get().tileCollidables[name]) {
+          setTileCollidableSync(name, false);
+        }
       }
 
       refreshTilesetPreviews(changedTilesetIds, syncAfter, get, set);
@@ -650,8 +655,21 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
   },
 
   /* ── Tile Collidables ── */
-  setTileCollidable: (tileKey: string, collidable: boolean) => {
-    set({ tileCollidables: { ...get().tileCollidables, [tileKey]: collidable } });
+  setTileCollidable: (tileKey: string, collidable: boolean, syncAfter: boolean = true) => {
+    const current = get().tileCollidables;
+    const next = { ...current };
+
+    if (collidable) {
+      next[tileKey] = true;
+    } else {
+      delete next[tileKey];
+    }
+
+    set({ tileCollidables: next });
+
+    if (syncAfter) {
+      setTileCollidableSync(tileKey, collidable);
+    }
   },
 
   addLibraryAsset: (name: string, base64Image: string, type) => { set({ [type]: { ...get()[type], [name]: base64Image } }); },
