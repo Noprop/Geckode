@@ -1,6 +1,7 @@
 import * as Blockly from 'blockly/core';
 import type { StateCreator } from 'zustand';
 import type { SpriteInstance } from '@/blockly/spriteRegistry';
+import { refreshSpriteGhostBlocks } from "@/lib/blockly/blocks";
 import EditorScene from '@/phaser/scenes/EditorScene';
 import {
   bedrockTile,
@@ -314,6 +315,16 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
       selectedSpriteId: s.selectedSpriteId === spriteId
         ? (remaining[0]?.id ?? null)
         : s.selectedSpriteId,
+      spriteIdsUpdated: Object.entries(spriteWorkspaces).map(([id, workspace]) => 
+        [
+          id,
+          refreshSpriteGhostBlocks(
+            id === s.selectedSpriteId ? s.blocklyWorkspace : workspace,
+            spriteId,
+            remaining?.[0]?.id,
+          ),
+        ]
+      ).filter(([_, updated]) => updated).map(([id]) => id) as string[],
     }));
 
     if (syncAfter) {
@@ -322,7 +333,7 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
   },
 
   updateSpriteInstance: (spriteId: string, updates: Partial<SpriteInstance>, syncAfter: boolean = true) => {
-    const { phaserGame, phaserScene } = get();
+    const { phaserGame, phaserScene, blocklyWorkspace } = get();
     if (!phaserGame || !phaserScene) throw new Error('Game is not ready yet.');
     if (phaserScene instanceof EditorScene) {
       phaserScene.updateSprite(spriteId, updates);
@@ -333,6 +344,11 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
         instance.id === spriteId ? { ...instance, ...updates } : instance,
       ),
     }));
+
+    // Updates the dropdown menus if the name was updated
+    if ('name' in updates && blocklyWorkspace) {
+      refreshSpriteGhostBlocks(blocklyWorkspace);
+    }
 
     if (syncAfter) {
       updateSpriteSync(spriteId, updates);

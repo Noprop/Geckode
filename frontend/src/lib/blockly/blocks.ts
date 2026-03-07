@@ -220,3 +220,43 @@ export const moveBlockByCoordinates = (block: Blockly.Block, coordinates: { x?: 
     );
   }
 };
+
+/**
+ * Refreshes the display text of all spriteGhost blocks in the given workspace.
+ * Call this after renaming a sprite so dropdowns show the new name immediately.
+ */
+export function refreshSpriteGhostBlocks(
+  workspace: Blockly.Workspace | null,
+  deletedSpriteId?: string,
+  replacementSpriteId?: string,
+): boolean {
+  if (!workspace) return false;
+
+  const blocks = workspace.getAllBlocks(false);
+  let updated = false;
+
+  Blockly.Events.disable();
+  try {
+    for (const block of blocks) {
+      if (block.type !== 'spriteGhost') continue;
+
+      const field = block.getField('SPRITE');
+      if (!field) continue;
+
+      const currentValue = field.getValue();
+      if (deletedSpriteId && currentValue !== deletedSpriteId) continue;
+
+      (field as any).getOptions(false); // This is a valid method that resets the cache
+      field.setValue(replacementSpriteId ?? currentValue);
+
+      const blockSvg = block as unknown as { render?: () => void };
+      if (typeof blockSvg.render === 'function') blockSvg.render();
+
+      if (deletedSpriteId) updated = true;
+    }
+  } finally {
+    Blockly.Events.enable();
+  }
+
+  return updated;
+}

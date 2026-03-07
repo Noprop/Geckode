@@ -14,6 +14,7 @@ import { Block } from "@/lib/types/yjs/blocks";
 import { useTilesetSync } from "./useTilesetSync";
 import { useTilemapSync } from "./useTilemapSync";
 import { useTileCollidableSync } from "./useTileCollidableSync";
+import { refreshSpriteGhostBlocks } from "@/lib/blockly/blocks";
 
 const createSpriteObserver = (id: string, spriteMap: Y.Map<SpriteInstance>, doc: Y.Doc) => {
   const spriteObserver = (event: Y.YMapEvent<SpriteInstance>, transaction: Y.Transaction) => {
@@ -202,13 +203,13 @@ export const useWorkspaceSync = (documentName: string) => {
 
             console.log('changing sprite instances', newSpriteInstances);
 
+            // Need to call removeSpriteInstance specifically because it has a lot of important logic
+            deletedSpriteIds.forEach((id) => {
+              storeState.removeSpriteInstance(id, false);
+            });
+
             useGeckodeStore.setState((s) => ({
               spriteInstances: newSpriteInstances,
-              selectedSpriteId: !deletedSpriteIds.includes(s.selectedSpriteId ?? '')
-                ? s.selectedSpriteId
-                : newSpriteInstances.length
-                  ? newSpriteInstances[newSpriteInstances.length - 1].id
-                  : null,
               spriteWorkspaces: {
                 ...Object.fromEntries(
                   addedSpriteIds.map((id) => [id, new Blockly.Workspace()])
@@ -223,6 +224,19 @@ export const useWorkspaceSync = (documentName: string) => {
             }));
 
             storeState = useGeckodeStore.getState();
+
+            // Refresh the spriteGhost dropdowns for the newly added sprites
+            if (addedSpriteIds.length) {
+              Object.entries(storeState.spriteWorkspaces).forEach(([id, workspace]) => {
+                if (!addedSpriteIds.includes(id)) {
+                  refreshSpriteGhostBlocks(
+                    storeState.selectedSpriteId === id
+                      ? storeState.blocklyWorkspace
+                      : workspace,
+                  );
+                }
+              });
+            }
 
             addedSpriteIds.forEach((id) => {
               const blocksMap = workspaces.get(
