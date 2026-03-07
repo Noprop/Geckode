@@ -39,19 +39,27 @@ export default class EditorScene extends Phaser.Scene {
   // -- Phaser methods -- //
   preload() {
     const { spriteInstances, textures, textureLoadingState, libaryTextures } = useGeckodeStore.getState();
+    const processedTextureNames = new Set<string>();
+
     for (const instance of spriteInstances) {
-      console.log('preloading texture: ', instance.textureName);
-      const base64Image = textures[instance.textureName] ?? libaryTextures[instance.textureName];
+      const textureName = instance.textureName;
+
+      // Avoid queueing the same texture multiple times when multiple sprites share it
+      if (processedTextureNames.has(textureName)) continue;
+      processedTextureNames.add(textureName);
+
+      console.log('preloading texture: ', textureName);
+      const base64Image = textures[textureName] ?? libaryTextures[textureName];
       if (!base64Image) continue;
-      
-      const textureKey = "sprite-" + instance.textureName;
-      
+
+      const textureKey = "sprite-" + textureName;
+
       // If texture exists but is marked as pending (changed while in GameScene), reload it
-      if (this.textures.exists(textureKey) && textureLoadingState[instance.textureName] === 'pending') {
-        console.log('Reloading updated texture: ', instance.textureName);
+      if (this.textures.exists(textureKey) && textureLoadingState[textureName] === 'pending') {
+        console.log('Reloading updated texture: ', textureName);
         this.textures.remove(textureKey);
       }
-      
+
       // Load texture if it doesn't exist
       if (!this.textures.exists(textureKey)) {
         this.load.image(textureKey, base64Image);
