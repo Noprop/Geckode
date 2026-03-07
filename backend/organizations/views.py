@@ -20,6 +20,13 @@ class OrganizationViewSet(ModelViewSet):
 
     http_method_names = ['get', 'post', 'patch', 'delete']
 
+    def get_queryset(self):
+        return super().get_queryset().filter(
+            Q(is_public=True) |
+            Q(owner=self.request.user) |
+            Q(members=self.request.user)
+        ).distinct()
+
     def perform_create(self, serializer : OrganizationSerializer) -> None:
         serializer.save(owner=self.request.user)
 

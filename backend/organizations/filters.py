@@ -1,3 +1,4 @@
+from utils.permissions import create_permissions_allowed_hierarchy
 from utils.filters import PrefixedFilterSet
 from django_filters import NumberFilter, BooleanFilter, ChoiceFilter
 from .models import Organization, OrganizationInvitation, OrganizationMember, OrganizationBannedMember
@@ -18,10 +19,21 @@ class OrganizationFilter(PrefixedFilterSet):
     exclude_project = NumberFilter(field_name='projects__id', exclude=True)
     has_member = NumberFilter(field_name='members__id')
     exclude_member = NumberFilter(field_name='members__id', exclude=True)
+    user_has_permission = ChoiceFilter(choices=Organization.PERMISSION_CHOICES, method='filter_user_has_permission')
 
     class Meta:
         model = Organization
         fields = []
+
+    def __init__(self, *args, **kwargs):
+        self.request = kwargs.get('request', None) 
+        super().__init__(*args, **kwargs)
+
+    def filter_user_has_permission(self, queryset, name, value):
+        return queryset.filter(
+            organization_members__member=self.request.user,
+            organization_members__permission__in=create_permissions_allowed_hierarchy(Organization.PERMISSION_CHOICES).get(value, []),
+        ).distinct()
 
 class OrganizationInvitationFilter(PrefixedFilterSet):
     search_fields = [

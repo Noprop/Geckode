@@ -23,6 +23,7 @@ export interface OrganizationFilters extends BaseFilters {
   exclude_project?: number;
   has_member?: number;
   exclude_member?: number;
+  user_has_permission?: OrganizationPermissions;
 }
 
 export interface OrganizationPayload {

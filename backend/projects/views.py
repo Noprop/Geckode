@@ -23,7 +23,7 @@ class ProjectGroupViewSet(ModelViewSet):
     http_method_names = ['get', 'post', 'patch', 'delete']
 
     def get_queryset(self):
-        return super().get_queryset().filter(owner=self.request.user).order_by('name')
+        return super().get_queryset().filter(owner=self.request.user).distinct().order_by('name')
 
     def get_permissions(self):
         if self.action == 'list':

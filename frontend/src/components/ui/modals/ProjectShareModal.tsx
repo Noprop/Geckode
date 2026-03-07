@@ -278,7 +278,12 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
             Permission: {
               key: "permission",
               type: "select",
-              options: Object.entries(projectPermissions).map(
+              options: Object.entries(projectPermissions).slice(
+                0,
+                project.permission in projectPermissions
+                  ? Object.keys(projectPermissions).findIndex((p) => p === project.permission) + 1
+                  : Object.keys(projectPermissions).length,
+              ).map(
                 ([value, label]) => ({
                   value, label
                 })
@@ -332,6 +337,7 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
           noResultsMessage="No organizations found that do not already have access to this project."
           filters={{
             exclude_project: project.id,
+            user_has_permission: "contribute",
           }}
           columns={{
             id: {

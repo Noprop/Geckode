@@ -19,7 +19,8 @@ def apply_project_access_filters(queryset, user, prefix=''):
             'published_at__isnull': False,
             'owner': user,
             'collaborators': user,
-            'organizations__members': user
+            'organizations__members': user,
+            'organizations__is_public': True,
         }.items())
     )).distinct()
 

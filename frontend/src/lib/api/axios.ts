@@ -56,7 +56,10 @@ const api = {
 };
 
 // pass Axios error and return serverside error message
-export const extractAxiosErrMsg = (err : AxiosError, placeholderMsg: string = ""): string => {
+export const extractAxiosErrMsg = (
+  err : AxiosError,
+  placeholderMsg: string = "Something went wrong. Please try again.",
+): string => {
   try {
     if (err.response?.status === 500) return placeholderMsg;
 
