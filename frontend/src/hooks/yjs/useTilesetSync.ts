@@ -60,12 +60,20 @@ const readTilesetFromY = (tilesetMap: YTileset): Tileset | null => {
   };
 };
 
-const readTilesetsFromY = (tilesetsArray: Y.Array<YTileset>): Tileset[] => (
-  tilesetsArray
+const readTilesetsFromY = (tilesetsArray: Y.Array<YTileset>): Tileset[] => {
+  const parsed = tilesetsArray
     .toArray()
     .map((item) => (item instanceof Y.Map ? readTilesetFromY(item as YTileset) : null))
-    .filter((item): item is Tileset => item !== null)
-);
+    .filter((item): item is Tileset => item !== null);
+
+  // Defensive in-memory dedupe for transient merge states.
+  const seen = new Set<string>();
+  return parsed.filter((tileset) => {
+    if (!tileset.id || seen.has(tileset.id)) return false;
+    seen.add(tileset.id);
+    return true;
+  });
+};
 
 const normalizeTilesetsArray = (tilesetsArray: Y.Array<YTileset>) => {
   const firstById = new Map<string, number>();
@@ -96,17 +104,24 @@ export const useTilesetSync = (documentName: string) => {
     if (!tilesetsArray) return;
 
     const handleSync = () => {
-      if (tilesetsArray.length > 0) {
-        doc.transact(() => {
-          normalizeTilesetsArray(tilesetsArray);
-        }, doc.clientID);
+      doc.transact(() => {
+        normalizeTilesetsArray(tilesetsArray);
+      }, doc.clientID);
 
+      if (tilesetsArray.length > 0) {
         useGeckodeStore.setState({ tilesets: readTilesetsFromY(tilesetsArray) });
       }
 
       const observer = (events: Y.YEvent<any>[], transaction: Y.Transaction) => {
         if (transaction.origin === doc.clientID) return;
         if (!events.length) return;
+
+        // Remote reconnect/merge can append duplicate entries (same id).
+        // Normalize every remote change so duplicates do not persist.
+        doc.transact(() => {
+          normalizeTilesetsArray(tilesetsArray);
+        }, doc.clientID);
+
         useGeckodeStore.setState({ tilesets: readTilesetsFromY(tilesetsArray) });
       };
 
