@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { TrashIcon } from '@radix-ui/react-icons';
 import { useGeckodeStore } from '@/stores/geckodeStore';
+import TileDeleteConfirmModal from './TileDeleteConfirmModal';
 
 type TabId = 'library' | 'editor' | 'assets';
 
@@ -12,6 +13,7 @@ interface TileAssetsProps {
 
 const TileAssets = ({ setActiveTab }: TileAssetsProps) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [tileNameToDelete, setTileNameToDelete] = useState<string | null>(null);
   const tiles = useGeckodeStore((s) => s.tiles);
   const setEditingAsset = useGeckodeStore((s) => s.setEditingAsset);
   const removeAsset = useGeckodeStore((s) => s.removeAsset);
@@ -26,12 +28,26 @@ const TileAssets = ({ setActiveTab }: TileAssetsProps) => {
     setActiveTab('editor');
   };
 
+  const openDeleteConfirm = useCallback((tileName: string) => {
+    setTileNameToDelete(tileName);
+  }, []);
+
+  const handleCancelDelete = useCallback(() => {
+    setTileNameToDelete(null);
+  }, []);
+
+  const handleConfirmDelete = useCallback(() => {
+    if (!tileNameToDelete) return;
+    removeAsset(tileNameToDelete, 'tiles');
+    setTileNameToDelete(null);
+  }, [tileNameToDelete, removeAsset]);
+
   const handleDelete = useCallback(
     (e: React.MouseEvent, tileName: string) => {
       e.stopPropagation();
-      removeAsset(tileName, 'tiles');
+      openDeleteConfirm(tileName);
     },
-    [removeAsset],
+    [openDeleteConfirm],
   );
 
   return (
@@ -78,6 +94,12 @@ const TileAssets = ({ setActiveTab }: TileAssetsProps) => {
           ))}
         </div>
       )}
+
+      <TileDeleteConfirmModal
+        tileName={tileNameToDelete}
+        onClose={handleCancelDelete}
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   );
 };

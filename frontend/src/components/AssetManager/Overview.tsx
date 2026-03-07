@@ -8,6 +8,7 @@ import AssetList from './AssetList';
 import TextureDetailPanel from './DetailPanel';
 import TileEditorModal from '../TileModal/TileEditorModal';
 import TilesetEditorModal from '../TileModal/TilesetEditorModal';
+import TileDeleteConfirmModal from '../TileModal/TileDeleteConfirmModal';
 import { useSnackbar } from '@/hooks/useSnackbar';
 
 export type SelectedAsset = { name: string; type: AssetType } | null;
@@ -26,6 +27,7 @@ const AssetWorkspace = () => {
   const [selectedAsset, setSelectedAsset] = useState<SelectedAsset>(null);
   const [isTileEditorModalOpen, setIsTileEditorModalOpen] = useState(false);
   const [isTilesetEditorModalOpen, setIsTilesetEditorModalOpen] = useState(false);
+  const [tileNameToDelete, setTileNameToDelete] = useState<string | null>(null);
 
   const assets = useGeckodeStore((s) => s[activeTab]);
   const tilesets = useGeckodeStore((s) => s.tilesets);
@@ -99,6 +101,9 @@ const AssetWorkspace = () => {
 
     if (selectedAsset.type === 'tilesets') {
       removeTileset(selectedAsset.name);
+    } else if (selectedAsset.type === 'tiles') {
+      setTileNameToDelete(selectedAsset.name);
+      return;
     } else {
       if (
         selectedAsset.type === 'textures' &&
@@ -109,6 +114,17 @@ const AssetWorkspace = () => {
       }
       removeAsset(selectedAsset.name, selectedAsset.type);
     }
+    setSelectedAsset(null);
+  };
+
+  const handleCancelTileDelete = () => {
+    setTileNameToDelete(null);
+  };
+
+  const handleConfirmTileDelete = () => {
+    if (!tileNameToDelete) return;
+    removeAsset(tileNameToDelete, 'tiles');
+    setTileNameToDelete(null);
     setSelectedAsset(null);
   };
 
@@ -169,6 +185,11 @@ const AssetWorkspace = () => {
 
       <TileEditorModal isOpen={isTileEditorModalOpen} onClose={() => setIsTileEditorModalOpen(false)} />
       <TilesetEditorModal isOpen={isTilesetEditorModalOpen} onClose={() => setIsTilesetEditorModalOpen(false)} />
+      <TileDeleteConfirmModal
+        tileName={tileNameToDelete}
+        onClose={handleCancelTileDelete}
+        onConfirm={handleConfirmTileDelete}
+      />
     </div>
   );
 };
