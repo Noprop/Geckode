@@ -1,7 +1,6 @@
 import * as Blockly from "blockly/core";
 import { useCallback, useEffect } from "react";
 import { useYjs } from "./useYjs";
-import { Block } from "@/lib/types/yjs/blocks";
 import { Transaction, YMapEvent } from "yjs";
 import { Variable } from "@/lib/types/yjs/variables";
 import { useGeckodeStore } from "@/stores/geckodeStore";
@@ -12,7 +11,6 @@ export const useVariableSync = (
   const { blocklyWorkspace } = useGeckodeStore();
   const { doc, isSynced, onSynced } = useYjs(documentName);
   const variablesMap = doc.getMap<Variable>('variables');
-  const blocksMap = doc.getMap<Block>('blocks');
 
   const blockEventsListener = useCallback((event: Blockly.Events.Abstract) => {
     if (!blocklyWorkspace) return;
@@ -57,50 +55,26 @@ export const useVariableSync = (
               });
             }
           ];
-          
-
-          // Manually go fix the variable blocks in the blocks map
-          blocklyWorkspace.getAllBlocks(false).forEach(block => {
-            block.inputList.forEach(input => {
-              input.fieldRow.forEach(field => {
-                if (field instanceof Blockly.FieldVariable && field.getValue() === id) {
-                  updates.push(() => {
-                    const blockData = blocksMap.get(block.id);
-                    if (!blockData) return;
-
-                    blocksMap.set(
-                      block.id,
-                      {
-                        ...blockData,
-                        fields: {
-                          ...blockData.fields,
-                          ...{
-                            VAR: {
-                              ...blockData.fields?.VAR,
-                              name: varEvent.newName ?? '',
-                            }
-                          }
-                        }
-                      }
-                    );
-                  });
-                }
-              });
-            });
-          });
 
           doc.transact(() => {
             updates.forEach((update) => update());
           }, doc.clientID);
         }
       }
-    } else {
+    } else if (event.type === Blockly.Events.VAR_DELETE) {
       const id = (event as Blockly.Events.VarDelete).varId;
 
       if (id) {
         doc.transact(() => {
           variablesMap.delete(id);
         }, doc.clientID);
+
+        // Delete the variable from all sprite workspaces (useBlockSync will handle the blocks)
+        Object.entries(useGeckodeStore.getState().spriteWorkspaces).forEach(([id, workspace]) => {
+          const variableMap = workspace.getVariableMap();
+          const variable = variableMap.getVariableById(id);
+          if (variable) variableMap.deleteVariable(variable);
+        });
       }
     }
   }, [blocklyWorkspace]);
@@ -147,6 +121,9 @@ export const useVariableSync = (
     });
 
     Blockly.Events.enable();
+
+    // Refresh flyout so Variables category shows updated list on remote clients
+    blocklyWorkspace.getToolbox()?.refreshSelection();
   }, [blocklyWorkspace]);
 
   useEffect(() => {

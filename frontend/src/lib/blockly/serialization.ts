@@ -8,7 +8,7 @@ export const serializeBlock = (
   const block = workspace.getBlockById(blockId);
   console.log('original block object', block);
 
-  if (!block) throw Error;
+  if (!block) throw Error(`Block with id ${blockId} not found in serializeBlock. This should never happen.`);
 
   console.log('original block json', Blockly.serialization.blocks.save(
     block,

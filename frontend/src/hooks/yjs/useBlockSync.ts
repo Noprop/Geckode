@@ -426,21 +426,24 @@ export const useBlockSync = (documentName: string) => {
   useEffect(() => {
     if (!blocklyWorkspace) return;
 
-    const currentBlocksMap = workspaces.get(
-      spriteInstances.findIndex((instance) => instance.id === selectedSpriteId)
-    )?.get('blocks');
+    const blocklyEventsListeners = spriteInstances.map((instance, index) => {
+      const blocksMap = workspaces.get(index)?.get('blocks');
+      const workspace = selectedSpriteId === instance.id ? blocklyWorkspace : spriteWorkspaces[instance.id];
+      const eventListener = blocksMap && workspace ? createBlockEventsListener(
+        workspace,
+        blocksMap,
+        stopBlockDragPolling,
+        doc,
+      ) : undefined;
 
-    const blocklyEventsListener = currentBlocksMap ? createBlockEventsListener(
-      blocklyWorkspace,
-      currentBlocksMap,
-      stopBlockDragPolling,
-      doc,
-    ) : () => {};
-
-    blocklyWorkspace.addChangeListener(blocklyEventsListener);
+      if (eventListener) workspace.addChangeListener(eventListener);
+      return eventListener;
+    });
 
     return () => {
-      blocklyWorkspace.removeChangeListener(blocklyEventsListener);
+      blocklyEventsListeners.forEach((listener) => {
+        if (listener) blocklyWorkspace.removeChangeListener(listener);
+      });
     }
   }, [blocklyWorkspace, spriteInstances, selectedSpriteId, spriteWorkspaces]);
 };
