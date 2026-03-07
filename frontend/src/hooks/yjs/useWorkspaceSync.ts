@@ -11,6 +11,8 @@ import * as Blockly from "blockly/core";
 import { useProjectNameSync } from "./useProjectNameSync";
 import { starterSpriteWorkspaces, starterTextures } from "@/blockly/workspaces/starter";
 import { Block } from "@/lib/types/yjs/blocks";
+import { useTilesetSync } from "./useTilesetSync";
+import { useTilemapSync } from "./useTilemapSync";
 
 const createSpriteObserver = (id: string, spriteMap: Y.Map<SpriteInstance>, doc: Y.Doc) => {
   const spriteObserver = (event: Y.YMapEvent<SpriteInstance>, transaction: Y.Transaction) => {
@@ -117,6 +119,8 @@ export const useWorkspaceSync = (documentName: string) => {
   useProjectNameSync(documentName);
   useAssetSync(documentName, "textures");
   useAssetSync(documentName, "tiles");
+  useTilesetSync(documentName);
+  useTilemapSync(documentName);
 
   useEffect(() => {
     useGeckodeStore.setState({

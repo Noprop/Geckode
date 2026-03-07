@@ -35,6 +35,8 @@ import type { AssetType, EditingSource, GeckodeStore, Scene, SpriteSlice, Sprite
 import { EventBus } from '@/phaser/EventBus';
 import { addSpriteSync, deleteSpriteSync, updateSpriteSync } from '@/hooks/yjs/useWorkspaceSync';
 import { deleteAssetSync, setAssetSync } from '@/hooks/yjs/useAssetSync';
+import { setTilemapCellSync, setTilemapDataSync, setTilemapMetaSync } from '@/hooks/yjs/useTilemapSync';
+import { deleteTilesetSync, upsertTilesetSync } from '@/hooks/yjs/useTilesetSync';
 
 export const createEmptyTilemapData = (height: number, width: number): (string | null)[][] =>
   Array.from({ length: height }, () => Array.from({ length: width }, () => null));
@@ -457,25 +459,29 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
     const idx = existing.findIndex((ts) => ts.id === tileset.id);
     if (idx === -1) {
       set({ tilesets: [...existing, tileset] });
+      upsertTilesetSync(tileset);
       return;
     }
     set({ tilesets: existing.map((ts, i) => (i === idx ? tileset : ts)) });
+    upsertTilesetSync(tileset);
   },
   updateTileset: (id: string, tileset: Tileset) => {
     set({
       tilesets: get().tilesets.map((ts) => (ts.id === id ? tileset : ts)),
     });
+    upsertTilesetSync(tileset);
   },
   removeTileset: (id: string) => {
     const existing = get().tilesets;
     if (existing.length <= 1) return;
+    const currentTilemaps = get().tilemaps;
 
     const nextTilesets = existing.filter((ts) => ts.id !== id);
     if (nextTilesets.length === existing.length) return;
 
     const fallbackTilesetId = nextTilesets[0].id;
     const nextTilemaps = Object.fromEntries(
-      Object.entries(get().tilemaps).map(([tilemapId, tilemap]) => [
+      Object.entries(currentTilemaps).map(([tilemapId, tilemap]) => [
         tilemapId,
         tilemap.tilesetId === id
           ? { ...tilemap, tilesetId: fallbackTilesetId }
@@ -487,6 +493,14 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
       tilesets: nextTilesets,
       tilemaps: nextTilemaps,
     });
+
+    Object.entries(nextTilemaps).forEach(([tilemapId, tilemap]) => {
+      if (currentTilemaps[tilemapId]?.tilesetId !== tilemap.tilesetId) {
+        setTilemapMetaSync(tilemapId, { tilesetId: tilemap.tilesetId });
+      }
+    });
+
+    deleteTilesetSync(id);
   },
 
   /* ── Tile Collidables ── */
@@ -507,12 +521,14 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
     const tilemap = get().tilemaps[tilemapId];
     if (!tilemap) return;
     if (!get().tilesets.some((ts) => ts.id === tilesetId)) return;
+    const nextTilemap = { ...tilemap, tilesetId };
     set({
       tilemaps: {
         ...get().tilemaps,
-        [tilemapId]: { ...tilemap, tilesetId },
+        [tilemapId]: nextTilemap,
       },
     });
+    setTilemapMetaSync(tilemapId, { tilesetId });
   },
   updateTilemapCell: (tilemapId: string, row: number, col: number, tileKey: string | null) => {
     const tilemap = get().tilemaps[tilemapId];
@@ -520,23 +536,27 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
     const newData = tilemap.data.map((r, ri) =>
       ri === row ? r.map((c, ci) => (ci === col ? tileKey : c)) : r,
     );
+    const nextTilemap = { ...tilemap, data: newData };
     set({
       tilemaps: {
         ...get().tilemaps,
-        [tilemapId]: { ...tilemap, data: newData },
+        [tilemapId]: nextTilemap,
       },
     });
+    setTilemapCellSync(tilemapId, row, col, tileKey);
   },
 
   setTilemapData: (tilemapId: string, data: (string | null)[][]) => {
     const tilemap = get().tilemaps[tilemapId];
     if (!tilemap) return;
+    const nextTilemap = { ...tilemap, data };
     set({
       tilemaps: {
         ...get().tilemaps,
-        [tilemapId]: { ...tilemap, data },
+        [tilemapId]: nextTilemap,
       },
     });
+    setTilemapDataSync(tilemapId, nextTilemap);
   },
 
   resizeTilemap: (tilemapId: string, newWidth: number, newHeight: number) => {
@@ -550,23 +570,27 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
       }
       newData.push(row);
     }
+    const nextTilemap = { ...tilemap, width: newWidth, height: newHeight, data: newData };
     set({
       tilemaps: {
         ...get().tilemaps,
-        [tilemapId]: { ...tilemap, width: newWidth, height: newHeight, data: newData },
+        [tilemapId]: nextTilemap,
       },
     });
+    setTilemapDataSync(tilemapId, nextTilemap);
   },
 
   clearTilemap: (tilemapId: string) => {
     const tilemap = get().tilemaps[tilemapId];
     if (!tilemap) return;
+    const nextTilemap = { ...tilemap, data: createEmptyTilemapData(tilemap.height, tilemap.width) };
     set({
       tilemaps: {
         ...get().tilemaps,
-        [tilemapId]: { ...tilemap, data: createEmptyTilemapData(tilemap.height, tilemap.width) },
+        [tilemapId]: nextTilemap,
       },
     });
+    setTilemapDataSync(tilemapId, nextTilemap);
   },
 
   setScenes: (scenes: Scene[]) => set({ scenes }),
