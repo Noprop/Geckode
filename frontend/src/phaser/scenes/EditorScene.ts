@@ -17,6 +17,7 @@ export default class EditorScene extends Phaser.Scene {
   private static readonly TILESET_KEY = 'editor-tileset';
   private gridGraphics: Phaser.GameObjects.Graphics | null = null;
   private handleUpdateTilemap: (() => void) | null = null;
+  private refreshTilemapRequestId = 0;
 
   private lastDragEmitTime = 0;
   private activeDrag: {
@@ -81,10 +82,7 @@ export default class EditorScene extends Phaser.Scene {
       }
     }
 
-    this.generateTilesetTexture();
-
-    const { tilemaps } = useGeckodeStore.getState();
-    this.createTilemap(tilemaps['tilemap_1'].data);
+    await this.refreshTilemapFromStore();
 
     this.spriteLayer = this.add.layer();
     this.spriteLayer.setDepth(this.SPRITE_DEPTH);
@@ -422,6 +420,37 @@ export default class EditorScene extends Phaser.Scene {
     }
   }
 
+  private async ensureTileTexturesLoaded(tileTextures: Record<string, string>): Promise<void> {
+    const missing = Object.entries(tileTextures).filter(([tileKey, base64Image]) => {
+      if (!base64Image) return false;
+      return !this.textures.exists(`tile-${tileKey}`);
+    });
+
+    if (missing.length === 0) return;
+
+    await Promise.allSettled(
+      missing.map(([tileKey, base64Image]) => this.loadTileTextureAsync(tileKey, base64Image)),
+    );
+  }
+
+  private getActiveTilemapDataFromStore(): (string | null)[][] {
+    const { tilemaps, activeTilemapId } = useGeckodeStore.getState();
+    const activeTilemap = activeTilemapId ? tilemaps[activeTilemapId] : null;
+    return activeTilemap?.data ?? tilemaps['tilemap_1']?.data ?? [[]];
+  }
+
+  private async refreshTilemapFromStore(): Promise<void> {
+    const requestId = ++this.refreshTilemapRequestId;
+    const tileTextures = useGeckodeStore.getState().getTilesForRendering();
+    await this.ensureTileTexturesLoaded(tileTextures);
+
+    // Ignore stale async completion from older refresh requests.
+    if (requestId !== this.refreshTilemapRequestId) return;
+
+    this.generateTilesetTexture();
+    this.createTilemap(this.getActiveTilemapDataFromStore());
+  }
+
   shutdown() {
     if (this.handleUpdateTilemap) {
       EventBus.off('update-tilemap', this.handleUpdateTilemap);
@@ -431,9 +460,7 @@ export default class EditorScene extends Phaser.Scene {
 
   private initEventListeners() {
     this.handleUpdateTilemap = () => {
-      const { tilemaps } = useGeckodeStore.getState();
-      this.generateTilesetTexture();
-      this.createTilemap(tilemaps['tilemap_1'].data);
+      void this.refreshTilemapFromStore();
     };
     EventBus.on('update-tilemap', this.handleUpdateTilemap);
 

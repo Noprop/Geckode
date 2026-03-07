@@ -34,8 +34,11 @@ export function useTilePixelCache(tileTextures: Record<string, string>) {
   const tilePixelsRef = useRef<TilePixelCache>({});
   const tileAveragesRef = useRef<Record<string, TileAverage>>({});
   const [isReady, setIsReady] = useState(false);
+  const runIdRef = useRef(0);
 
   useEffect(() => {
+    runIdRef.current += 1;
+    const runId = runIdRef.current;
     const entries = Object.entries(tileTextures);
     if (entries.length === 0) {
       tilePixelsRef.current = {};
@@ -62,6 +65,7 @@ export function useTilePixelCache(tileTextures: Record<string, string>) {
         averages[key] = computeAverageColor(data);
         remaining--;
         if (remaining === 0) {
+          if (runId !== runIdRef.current) return;
           tilePixelsRef.current = cache;
           tileAveragesRef.current = averages;
           setIsReady(true);
@@ -70,6 +74,7 @@ export function useTilePixelCache(tileTextures: Record<string, string>) {
       img.onerror = () => {
         remaining--;
         if (remaining === 0) {
+          if (runId !== runIdRef.current) return;
           tilePixelsRef.current = cache;
           tileAveragesRef.current = averages;
           setIsReady(true);
