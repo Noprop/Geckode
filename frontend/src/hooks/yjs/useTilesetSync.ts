@@ -42,12 +42,6 @@ const toYTileset = (tileset: Tileset): YTileset => {
   return tilesetMap;
 };
 
-const isLegacyTileset = (value: unknown): value is Tileset => {
-  if (!value || typeof value !== "object") return false;
-  const candidate = value as Partial<Tileset>;
-  return typeof candidate.id === "string" && Array.isArray(candidate.data);
-};
-
 const readTilesetFromY = (tilesetMap: YTileset): Tileset | null => {
   const rows = tilesetMap.get("data");
   if (!(rows instanceof Y.Array)) return null;
@@ -78,15 +72,7 @@ const normalizeTilesetsArray = (tilesetsArray: Y.Array<YTileset>) => {
 
   for (let i = 0; i < tilesetsArray.length; i++) {
     const value = tilesetsArray.get(i);
-
-    // Migrate legacy plain-object entries in-place.
-    if (!(value instanceof Y.Map)) {
-      if (isLegacyTileset(value)) {
-        tilesetsArray.delete(i, 1);
-        tilesetsArray.insert(i, [toYTileset(value)]);
-      }
-      continue;
-    }
+    if (!(value instanceof Y.Map)) continue;
 
     const id = String(value.get("id") ?? "");
     if (!id) continue;
@@ -189,6 +175,24 @@ export const deleteTilesetSync = (id: string) => {
       const item = tilesetsArray.get(i);
       if (item instanceof Y.Map && item.get("id") === id) {
         tilesetsArray.delete(i, 1);
+        break;
+      }
+    }
+  }, doc.clientID);
+};
+
+export const setTilesetPreviewSync = (id: string, base64Preview: string) => {
+  const doc = getYDoc();
+  if (!doc) return;
+
+  const tilesetsArray = doc.getArray<YTileset>("tilesets");
+  if (!tilesetsArray) return;
+
+  doc.transact(() => {
+    for (let i = 0; i < tilesetsArray.length; i++) {
+      const item = tilesetsArray.get(i);
+      if (item instanceof Y.Map && item.get("id") === id) {
+        item.set("base64Preview", base64Preview);
         break;
       }
     }

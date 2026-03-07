@@ -21,9 +21,10 @@ interface AssetListProps {
 
 const AssetList = ({ filter, activeTab, onTabChange, selectedAsset, onSelectAsset, onCreateNew, onDoubleClickAsset }: AssetListProps) => {
   const assets = useGeckodeStore((s) => s[filter]);
-  const tileTextures = useGeckodeStore((s) => s.tiles);
-  const updateTileset = useGeckodeStore((s) => s.updateTileset);
+  const tiles = useGeckodeStore((s) => s.tiles);
+  const libaryTiles = useGeckodeStore((s) => s.libaryTiles);
   const canEditProject = useGeckodeStore((state) => state.canEditProject);
+  const tileTextures = useMemo(() => ({ ...libaryTiles, ...tiles }), [libaryTiles, tiles]);
 
   const { tilePixelsRef, isReady } = useTilePixelCache(tileTextures);
 
@@ -50,9 +51,14 @@ const AssetList = ({ filter, activeTab, onTabChange, selectedAsset, onSelectAsse
       const imgData = ctx.createImageData(pixelW, pixelH);
       imgData.data.set(buf);
       ctx.putImageData(imgData, 0, 0);
-      updateTileset(tileset.id, { ...tileset, base64Preview: canvas.toDataURL('image/png') });
+      const nextPreview = canvas.toDataURL('image/png');
+      useGeckodeStore.setState((s) => ({
+        tilesets: s.tilesets.map((ts) => (
+          ts.id === tileset.id ? { ...ts, base64Preview: nextPreview } : ts
+        )),
+      }));
     }
-  }, [filter, isReady, assets, tilePixelsRef, updateTileset]);
+  }, [filter, isReady, assets, tilePixelsRef]);
 
   const entries = useMemo(
     () => {

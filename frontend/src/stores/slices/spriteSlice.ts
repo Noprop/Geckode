@@ -36,7 +36,7 @@ import { EventBus } from '@/phaser/EventBus';
 import { addSpriteSync, deleteSpriteSync, updateSpriteSync } from '@/hooks/yjs/useWorkspaceSync';
 import { deleteAssetSync, setAssetSync } from '@/hooks/yjs/useAssetSync';
 import { setTilemapCellSync, setTilemapDataSync, setTilemapMetaSync } from '@/hooks/yjs/useTilemapSync';
-import { deleteTilesetSync, upsertTilesetSync } from '@/hooks/yjs/useTilesetSync';
+import { deleteTilesetSync, setTilesetPreviewSync, upsertTilesetSync } from '@/hooks/yjs/useTilesetSync';
 
 export const createEmptyTilemapData = (height: number, width: number): (string | null)[][] =>
   Array.from({ length: height }, () => Array.from({ length: width }, () => null));
@@ -128,6 +128,86 @@ const createDefaultTilemap = (tilesetId: string): Tilemap => ({
   tilesetId,
   base64: '',
 });
+
+const loadImage = (src: string): Promise<HTMLImageElement> =>
+  new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+
+const generateTilesetPreviewBase64 = async (
+  tileset: Tileset,
+  tileTextures: Record<string, string>
+): Promise<string> => {
+  if (typeof document === 'undefined') return tileset.base64Preview;
+
+  const rows = Math.max(5, tileset.data.length);
+  const pixelW = TILESET_WIDTH * TILE_PX;
+  const pixelH = rows * TILE_PX;
+  const canvas = document.createElement('canvas');
+  canvas.width = pixelW;
+  canvas.height = pixelH;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return tileset.base64Preview;
+
+  const uniqueKeys = [...new Set(tileset.data.flat().filter((cell): cell is string => !!cell))];
+  const imageByKey = new Map<string, HTMLImageElement>();
+  await Promise.all(
+    uniqueKeys.map(async (key) => {
+      const src = tileTextures[key];
+      if (!src) return;
+      try {
+        imageByKey.set(key, await loadImage(src));
+      } catch {}
+    })
+  );
+
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < TILESET_WIDTH; col++) {
+      const key = tileset.data[row]?.[col];
+      if (!key) continue;
+      const img = imageByKey.get(key);
+      if (!img) continue;
+      ctx.drawImage(img, col * TILE_PX, row * TILE_PX, TILE_PX, TILE_PX);
+    }
+  }
+
+  return canvas.toDataURL('image/png');
+};
+
+const refreshTilesetPreviews = (
+  tilesetIds: string[],
+  syncAfter: boolean,
+  getState: () => GeckodeStore,
+  setState: Parameters<StateCreator<GeckodeStore, [], [], SpriteSlice>>[0],
+) => {
+  if (typeof document === 'undefined' || tilesetIds.length === 0) return;
+  const uniqueIds = [...new Set(tilesetIds)];
+
+  void (async () => {
+    for (const id of uniqueIds) {
+      const stateBefore = getState();
+      const tileset = stateBefore.tilesets.find((ts) => ts.id === id);
+      if (!tileset) continue;
+
+      const tileTextures = stateBefore.getTilesForRendering();
+      const nextPreview = await generateTilesetPreviewBase64(tileset, tileTextures);
+
+      const latestTileset = getState().tilesets.find((ts) => ts.id === id);
+      if (!latestTileset || latestTileset.base64Preview === nextPreview) continue;
+
+      setState((s) => ({
+        tilesets: s.tilesets.map((ts) => (ts.id === id ? { ...ts, base64Preview: nextPreview } : ts)),
+      }));
+
+      if (syncAfter) {
+        setTilesetPreviewSync(id, nextPreview);
+      }
+    }
+  })();
+};
 
 /** deduplicate texture name */
 export const createUniqueTextureName = (name: string, textures: Record<string, string>): string => {
@@ -402,6 +482,10 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
     }
 
     if (type === 'tiles') {
+      const changedTilesetIds = get().tilesets
+        .filter((tileset) => tileset.data.some((row) => row?.some((cell) => cell === name)))
+        .map((tileset) => tileset.id);
+
       const { phaserScene } = get();
       if (phaserScene instanceof EditorScene) {
         phaserScene.updateTileTextureAsync(name, base64Image).then(() => {
@@ -410,6 +494,8 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
           console.error(`Failed to load tile ${name}:`, err);
         });
       }
+
+      refreshTilesetPreviews(changedTilesetIds, syncAfter, get, set);
     }
 
     if (syncAfter) {
@@ -419,7 +505,67 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
   removeAsset: (name: string, type: Exclude<AssetType, 'tilesets'>, syncAfter: boolean = true) => {
     const { libaryTextures, phaserScene } = get();
     const { [name]: _, ...rest } = get()[type];
-    if (type === 'textures') {
+    if (type === 'tiles') {
+      const { tilesets: currentTilesets, tilemaps: currentTilemaps } = get();
+      const changedTilesetIds: string[] = [];
+      const changedTilemapIds: string[] = [];
+
+      const nextTilesets = currentTilesets.map((tileset) => {
+        let changed = false;
+        const nextData = tileset.data.map((row) =>
+          row.map((cell) => {
+            if (cell === name) {
+              changed = true;
+              return null;
+            }
+            return cell;
+          })
+        );
+        if (changed) changedTilesetIds.push(tileset.id);
+        return changed ? { ...tileset, data: nextData } : tileset;
+      });
+
+      const nextTilemaps = Object.fromEntries(
+        Object.entries(currentTilemaps).map(([tilemapId, tilemap]) => {
+          let changed = false;
+          const nextData = tilemap.data.map((row) =>
+            row.map((cell) => {
+              if (cell === name) {
+                changed = true;
+                return null;
+              }
+              return cell;
+            })
+          );
+          if (changed) changedTilemapIds.push(tilemapId);
+          return [tilemapId, changed ? { ...tilemap, data: nextData } : tilemap];
+        })
+      );
+
+      const { [name]: __, ...remainingTileCollidables } = get().tileCollidables;
+      set({
+        [type]: rest,
+        tilesets: nextTilesets,
+        tilemaps: nextTilemaps,
+        tileCollidables: remainingTileCollidables,
+      });
+
+      if (syncAfter) {
+        changedTilesetIds.forEach((id) => {
+          const changedTileset = nextTilesets.find((tileset) => tileset.id === id);
+          if (changedTileset) upsertTilesetSync(changedTileset);
+        });
+
+        changedTilemapIds.forEach((id) => {
+          const changedTilemap = nextTilemaps[id];
+          if (changedTilemap) setTilemapDataSync(id, changedTilemap);
+        });
+      }
+
+      refreshTilesetPreviews(changedTilesetIds, syncAfter, get, set);
+
+      if (changedTilemapIds.length > 0) EventBus.emit('update-tilemap');
+    } else if (type === 'textures') {
       const { [name]: __, ...remainingTextureLoadingState } = get().textureLoadingState;
       set({ [type]: rest, textureLoadingState: remainingTextureLoadingState });
     } else {

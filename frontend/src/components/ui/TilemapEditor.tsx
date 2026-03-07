@@ -82,6 +82,7 @@ const TilemapEditor = () => {
   const setTilemapData = useGeckodeStore((s) => s.setTilemapData);
   const resizeTilemap = useGeckodeStore((s) => s.resizeTilemap);
   const setTilemapTilesetId = useGeckodeStore((s) => s.setTilemapTilesetId);
+  const removeAsset = useGeckodeStore((s) => s.removeAsset);
   const updateTileset = useGeckodeStore((s) => s.updateTileset);
   const setEditingAsset = useGeckodeStore((s) => s.setEditingAsset);
   const tileCollidables = useGeckodeStore((s) => s.tileCollidables);
@@ -829,30 +830,12 @@ const TilemapEditor = () => {
   );
 
   const handleDeleteTile = useCallback(() => {
-    if (!effectiveSingleTile || !activeTilemapId || !tilemap) return;
+    if (!effectiveSingleTile) return;
     const tileToDelete = effectiveSingleTile;
 
     saveToHistory();
-
-    // Remove all placed instances from the tilemap
-    const newData = tilemap.data.map((row) => row.map((cell) => (cell === tileToDelete ? null : cell)));
-    setTilemapData(activeTilemapId, newData);
-    scheduleSaveToScene();
-
-    // Remove from tileset
-    updateActiveTilesetData((data) => {
-      let found = false;
-      for (let r = 0; r < data.length; r++) {
-        for (let c = 0; c < (data[r]?.length ?? 0); c++) {
-          if (data[r][c] === tileToDelete) {
-            data[r][c] = null;
-            found = true;
-          }
-        }
-      }
-      return found ? data : null;
-    });
-  }, [effectiveSingleTile, activeTilemapId, tilemap, saveToHistory, setTilemapData, updateActiveTilesetData, scheduleSaveToScene]);
+    removeAsset(tileToDelete, 'tiles');
+  }, [effectiveSingleTile, saveToHistory, removeAsset]);
 
   const handleSwapTiles = useCallback(() => {
     setSelectedSingleTile(selectedSecondaryTile);

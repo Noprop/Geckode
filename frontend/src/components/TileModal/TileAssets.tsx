@@ -3,7 +3,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { TrashIcon } from '@radix-ui/react-icons';
 import { useGeckodeStore } from '@/stores/geckodeStore';
-import { useSnackbar } from '@/hooks/useSnackbar';
 
 type TabId = 'library' | 'editor' | 'assets';
 
@@ -14,31 +13,13 @@ interface TileAssetsProps {
 const TileAssets = ({ setActiveTab }: TileAssetsProps) => {
   const [searchQuery, setSearchQuery] = useState('');
   const tiles = useGeckodeStore((s) => s.tiles);
-  const tilesets = useGeckodeStore((s) => s.tilesets);
-  const tilemaps = useGeckodeStore((s) => s.tilemaps);
   const setEditingAsset = useGeckodeStore((s) => s.setEditingAsset);
   const removeAsset = useGeckodeStore((s) => s.removeAsset);
-  const showSnackbar = useSnackbar();
 
   const filteredEntries = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     return Object.entries(tiles).filter(([tileName]) => !query || tileName.toLowerCase().includes(query));
   }, [searchQuery, tiles]);
-
-  const isTileInUse = useCallback(
-    (tileKey: string): boolean => {
-      for (const tileset of tilesets) {
-        const used = tileset.data.some((row) => row?.some((cell) => cell === tileKey));
-        if (used) return true;
-      }
-      for (const tilemap of Object.values(tilemaps)) {
-        const used = tilemap.data.some((row) => row?.some((cell) => cell === tileKey));
-        if (used) return true;
-      }
-      return false;
-    },
-    [tilesets, tilemaps],
-  );
 
   const handleTileClick = (tileName: string) => {
     setEditingAsset(tileName, 'tiles', 'asset');
@@ -48,13 +29,9 @@ const TileAssets = ({ setActiveTab }: TileAssetsProps) => {
   const handleDelete = useCallback(
     (e: React.MouseEvent, tileName: string) => {
       e.stopPropagation();
-      if (isTileInUse(tileName)) {
-        showSnackbar('A tile may only be deleted if no tilesets or tilemaps are using it.', 'error');
-        return;
-      }
       removeAsset(tileName, 'tiles');
     },
-    [isTileInUse, removeAsset, showSnackbar],
+    [removeAsset],
   );
 
   return (

@@ -75,4 +75,38 @@ describe("spriteSlice tilemap tileset behavior", () => {
     expect(next.tilesets.some((ts) => ts.id === "tileset_2")).toBe(false);
     expect(next.tilemaps.tilemap_1.tilesetId).toBe(firstTilesetId);
   });
+
+  it("removeAsset for tiles clears usage from all tilemaps and tilesets", () => {
+    const state = getState();
+    state.setAsset("customTile", "data:image/png;base64,abc", "tiles", false);
+    state.setTileCollidable("customTile", true);
+
+    useGeckodeStore.setState((s) => ({
+      tilesets: s.tilesets.map((tileset, idx) => (
+        idx === 0
+          ? { ...tileset, data: tileset.data.map((row, r) => row.map((cell, c) => (r === 0 && c === 0 ? "customTile" : cell))) }
+          : tileset
+      )),
+      tilemaps: {
+        ...s.tilemaps,
+        tilemap_1: {
+          ...s.tilemaps.tilemap_1,
+          data: s.tilemaps.tilemap_1.data.map((row, r) => row.map((cell, c) => (r === 0 && c === 0 ? "customTile" : cell))),
+        },
+        tilemap_2: {
+          ...s.tilemaps.tilemap_1,
+          id: "tilemap_2",
+          data: s.tilemaps.tilemap_1.data.map((row, r) => row.map((cell, c) => (r === 1 && c === 1 ? "customTile" : cell))),
+        },
+      },
+    }));
+
+    getState().removeAsset("customTile", "tiles", false);
+
+    const next = getState();
+    expect(next.tiles.customTile).toBeUndefined();
+    expect(next.tileCollidables.customTile).toBeUndefined();
+    expect(next.tilesets.every((tileset) => tileset.data.every((row) => row.every((cell) => cell !== "customTile")))).toBe(true);
+    expect(Object.values(next.tilemaps).every((tilemap) => tilemap.data.every((row) => row.every((cell) => cell !== "customTile")))).toBe(true);
+  });
 });
