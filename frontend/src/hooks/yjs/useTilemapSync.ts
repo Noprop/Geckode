@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import * as Y from "yjs";
 import { useGeckodeStore } from "@/stores/geckodeStore";
 import { Tilemap } from "@/stores/slices/types";
@@ -100,9 +100,21 @@ const readTilemapsFromY = (tilemapsMap: Y.Map<YTilemap>): Record<string, Tilemap
 export const useTilemapSync = (documentName: string) => {
   const { doc, isSynced, onSynced } = useYjs(documentName);
   const tilemapsMap = doc.getMap<YTilemap>("tilemaps");
+  const remoteEmitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!tilemapsMap) return;
+    const REMOTE_TILEMAP_EMIT_DEBOUNCE_MS = 150;
+
+    const emitRemoteTilemapUpdateDebounced = () => {
+      if (remoteEmitTimeoutRef.current) {
+        clearTimeout(remoteEmitTimeoutRef.current);
+      }
+      remoteEmitTimeoutRef.current = setTimeout(() => {
+        remoteEmitTimeoutRef.current = null;
+        EventBus.emit("update-tilemap");
+      }, REMOTE_TILEMAP_EMIT_DEBOUNCE_MS);
+    };
 
     const handleSync = () => {
       const storeState = useGeckodeStore.getState();
@@ -132,12 +144,18 @@ export const useTilemapSync = (documentName: string) => {
         if (transaction.origin === doc.clientID) return;
         if (!events.length) return;
         useGeckodeStore.setState({ tilemaps: readTilemapsFromY(tilemapsMap) });
-        EventBus.emit("update-tilemap");
+        emitRemoteTilemapUpdateDebounced();
       };
 
       tilemapsMap.observeDeep(observer);
 
-      return () => tilemapsMap.unobserveDeep(observer);
+      return () => {
+        tilemapsMap.unobserveDeep(observer);
+        if (remoteEmitTimeoutRef.current) {
+          clearTimeout(remoteEmitTimeoutRef.current);
+          remoteEmitTimeoutRef.current = null;
+        }
+      };
     };
 
     const cleanup = onSynced(handleSync);
@@ -150,7 +168,13 @@ export const useTilemapSync = (documentName: string) => {
       };
     }
 
-    return cleanup;
+    return () => {
+      cleanup();
+      if (remoteEmitTimeoutRef.current) {
+        clearTimeout(remoteEmitTimeoutRef.current);
+        remoteEmitTimeoutRef.current = null;
+      }
+    };
   }, [tilemapsMap, doc, isSynced, onSynced]);
 };
 
