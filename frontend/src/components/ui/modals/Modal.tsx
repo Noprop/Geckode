@@ -82,7 +82,7 @@ export const Modal: React.FC<ModalProps> = ({
           )}
 
           {children && (
-            <div className='text-sm text-black dark:text-gray-200 p-4 bg-accent-green dark:bg-dark-tertiary'>
+            <div className='text-sm text-black dark:text-gray-200 p-4 bg-light-whiteboard dark:bg-dark-tertiary'>
               {children}
             </div>
           )}

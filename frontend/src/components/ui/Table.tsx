@@ -1,13 +1,5 @@
-"use client";
-import {
-  useEffect,
-  useImperativeHandle,
-  useRef,
-  useState,
-  HTMLAttributes,
-  Dispatch,
-  SetStateAction,
-} from "react";
+'use client';
+import { useEffect, useImperativeHandle, useRef, useState, HTMLAttributes, Dispatch, SetStateAction } from 'react';
 import {
   createColumnHelper,
   flexRender,
@@ -17,13 +9,13 @@ import {
   Row,
   SortingState,
   useReactTable,
-} from "@tanstack/react-table";
-import { BaseFilters } from "@/lib/types/api";
-import { Icon, IconType } from "./Icon";
-import { UserIcon } from "./UserIcon";
-import { InputBox, InputBoxRef } from "./inputs/InputBox";
-import { Option, SelectionBox } from "./selectors/SelectionBox";
-import { useSnackbar } from "@/hooks/useSnackbar";
+} from '@tanstack/react-table';
+import { BaseFilters } from '@/lib/types/api';
+import { Icon, IconType } from './Icon';
+import { UserIcon } from './UserIcon';
+import { InputBox, InputBoxRef } from './inputs/InputBox';
+import { Option, SelectionBox } from './selectors/SelectionBox';
+import { useSnackbar } from '@/hooks/useSnackbar';
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -32,20 +24,17 @@ import {
   MagnifyingGlassIcon,
   TextAlignBottomIcon,
   TextAlignTopIcon,
-} from "@radix-ui/react-icons";
-import { BaseApiInnerReturn, createBaseApi } from "@/lib/api/base";
-import useMultiDebounce from "@/hooks/useMultiDebounce";
-import { formatTimeSince } from "@/lib/time";
+} from '@radix-ui/react-icons';
+import { BaseApiInnerReturn, createBaseApi } from '@/lib/api/base';
+import useMultiDebounce from '@/hooks/useMultiDebounce';
+import { formatTimeSince } from '@/lib/time';
 
 export interface TableRef<TData, TFilters> {
   refresh: () => void;
   data: TData[];
   setData: Dispatch<SetStateAction<TData[]>>;
   setTotalCount: Dispatch<SetStateAction<number>>;
-  updateRowById: (
-    rowId: number | string,
-    updater: (row: TData) => TData,
-  ) => void;
+  updateRowById: (rowId: number | string, updater: (row: TData) => TData) => void;
   addRowIfSpace: (rowId: number | string, row: TData) => void;
   removeRowById: (rowId: number | string) => void;
   filters: Filters<TFilters>;
@@ -62,7 +51,7 @@ interface TableProps<TData, TSortKeys, TApi, TFilters> {
   api: TApi;
   columns: TableColumns<TData>;
   defaultSortField?: TSortKeys;
-  defaultSortDirection?: "asc" | "desc";
+  defaultSortDirection?: 'asc' | 'desc';
   defaultPageSize?: number;
   pageSizeOptions?: number[];
   enableSearch?: boolean;
@@ -80,23 +69,16 @@ interface TableProps<TData, TSortKeys, TApi, TFilters> {
   getRowIdValue?: (row: TData) => number | string | null | undefined;
 }
 
-type ColumnTypes =
-  | "user"
-  | "avatar"
-  | "datetime"
-  | "time-since"
-  | "thumbnail"
-  | "select"
-  | "other";
+type ColumnTypes = 'user' | 'avatar' | 'datetime' | 'time-since' | 'thumbnail' | 'select' | 'other';
 
 interface TableAction<TData> {
   rowIcon: IconType;
   rowIconClicked: (index: number) => void;
-  rowIconClassName?: HTMLAttributes<HTMLElement>["className"];
+  rowIconClassName?: HTMLAttributes<HTMLElement>['className'];
   rowIconSize?: number;
   canUse?: (row: TData) => boolean;
   modalIcon?: IconType;
-  modalIconClassName?: HTMLAttributes<HTMLElement>["className"];
+  modalIconClassName?: HTMLAttributes<HTMLElement>['className'];
   modalTitle?: string;
   modalContent?: React.ReactNode;
   modalActions?: React.ReactNode;
@@ -104,7 +86,7 @@ interface TableAction<TData> {
 
 // Column Map specifies fields/methods for each column
 type ColumnMap<TData> = {
-  key: keyof TData | [keyof TData, ...string[]] | ".";
+  key: keyof TData | [keyof TData, ...string[]] | '.';
   value?: (field: any) => any;
   type?: ColumnTypes;
   hidden?: boolean;
@@ -122,15 +104,13 @@ export const Table = <
   TPayload extends Record<string, any>,
   TFilters extends BaseFilters,
   TSortKeys extends string,
-  TApi extends BaseApiInnerReturn<
-    typeof createBaseApi<TData, TPayload, TFilters>
-  >,
+  TApi extends BaseApiInnerReturn<typeof createBaseApi<TData, TPayload, TFilters>>,
 >({
   ref,
   api,
   columns,
   defaultSortField,
-  defaultSortDirection = "asc",
+  defaultSortDirection = 'asc',
   defaultPageSize = 10,
   pageSizeOptions = [5, 10, 25, 50],
   enableSearch = true,
@@ -138,13 +118,13 @@ export const Table = <
   handleRowClick = () => {},
   actions,
   extras,
-  style = "",
-  rowStyle = "",
+  style = '',
+  rowStyle = '',
   showHeader = true,
-  noResultsMessage = "No results to display.",
+  noResultsMessage = 'No results to display.',
   initialFilters = {},
   showControls = true,
-  initialSearch = "",
+  initialSearch = '',
   getRowIdValue,
 }: TableProps<TData, TSortKeys, TApi, TFilters>) => {
   const showSnackbar = useSnackbar();
@@ -171,8 +151,7 @@ export const Table = <
     },
   });
 
-  const getValueAtPath = (row: TData, path: string[]) =>
-    path.reduce((acc: any, key) => acc?.[key], row);
+  const getValueAtPath = (row: TData, path: string[]) => path.reduce((acc: any, key) => acc?.[key], row);
 
   const inferRowId = (row: TData): number | string | null | undefined => {
     if (getRowIdValue) {
@@ -182,9 +161,7 @@ export const Table = <
     const idColumnKey = columns?.id?.key;
     if (!idColumnKey) return undefined;
 
-    const idPath = Array.isArray(idColumnKey)
-      ? (idColumnKey as string[])
-      : [idColumnKey as string];
+    const idPath = Array.isArray(idColumnKey) ? (idColumnKey as string[]) : [idColumnKey as string];
 
     return getValueAtPath(row, idPath);
   };
@@ -196,14 +173,12 @@ export const Table = <
         page: pagination.pageIndex + 1,
         limit: pagination.pageSize,
         ordering: sorting.length
-          ? (sorting[0].desc ? "-" : "") +
+          ? (sorting[0].desc ? '-' : '') +
             ((Array.isArray(columns[sorting[0].id].key)
               ? (columns[sorting[0].id].key as string[]).at(-1)
               : columns[sorting[0].id].key) as string)
           : defaultSortField
-            ? `${defaultSortDirection === "desc" ? "-" : ""}${
-                defaultSortField as string
-              }`
+            ? `${defaultSortDirection === 'desc' ? '-' : ''}${defaultSortField as string}`
             : undefined,
         search: searchInput.trim(),
         ...filters,
@@ -215,13 +190,10 @@ export const Table = <
       .catch((err) => {
         // Try again with previous page (ex: if a deletion occurs on the last page
         //                    it will throw an error due to the page not existing)
-        if (
-          err?.response?.data?.detail === "Invalid page." &&
-          pagination.pageIndex > 0
-        ) {
+        if (err?.response?.data?.detail === 'Invalid page.' && pagination.pageIndex > 0) {
           setPagination((prev) => ({ ...prev, pageIndex: prev.pageIndex - 1 }));
         } else {
-          showSnackbar("Failed to fetch the table!", "error");
+          showSnackbar('Failed to fetch the table!', 'error');
         }
       })
       .finally(() => {
@@ -238,32 +210,19 @@ export const Table = <
   }, [searchInput]);
 
   const cellRenderers: Partial<
-    Record<
-      ColumnTypes,
-      (value: any, column: ColumnMap<TData>, rowId: number) => React.ReactNode
-    >
+    Record<ColumnTypes, (value: any, column: ColumnMap<TData>, rowId: number) => React.ReactNode>
   > = {
-    user: (value) => (
-      <UserIcon user={value} variant="inline" />
-    ),
-    avatar: (value) => (
-      <UserIcon user={value} variant="avatar" size="lg" />
-    ),
+    user: (value) => <UserIcon user={value} variant='inline' />,
+    avatar: (value) => <UserIcon user={value} variant='avatar' size='lg' />,
     datetime: (value) => new Date(value).toLocaleString(),
-    "time-since": (value) => formatTimeSince(value),
+    'time-since': (value) => formatTimeSince(value),
     thumbnail: (value) => (
-      <div className="h-13 w-13 overflow-hidden rounded-xs">
-        <img
-          src={value || "/user-icon.png"}
-          alt="Thumbnail/Icon"
-          className={`size-full object-cover`}
-        />
+      <div className='h-13 w-13 overflow-hidden rounded-xs'>
+        <img src={value || '/user-icon.png'} alt='Thumbnail/Icon' className={`size-full object-cover`} />
       </div>
     ),
     select: (value, column, rowId) => {
-      const path = Array.isArray(column.key)
-        ? (column.key as string[])
-        : [column.key as string];
+      const path = Array.isArray(column.key) ? (column.key as string[]) : [column.key as string];
 
       const setRowValueAtPath = (row: TData, path: string[], newValue: unknown): TData => {
         if (path.length === 1) {
@@ -284,67 +243,55 @@ export const Table = <
           onChange={(e) => {
             const newValue = e.target.value;
             api(
-              (Array.isArray(columns.id.key)
-                ? columns.id.key
-                : [columns.id.key]
-              ).reduce((acc: any, key) => acc?.[key], data[rowId]),
+              (Array.isArray(columns.id.key) ? columns.id.key : [columns.id.key]).reduce(
+                (acc: any, key) => acc?.[key],
+                data[rowId],
+              ),
             )
               .update({
-                [(Array.isArray(column.key)
-                  ? (column.key as string[]).at(-1)
-                  : column.key) as keyof TData]: newValue,
+                [(Array.isArray(column.key) ? (column.key as string[]).at(-1) : column.key) as keyof TData]: newValue,
               } as unknown as Partial<TPayload>)
               .then(() => {
                 setData((prev) =>
-                  prev.map((row, i) =>
-                    i === rowId ? setRowValueAtPath({ ...row }, path, newValue) : row,
-                  ),
+                  prev.map((row, i) => (i === rowId ? setRowValueAtPath({ ...row }, path, newValue) : row)),
                 );
               })
               .catch(() => {
-                showSnackbar(
-                  "Something went wrong. Please try again later.",
-                  "error",
-                );
+                showSnackbar('Something went wrong. Please try again later.', 'error');
               });
           }}
-          className="w-full"
+          className='w-full'
         />
       );
     },
   };
-  const defaultRenderer = (value: any) => value?.toString() ?? "";
+  const defaultRenderer = (value: any) => value?.toString() ?? '';
 
   const columnHelper = createColumnHelper<TData>();
   const columnDefinitions = [
     ...Object.keys(columns).map((label) => {
       const columnMapper = columns[label];
-      const renderer =
-        cellRenderers[columnMapper.type ?? "other"] ?? defaultRenderer;
+      const renderer = cellRenderers[columnMapper.type ?? 'other'] ?? defaultRenderer;
 
       return columnHelper.accessor(
         (row: TData) =>
-          (Array.isArray(columnMapper.key)
-            ? columnMapper.key
-            : [columnMapper.key]
-          ).reduce((acc: any, key) => (key === "." ? acc : acc?.[key]), row),
+          (Array.isArray(columnMapper.key) ? columnMapper.key : [columnMapper.key]).reduce(
+            (acc: any, key) => (key === '.' ? acc : acc?.[key]),
+            row,
+          ),
         {
           id: label,
           cell: (context) =>
             columnMapper.hidden
-              ? ""
+              ? ''
               : renderer(
-                  columnMapper.value
-                    ? columnMapper.value(context.getValue())
-                    : context.getValue(),
+                  columnMapper.value ? columnMapper.value(context.getValue()) : context.getValue(),
                   columnMapper,
                   Number(context.row.id),
                 ),
-          header: columnMapper.hidden || columnMapper.hideLabel ? "" : label,
+          header: columnMapper.hidden || columnMapper.hideLabel ? '' : label,
           enableSorting: (sortKeys as Array<keyof TData>).includes(
-            (Array.isArray(columnMapper.key)
-              ? (columnMapper.key as string[]).at(-1)
-              : columnMapper.key) as string,
+            (Array.isArray(columnMapper.key) ? (columnMapper.key as string[]).at(-1) : columnMapper.key) as string,
           ),
           enableColumnFilter: false, // Temporary
           meta: {
@@ -356,13 +303,11 @@ export const Table = <
     }),
     ...(actions?.length
       ? [
-          columnHelper.accessor("actions" as any, {
-            id: "actions",
+          columnHelper.accessor('actions' as any, {
+            id: 'actions',
             cell: (context) =>
               actions.map((action, index) => {
-                const canUseAction =
-                  action.canUse === undefined ||
-                  action.canUse(data[Number(context.row.id)]);
+                const canUseAction = action.canUse === undefined || action.canUse(data[Number(context.row.id)]);
 
                 if (!canUseAction) return;
 
@@ -371,10 +316,7 @@ export const Table = <
                     key={index}
                     icon={action.rowIcon}
                     size={action.rowIconSize}
-                    className={
-                      action.rowIconClassName +
-                      " mx-1 invisible group-hover/row:visible"
-                    }
+                    className={action.rowIconClassName + ' mx-1 invisible group-hover/row:visible'}
                     onClick={(e) => {
                       if (!canUseAction) return;
                       e.stopPropagation();
@@ -383,11 +325,11 @@ export const Table = <
                   />
                 );
               }),
-            header: "",
+            header: '',
             enableSorting: false,
             enableColumnFilter: false,
             meta: {
-              style: "text-right pr-2 w-px whitespace-nowrap",
+              style: 'text-right pr-2 w-px whitespace-nowrap',
             },
           }),
         ]
@@ -486,18 +428,18 @@ export const Table = <
   return (
     <div className={`block ${style}`}>
       {enableSearch || extras ? (
-        <div className="flex items-center">
+        <div className='flex items-center'>
           {enableSearch ? (
-            <div className="flex">
-              <div className="relative w-64 mx-2 my-4">
+            <div className='flex'>
+              <div className='relative w-64 mx-2 my-4'>
                 <Icon
                   icon={MagnifyingGlassIcon}
                   size={20}
-                  className="absolute left-2 top-1/2 transform -translate-y-1/2"
+                  className='absolute left-2 top-1/2 transform -translate-y-1/2'
                 />
                 <InputBox
-                  className="pl-9 pr-2 h-10 w-full border rounded"
-                  placeholder="Search"
+                  className='pl-9 pr-2 h-10 w-full border border-gray-400/50 rounded'
+                  placeholder='Search'
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
                 />
@@ -506,21 +448,21 @@ export const Table = <
           ) : (
             <div></div>
           )}
-          <div className="flex justify-end mx-2 w-full">{extras}</div>
+          <div className='flex justify-end mx-2 w-full'>{extras}</div>
         </div>
       ) : null}
 
-      <div className="relative">
+      <div className='relative'>
         {loading && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center bg-dark-secondary/50 dark:bg-white/50 backdrop-blur-[1px]">
-            <div className="flex flex-col items-center">
-              <div className="w-10 h-10 border-4 border-white/80 border-t-transparent rounded-full animate-spin"></div>
+          <div className='absolute inset-0 z-10 flex items-center justify-center bg-dark-secondary/50 dark:bg-white/50 backdrop-blur-[1px]'>
+            <div className='flex flex-col items-center'>
+              <div className='w-10 h-10 border-4 border-white/80 border-t-transparent rounded-full animate-spin'></div>
             </div>
           </div>
         )}
-        <table className="w-full">
+        <table className='w-full'>
           {showHeader && (
-            <thead className="table-header">
+            <thead className='table-header'>
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id}>
                   {headerGroup.headers.map((header) => {
@@ -532,22 +474,16 @@ export const Table = <
                       visible && (
                         <th
                           key={header.id}
-                          className="text-left select-none px-2"
-                          onClick={
-                            canSort
-                              ? header.column.getToggleSortingHandler()
-                              : undefined
-                          }
-                          style={{ cursor: canSort ? "pointer" : "default" }}
+                          className='text-left select-none px-2 '
+                          onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
+                          style={{ cursor: canSort ? 'pointer' : 'default' }}
                         >
-                          <span className="inline-flex items-center text-black dark:text-white">
+                          <span className='inline-flex items-center text-light-txt dark:text-dark-txt'>
                             {header.isPlaceholder ? null : (
                               <>
                                 {header.column.columnDef.header}
                                 {header.column.getCanFilter() ? (
-                                  <>
-                                    {/* Need to figure out what to put here */}
-                                  </>
+                                  <>{/* Need to figure out what to put here */}</>
                                 ) : // <InputBox
                                 //   onChange={e =>
                                 //     setColumnFilters(old => [
@@ -562,16 +498,9 @@ export const Table = <
                             )}
                             {header.column.columnDef.header ? (
                               <Icon
-                                icon={
-                                  sortDirection === "asc"
-                                    ? TextAlignTopIcon
-                                    : TextAlignBottomIcon
-                                }
+                                icon={sortDirection === 'asc' ? TextAlignTopIcon : TextAlignBottomIcon}
                                 size={20}
-                                className={
-                                  "ml-3 " +
-                                  (sortDirection ? "opacity-100" : "opacity-0")
-                                }
+                                className={'ml-3 ' + (sortDirection ? 'opacity-100' : 'opacity-0')}
                               />
                             ) : null}
                           </span>
@@ -586,34 +515,21 @@ export const Table = <
           <tbody>
             {table.getRowModel().rows.length > 0 ? (
               table.getRowModel().rows.map((row) => (
-                <tr
-                  onClick={() => handleRowClick(row)}
-                  key={row.id}
-                  className={`table-row group/row font-semibold`}
-                >
+                <tr onClick={() => handleRowClick(row)} key={row.id} className={`table-row group/row font-semibold`}>
                   {row.getVisibleCells().map((cell) => (
                     <td
                       key={cell.id}
                       className={`border-b border-gray-500 px-2 ${rowStyle}
-                                ${
-                                  (cell.column.columnDef.meta as any)?.style ??
-                                  ""
-                                }`}
+                                ${(cell.column.columnDef.meta as any)?.style ?? ''}`}
                     >
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext(),
-                      )}
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}
                 </tr>
               ))
             ) : (
               <tr>
-                <td
-                  colSpan={table.getVisibleLeafColumns().length}
-                  className="h-12 text-center text-gray-400 italic"
-                >
+                <td colSpan={table.getVisibleLeafColumns().length} className='h-12 text-center text-gray-400 italic'>
                   {noResultsMessage}
                 </td>
               </tr>
@@ -623,11 +539,11 @@ export const Table = <
       </div>
 
       {showControls && (
-        <div className="flex justify-between items-center mt-4">
-          <div className="mx-2">
+        <div className='flex justify-between items-center mt-4'>
+          <div className='mx-2'>
             <span>Display</span>
             <SelectionBox
-              className="ml-2 mr-2"
+              className='ml-2 mr-2'
               defaultValue={pagination.pageSize}
               options={pageSizeOptions.map((option) => ({
                 label: option,
@@ -642,21 +558,17 @@ export const Table = <
             />
             <span>per page</span>
           </div>
-          <div className="flex items-center">
-            <span className="font-bold mx-2">
-              {totalCount ? pagination.pageIndex * pagination.pageSize + 1 : 0}{" "}
-              -{" "}
-              {Math.min(
-                totalCount,
-                (pagination.pageIndex + 1) * pagination.pageSize,
-              )}
-              <span style={{ fontWeight: "normal" }}> of </span>
+          <div className='flex items-center'>
+            <span className='font-bold mx-2'>
+              {totalCount ? pagination.pageIndex * pagination.pageSize + 1 : 0} -{' '}
+              {Math.min(totalCount, (pagination.pageIndex + 1) * pagination.pageSize)}
+              <span style={{ fontWeight: 'normal' }}> of </span>
               {totalCount}
             </span>
             <Icon
               icon={DoubleArrowLeftIcon}
               size={15}
-              className="mx-2"
+              className='mx-2'
               onClick={() => {
                 setPagination((prev) => ({
                   ...prev,
@@ -676,27 +588,25 @@ export const Table = <
               }}
               disabled={pagination.pageIndex === 0}
             />
-            <div className="flex items-center mx-3">
-              <div className="w-15 flex items-center justify-center">
+            <div className='flex items-center mx-3'>
+              <div className='w-15 flex items-center justify-center'>
                 <InputBox
                   ref={pageNumberInputRef}
                   value={String(pagination.pageIndex + 1)}
-                  className="h-9 text-center border"
+                  className='h-9 text-center border'
                   onChange={(e) => {
                     setPagination((prev) => ({
                       ...prev,
                       pageIndex:
                         Math.min(
                           Math.ceil(totalCount / pagination.pageSize),
-                          Math.max(Number(e.target.value.replace(/\D/g, "")), 1),
+                          Math.max(Number(e.target.value.replace(/\D/g, '')), 1),
                         ) - 1,
                     }));
                   }}
                 />
               </div>
-              <span className="ml-2">
-                of {Math.max(1, Math.ceil(totalCount / pagination.pageSize))}
-              </span>
+              <span className='ml-2'>of {Math.max(1, Math.ceil(totalCount / pagination.pageSize))}</span>
             </div>
             <Icon
               icon={ChevronRightIcon}
@@ -704,29 +614,22 @@ export const Table = <
               onClick={() => {
                 setPagination((prev) => ({
                   ...prev,
-                  pageIndex:
-                    (prev.pageIndex + 1) * prev.pageSize < totalCount
-                      ? prev.pageIndex + 1
-                      : prev.pageIndex,
+                  pageIndex: (prev.pageIndex + 1) * prev.pageSize < totalCount ? prev.pageIndex + 1 : prev.pageIndex,
                 }));
               }}
-              disabled={
-                (pagination.pageIndex + 1) * pagination.pageSize >= totalCount
-              }
+              disabled={(pagination.pageIndex + 1) * pagination.pageSize >= totalCount}
             />
             <Icon
               icon={DoubleArrowRightIcon}
               size={15}
-              className="mx-2"
+              className='mx-2'
               onClick={() => {
                 setPagination((prev) => ({
                   ...prev,
                   pageIndex: Math.ceil(totalCount / prev.pageSize) - 1,
                 }));
               }}
-              disabled={
-                (pagination.pageIndex + 1) * pagination.pageSize >= totalCount
-              }
+              disabled={(pagination.pageIndex + 1) * pagination.pageSize >= totalCount}
             />
           </div>
         </div>

@@ -30,11 +30,7 @@ export default function ProjectControls(): ReactNode {
   }, [persistence]);
 
   useEffect(() => {
-    setShareModalProjectData(data =>
-      data
-        ? { ...data, permission: projectPermission, name: projectName }
-        : null
-    );
+    setShareModalProjectData((data) => (data ? { ...data, permission: projectPermission, name: projectName } : null));
   }, [projectPermission, projectName]);
 
   const handleSave = () => {
@@ -59,7 +55,7 @@ export default function ProjectControls(): ReactNode {
           value={projectName}
           onChange={(e) => setProjectName(e.target.value)}
           placeholder='Project Name'
-          className='h-8 px-3 rounded-md bg-white/15 text-white text-sm placeholder-white/60 outline-none border border-white/20 transition focus:bg-white/25 focus:border-white/40'
+          className='px-3 header-line-edit'
           style={{ width: '160px' }}
           disabled={!canEditProject}
         />
@@ -115,13 +111,16 @@ export default function ProjectControls(): ReactNode {
         <button
           onClick={() => {
             if (!projectId) return;
-            projectsApi(projectId).get().then((project) => {
-              setShareModalProjectData(project);
-            }).catch(() => {
-              showSnackbar("Was not able to fetch project data. Please try again.", "error");
-            });
+            projectsApi(projectId)
+              .get()
+              .then((project) => {
+                setShareModalProjectData(project);
+              })
+              .catch(() => {
+                showSnackbar('Was not able to fetch project data. Please try again.', 'error');
+              });
           }}
-          title="Share Project"
+          title='Share Project'
           className='header-btn'
         >
           <Share1Icon className='w-4 h-4' />
@@ -129,10 +128,7 @@ export default function ProjectControls(): ReactNode {
       </div>
 
       {shareModalProjectData && (
-        <ProjectShareModal
-          onClose={() => setShareModalProjectData(null)}
-          project={shareModalProjectData}
-        />
+        <ProjectShareModal onClose={() => setShareModalProjectData(null)} project={shareModalProjectData} />
       )}
     </>
   );

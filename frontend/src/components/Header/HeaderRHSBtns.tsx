@@ -51,11 +51,11 @@ const HeaderRHSBtns = () => {
       </button>
 
       <DropDownButton
-        className='header-btn'
+        className={!user || !user.avatar ? 'header-btn' : ''}
         title='User'
         optionsMapping={{
           ...{
-            'Account Settings': 'tbd',
+            'Account Settings': () => {}, // TODO: link account settings once implemented
             'My Projects': '/projects',
             'My Organizations': '/organizations',
           },
@@ -73,7 +73,7 @@ const HeaderRHSBtns = () => {
           !user || !user.avatar ? (
             <PersonIcon className='w-5 h-5' />
           ) : (
-            <UserIcon user={user} variant="avatar" size="md" />
+            <UserIcon user={user} variant='avatar' size='md' />
           )
         }
       </DropDownButton>

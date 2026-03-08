@@ -15,7 +15,7 @@ export default function Header({ lhs, middle, rhs }: Props) {
       {/* Left section - Logo */}
       <div className='flex items-center basis-1/3'>
         <Link href='/' className='hover:opacity-90 transition-opacity overflow-hidden h-10'>
-          <p className='text-3xl'>Geckode</p>
+          <p className='text-3xl text-white'>Geckode</p>
         </Link>
 
         {/* Project controls section - Scratch style */}

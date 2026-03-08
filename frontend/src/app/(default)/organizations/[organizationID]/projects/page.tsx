@@ -1,25 +1,25 @@
-"use client";
+'use client';
 
-import organizationsApi from "@/lib/api/handlers/organizations";
+import organizationsApi from '@/lib/api/handlers/organizations';
 import {
   OrganizationProject,
   OrganizationProjectFilters,
   OrganizationProjectPayload,
   organizationProjectSortKeys,
   OrganizationProjectSortKeys,
-} from "@/lib/types/api/organizations/projects";
-import { useRef, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { Table, TableRef } from "@/components/ui/Table";
-import { Button } from "@/components/ui/Button";
-import { Modal } from "@/components/ui/modals/Modal";
-import { InputBox, InputBoxRef } from "@/components/ui/inputs/InputBox";
-import { useSnackbar } from "@/hooks/useSnackbar";
-import projectsApi from "@/lib/api/handlers/projects";
-import { Project, ProjectPermissions, projectPermissions } from "@/lib/types/api/projects";
-import DragAndDrop, { DragAndDropRef } from "@/components/DragAndDrop";
-import { ExclamationTriangleIcon, FilePlusIcon, GearIcon, TrashIcon } from "@radix-ui/react-icons";
-import { extractAxiosErrMsg } from "@/lib/api/axios";
+} from '@/lib/types/api/organizations/projects';
+import { useRef, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { Table, TableRef } from '@/components/ui/Table';
+import { Button } from '@/components/ui/Button';
+import { Modal } from '@/components/ui/modals/Modal';
+import { InputBox, InputBoxRef } from '@/components/ui/inputs/InputBox';
+import { useSnackbar } from '@/hooks/useSnackbar';
+import projectsApi from '@/lib/api/handlers/projects';
+import { Project, ProjectPermissions, projectPermissions } from '@/lib/types/api/projects';
+import DragAndDrop, { DragAndDropRef } from '@/components/DragAndDrop';
+import { ExclamationTriangleIcon, FilePlusIcon, GearIcon, TrashIcon } from '@radix-ui/react-icons';
+import { extractAxiosErrMsg } from '@/lib/api/axios';
 
 export default function ProjectsPage() {
   const router = useRouter();
@@ -34,22 +34,22 @@ export default function ProjectsPage() {
   const autoProjectOpenRef = useRef<InputBoxRef | null>(null);
   const permissionDropdownView = useRef<HTMLSelectElement | null>(null);
 
-  const [showModal, setShowModal] = useState<null | "create" | "delete">(null);
+  const [showModal, setShowModal] = useState<null | 'create' | 'delete'>(null);
   const [rowIndex, setRowIndex] = useState<number>(0);
 
   const createProject = () => {
     // first create project with projects API, then register it as an org project with orgProjectsApi
     console.log({
-      name: projectNameRef?.current?.inputValue || "",
+      name: projectNameRef?.current?.inputValue || '',
       thumbnail: dropboxRef.current?.files?.length! > 0 ? dropboxRef.current?.files![0] : null,
     });
     projectsApi
       .create({
-        name: projectNameRef?.current?.inputValue || "",
+        name: projectNameRef?.current?.inputValue || '',
         thumbnail: dropboxRef.current?.files?.length! > 0 ? dropboxRef.current?.files![0] : null,
       })
       .then((project) => {
-        const _permission = permissionDropdownView.current?.value ?? "view";
+        const _permission = permissionDropdownView.current?.value ?? 'view';
         orgProjectsApi
           .create({
             project_id: project.id,
@@ -64,36 +64,36 @@ export default function ProjectsPage() {
             }
           })
           .catch((err) => {
-            showSnackbar(extractAxiosErrMsg(err, "Assigning project to organization failed!"), "error");
+            showSnackbar(extractAxiosErrMsg(err, 'Assigning project to organization failed!'), 'error');
             projectsApi(project.id).delete(); // remove project from database
           });
       })
-      .catch((err) => showSnackbar(extractAxiosErrMsg(err, "Creating project failed!"), "error"));
+      .catch((err) => showSnackbar(extractAxiosErrMsg(err, 'Creating project failed!'), 'error'));
   };
 
   const deleteProject = () => {
-    const projectId = tableRef.current?.data[rowIndex]["project"]["id"];
+    const projectId = tableRef.current?.data[rowIndex]['project']['id'];
 
     if (!projectId) return;
 
     projectsApi(projectId)
       .delete()
       .then((res) => {
-        showSnackbar("Succesfully deleted the project!", "success");
+        showSnackbar('Succesfully deleted the project!', 'success');
         setShowModal(null);
         tableRef.current?.refresh();
       })
-      .catch((err) => showSnackbar("Something went wrong. Please try again.", "error"));
+      .catch((err) => showSnackbar('Something went wrong. Please try again.', 'error'));
   };
 
   return (
-    <div className="mx-20 my-5">
-      <div className="w-full flex">
-        <h1 className="header-1">Projects</h1>
+    <div className='mx-20 my-5'>
+      <div className='w-full flex'>
+        <h1 className='header-1'>Projects</h1>
 
-        <div className="w-full flex justify-end">
+        <div className='w-full flex justify-end'>
           <GearIcon
-            className="h-full w-7 transition-transform hover:rotate-22 hover:cursor-pointer"
+            className='h-full w-7 transition-transform hover:rotate-22 hover:cursor-pointer'
             onClick={() => router.push(`/organizations/${Number(organizationID)}/settings`)}
           />
         </div>
@@ -109,69 +109,69 @@ export default function ProjectsPage() {
         api={orgProjectsApi}
         columns={{
           id: {
-            key: "project",
+            key: 'project',
             value: (orgProj: Project) => orgProj.id,
             hidden: true,
           },
           Thumbnail: {
-            key: "project",
+            key: 'project',
             value: (orgProj: Project) => orgProj.thumbnail,
-            type: "thumbnail",
+            type: 'thumbnail',
           },
           Name: {
-            key: "project",
+            key: 'project',
             value: (orgProj: Project) => orgProj.name,
           },
           Owner: {
-            key: "project",
+            key: 'project',
             value: (orgProj: Project) => orgProj.owner,
-            type: "user",
+            type: 'user',
           },
-          "Created At": {
-            key: "project",
+          'Created At': {
+            key: 'project',
             value: (orgProj: Project) => orgProj.created_at,
-            type: "datetime",
+            type: 'datetime',
           },
         }}
         sortKeys={organizationProjectSortKeys}
-        defaultSortDirection="desc"
-        handleRowClick={(row) => (window.location.href = `/projects/${(row.getValue("id") as Project).id}/`)}
+        defaultSortDirection='desc'
+        handleRowClick={(row) => (window.location.href = `/projects/${(row.getValue('id') as Project).id}/`)}
         actions={[
           {
             rowIcon: TrashIcon,
             rowIconSize: 24,
             rowIconClicked: (index) => {
               setRowIndex(index);
-              setShowModal("delete");
+              setShowModal('delete');
             },
-            rowIconClassName: "hover:text-red-500 mt-1",
-            canUse: (project) => project.permission === "admin",
+            rowIconClassName: 'hover:text-red-500 mt-1',
+            canUse: (project) => project.permission === 'admin',
           },
         ]}
         extras={
           <>
-            <Button onClick={() => setShowModal("create")} className="btn-confirm">
+            <Button onClick={() => setShowModal('create')} className='btn-confirm'>
               Create Project
             </Button>
           </>
         }
-        rowStyle="py-2"
+        rowStyle='py-2'
       />
 
-      {showModal === "create" ? (
+      {showModal === 'create' ? (
         <Modal
-          title="Create Project"
+          title='Create Project'
           icon={FilePlusIcon}
           actions={
             <>
-              <Button onClick={createProject} className="btn-confirm ml-3">
+              <Button onClick={createProject} className='btn-confirm ml-3'>
                 Create
               </Button>
               <Button
                 onClick={() => {
                   setShowModal(null);
                 }}
-                className="btn-neutral"
+                className='btn-neutral'
               >
                 Cancel
               </Button>
@@ -179,10 +179,10 @@ export default function ProjectsPage() {
           }
         >
           Please enter a name for your project:
-          <div className="flex flex-col">
-            <InputBox ref={projectNameRef} placeholder="Project name" className="bg-white text-black mb-3 border-0" />
+          <div className='flex flex-col'>
+            <InputBox ref={projectNameRef} placeholder='Project name' className='bg-white text-black mb-3 border-0' />
             <p>Default user permission:</p>
-            <select ref={permissionDropdownView} className="bg-white text-black mb-3 p-2 rounded-md">
+            <select ref={permissionDropdownView} className='bg-white text-black mb-3 p-2 rounded-md'>
               {Object.entries(projectPermissions).map(([key, label]) => (
                 <option key={key} value={key}>
                   {label}
@@ -190,22 +190,22 @@ export default function ProjectsPage() {
               ))}
             </select>
             <p>Project Thumbnail:</p>
-            <DragAndDrop ref={dropboxRef} accept="image/*" multiple={false} />
-            <div className="flex align-center">
-              <InputBox ref={autoProjectOpenRef} type="checkbox" defaultChecked={true} className="mr-2" />
+            <DragAndDrop ref={dropboxRef} accept='image/*' multiple={false} />
+            <div className='flex align-center'>
+              <InputBox ref={autoProjectOpenRef} type='checkbox' defaultChecked={true} className='mr-2' />
               Automatically open the project after creation
             </div>
           </div>
         </Modal>
-      ) : showModal === "delete" ? (
+      ) : showModal === 'delete' ? (
         <Modal
-          className="bg-red-500"
-          title="Delete Project"
-          subtitle={tableRef.current?.data?.[rowIndex].project["name"]}
+          className='bg-red-500'
+          title='Delete Project'
+          subtitle={tableRef.current?.data?.[rowIndex].project['name']}
           icon={ExclamationTriangleIcon}
           actions={
             <>
-              <Button onClick={deleteProject} className="btn-deny ml-3">
+              <Button onClick={deleteProject} className='btn-deny ml-3'>
                 Delete
               </Button>
               <Button
@@ -213,7 +213,7 @@ export default function ProjectsPage() {
                   setShowModal(null);
                   dropboxRef.current?.setFiles([]);
                 }}
-                className="btn-neutral"
+                className='btn-neutral'
               >
                 Cancel
               </Button>
