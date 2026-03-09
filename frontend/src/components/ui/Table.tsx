@@ -57,6 +57,7 @@ interface TableProps<TData, TSortKeys, TApi, TFilters> {
   enableSearch?: boolean;
   sortKeys?: TSortKeys[];
   handleRowClick?: (row: Row<TData>) => void;
+  handleRowDoubleClick?: (row: Row<TData>) => void;
   actions?: TableAction<TData>[];
   extras?: React.ReactNode;
   style?: string;
@@ -116,6 +117,7 @@ export const Table = <
   enableSearch = true,
   sortKeys = [],
   handleRowClick = () => {},
+  handleRowDoubleClick,
   actions,
   extras,
   style = '',
@@ -515,7 +517,12 @@ export const Table = <
           <tbody>
             {table.getRowModel().rows.length > 0 ? (
               table.getRowModel().rows.map((row) => (
-                <tr onClick={() => handleRowClick(row)} key={row.id} className={`table-row group/row font-semibold`}>
+                <tr
+                  onClick={() => handleRowClick(row)}
+                  onDoubleClick={handleRowDoubleClick ? () => handleRowDoubleClick(row) : undefined}
+                  key={row.id}
+                  className='table-row group/row font-semibold cursor-pointer'
+                >
                   {row.getVisibleCells().map((cell) => (
                     <td
                       key={cell.id}

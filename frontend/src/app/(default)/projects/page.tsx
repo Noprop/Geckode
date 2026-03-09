@@ -8,45 +8,78 @@ import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/modals/Modal';
 import { InputBox, InputBoxRef } from '@/components/ui/inputs/InputBox';
 import { useSnackbar } from '@/hooks/useSnackbar';
-import DragAndDrop, { DragAndDropRef } from '@/components/DragAndDrop';
 import { convertFormData } from '@/lib/api/base';
+import { ThumbnailUpload } from '@/components/ui/ThumbnailUpload';
 import { FilePlusIcon, GearIcon, Share1Icon, TrashIcon } from '@radix-ui/react-icons';
 import { ProjectShareModal } from '@/components/ui/modals/ProjectShareModal';
 import { SelectionBox } from '@/components/ui/selectors/SelectionBox';
 import { useUser } from '@/contexts/UserContext';
-import { useRouter } from 'next/navigation';
 import { extractAxiosErrMsg } from '@/lib/api/axios';
+import type { AxiosError } from 'axios';
+import { SidePanel } from '@/components/ui/SidePanel';
+import { ProjectDetailPanel } from '@/components/ui/ProjectDetailPanel';
+import { EditableTextField } from '@/components/ui/inputs/EditableTextField';
+import type { Row } from '@tanstack/react-table';
+
+const ROW_SINGLE_CLICK_DELAY_MS = 300;
 
 export default function ProjectsPage() {
-  const router = useRouter();
   const showSnackbar = useSnackbar();
   const user = useUser();
 
-  const dropboxRef = useRef<DragAndDropRef>(null);
   const tableRef = useRef<TableRef<Project, ProjectFilters> | null>(null);
   const projectNameRef = useRef<InputBoxRef | null>(null);
   const autoProjectOpenRef = useRef<InputBoxRef | null>(null);
+  const openPanelTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [showModal, setShowModal] = useState<null | 'create' | 'delete' | 'share'>(null);
-  const [rowIndex, setRowIndex] = useState<number>(0);
+  const [showModal, setShowModal] = useState<null | "create" | "delete" | "share">(null);
+  const [projectToShare, setProjectToShare] = useState<Project | null>(null);
+  const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [createThumbnailFile, setCreateThumbnailFile] = useState<File | null>(null);
+
+  const handleRowClick = (row: Row<Project>) => {
+    if (openPanelTimeoutRef.current) clearTimeout(openPanelTimeoutRef.current);
+    openPanelTimeoutRef.current = setTimeout(() => {
+      openPanelTimeoutRef.current = null;
+      setSelectedProject(row.original);
+    }, ROW_SINGLE_CLICK_DELAY_MS);
+  };
+
+  const handleRowDoubleClick = (row: Row<Project>) => {
+    if (openPanelTimeoutRef.current) {
+      clearTimeout(openPanelTimeoutRef.current);
+      openPanelTimeoutRef.current = null;
+    }
+    window.location.href = `/projects/${row.original.id}`;
+  };
+
+  useEffect(() => {
+    return () => {
+      if (openPanelTimeoutRef.current) clearTimeout(openPanelTimeoutRef.current);
+    };
+  }, []);
+
+  const updateProjectInTable = (updated: Project) => {
+    setSelectedProject(updated);
+    tableRef.current?.setData((prev) =>
+      prev.map((p) => (p.id === updated.id ? updated : p))
+    );
+  };
 
   const createProject = () => {
+    const payload: ProjectPayload = {
+      name: projectNameRef?.current?.inputValue || "",
+    };
+    if (createThumbnailFile) payload.thumbnail = createThumbnailFile;
     projectsApi
-      .create(
-        convertFormData<ProjectPayload>({
-          name: projectNameRef?.current?.inputValue || '',
-          ...((dropboxRef.current?.files?.length ?? 0) > 0
-            ? {
-                thumnail: dropboxRef.current?.files![0],
-              }
-            : {}),
-        }),
-      )
+      .create(convertFormData(payload))
       .then((project) => {
+        setCreateThumbnailFile(null);
         if (autoProjectOpenRef.current?.isChecked) {
           window.location.href = `/projects/${project.id}`;
         } else {
-          tableRef.current?.refresh();
+          tableRef.current?.setData((prev) => [...prev, project]);
           setShowModal(null);
         }
       })
@@ -54,16 +87,17 @@ export default function ProjectsPage() {
   };
 
   const deleteProject = () => {
-    const projectId = tableRef.current?.data[rowIndex]['id'];
+    const project = projectToDelete;
+    if (!project?.id) return;
 
-    if (!projectId) return;
-
-    projectsApi(projectId)
+    projectsApi(project.id)
       .delete()
-      .then((res) => {
+      .then(() => {
         showSnackbar('Succesfully deleted the project!', 'success');
         setShowModal(null);
-        tableRef.current?.refresh();
+        setProjectToDelete(null);
+        if (selectedProject?.id === project.id) setSelectedProject(null);
+        tableRef.current?.setData((prev) => prev.filter((p) => p.id !== project.id));
       })
       .catch((err) => showSnackbar(extractAxiosErrMsg(err, 'Something went wrong. Please try again.'), 'error'));
   };
@@ -107,15 +141,17 @@ export default function ProjectsPage() {
           },
         }}
         sortKeys={projectSortKeys}
-        defaultSortField='updated_at'
-        defaultSortDirection='desc'
-        handleRowClick={(row) => (window.location.href = `/projects/${row.getValue('id')}/`)}
+        defaultSortField="updated_at"
+        defaultSortDirection="desc"
+        handleRowClick={handleRowClick}
+        handleRowDoubleClick={handleRowDoubleClick}
         actions={[
           {
             rowIcon: Share1Icon,
             rowIconSize: 24,
             rowIconClicked: (index) => {
-              setRowIndex(index);
+              const project = tableRef.current?.data?.[index];
+              if (project) setProjectToShare(project);
               setShowModal('share');
             },
             rowIconClassName: 'hover:text-green-500 mt-1',
@@ -125,7 +161,8 @@ export default function ProjectsPage() {
             rowIcon: TrashIcon,
             rowIconSize: 24,
             rowIconClicked: (index) => {
-              setRowIndex(index);
+              const project = tableRef.current?.data?.[index];
+              if (project) setProjectToDelete(project);
               setShowModal('delete');
             },
             rowIconClassName: 'hover:text-red-500 mt-1',
@@ -136,7 +173,8 @@ export default function ProjectsPage() {
             rowIconSize: 24,
             rowIconClassName: 'transition-transform hover:rotate-22',
             rowIconClicked: (index) => {
-              router.push(`/projects/${tableRef.current?.data?.[index].id}/settings`);
+              const id = tableRef.current?.data?.[index].id;
+              if (id != null) window.location.href = `/projects/${id}/settings`;
             },
           },
         ]}
@@ -175,28 +213,35 @@ export default function ProjectsPage() {
               <Button onClick={createProject} className='btn-confirm ml-3'>
                 Create
               </Button>
-              <Button onClick={() => setShowModal(null)} className='btn-neutral'>
+              <Button
+                onClick={() => {
+                  setShowModal(null);
+                  setCreateThumbnailFile(null);
+                }}
+                className="bg-neutral"
+              >
                 Cancel
               </Button>
             </>
           }
         >
-          Please enter a name for your project:
-          <div className='flex flex-col'>
-            <InputBox ref={projectNameRef} placeholder='Project name' className='bg-white text-black my-3 border-0' />
-            <p>Project Thumbnail:</p>
-            <DragAndDrop ref={dropboxRef} accept='image/*' multiple={false} />
-            <div className='flex align-center'>
+          <div className='flex flex-col gap-4'>
+            <div>
+              <label className='mb-1 block text-sm font-medium text-muted-foreground'>Project name</label>
+              <InputBox ref={projectNameRef} placeholder='Project name' className='bg-white text-black border-0' />
+            </div>
+            <ThumbnailUpload onFileSelect={setCreateThumbnailFile} label='Thumbnail' />
+            <div className="flex align-center">
               <InputBox ref={autoProjectOpenRef} type='checkbox' defaultChecked={true} className='mr-2' />
               Automatically open the project after creation
             </div>
           </div>
         </Modal>
-      ) : showModal === 'delete' ? (
+      ) : showModal === 'delete' && projectToDelete ? (
         <Modal
           className='bg-red-500'
           title='Delete Project'
-          subtitle={tableRef.current?.data?.[rowIndex]['name']}
+          subtitle={projectToDelete.name}
           text='Are you sure you would like to delete this project? This is a
                 permanent change that cannot be undone.'
           icon={TrashIcon}
@@ -205,15 +250,96 @@ export default function ProjectsPage() {
               <Button onClick={deleteProject} className='btn-deny ml-3'>
                 Delete
               </Button>
-              <Button onClick={() => setShowModal(null)} className='bg-neutral'>
+              <Button
+                onClick={() => {
+                  setShowModal(null);
+                  setProjectToDelete(null);
+                }}
+                className='bg-neutral'
+              >
                 Cancel
               </Button>
             </>
           }
         />
-      ) : showModal === 'share' && tableRef.current?.data?.[rowIndex] ? (
-        <ProjectShareModal onClose={() => setShowModal(null)} project={tableRef.current?.data?.[rowIndex]} />
+      ) : showModal === 'share' && projectToShare ? (
+        <ProjectShareModal
+          onClose={() => { 
+            setShowModal(null);
+            setProjectToShare(null);
+          }}
+          project={projectToShare}
+        />
       ) : null}
+
+      <SidePanel
+        open={!!selectedProject}
+        onClose={() => setSelectedProject(null)}
+        blocking={false}
+        title={
+          selectedProject ? (
+            <EditableTextField
+              value={selectedProject.name}
+              onSave={(name) => {
+                const previousProject = selectedProject;
+                updateProjectInTable({ ...selectedProject, name });
+                projectsApi(selectedProject.id)
+                  .update({ name })
+                  .then((updated) => updateProjectInTable(updated))
+                  .catch((err) => {
+                    updateProjectInTable(previousProject);
+                    showSnackbar(extractAxiosErrMsg(err as AxiosError, "Failed to update name. Please try again."), "error");
+                  });
+              }}
+              placeholder="Project name"
+              disabled={!["owner", "admin", "manage", "code"].includes(selectedProject.permission ?? "")}
+              compact
+            />
+          ) : undefined
+        }
+      >
+        {selectedProject && (
+          <ProjectDetailPanel
+            project={selectedProject}
+            onDescriptionSave={(description) => {
+              const previousProject = selectedProject;
+              updateProjectInTable({ ...selectedProject, description });
+              projectsApi(selectedProject.id)
+                .update({ description })
+                .then((updated) => updateProjectInTable(updated))
+                .catch((err) => {
+                  updateProjectInTable(previousProject);
+                  showSnackbar(extractAxiosErrMsg(err as AxiosError, "Failed to update description. Please try again."), "error");
+                });
+            }}
+            onThumbnailChange={(file) => {
+              const payload = file
+                ? (convertFormData({ thumbnail: file }) as unknown as Partial<ProjectPayload>)
+                : { thumbnail: null };
+              projectsApi(selectedProject.id)
+                .update(payload)
+                .then((updated) => updateProjectInTable(updated))
+                .catch((err) =>
+                  showSnackbar(
+                    extractAxiosErrMsg(err as AxiosError, "Failed to update thumbnail. Please try again."),
+                    "error"
+                  )
+                );
+            }}
+            onOpen={() => (window.location.href = `/projects/${selectedProject.id}`)}
+            onShare={() => {
+              setProjectToShare(selectedProject);
+              setShowModal("share");
+            }}
+            onDelete={() => {
+              setProjectToDelete(selectedProject);
+              setShowModal("delete");
+            }}
+            canShare={true}
+            canDelete={selectedProject.permission === "owner"}
+          />
+        )}
+      </SidePanel>
     </div>
   );
 }
