@@ -1,19 +1,25 @@
 from rest_framework.viewsets import ModelViewSet
-from .models import ProjectGroup, Project, ProjectCollaborator, OrganizationProject, ProjectInvitation, Asset
-from .serializers import ProjectGroupSerializer, ProjectSerializer, ProjectInvitationSerializer, ProjectCollaboratorSerializer, OrganizationProjectSerializer, ProjectOrganizationSerializer, AssetSerializer
+from .models import ProjectGroup, Project, ProjectCollaborator, OrganizationProject, ProjectInvitation, Asset, ProjectShareLink
+from .serializers import ProjectGroupSerializer, ProjectSerializer, ProjectInvitationSerializer, ProjectCollaboratorSerializer, OrganizationProjectSerializer, ProjectOrganizationSerializer, AssetSerializer, ProjectShareLinkSerializer
 from django_filters.rest_framework import DjangoFilterBackend
-from .filters import ProjectFilter, apply_project_access_filters, ProjectCollaboratorFilter, ProjectInvitationFilter, OrganizationProjectFilter, ProjectOrganizationFilter, AssetFilter
+from .filters import ProjectFilter, ProjectShareLinkFilter, apply_project_access_filters, ProjectCollaboratorFilter, ProjectInvitationFilter, OrganizationProjectFilter, ProjectOrganizationFilter, AssetFilter
 from utils.permissions import create_user_permission_class, AnyOf
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.request import Request
-from rest_framework.status import HTTP_200_OK
+from rest_framework.status import HTTP_200_OK, HTTP_404_NOT_FOUND
 from django.shortcuts import get_object_or_404
 from organizations.models import Organization
 from django.db.models import Q
 from accounts.models import User
 from accounts.serializers import PublicUserSerializer
+from rest_framework.permissions import AllowAny
+from django.http import JsonResponse
+from base64 import b64encode
+from django.db import IntegrityError, transaction
+import secrets
+import string
 
 
 class ProjectGroupViewSet(ModelViewSet):
@@ -334,4 +340,113 @@ class AssetViewSet(ModelViewSet):
 
     def get_queryset(self):
         return super().get_queryset().filter(Q(project_id=self.kwargs.get('project_pk')))
-    
+
+
+class ProjectShareLinkViewSet(ModelViewSet):
+    """
+    Manage named share links for a given project.
+    Share links store a snapshot of the current game state and are exposed publicly via token.
+    """
+
+    queryset = ProjectShareLink.objects.all()
+    serializer_class = ProjectShareLinkSerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = ProjectShareLinkFilter
+
+    http_method_names = ['get', 'post', 'patch', 'delete']
+
+    def get_queryset(self):
+        return (
+            super().get_queryset().filter(project_id=self.kwargs.get('project_pk')).distinct().order_by('created_at')
+        )
+
+    def get_permissions(self):
+        # Viewing share links requires view permission; mutating requires code/admin.
+        required_permission = (
+            'view' if self.action in ['list', 'retrieve'] else 'code'
+        )
+        return super().get_permissions() + [
+            create_user_permission_class(
+                required_permission,
+                primary_pk_class=Project,
+                lookup='project_pk',
+            )()
+        ]
+
+    def perform_create(self, serializer):
+        project = get_object_or_404(Project, pk=self.kwargs.get('project_pk'))
+        if not project.yjs_blob:
+            raise ValidationError({
+                'yjs_blob': 'Save your project first before creating a share link.',
+            })
+
+        alphabet = string.ascii_letters + string.digits
+
+        # Token collisions are extremely unlikely, but token is a unique field so we
+        # still guard against collisions and rare concurrent-create races.
+        for _ in range(10):
+            token = ''.join(secrets.choice(alphabet) for _ in range(32))
+            if ProjectShareLink.objects.filter(token=token).exists():
+                continue
+            try:
+                with transaction.atomic():
+                    serializer.save(project=project, token=token, yjs_blob=project.yjs_blob)
+                return
+            except IntegrityError:
+                # Another request may have created the same token concurrently.
+                continue
+
+        raise ValidationError({'token': 'Could not generate a unique token. Please try again.'})
+
+    @action(detail=True, methods=['post'])
+    def refresh(self, request, project_pk=None, pk=None):
+        share_link = self.get_object()
+        project = share_link.project
+        if not project.yjs_blob:
+            raise ValidationError({
+                'yjs_blob': 'Save your project first before refreshing the share link.',
+            })
+        share_link.yjs_blob = project.yjs_blob
+        share_link.save(update_fields=['yjs_blob'])
+        return Response(
+            self.get_serializer(share_link).data,
+            status=HTTP_200_OK,
+        )
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def public_share_link_detail(request: Request, token: str):
+    """
+    Public endpoint to fetch a game's snapshot by share token.
+    Also tracks total and (best-effort) unique visits using a client-provided visitor_id.
+    """
+    try:
+        share_link = ProjectShareLink.objects.get(token=token)
+    except ProjectShareLink.DoesNotExist:
+        return Response({'detail': 'Not found.'}, status=HTTP_404_NOT_FOUND)
+
+    visitor_id = request.query_params.get('visitor_id')
+
+    # Always increment total_visits
+    share_link.total_visits = (share_link.total_visits or 0) + 1
+
+    # Best-effort unique visitor tracking based on a client-provided, stable visitor_id.
+    if visitor_id:
+        existing_ids_raw = share_link.visitor_ids or ""
+        existing_ids = set(filter(None, existing_ids_raw.split(",")))
+        if visitor_id not in existing_ids:
+            existing_ids.add(visitor_id)
+            share_link.unique_visits = len(existing_ids)
+            share_link.visitor_ids = ",".join(sorted(existing_ids))[:65535]
+
+    share_link.save(update_fields=['total_visits', 'unique_visits', 'visitor_ids'])
+
+    payload = {
+        'name': share_link.name,
+        'token': share_link.token,
+        'total_visits': share_link.total_visits,
+        'unique_visits': share_link.unique_visits,
+    }
+    if share_link.yjs_blob is not None:
+        payload['yjs_blob'] = b64encode(share_link.yjs_blob).decode('ascii')
+    return JsonResponse(payload)

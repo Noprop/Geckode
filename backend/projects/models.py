@@ -1,4 +1,4 @@
-from django.db.models import Model, ImageField, ForeignKey, CASCADE, DateTimeField, CharField, TextField, SET_NULL, ManyToManyField, BinaryField
+from django.db.models import Model, ImageField, ForeignKey, CASCADE, DateTimeField, CharField, TextField, SET_NULL, ManyToManyField, BinaryField, IntegerField
 from accounts.models import User
 from organizations.models import Organization
 from utils.permissions import create_permissions_allowed_hierarchy
@@ -156,4 +156,19 @@ class Asset(Model):
         
         
         # otherwise, anyone who is a member has access to this library
+        return self.project.has_permission(user, required_permission)
+
+
+class ProjectShareLink(Model):
+    project = ForeignKey(Project, related_name='share_links', on_delete=CASCADE)
+    name = CharField(max_length=200)
+    token = CharField(max_length=64, unique=True)
+    yjs_blob = BinaryField(null=True, blank=True)
+    created_at = DateTimeField(auto_now_add=True)
+    updated_at = DateTimeField(auto_now=True)
+    total_visits = IntegerField(default=0)
+    unique_visits = IntegerField(default=0)
+    visitor_ids = TextField(blank=True, default="")
+
+    def has_permission(self, user: User, required_permission) -> bool:
         return self.project.has_permission(user, required_permission)

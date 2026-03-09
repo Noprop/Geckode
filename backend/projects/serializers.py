@@ -2,7 +2,7 @@ from rest_framework.serializers import ModelSerializer, ImageField, PrimaryKeyRe
 from accounts.serializers import PublicUserSerializer
 from django.utils import timezone
 from utils.image_processing import process_uploaded_image
-from .models import ProjectGroup, Project, ProjectCollaborator, OrganizationProject, ProjectInvitation, Asset
+from .models import ProjectGroup, Project, ProjectCollaborator, OrganizationProject, ProjectInvitation, Asset, ProjectShareLink
 from accounts.models import User
 from organizations.serializers import PublicOrganizationSerializer
 import base64
@@ -221,6 +221,32 @@ class ProjectInvitationSerializer(ModelSerializer):
             pass
 
         return attrs
+
+
+class ProjectShareLinkSerializer(ModelSerializer):
+    project = PrimaryKeyRelatedField(read_only=True)
+    yjs_blob = SerializerMethodField()
+
+    class Meta:
+        model = ProjectShareLink
+        fields = [
+            'id',
+            'project',
+            'name',
+            'token',
+            'yjs_blob',
+            'created_at',
+            'updated_at',
+            'total_visits',
+            'unique_visits',
+        ]
+        read_only_fields = ['token', 'yjs_blob', 'created_at', 'updated_at', 'total_visits', 'unique_visits', 'project']
+
+    def get_yjs_blob(self, obj):
+        if obj.yjs_blob is None:
+            return None
+        return base64.b64encode(obj.yjs_blob).decode('ascii')
+
 
 class AssetSerializer(ModelSerializer):
     asset_file = ImageField(write_only=True, allow_null=True, required=False)

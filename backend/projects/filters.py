@@ -3,7 +3,7 @@ from operator import or_
 from django.db.models import Q
 from utils.filters import PrefixedFilterSet, make_owner_id_filter, make_nullable_boolean_filter
 from django_filters import NumberFilter, BooleanFilter, CharFilter, ChoiceFilter
-from .models import Project, ProjectCollaborator, OrganizationProject, ProjectInvitation, Asset
+from .models import Project, ProjectCollaborator, OrganizationProject, ProjectInvitation, Asset, ProjectShareLink
 from accounts.filters import UserFilter
 from accounts.models import User
 
@@ -107,4 +107,23 @@ class AssetFilter(PrefixedFilterSet):
 
     class Meta:
         model = Asset
+        fields = []
+
+class ProjectShareLinkFilter(PrefixedFilterSet):
+    search_fields = [
+        'name',
+        'token',
+    ]
+    ordering_fields = [
+        'id',
+        'name',
+        'token',
+        'created_at',
+        'updated_at',
+        'total_visits',
+        'unique_visits',
+    ]
+
+    class Meta:
+        model = ProjectShareLink
         fields = []
