@@ -299,7 +299,7 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
           pageSizeOptions={[3, 5, 10]}
           enableSearch={false}
           rowStyle="py-2"
-          noResultsMessage="You have not shared this project with another user yet."
+          noResultsMessage="This project has not been shared with any users yet."
           actions={[
             {
               rowIcon: TrashIcon,
@@ -406,7 +406,7 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
           pageSizeOptions={[3, 5, 10]}
           enableSearch={false}
           rowStyle="py-2"
-          noResultsMessage="You have not shared this project with an organization yet."
+          noResultsMessage="This project has not been shared with any organizations yet."
           actions={[
             {
               rowIcon: TrashIcon,

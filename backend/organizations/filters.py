@@ -3,6 +3,7 @@ from utils.filters import PrefixedFilterSet
 from django_filters import NumberFilter, BooleanFilter, ChoiceFilter
 from .models import Organization, OrganizationInvitation, OrganizationMember, OrganizationBannedMember
 from accounts.models import User
+from django.db.models import Q
 
 class OrganizationFilter(PrefixedFilterSet):
     search_fields = ['name', 'slug']
@@ -31,8 +32,11 @@ class OrganizationFilter(PrefixedFilterSet):
 
     def filter_user_has_permission(self, queryset, name, value):
         return queryset.filter(
-            organization_members__member=self.request.user,
-            organization_members__permission__in=create_permissions_allowed_hierarchy(Organization.PERMISSION_CHOICES).get(value, []),
+            Q(owner=self.request.user) |
+            Q(
+                organization_members__member=self.request.user,
+                organization_members__permission__in=create_permissions_allowed_hierarchy(Organization.PERMISSION_CHOICES).get(value, []),
+            ),
         ).distinct()
 
 class OrganizationInvitationFilter(PrefixedFilterSet):
