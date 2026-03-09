@@ -14,6 +14,7 @@ import { BaseFilters } from '@/lib/types/api';
 import { Icon, IconType } from './Icon';
 import { UserIcon } from './UserIcon';
 import { InputBox, InputBoxRef } from './inputs/InputBox';
+import { EditableApiTextCell } from './inputs/EditableApiTextCell';
 import { Option, SelectionBox } from './selectors/SelectionBox';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import {
@@ -70,7 +71,15 @@ interface TableProps<TData, TSortKeys, TApi, TFilters> {
   getRowIdValue?: (row: TData) => number | string | null | undefined;
 }
 
-type ColumnTypes = 'user' | 'avatar' | 'datetime' | 'time-since' | 'thumbnail' | 'select' | 'other';
+type ColumnTypes =
+  | 'user'
+  | 'avatar'
+  | 'datetime'
+  | 'time-since'
+  | 'thumbnail'
+  | 'select'
+  | 'editable-text'
+  | 'other';
 
 interface TableAction<TData> {
   rowIcon: IconType;
@@ -85,9 +94,17 @@ interface TableAction<TData> {
   modalActions?: React.ReactNode;
 }
 
+type PathKeys<T> =
+  | [keyof T & string]
+  | {
+      [K in keyof T & string]: T[K] extends Record<string, any>
+        ? [K, keyof T[K] & string]
+        : [K];
+    }[keyof T & string];
+
 // Column Map specifies fields/methods for each column
 type ColumnMap<TData> = {
-  key: keyof TData | [keyof TData, ...string[]] | '.';
+  key: keyof TData | PathKeys<TData> | '.';
   value?: (field: any) => any;
   type?: ColumnTypes;
   hidden?: boolean;
@@ -154,6 +171,19 @@ export const Table = <
   });
 
   const getValueAtPath = (row: TData, path: string[]) => path.reduce((acc: any, key) => acc?.[key], row);
+
+  const setRowValueAtPath = (row: TData, path: string[], newValue: unknown): TData => {
+    if (path.length === 1) {
+      return { ...row, [path[0]]: newValue } as TData;
+    }
+
+    const [first, ...rest] = path;
+
+    return {
+      ...row,
+      [first]: setRowValueAtPath((row as any)?.[first] ?? {}, rest, newValue),
+    } as TData;
+  };
 
   const inferRowId = (row: TData): number | string | null | undefined => {
     if (getRowIdValue) {
@@ -266,6 +296,27 @@ export const Table = <
         />
       );
     },
+    'editable-text': (value, column, rowId) => {
+      const path = Array.isArray(column.key) ? (column.key as string[]) : [column.key as string];
+      const idColumnKey = columns?.id?.key;
+
+      let resourceId: number | string | null | undefined = null;
+      if (idColumnKey) {
+        const idPath = Array.isArray(idColumnKey) ? (idColumnKey as string[]) : [idColumnKey as string];
+        resourceId = getValueAtPath(data[rowId], idPath);
+      }
+
+      return (
+        <EditableApiTextCell<TPayload>
+          value={value ?? ''}
+          api={api as any}
+          resourceId={resourceId}
+          fieldPath={path}
+          placeholder='No name'
+          disabled={column?.disabled}
+        />
+      );
+    },
   };
   const defaultRenderer = (value: any) => value?.toString() ?? '';
 
@@ -275,12 +326,16 @@ export const Table = <
       const columnMapper = columns[label];
       const renderer = cellRenderers[columnMapper.type ?? 'other'] ?? defaultRenderer;
 
+      const keyPath =
+        columnMapper.key === '.'
+          ? []
+          : Array.isArray(columnMapper.key)
+            ? columnMapper.key
+            : [columnMapper.key];
+
       return columnHelper.accessor(
         (row: TData) =>
-          (Array.isArray(columnMapper.key) ? columnMapper.key : [columnMapper.key]).reduce(
-            (acc: any, key) => (key === '.' ? acc : acc?.[key]),
-            row,
-          ),
+          keyPath.reduce((acc: any, key) => (key === '.' ? acc : acc?.[key]), row),
         {
           id: label,
           cell: (context) =>
@@ -293,7 +348,7 @@ export const Table = <
                 ),
           header: columnMapper.hidden || columnMapper.hideLabel ? '' : label,
           enableSorting: (sortKeys as Array<keyof TData>).includes(
-            (Array.isArray(columnMapper.key) ? (columnMapper.key as string[]).at(-1) : columnMapper.key) as string,
+            keyPath.at(-1) as keyof TData,
           ),
           enableColumnFilter: false, // Temporary
           meta: {
