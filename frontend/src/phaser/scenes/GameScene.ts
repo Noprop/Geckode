@@ -63,6 +63,25 @@ export default class GameScene extends Phaser.Scene {
   public toLogicalY(y: number): number { return -y; }
 
   preload() {
+    const { spriteInstances, textures, libaryTextures } = useGeckodeStore.getState();
+
+    // Load sprite textures for all instances
+    const processedTextureNames = new Set<string>();
+    for (const instance of spriteInstances) {
+      const textureName = instance.textureName;
+      if (processedTextureNames.has(textureName)) continue;
+      processedTextureNames.add(textureName);
+
+      const base64Image = textures[textureName] ?? libaryTextures[textureName];
+      if (!base64Image) continue;
+
+      const textureKey = 'sprite-' + textureName;
+      if (!this.textures.exists(textureKey)) {
+        this.load.image(textureKey, base64Image);
+      }
+    }
+
+    // Load tile textures
     const tiles = useGeckodeStore.getState().getTilesForRendering();
     for (const tileKey of Object.keys(tiles)) {
       const base64Image = tiles[tileKey];

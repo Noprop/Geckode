@@ -15,6 +15,7 @@ import {
   disablePersistence as yjsDisablePersistence,
   getPersistence as yjsGetPersistence,
 } from "@/contexts/YjsContext";
+import { buildPhaserRuntimeCodeFromOutputs } from "@/phaser/runtimeCode";
 
 export const createEditorSlice: StateCreator<
   GeckodeStore,
@@ -102,7 +103,11 @@ export const createEditorSlice: StateCreator<
         (javascriptGenerator as any).keyPressHandlers = [];
         
         // Use the original selectedSpriteId to determine which workspace to use
-        const workspace = id === originalSelectedSpriteId ? s.blocklyWorkspace! : s.spriteWorkspaces[id];
+        const workspace =
+          id === originalSelectedSpriteId && s.blocklyWorkspace
+            ? s.blocklyWorkspace
+            : s.spriteWorkspaces[id];
+        if (!workspace) continue;
         const code = javascriptGenerator.workspaceToCode(workspace);
         
         outputs[id] = {
@@ -199,60 +204,7 @@ export const createEditorSlice: StateCreator<
       generateCode();
       const { spriteOutputs } = get();
       const outputs = spriteInstances.map((s) => spriteOutputs[s.id]);
-      const allUpdateHandlers = outputs
-        .flatMap((o) => o?.updateHandlers)
-        .filter(Boolean);
-      const allStartHandlers = outputs
-        .flatMap((o) => o?.startHandlers)
-        .filter(Boolean);
-      const allKeyPressHandlers = outputs
-        .flatMap((o) => o?.keyPressHandlers)
-        .filter(Boolean);
-      const updateBody = allUpdateHandlers
-        .map((h) => `  for (const __id of scene.getSpriteAndClones('${h?.spriteId}')) ${h?.functionName}(__id);`)
-        .join("\n");
-      const startBody = allStartHandlers
-        .map((h) => `  for (const __id of scene.getSpriteAndClones('${h?.spriteId}')) ${h?.functionName}(__id);`)
-        .join("\n");
-      const keyPressBody = allKeyPressHandlers
-        .map((h) => {
-          const keyObj = `scene.cursors.${h?.key}`;
-          
-          let condition: string;
-          if (h?.eventType === 'just_pressed') {
-            condition = `scene.getJustPressed(${keyObj})`;
-          } else if (h?.eventType === 'released') {
-            condition = `scene.getJustReleased(${keyObj})`;
-          } else {
-            // 'pressed' - continuously held down
-            condition = `${keyObj}.isDown`;
-          }
-          
-          return `  if (${condition}) {
-    for (const __id of scene.getSpriteAndClones('${h?.spriteId}')) ${h?.functionName}(__id);
-  }`;
-        })
-        .join("\n");
-
-      const updateCode = `
-        scene.updateHook = () => {
-          ${updateBody}
-        };
-      `;
-      const startCode = `
-        scene.startHook = () => {
-          ${startBody}
-        };
-      `;
-      const keyPressCode = `
-        scene.keyPressHook = () => {
-          ${keyPressBody}
-        };
-      `;
-
-      const code = [...outputs.map((o) => o?.code), startCode, updateCode, keyPressCode].join(
-        "\n\n",
-      );
+      const code = buildPhaserRuntimeCodeFromOutputs(outputs);
 
       console.log("[toggleEditor] code: ", code);
       const { textures } = get();
