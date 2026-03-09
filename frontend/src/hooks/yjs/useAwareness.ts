@@ -21,12 +21,12 @@ export const useAwareness = (
     if (dragPollingIntervalRef.current) {
       clearInterval(dragPollingIntervalRef.current);
       dragPollingIntervalRef.current = null;
-      awareness.setLocalStateField('blockDrag', null);
+      awareness?.setLocalStateField('blockDrag', null);
     }
   }, [awareness]);
 
   useEffect(() => {
-    if (!blocklyWorkspace) return;
+    if (!awareness || !blocklyWorkspace) return;
 
     awareness.setLocalStateField('user', documentName.length === 0 || !user ? undefined : toPublicUser(user));
 

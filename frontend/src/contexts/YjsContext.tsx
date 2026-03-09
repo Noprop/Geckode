@@ -16,14 +16,15 @@ export const PROJECT_ORGANIZATION_CHANGE_EVENT =
   "yjs:project-organization-change";
 
 interface YjsContextType {
-  getProvider: (name: string) => HocuspocusProvider;
+  getProvider: (name: string) => HocuspocusProvider | null;
   getDoc: (name: string) => Y.Doc;
-  getAwareness: (name: string) => Awareness;
+  getAwareness: (name: string) => Awareness | null;
   getPersistence: (name: string) => IndexeddbPersistence | null;
   isSynced: (name: string) => boolean;
   onSynced: (name: string, callback: () => void) => () => void;
   enablePersistence: (name: string) => void;
   disablePersistence: (name: string) => void;
+  registerShareDoc: (name: string, yjsBlobBase64: string) => void;
 }
 
 export const YjsContext = createContext<YjsContextType | null>(null);
@@ -104,6 +105,12 @@ const setupProvider = async (name: string): Promise<void> => {
   }
 
   const setupPromise = new Promise<void>((resolve) => {
+    const existing = instances.get(name);
+    if (existing?.synced && !existing.provider) {
+      pendingSetups.delete(name);
+      resolve();
+      return;
+    }
     const instance = ensureInstance(name);
     const { doc } = instance;
     const persistence = instance.persistence;
@@ -253,33 +260,65 @@ const setupProvider = async (name: string): Promise<void> => {
 };
 
 const getDocInternal = (name: string) => {
-  const instance = ensureInstance(name);
+  const instance = instances.get(name);
+  // Share docs are pre-registered with synced=true and no provider; skip setup
+  if (instance?.synced && !instance.provider) {
+    return instance.doc;
+  }
 
-  // Fire and forget provider setup
+  const inst = ensureInstance(name);
   setupProvider(name).catch((err) =>
     console.error(`Yjs setup for ${name}:`, err),
   );
-
-  return instance.doc;
+  return inst.doc;
 };
 
-const getProviderInternal = (name: string) => {
-  // Ensure the instance exists and the shared setup path runs.
+/**
+ * Register a Y.Doc with state from a base64-encoded Yjs update (e.g. share link).
+ * No WebSocket provider; doc is marked synced immediately so onSynced callbacks run.
+ */
+const registerShareDocInternal = (name: string, yjsBlobBase64: string): void => {
+  if (instances.has(name)) {
+    console.warn(`Yjs: doc "${name}" already registered, skipping registerShareDoc`);
+    return;
+  }
+  const doc = new Y.Doc();
+  const update = Uint8Array.from(atob(yjsBlobBase64), (c) => c.charCodeAt(0));
+  Y.applyUpdate(doc, update);
+  documentRegistry.register(name, doc);
+  instances.set(name, {
+    doc,
+    provider: null as unknown as HocuspocusProvider,
+    persistence: null,
+    synced: true,
+  });
+  syncCallbacks.get(name)?.forEach((cb) => cb());
+};
+
+const getProviderInternal = (name: string): HocuspocusProvider | null => {
+  const instance = instances.get(name);
+  // Share docs have no WebSocket provider; return null so callers can skip provider/awareness logic.
+  if (instance?.synced && !instance.provider) {
+    return null;
+  }
+
   ensureInstance(name);
   setupProvider(name).catch((err) =>
     console.error(`Yjs provider setup for ${name}:`, err),
   );
 
-  const instance = instances.get(name);
-  if (!instance?.provider) {
+  const current = instances.get(name);
+  if (!current?.provider) {
     throw new Error(`Yjs provider for "${name}" is not ready yet`);
   }
 
-  return instance.provider;
+  return current.provider;
 };
 
-const getAwarenessInternal = (name: string) => {
-  const awareness = getProviderInternal(name).awareness;
+const getAwarenessInternal = (name: string): Awareness | null => {
+  const provider = getProviderInternal(name);
+  if (!provider) return null;
+  const awareness = provider.awareness;
   if (!awareness) throw AwarenessError;
   return awareness;
 };
@@ -352,9 +391,9 @@ export const YjsProvider = ({ children }: { children: React.ReactNode }) => {
       providerCount -= 1;
       if (providerCount === 0) {
         instances.forEach(({ doc, provider, persistence }, name) => {
-          provider.destroy();
+          provider?.destroy();
           persistence?.destroy();
-          doc.destroy();
+          doc?.destroy();
           documentRegistry.unregister(name);
         });
         instances.clear();
@@ -375,6 +414,7 @@ export const YjsProvider = ({ children }: { children: React.ReactNode }) => {
         onSynced: onSyncedInternal,
         enablePersistence: enablePersistenceInternal,
         disablePersistence: disablePersistenceInternal,
+        registerShareDoc: registerShareDocInternal,
       }}
     >
       {children}

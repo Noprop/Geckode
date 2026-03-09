@@ -6,7 +6,11 @@ import { getBlocksFromSerializedBlock, serializeBlock } from "@/lib/blockly/seri
 import { useAwareness } from "./useAwareness";
 import { connectBlocks, moveBlockByCoordinates } from "@/lib/blockly/blocks";
 import { useGeckodeStore } from '@/stores/geckodeStore';
+import { registerBlockly } from "@/blockly";
 import * as Y from 'yjs';
+
+// Ensure custom blocks (setProperty, onStart, etc.) are registered before deserializing from Yjs (e.g. share/play).
+if (typeof window !== "undefined") registerBlockly();
 
 const createBlockEventsListener = (
   workspace: Blockly.Workspace,
@@ -390,7 +394,7 @@ export const useBlockSync = (documentName: string) => {
   const workspaces = doc.getArray<Y.Map<any>>('workspaces');
 
   useEffect(() => {
-    awareness.setLocalStateField('selectedSpriteId', selectedSpriteId);
+    awareness?.setLocalStateField('selectedSpriteId', selectedSpriteId);
   }, [awareness, selectedSpriteId]);
 
   // When canEditProject changes, lock or restore block editability in all workspaces.

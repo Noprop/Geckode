@@ -42,7 +42,7 @@ const loadInitialWorkspaces = (
   doc: Y.Doc,
   blocklyWorkspace: Blockly.Workspace | null
 ): boolean => {
-  if (!workspaces || !blocklyWorkspace || !workspaces.length) return false;
+  if (!workspaces || !workspaces.length) return false;
 
   const storeState = useGeckodeStore.getState();
   const newSpriteInstances: SpriteInstance[] = [];
@@ -131,9 +131,10 @@ export const useWorkspaceSync = (documentName: string) => {
     });
   }, [persistence]);
 
-  // Wait for sync before setting up observers and loading initial data
+  // Wait for sync before setting up observers and loading initial data.
+  // blocklyWorkspace is null in play/share mode; loadInitialWorkspaces still runs and uses spriteWorkspaces only.
   useEffect(() => {
-    if (!workspaces || !blocklyWorkspace) return;
+    if (!workspaces) return;
 
     let observerCleanup: (() => void) | null = null;
     let initialLoadComplete = false;
@@ -145,7 +146,7 @@ export const useWorkspaceSync = (documentName: string) => {
       if (initialLoadComplete) return;
       initialLoadComplete = true;
 
-      // Load initial data after sync
+      // Load initial data after sync (blocklyWorkspace may be null in share/play mode)
       const hadInitialWorkspaces = loadInitialWorkspaces(workspaces, doc, blocklyWorkspace);
 
       // Now set up observer for future changes (only processes changes after this point)
@@ -279,9 +280,14 @@ export const useWorkspaceSync = (documentName: string) => {
             if (!(workspace instanceof Blockly.Workspace)) return;
             console.log('workspace is Blockly.Workspace');
 
+            const targetWorkspace =
+              blocklyWorkspace && storeState.selectedSpriteId === spriteId
+                ? blocklyWorkspace
+                : workspace;
+            if (!targetWorkspace) return;
             blocksMapChangesHandler(
               spriteId,
-              storeState.selectedSpriteId === spriteId ? blocklyWorkspace : workspace,
+              targetWorkspace,
               blocksMap,
               event.changes.keys,
             );
