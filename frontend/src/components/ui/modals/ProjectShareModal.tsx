@@ -1,4 +1,4 @@
-import { Share1Icon, PersonIcon, BackpackIcon, TrashIcon } from "@radix-ui/react-icons";
+import { Share1Icon, PersonIcon, BackpackIcon, TrashIcon, Link2Icon, ReloadIcon } from "@radix-ui/react-icons";
 import { Modal } from "./Modal";
 import { Button } from "../Button";
 import { Project, projectPermissions } from "@/lib/types/api/projects";
@@ -29,33 +29,122 @@ import {
   ProjectOrganizationSortKeys,
 } from "@/lib/types/api/projects/organizations";
 import organizationsApi from "@/lib/api/handlers/organizations";
+import { ProjectShareLink, ProjectShareLinkPayload, ProjectShareLinkFilters, ProjectShareLinkSortKeys, projectShareLinkSortKeys } from "@/lib/types/api/projects/shareLinks";
 import {
   PROJECT_COLLABORATOR_CHANGE_EVENT,
   PROJECT_ORGANIZATION_CHANGE_EVENT,
 } from "@/contexts/YjsContext";
+import { InputBox } from "../inputs/InputBox";
+import api from "@/lib/api/axios";
+import { unwrap } from "@/lib/api/base";
+
+interface CreateShareLinkFormProps {
+  shareLinksApi: { create: (payload: ProjectShareLinkPayload) => Promise<unknown> };
+  showSnackbar: (message: string, variant: "success" | "error") => void;
+  onSuccess: () => void;
+  compact?: boolean;
+}
+
+function CreateShareLinkForm({ shareLinksApi, showSnackbar, onSuccess, compact = false }: CreateShareLinkFormProps) {
+  const [newLinkName, setNewLinkName] = useState("");
+  const [isCreatingLink, setIsCreatingLink] = useState(false);
+
+  const handleCreateLink = useCallback(() => {
+    if (!newLinkName.trim()) {
+      showSnackbar("Please provide a name for the share link.", "error");
+      return;
+    }
+    setIsCreatingLink(true);
+    (async () => {
+      try {
+        await shareLinksApi.create({ name: newLinkName.trim() });
+        showSnackbar("Share link created.", "success");
+        setNewLinkName("");
+        onSuccess();
+      } catch (err: any) {
+        const msg =
+          err?.response?.data?.yjs_blob?.[0] ?? err?.response?.data?.detail ?? "Failed to create share link.";
+        showSnackbar(msg, "error");
+      } finally {
+        setIsCreatingLink(false);
+      }
+    })();
+  }, [newLinkName, shareLinksApi, showSnackbar, onSuccess]);
+
+  return (
+    <div className={`flex items-center gap-2 ${compact ? "" : "mb-3"}`}>
+      <div className={`flex flex-col ${compact ? "" : "flex-1"}`}>
+        {!compact && (
+          <label className="mb-1 block text-sm font-medium text-muted-foreground">
+            New link name
+          </label>
+        )}
+        <InputBox
+          value={newLinkName}
+          onChange={(e) => setNewLinkName(e.target.value)}
+          placeholder="My playtest build"
+          className={`bg-white text-black border-0 ${compact ? "w-64" : "w-full"}`}
+        />
+      </div>
+      <Button
+        onClick={handleCreateLink}
+        disabled={isCreatingLink}
+        className="btn-confirm whitespace-nowrap"
+      >
+        Create link
+      </Button>
+    </div>
+  );
+}
 
 interface ProjectShareModalProps {
   onClose: () => void;
   project: Project;
+  initialTab?: "users" | "organizations" | "links";
 }
 
 export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
   onClose = () => {},
   project,
+  initialTab = "users",
 }) => {
   const showSnackbar = useSnackbar();
   const collaboratorTableRef =
     useRef<TableRef<ProjectCollaborator, ProjectCollaboratorFilters>>(null);
   const organizationTableRef =
     useRef<TableRef<ProjectOrganization, ProjectOrganizationFilters>>(null);
+  const shareLinksTableRef =
+    useRef<TableRef<ProjectShareLink, ProjectShareLinkFilters>>(null);
 
-  const [tab, setTab] = useState<"users" | "organizations">("users");
+  const [tab, setTab] = useState<"users" | "organizations" | "links">(initialTab);
 
   const projectApi = projectsApi(project.id);
   const collaboratorsApi = projectApi.collaborators;
   const projectOrganizationsApi = projectApi.organizations;
+  const shareLinksApi = projectApi.shareLinksApi;
   const isProjectPermission = (value: unknown): value is keyof typeof projectPermissions =>
     typeof value === "string" && value in projectPermissions;
+
+  const shareLinkColumns: TableColumns<ProjectShareLink> = {
+    id: {
+      key: "id",
+      hidden: true,
+    },
+    Name: {
+      key: "name",
+      type: "editable-text",
+    },
+    Token: { key: "token" },
+    "Unique Visitors": { key: "unique_visits" },
+    "Total Visitors": { key: "total_visits" },
+  };
+
+  const baseUrl =
+    typeof window !== "undefined" ? window.location.origin : "";
+
+  const refreshShareLinksTable = useCallback(() => {
+    shareLinksTableRef.current?.refresh();
+  }, []);
 
   const handleUserRowClick = useCallback(
     (row: Row<User>, onSuccess: () => void) => {
@@ -208,7 +297,8 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
             setTab={setTab}
             options={[
               { value: "users", label: "Users", icon: PersonIcon },
-              { value: "organizations", label: "Organizations", icon: BackpackIcon }
+              { value: "organizations", label: "Organizations", icon: BackpackIcon },
+              { value: "links", label: "Links", icon: Link2Icon },
             ]}
           />
           <Button
@@ -274,6 +364,7 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
             User: {
               key: "collaborator",
               type: "user",
+              style: "w-50",
             },
             Permission: {
               key: "permission",
@@ -288,7 +379,7 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
                   value, label
                 })
               ),
-              style: "w-3 pr-3",
+              style: "w-40 pr-3",
               disabled: !["owner", "admin", "invite"].includes(project.permission ?? ''),
             }
           }}
@@ -383,9 +474,11 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
             },
             Name: {
               key: ["organization", "name"],
+              style: "w-50",
             },
             Slug: {
               key: ["organization", "slug"],
+              style: "w-50",
             },
             Permission: {
               key: "permission",
@@ -395,7 +488,7 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
                   value, label
                 })
               ),
-              style: "w-3 pr-3",
+              style: "w-40 pr-3",
               disabled: !["owner", "admin"].includes(project.permission ?? ''),
             }
           }}
@@ -427,6 +520,91 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
               },
               rowIconClassName: "hover:text-red-500 mt-1",
               canUse: () => ["owner", "admin"].includes(project.permission ?? ''),
+            },
+          ]}
+        />
+      </> : tab === 'links' ? <>
+        <Table<
+          ProjectShareLink,
+          ProjectShareLinkPayload,
+          ProjectShareLinkFilters,
+          ProjectShareLinkSortKeys,
+          typeof shareLinksApi
+        >
+          ref={shareLinksTableRef}
+          api={shareLinksApi}
+          columns={shareLinkColumns}
+          sortKeys={projectShareLinkSortKeys}
+          extras={
+            <CreateShareLinkForm
+              compact
+              shareLinksApi={shareLinksApi}
+              showSnackbar={showSnackbar}
+              onSuccess={refreshShareLinksTable}
+            />
+          }
+          defaultSortField="id"
+          defaultSortDirection="desc"
+          pageSizeOptions={[5, 10, 15, 20]}
+          defaultPageSize={10}
+          getRowIdValue={(row) => row.id}
+          noResultsMessage="No share links yet. Create one above to share the current game."
+          actions={[
+            {
+              rowIcon: Link2Icon,
+              rowIconSize: 20,
+              rowIconClassName: "hover:text-green-500",
+              rowIconClicked: (index) => {
+                const link = shareLinksTableRef.current?.data?.[index];
+                if (!link) return;
+                const url = `${baseUrl}/play/${link.token}`;
+                navigator.clipboard
+                  .writeText(url)
+                  .then(() => showSnackbar("Share URL copied to clipboard.", "success"))
+                  .catch(() => showSnackbar("Could not copy to clipboard.", "error"));
+              },
+              canUse: () => true,
+            },
+            {
+              rowIcon: ReloadIcon,
+              rowIconSize: 20,
+              rowIconClassName: "hover:text-blue-500",
+              rowIconClicked: (index) => {
+                (async () => {
+                  const link = shareLinksTableRef.current?.data?.[index];
+                  if (!link) return;
+                  try {
+                    await unwrap(
+                      api.post(`projects/${project.id}/share-links/${link.id}/refresh/`)
+                    );
+                    showSnackbar("Share link updated to current game state.", "success");
+                    shareLinksTableRef.current?.refresh();
+                  } catch (err: any) {
+                    const msg = err?.response?.data?.yjs_blob?.[0] ?? err?.response?.data?.detail ?? "Failed to update share link.";
+                    showSnackbar(msg, "error");
+                  }
+                })();
+              },
+              canUse: () => true,
+            },
+            {
+              rowIcon: TrashIcon,
+              rowIconSize: 20,
+              rowIconClassName: "hover:text-red-500",
+              rowIconClicked: (index) => {
+                const link = shareLinksTableRef.current?.data?.[index];
+                if (!link) return;
+                shareLinksApi(link.id)
+                  .delete()
+                  .then(() => {
+                    showSnackbar("Share link deleted.", "success");
+                    shareLinksTableRef.current?.refresh();
+                  })
+                  .catch(() => {
+                    showSnackbar("Failed to delete share link.", "error");
+                  });
+              },
+              canUse: () => true,
             },
           ]}
         />

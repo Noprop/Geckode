@@ -5,6 +5,7 @@ import { ProjectCollaborator, ProjectCollaboratorFilters, ProjectCollaboratorPay
 import { ProjectOrganization, ProjectOrganizationFilters, ProjectOrganizationPayload } from "@/lib/types/api/projects/organizations";
 import { ProjectInvitation, ProjectInvitationFilters, ProjectInvitationPayload } from "@/lib/types/api/projects/invitations";
 import { Asset, AssetFilters, AssetPayload } from "@/lib/types/api/assets/index";
+import { ProjectShareLink, ProjectShareLinkFilters, ProjectShareLinkPayload } from "@/lib/types/api/projects/shareLinks";
 
 export const PROJECTS_API_URL = 'projects/';
 export const PROJECT_GROUPS_API_URL = 'project-groups/';
@@ -13,6 +14,7 @@ export const projectOrganizationsApiUrl = (id: number | string) => `${PROJECTS_A
 export const projectInvitationsApiUrl = (id: number | string) => `${PROJECTS_API_URL}${id}/invitations/`;
 export const spriteLibrariesApiUrl = (id: number | string) => `${PROJECTS_API_URL}${id}/sprite_libraries/`;
 export const assetsApiUrl = (id: number | string) => `${PROJECTS_API_URL}${id}/assets/`;
+export const projectShareLinksApiUrl = (id: number | string) => `${PROJECTS_API_URL}${id}/share-links/`;
 
 const projectsApi = createBaseApi<Project, ProjectPayload, ProjectFilters>({
   baseUrl: PROJECTS_API_URL
@@ -31,6 +33,9 @@ const projectsApi = createBaseApi<Project, ProjectPayload, ProjectFilters>({
   })(),
   assetsApi: (id: number | string) => createBaseApi<Asset, AssetPayload, AssetFilters>({
       baseUrl: assetsApiUrl(id)
+  })(),
+  shareLinksApi: (id: number | string) => createBaseApi<ProjectShareLink, ProjectShareLinkPayload, ProjectShareLinkFilters>({
+    baseUrl: projectShareLinksApiUrl(id),
   })(),
 });
 
