@@ -1,5 +1,6 @@
 from rest_framework.serializers import CharField, ModelSerializer, ValidationError
 from django.contrib.auth.password_validation import validate_password
+from utils.image_processing import process_uploaded_image
 from .models import User
 from rest_framework.views import APIView
 
@@ -46,6 +47,11 @@ class UserSerializer(ModelSerializer):
 
     def create(self, validated_data : dict[str,any]) -> User:
         validated_data.pop('password2', None)
+        avatar = validated_data.get('avatar')
+        if avatar:
+            processed = process_uploaded_image(avatar)
+            if processed is not None:
+                validated_data['avatar'] = processed
 
         return User.objects.create_user(
             username=validated_data['username'],
@@ -58,6 +64,11 @@ class UserSerializer(ModelSerializer):
 
     def update(self, instance, validated_data : dict[str, any]) -> User:
         validated_data.pop('username', None)
+        avatar = validated_data.get('avatar')
+        if avatar:
+            processed = process_uploaded_image(avatar)
+            if processed is not None:
+                validated_data['avatar'] = processed
         return super().update(instance, validated_data)
 
 class PublicUserSerializer(ModelSerializer):

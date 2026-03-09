@@ -1,6 +1,7 @@
 from rest_framework.serializers import ModelSerializer, SerializerMethodField, PrimaryKeyRelatedField, ValidationError
 from accounts.models import User
 from accounts.serializers import PublicUserSerializer
+from utils.image_processing import process_uploaded_image
 from .models import Organization, OrganizationInvitation, OrganizationMember, OrganizationBannedMember
 
 class PublicOrganizationSerializer(ModelSerializer):
@@ -30,6 +31,21 @@ class OrganizationSerializer(ModelSerializer):
 
     def get_permission(self, instance : Organization) -> str | None:
         return instance.get_permission(self.context['request'].user)
+
+    def _process_thumbnail(self, validated_data : dict) -> None:
+        thumbnail = validated_data.get('thumbnail')
+        if thumbnail:
+            processed = process_uploaded_image(thumbnail)
+            if processed is not None:
+                validated_data['thumbnail'] = processed
+
+    def create(self, validated_data : dict) -> Organization:
+        self._process_thumbnail(validated_data)
+        return super().create(validated_data)
+
+    def update(self, instance : Organization, validated_data : dict) -> Organization:
+        self._process_thumbnail(validated_data)
+        return super().update(instance, validated_data)
 
 class OrganizationInvitationSerializer(ModelSerializer):
     invitee = PublicUserSerializer(read_only=True)

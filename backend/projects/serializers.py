@@ -1,6 +1,7 @@
 from rest_framework.serializers import ModelSerializer, ImageField, PrimaryKeyRelatedField, BooleanField, SerializerMethodField, ValidationError
 from accounts.serializers import PublicUserSerializer
 from django.utils import timezone
+from utils.image_processing import process_uploaded_image
 from .models import ProjectGroup, Project, ProjectCollaborator, OrganizationProject, ProjectInvitation, Asset
 from accounts.models import User
 from organizations.serializers import PublicOrganizationSerializer
@@ -80,7 +81,19 @@ class ProjectSerializer(ModelSerializer):
 
         return data
 
+    def _process_thumbnail(self, validated_data):
+        thumbnail = validated_data.get('thumbnail')
+        if thumbnail:
+            processed = process_uploaded_image(thumbnail)
+            if processed is not None:
+                validated_data['thumbnail'] = processed
+
+    def create(self, validated_data):
+        self._process_thumbnail(validated_data)
+        return super().create(validated_data)
+
     def update(self, instance, validated_data):
+        self._process_thumbnail(validated_data)
         is_published = validated_data.pop('is_published', None)
 
         # Handle yjs_blob explicitly so we can accept base64-encoded strings
