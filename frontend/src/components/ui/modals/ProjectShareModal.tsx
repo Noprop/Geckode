@@ -1,4 +1,4 @@
-import { Share1Icon, PersonIcon, BackpackIcon, TrashIcon, Link2Icon, ReloadIcon } from "@radix-ui/react-icons";
+import { Share1Icon, PersonIcon, BackpackIcon, TrashIcon, Link2Icon, ReloadIcon, StarFilledIcon } from "@radix-ui/react-icons";
 import { Modal } from "./Modal";
 import { Button } from "../Button";
 import { Project, projectPermissions } from "@/lib/types/api/projects";
@@ -117,6 +117,7 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
     useRef<TableRef<ProjectShareLink, ProjectShareLinkFilters>>(null);
 
   const [tab, setTab] = useState<"users" | "organizations" | "links">(initialTab);
+  const [defaultShareLinkId, setDefaultShareLinkId] = useState<number | null>(project.default_share_link?.id ?? null);
   const [linkToRefresh, setLinkToRefresh] = useState<ProjectShareLink | null>(null);
   const [linkToDelete, setLinkToDelete] = useState<ProjectShareLink | null>(null);
 
@@ -126,20 +127,6 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
   const shareLinksApi = projectApi.shareLinksApi;
   const isProjectPermission = (value: unknown): value is keyof typeof projectPermissions =>
     typeof value === "string" && value in projectPermissions;
-
-  const shareLinkColumns: TableColumns<ProjectShareLink> = {
-    id: {
-      key: "id",
-      hidden: true,
-    },
-    Name: {
-      key: "name",
-      type: "editable-text",
-    },
-    Token: { key: "token" },
-    "Unique Visitors": { key: "unique_visits" },
-    "Total Visitors": { key: "total_visits" },
-  };
 
   const baseUrl =
     typeof window !== "undefined" ? window.location.origin : "";
@@ -372,16 +359,19 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
             Permission: {
               key: "permission",
               type: "select",
-              options: Object.entries(projectPermissions).slice(
-                0,
-                project.permission in projectPermissions
-                  ? Object.keys(projectPermissions).findIndex((p) => p === project.permission) + 1
-                  : Object.keys(projectPermissions).length,
-              ).map(
-                ([value, label]) => ({
-                  value, label
-                })
-              ),
+              options: Object.entries(projectPermissions).map(([value, label], index) => {
+                const entries = Object.entries(projectPermissions);
+                const maxIndex =
+                  project.permission in projectPermissions
+                    ? Object.keys(projectPermissions).findIndex((p) => p === project.permission) + 1
+                    : entries.length;
+
+                return {
+                  value,
+                  label,
+                  disabled: index >= maxIndex,
+                };
+              }),
               style: "w-40 pr-3",
               disabled: !["owner", "admin", "invite"].includes(project.permission ?? ''),
             }
@@ -487,11 +477,19 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
             Permission: {
               key: "permission",
               type: "select",
-              options: Object.entries(projectPermissions).map(
-                ([value, label]) => ({
-                  value, label
-                })
-              ),
+              options: Object.entries(projectPermissions).map(([value, label], index) => {
+                const entries = Object.entries(projectPermissions);
+                const maxIndex =
+                  project.permission in projectPermissions
+                    ? Object.keys(projectPermissions).findIndex((p) => p === project.permission) + 1
+                    : entries.length;
+
+                return {
+                  value,
+                  label,
+                  disabled: index >= maxIndex,
+                };
+              }),
               style: "w-40 pr-3",
               disabled: !["owner", "admin"].includes(project.permission ?? ''),
             }
@@ -538,7 +536,24 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
         >
           ref={shareLinksTableRef}
           api={shareLinksApi}
-          columns={shareLinkColumns}
+          columns={{
+            id: {
+              key: "id",
+              hidden: true,
+            },
+            Name: {
+              key: "name",
+              type: "editable-text",
+              disabled: !["owner", "admin"].includes(project.permission ?? ''),
+            },
+            Token: { key: "token" },
+            "Last Updated": {
+              key: "updated_at",
+              type: "time-since",
+            },
+            "Unique Visitors": { key: "unique_visits" },
+            "Total Visitors": { key: "total_visits" },
+          }}
           sortKeys={projectShareLinkSortKeys}
           extras={
             ["owner", "admin", "invite"].includes(project.permission ?? '') ? (
@@ -556,7 +571,56 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
           defaultPageSize={10}
           getRowIdValue={(row) => row.id}
           noResultsMessage="No share links yet. Create one above to share the current game."
+          rowClassName={(row) =>
+            row.id === defaultShareLinkId
+              ? "bg-primary-green/10 hover:bg-primary-green/15"
+              : ""
+          }
           actions={[
+            {
+              rowIcon: StarFilledIcon,
+              rowIconSize: 18,
+              rowIconClassName: "hover:text-yellow-400",
+              rowIconTitle: "Set as default share link",
+              rowIconClicked: async (index) => {
+                const link = shareLinksTableRef.current?.data?.[index];
+                if (!link) return;
+                try {
+                  await projectApi.update({ default_share_link_id: link.id });
+                  setDefaultShareLinkId(link.id);
+                  showSnackbar("Default share link set.", "success");
+                } catch (err: any) {
+                  const msg =
+                    err?.response?.data?.default_share_link_id?.[0] ??
+                    err?.response?.data?.detail ??
+                    "Failed to set default share link.";
+                  showSnackbar(msg, "error");
+                }
+              },
+              canUse: (row) => defaultShareLinkId !== row.id && ["owner", "admin"].includes(project.permission ?? ''),
+            },
+            {
+              rowIcon: StarFilledIcon,
+              rowIconSize: 18,
+              rowIconClassName: "text-yellow-400",
+              rowIconTitle: "Clear default share link",
+              rowIconClicked: async (index) => {
+                const link = shareLinksTableRef.current?.data?.[index];
+                if (!link) return;
+                try {
+                  await projectApi.update({ default_share_link_id: null });
+                  setDefaultShareLinkId(null);
+                  showSnackbar("Default share link cleared.", "success");
+                } catch (err: any) {
+                  const msg =
+                    err?.response?.data?.default_share_link_id?.[0] ??
+                    err?.response?.data?.detail ??
+                    "Failed to clear default share link.";
+                  showSnackbar(msg, "error");
+                }
+              },
+              canUse: (row) => defaultShareLinkId === row.id && ["owner", "admin"].includes(project.permission ?? ''),
+            },
             {
               rowIcon: Link2Icon,
               rowIconSize: 20,

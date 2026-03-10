@@ -1,5 +1,6 @@
 import { User } from "../users";
 import { BaseFilters } from "..";
+import { ProjectShareLink } from "./shareLinks";
 
 export interface Project {
   id: number;
@@ -13,6 +14,7 @@ export interface Project {
   thumbnail: string | null;
   permission: ProjectPermissions | "owner";
   yjs_blob?: string | null;
+  default_share_link?: ProjectShareLink | null;
 }
 
 export interface ProjectFilters extends BaseFilters {
@@ -27,6 +29,7 @@ export interface ProjectPayload {
   description?: string;
   thumbnail?: File | null;
   yjs_blob?: string;
+  default_share_link_id?: number | null;
 }
 
 export const projectSortKeys: (keyof Project)[] = [

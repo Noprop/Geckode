@@ -63,6 +63,7 @@ interface TableProps<TData, TSortKeys, TApi, TFilters> {
   extras?: React.ReactNode;
   style?: string;
   rowStyle?: string;
+  rowClassName?: (row: TData) => string;
   showHeader?: boolean;
   noResultsMessage?: React.ReactNode;
   initialFilters?: Filters<TFilters>;
@@ -140,6 +141,7 @@ export const Table = <
   extras,
   style = '',
   rowStyle = '',
+  rowClassName,
   showHeader = true,
   noResultsMessage = 'No results to display.',
   initialFilters = {},
@@ -577,13 +579,16 @@ export const Table = <
           )}
           <tbody>
             {table.getRowModel().rows.length > 0 ? (
-              table.getRowModel().rows.map((row) => (
-                <tr
-                  onClick={() => handleRowClick(row)}
-                  onDoubleClick={handleRowDoubleClick ? () => handleRowDoubleClick(row) : undefined}
-                  key={row.id}
-                  className='table-row group/row font-semibold cursor-pointer'
-                >
+              table.getRowModel().rows.map((row) => {
+                const baseRowClass = 'table-row group/row font-semibold cursor-pointer';
+                const extraRowClass = rowClassName ? rowClassName(row.original) : '';
+                return (
+                  <tr
+                    onClick={() => handleRowClick(row)}
+                    onDoubleClick={handleRowDoubleClick ? () => handleRowDoubleClick(row) : undefined}
+                    key={row.id}
+                    className={`${baseRowClass} ${extraRowClass}`}
+                  >
                   {row.getVisibleCells().map((cell) => (
                     <td
                       key={cell.id}
@@ -593,8 +598,9 @@ export const Table = <
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}
-                </tr>
-              ))
+                  </tr>
+                );
+              })
             ) : (
               <tr>
                 <td colSpan={table.getVisibleLeafColumns().length} className='h-12 text-center text-gray-400 italic'>

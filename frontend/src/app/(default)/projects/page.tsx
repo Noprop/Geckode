@@ -10,7 +10,7 @@ import { InputBox, InputBoxRef } from '@/components/ui/inputs/InputBox';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { convertFormData } from '@/lib/api/base';
 import { ThumbnailUpload } from '@/components/ui/ThumbnailUpload';
-import { FilePlusIcon, GearIcon, Share1Icon, TrashIcon } from '@radix-ui/react-icons';
+import { FilePlusIcon, Share1Icon, TrashIcon, PlayIcon, OpenInNewWindowIcon } from '@radix-ui/react-icons';
 import { ProjectShareModal } from '@/components/ui/modals/ProjectShareModal';
 import { SelectionBox } from '@/components/ui/selectors/SelectionBox';
 import { useUser } from '@/contexts/UserContext';
@@ -147,8 +147,32 @@ export default function ProjectsPage() {
         handleRowDoubleClick={handleRowDoubleClick}
         actions={[
           {
+            rowIcon: OpenInNewWindowIcon,
+            rowIconSize: 22,
+            rowIconTitle: 'Open project',
+            rowIconClicked: (index) => {
+              const project = tableRef.current?.data?.[index];
+              if (project) window.location.href = `/projects/${project.id}`;
+            },
+            rowIconClassName: 'hover:text-green-500 mt-1',
+          },
+          {
+            rowIcon: PlayIcon,
+            rowIconSize: 24,
+            rowIconTitle: 'Play game',
+            rowIconClicked: (index) => {
+              const project = tableRef.current?.data?.[index];
+              const token = project?.default_share_link?.token;
+              if (!token) return;
+              window.open(`/play/${token}`, '_blank');
+            },
+            rowIconClassName: 'hover:text-green-500 mt-1',
+            canUse: (project) => !!project.default_share_link,
+          },
+          {
             rowIcon: Share1Icon,
             rowIconSize: 24,
+            rowIconTitle: 'Share project',
             rowIconClicked: (index) => {
               const project = tableRef.current?.data?.[index];
               if (project) setProjectToShare(project);
@@ -160,6 +184,7 @@ export default function ProjectsPage() {
           {
             rowIcon: TrashIcon,
             rowIconSize: 24,
+            rowIconTitle: 'Delete project',
             rowIconClicked: (index) => {
               const project = tableRef.current?.data?.[index];
               if (project) setProjectToDelete(project);
@@ -167,15 +192,6 @@ export default function ProjectsPage() {
             },
             rowIconClassName: 'hover:text-red-500 mt-1',
             canUse: (project) => project.permission === 'owner',
-          },
-          {
-            rowIcon: GearIcon,
-            rowIconSize: 24,
-            rowIconClassName: 'transition-transform hover:rotate-22',
-            rowIconClicked: (index) => {
-              const id = tableRef.current?.data?.[index].id;
-              if (id != null) window.location.href = `/projects/${id}/settings`;
-            },
           },
         ]}
         extras={

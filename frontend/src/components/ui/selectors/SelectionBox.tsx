@@ -8,6 +8,7 @@ export interface SelectionBoxRef {
 export interface Option {
   label: string | number;
   value: string | number | undefined;
+  disabled?: boolean;
 }
 
 interface SelectionBoxProps {
@@ -58,6 +59,7 @@ export const SelectionBox = ({
           key={index}
           value={option.value}
           className="text-black"
+          disabled={option.disabled}
         >
           {option.label}
         </option>

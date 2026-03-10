@@ -42,6 +42,13 @@ class Project(Model):
     forked_by = ManyToManyField(User, related_name='forked_projects', blank=True)
     thumbnail = ImageField(upload_to=project_thumbnail_path, blank=True, null=True)
     yjs_blob = BinaryField(null=True, blank=True)
+    default_share_link = ForeignKey(
+        'ProjectShareLink',
+        related_name='default_for_projects',
+        null=True,
+        blank=True,
+        on_delete=SET_NULL,
+    )
 
     def has_permission(self, user, required_permission, published_gives_permission=True):
         if user == self.owner:

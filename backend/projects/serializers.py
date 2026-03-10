@@ -47,17 +47,32 @@ class ProjectGroupSerializer(ModelSerializer):
 
         return instance
 
+class ProjectShareLinkInlineSerializer(ModelSerializer):
+    class Meta:
+        model = ProjectShareLink
+        fields = ['id', 'name', 'token']
+
+
 class ProjectSerializer(ModelSerializer):
     owner = PublicUserSerializer(read_only=True)
     is_published = BooleanField(write_only=True, required=False)
     fork_count = SerializerMethodField()
     asset_count = SerializerMethodField()
     permission = SerializerMethodField()
+    default_share_link = ProjectShareLinkInlineSerializer(read_only=True)
+    default_share_link_id = PrimaryKeyRelatedField(
+        queryset=ProjectShareLink.objects.all(),
+        write_only=True,
+        required=False,
+        allow_null=True,
+        source='default_share_link',
+    )
 
     class Meta:
         model = Project
         fields = ['id', 'owner', 'created_at', 'updated_at', 'name', 'description', 'published_at',
-                    'is_published', 'fork_count', 'asset_count', 'thumbnail', 'permission', 'yjs_blob']
+                    'is_published', 'fork_count', 'asset_count', 'thumbnail', 'permission', 'yjs_blob',
+                    'default_share_link', 'default_share_link_id']
         read_only_fields = ['created_at', 'updated_at', 'published_at']
 
     def get_fork_count(self, instance):
@@ -131,6 +146,15 @@ class ProjectSerializer(ModelSerializer):
 
         if group and group.owner != owner:
             raise ValidationError('You can only assign your own projects to your own project groups.')
+
+        # Ensure any default share link set belongs to this project
+        default_share_link = attrs.get('default_share_link')
+        project = self.instance
+        if default_share_link is not None and project is not None:
+            if default_share_link.project_id != project.id:
+                raise ValidationError(
+                    {'default_share_link_id': 'Default share link must belong to this project.'}
+                )
 
         return attrs
 

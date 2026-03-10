@@ -7,7 +7,7 @@ import { ThumbnailUpload } from "@/components/ui/ThumbnailUpload";
 import { Button } from "@/components/ui/Button";
 import { PanelSection } from "@/components/ui/PanelSection";
 import { formatTimeSince } from "@/lib/time";
-import { OpenInNewWindowIcon, Share1Icon, TrashIcon } from "@radix-ui/react-icons";
+import { OpenInNewWindowIcon, Share1Icon, TrashIcon, PlayIcon } from "@radix-ui/react-icons";
 
 export interface ProjectDetailPanelProps {
   project: Project;
@@ -121,6 +121,18 @@ export function ProjectDetailPanel({
           >
             <OpenInNewWindowIcon className="size-5" />
             Open Project
+          </Button>
+        )}
+        {project.default_share_link && (
+          <Button
+            onClick={() => {
+              if (!project.default_share_link) return;
+              window.open(`/play/${project.default_share_link.token}`, "_blank");
+            }}
+            className="btn-neutral flex w-full items-center justify-center gap-2 py-3 text-base font-semibold"
+          >
+            <PlayIcon className="size-5" />
+            Play Game
           </Button>
         )}
         {((onShare && canShare) || (onDelete && canDelete)) && (
