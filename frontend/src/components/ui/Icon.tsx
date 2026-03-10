@@ -9,6 +9,7 @@ type Props = {
   disabled?: boolean;
   size?: number | string;
   className?: string;
+  title?: string;
 };
 
 export function Icon({
@@ -17,6 +18,7 @@ export function Icon({
   disabled = false,
   size = 15,
   className = "",
+  title,
 }: Props) {
   const Icon = icon;
   const isInteractive = !!onClick;
@@ -28,17 +30,19 @@ export function Icon({
     style: { width: size, height: size },
     size: size,
     onClick: disabled ? undefined : onClick,
-  };
+    title,
+    "aria-label": title,
+  } as const;
 
   if (isInteractive) {
     return (
       <button type="button" {...commonProps} disabled={disabled}>
-        <Icon width={size} height={size} />
+        <Icon width={size} height={size} aria-hidden={!!title} />
       </button>
     );
   }
 
   return (
-    <Icon {...commonProps} />
+    <Icon {...commonProps} aria-hidden={!!title} />
   );
 }

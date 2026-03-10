@@ -92,6 +92,7 @@ interface TableAction<TData> {
   modalTitle?: string;
   modalContent?: React.ReactNode;
   modalActions?: React.ReactNode;
+  rowIconTitle?: string;
 }
 
 type PathKeys<T> =
@@ -369,17 +370,22 @@ export const Table = <
                 if (!canUseAction) return;
 
                 return (
-                  <Icon
+                  <span
                     key={index}
-                    icon={action.rowIcon}
-                    size={action.rowIconSize}
-                    className={action.rowIconClassName + ' mx-1 invisible group-hover/row:visible'}
-                    onClick={(e) => {
-                      if (!canUseAction) return;
-                      e.stopPropagation();
-                      action.rowIconClicked(Number(context.row.id));
-                    }}
-                  />
+                    title={action.rowIconTitle}
+                    aria-label={action.rowIconTitle}
+                  >
+                    <Icon
+                      icon={action.rowIcon}
+                      size={action.rowIconSize}
+                      className={action.rowIconClassName + ' mx-1 invisible group-hover/row:visible'}
+                      onClick={(e) => {
+                        if (!canUseAction) return;
+                        e.stopPropagation();
+                        action.rowIconClicked(Number(context.row.id));
+                      }}
+                    />
+                  </span>
                 );
               }),
             header: '',

@@ -117,6 +117,8 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
     useRef<TableRef<ProjectShareLink, ProjectShareLinkFilters>>(null);
 
   const [tab, setTab] = useState<"users" | "organizations" | "links">(initialTab);
+  const [linkToRefresh, setLinkToRefresh] = useState<ProjectShareLink | null>(null);
+  const [linkToDelete, setLinkToDelete] = useState<ProjectShareLink | null>(null);
 
   const projectApi = projectsApi(project.id);
   const collaboratorsApi = projectApi.collaborators;
@@ -284,6 +286,7 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
   }, [project.id, tab]);
 
   return (
+    <>
     <Modal
       className="bg-green-500 min-w-150"
       title="Share Project"
@@ -395,6 +398,7 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
             {
               rowIcon: TrashIcon,
               rowIconSize: 24,
+              rowIconTitle: "Remove user from project",
               rowIconClicked: (index) => {
                 const collaborator = collaboratorTableRef.current?.data[index];
                 const collaboratorId = collaborator?.collaborator?.id;
@@ -504,6 +508,7 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
             {
               rowIcon: TrashIcon,
               rowIconSize: 24,
+              rowIconTitle: "Remove project from organization",
               rowIconClicked: (index) => {
                 const projectOrganization = organizationTableRef.current?.data[index];
                 const organizationId = projectOrganization?.organization?.id;
@@ -536,12 +541,14 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
           columns={shareLinkColumns}
           sortKeys={projectShareLinkSortKeys}
           extras={
-            <CreateShareLinkForm
-              compact
-              shareLinksApi={shareLinksApi}
-              showSnackbar={showSnackbar}
-              onSuccess={refreshShareLinksTable}
-            />
+            ["owner", "admin", "invite"].includes(project.permission ?? '') ? (
+              <CreateShareLinkForm
+                compact
+                shareLinksApi={shareLinksApi}
+                showSnackbar={showSnackbar}
+                onSuccess={refreshShareLinksTable}
+              />
+            ) : null
           }
           defaultSortField="id"
           defaultSortDirection="desc"
@@ -554,6 +561,7 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
               rowIcon: Link2Icon,
               rowIconSize: 20,
               rowIconClassName: "hover:text-green-500",
+              rowIconTitle: "Copy share URL to clipboard",
               rowIconClicked: (index) => {
                 const link = shareLinksTableRef.current?.data?.[index];
                 if (!link) return;
@@ -563,53 +571,116 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
                   .then(() => showSnackbar("Share URL copied to clipboard.", "success"))
                   .catch(() => showSnackbar("Could not copy to clipboard.", "error"));
               },
-              canUse: () => true,
             },
             {
               rowIcon: ReloadIcon,
               rowIconSize: 20,
-              rowIconClassName: "hover:text-blue-500",
+              rowIconClassName: "hover:text-yellow-500",
+              rowIconTitle: "Update link to current project state",
               rowIconClicked: (index) => {
-                (async () => {
-                  const link = shareLinksTableRef.current?.data?.[index];
-                  if (!link) return;
-                  try {
-                    await unwrap(
-                      api.post(`projects/${project.id}/share-links/${link.id}/refresh/`)
-                    );
-                    showSnackbar("Share link updated to current game state.", "success");
-                    shareLinksTableRef.current?.refresh();
-                  } catch (err: any) {
-                    const msg = err?.response?.data?.yjs_blob?.[0] ?? err?.response?.data?.detail ?? "Failed to update share link.";
-                    showSnackbar(msg, "error");
-                  }
-                })();
+                const link = shareLinksTableRef.current?.data?.[index];
+                if (!link) return;
+                setLinkToRefresh(link);
               },
-              canUse: () => true,
+              canUse: () => ["owner", "admin"].includes(project.permission ?? ''),
             },
             {
               rowIcon: TrashIcon,
               rowIconSize: 20,
               rowIconClassName: "hover:text-red-500",
+              rowIconTitle: "Delete share link",
               rowIconClicked: (index) => {
                 const link = shareLinksTableRef.current?.data?.[index];
                 if (!link) return;
-                shareLinksApi(link.id)
-                  .delete()
-                  .then(() => {
-                    showSnackbar("Share link deleted.", "success");
-                    shareLinksTableRef.current?.refresh();
-                  })
-                  .catch(() => {
-                    showSnackbar("Failed to delete share link.", "error");
-                  });
+                setLinkToDelete(link);
               },
-              canUse: () => true,
+              canUse: () => ["owner", "admin"].includes(project.permission ?? ''),
             },
           ]}
         />
       </> : null}
     </Modal>
+    {linkToRefresh && (
+      <Modal
+        className="bg-yellow-500"
+        title="Update Share Link"
+        subtitle={linkToRefresh.name}
+        text="Update this share link to point to the current game state? Anyone with the URL will see the latest version."
+        icon={ReloadIcon}
+        onClose={() => setLinkToRefresh(null)}
+        actions={(
+          <>
+            <Button
+              onClick={async () => {
+                if (!linkToRefresh) return;
+                try {
+                  await unwrap(
+                    api.post(`projects/${project.id}/share-links/${linkToRefresh!.id}/refresh/`)
+                  );
+                  showSnackbar("Share link updated to current game state.", "success");
+                  shareLinksTableRef.current?.refresh();
+                } catch (err: any) {
+                  const msg =
+                    err?.response?.data?.yjs_blob?.[0] ??
+                    err?.response?.data?.detail ??
+                    "Failed to update share link.";
+                  showSnackbar(msg, "error");
+                } finally {
+                  setLinkToRefresh(null);
+                }
+              }}
+              className="btn-warn ml-3"
+            >
+              Update
+            </Button>
+            <Button
+              onClick={() => setLinkToRefresh(null)}
+              className="btn-neutral"
+            >
+              Cancel
+            </Button>
+          </>
+        )}
+      />
+    )}
+    {linkToDelete && (
+      <Modal
+        className="bg-red-500"
+        title="Delete Share Link"
+        subtitle={linkToDelete.name}
+        text="Deleting this share link will revoke access for anyone with the URL. This action cannot be undone."
+        icon={TrashIcon}
+        onClose={() => setLinkToDelete(null)}
+        actions={(
+          <>
+            <Button
+              onClick={async () => {
+                if (!linkToDelete) return;
+                try {
+                  await shareLinksApi(linkToDelete!.id).delete();
+                  showSnackbar("Share link deleted.", "success");
+                  shareLinksTableRef.current?.refresh();
+                } catch {
+                  showSnackbar("Failed to delete share link.", "error");
+                } finally {
+                  setLinkToDelete(null);
+                }
+              }}
+              className="btn-deny ml-3"
+            >
+              Delete
+            </Button>
+            <Button
+              onClick={() => setLinkToDelete(null)}
+              className="btn-neutral"
+            >
+              Cancel
+            </Button>
+          </>
+        )}
+      />
+    )}
+    </>
   );
 };
 

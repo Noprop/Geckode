@@ -357,17 +357,14 @@ class ProjectShareLinkViewSet(ModelViewSet):
 
     def get_queryset(self):
         return (
-            super().get_queryset().filter(project_id=self.kwargs.get('project_pk')).distinct().order_by('created_at')
+            super().get_queryset().filter(project_id=self.kwargs.get('project_pk')).distinct()
         )
 
     def get_permissions(self):
-        # Viewing share links requires view permission; mutating requires code/admin.
-        required_permission = (
-            'view' if self.action in ['list', 'retrieve'] else 'code'
-        )
+        # Viewing share links requires view permission; mutating requires admin
         return super().get_permissions() + [
             create_user_permission_class(
-                required_permission,
+                'view' if self.action in ['list', 'retrieve'] else 'invite' if self.action == 'create' else 'admin',
                 primary_pk_class=Project,
                 lookup='project_pk',
             )()
