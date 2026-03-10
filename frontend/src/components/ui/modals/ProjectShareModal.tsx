@@ -33,6 +33,8 @@ import { ProjectShareLink, ProjectShareLinkPayload, ProjectShareLinkFilters, Pro
 import {
   PROJECT_COLLABORATOR_CHANGE_EVENT,
   PROJECT_ORGANIZATION_CHANGE_EVENT,
+  PROJECT_SHARE_LINK_CHANGE_EVENT,
+  PROJECT_DEFAULT_SHARE_LINK_CHANGE_EVENT,
 } from "@/contexts/YjsContext";
 import { InputBox } from "../inputs/InputBox";
 import api from "@/lib/api/axios";
@@ -271,6 +273,72 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
       );
     };
   }, [project.id, tab]);
+
+  useEffect(() => {
+    const handleProjectShareLinkChange = (
+      event: Event,
+    ) => {
+      if (tab !== "links") return;
+
+      const customEvent = event as CustomEvent<{
+        project_id: number;
+        event: "share_link_created" | "share_link_updated" | "share_link_deleted";
+        share_link: ProjectShareLink;
+      }>;
+      const payload = customEvent.detail;
+
+      if (!payload || payload.project_id !== project.id) return;
+
+      const link = payload.share_link;
+      if (!link || !shareLinksTableRef.current) return;
+
+      if (payload.event === "share_link_deleted") {
+        shareLinksTableRef.current.removeRowById(link.id);
+      } else if (payload.event === "share_link_created") {
+        shareLinksTableRef.current.addRowIfSpace(link.id, link);
+      } else if (payload.event === "share_link_updated") {
+        shareLinksTableRef.current.updateRowById(link.id, () => link);
+      }
+    };
+
+    window.addEventListener(
+      PROJECT_SHARE_LINK_CHANGE_EVENT,
+      handleProjectShareLinkChange as EventListener,
+    );
+
+    return () => {
+      window.removeEventListener(
+        PROJECT_SHARE_LINK_CHANGE_EVENT,
+        handleProjectShareLinkChange as EventListener,
+      );
+    };
+  }, [project.id, tab]);
+
+  useEffect(() => {
+    const handleProjectDefaultShareLinkChange = (event: Event) => {
+      const customEvent = event as CustomEvent<{
+        project_id: number;
+        default_share_link_id: number | null;
+      }>;
+      const payload = customEvent.detail;
+
+      if (!payload || payload.project_id !== project.id) return;
+
+      setDefaultShareLinkId(payload.default_share_link_id);
+    };
+
+    window.addEventListener(
+      PROJECT_DEFAULT_SHARE_LINK_CHANGE_EVENT,
+      handleProjectDefaultShareLinkChange as EventListener,
+    );
+
+    return () => {
+      window.removeEventListener(
+        PROJECT_DEFAULT_SHARE_LINK_CHANGE_EVENT,
+        handleProjectDefaultShareLinkChange as EventListener,
+      );
+    };
+  }, [project.id]);
 
   return (
     <>

@@ -14,6 +14,10 @@ export const PROJECT_COLLABORATOR_CHANGE_EVENT =
   "yjs:project-collaborator-change";
 export const PROJECT_ORGANIZATION_CHANGE_EVENT =
   "yjs:project-organization-change";
+export const PROJECT_SHARE_LINK_CHANGE_EVENT =
+  "yjs:project-share-link-change";
+export const PROJECT_DEFAULT_SHARE_LINK_CHANGE_EVENT =
+  "yjs:project-default-share-link-change";
 
 interface YjsContextType {
   getProvider: (name: string) => HocuspocusProvider | null;
@@ -61,6 +65,19 @@ interface ProjectOrganizationChangePayload {
   project_organization_id?: number;
   permission?: string | null;
   project_organization?: ProjectOrganization | null;
+}
+
+interface ProjectShareLinkChangePayload {
+  type: "project_share_link_change";
+  event: "share_link_created" | "share_link_updated" | "share_link_deleted";
+  project_id: number;
+  share_link: any;
+}
+
+interface ProjectDefaultShareLinkChangePayload {
+  type: "project_default_share_link_change";
+  project_id: number;
+  default_share_link_id: number | null;
 }
 
 const ensureInstance = (name: string): InstanceData => {
@@ -179,6 +196,20 @@ const setupProvider = async (name: string): Promise<void> => {
             new CustomEvent<ProjectOrganizationChangePayload>(
               PROJECT_ORGANIZATION_CHANGE_EVENT,
               { detail: payload as ProjectOrganizationChangePayload },
+            ),
+          );
+        } else if (payload.type === "project_share_link_change") {
+          window.dispatchEvent(
+            new CustomEvent<ProjectShareLinkChangePayload>(
+              PROJECT_SHARE_LINK_CHANGE_EVENT,
+              { detail: payload as ProjectShareLinkChangePayload },
+            ),
+          );
+        } else if (payload.type === "project_default_share_link_change") {
+          window.dispatchEvent(
+            new CustomEvent<ProjectDefaultShareLinkChangePayload>(
+              PROJECT_DEFAULT_SHARE_LINK_CHANGE_EVENT,
+              { detail: payload as ProjectDefaultShareLinkChangePayload },
             ),
           );
         }

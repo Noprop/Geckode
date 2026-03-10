@@ -4,8 +4,8 @@ from django.db.models.signals import pre_save, post_save, post_delete
 from django.dispatch import receiver
 from redis import Redis
 from accounts.models import User
-from .models import OrganizationProject, Project, ProjectCollaborator
-from .serializers import ProjectCollaboratorSerializer, ProjectOrganizationSerializer
+from .models import OrganizationProject, Project, ProjectCollaborator, ProjectShareLink
+from .serializers import ProjectCollaboratorSerializer, ProjectOrganizationSerializer, ProjectShareLinkSerializer
 
 ### Thumbnail deletion signals
 
@@ -45,6 +45,7 @@ redis_client = Redis(host="localhost", port=6379, db=0)
 CLIENT_MAP_PREFIX = "yjs:clients"
 PROJECT_UPDATE_CHANNEL = "yjs:project_updates"
 PROJECT_COLLABORATOR_UPDATE_CHANNEL = "yjs:project_collaborator_updates"
+PROJECT_SHARE_LINK_UPDATE_CHANNEL = "yjs:project_share_link_updates"
 
 def get_project_connected_users(project_id: int) -> list[int]:
     """
@@ -61,7 +62,8 @@ def get_project_connected_users(project_id: int) -> list[int]:
 @receiver(pre_save, sender=Project)
 def store_previous_project_name(sender, instance: Project, **kwargs) -> None:
     """
-    Cache the previous project name on the instance so we can compare it in post_save.
+    Cache the previous project name / yjs_blob / default_share_link on the instance
+    so we can compare in post_save.
     """
     # New instances don't have a previous name
     if not instance.pk:
@@ -75,9 +77,11 @@ def store_previous_project_name(sender, instance: Project, **kwargs) -> None:
         previous = Project.objects.get(pk=instance.pk)
         instance._old_name = previous.name
         instance._old_yjs_blob = previous.yjs_blob
+        instance._old_default_share_link_id = getattr(previous, "default_share_link_id", None)
     except Project.DoesNotExist:
         instance._old_name = None
         instance._old_yjs_blob = None
+        instance._old_default_share_link_id = None
 
 @receiver(post_save, sender=Project)
 def publish_project_change(sender, instance: Project, created: bool, **kwargs) -> None:
@@ -88,13 +92,22 @@ def publish_project_change(sender, instance: Project, created: bool, **kwargs) -
 
     old_name = getattr(instance, "_old_name", None)
     old_yjs_blob = getattr(instance, "_old_yjs_blob", None)
+    old_default_share_link_id = getattr(instance, "_old_default_share_link_id", None)
     skip_hocuspocus_notify = getattr(instance, "_skip_hocuspocus_notify", False)
 
     # Skip new projects – only propagate updates to existing docs
     # Allow callers (like the Yjs sync worker) to bypass notifications entirely
-    # If we couldn't determine the previous name, don't publish
-    # No actual name change
-    if created or skip_hocuspocus_notify or (old_name == instance.name and old_yjs_blob == instance.yjs_blob):
+    # If we couldn't determine the previous state, don't publish
+    # No actual relevant change (name, yjs_blob, or default_share_link)
+    if (
+        created
+        or skip_hocuspocus_notify
+        or (
+            old_name == instance.name
+            and old_yjs_blob == instance.yjs_blob
+            and old_default_share_link_id == getattr(instance, "default_share_link_id", None)
+        )
+    ):
         return
 
     try:
@@ -105,15 +118,19 @@ def publish_project_change(sender, instance: Project, created: bool, **kwargs) -
         else:
             encoded_blob = None
 
+        payload = {
+            "project_id": instance.pk,
+            "name": instance.name,
+            "yjs_blob": encoded_blob,
+        }
+
+        # Only include default_share_link_id when it changed
+        if old_default_share_link_id != getattr(instance, "default_share_link_id", None):
+            payload["default_share_link_id"] = getattr(instance, "default_share_link_id", None)
+
         redis_client.publish(
             PROJECT_UPDATE_CHANNEL,
-            json.dumps(
-                {
-                    "project_id": instance.pk,
-                    "name": instance.name,
-                    "yjs_blob": encoded_blob,
-                }
-            )
+            json.dumps(payload),
         )
     except Exception as exc:
         print(
@@ -215,4 +232,52 @@ def publish_organization_project_delete(sender, instance: OrganizationProject, *
         instance,
         "post_delete",
         event="organization_removed",
+    )
+
+
+def publish_project_share_link_change(
+    instance: ProjectShareLink,
+    source: str,
+    *,
+    event: str,
+) -> None:
+    """
+    Publish share-link changes (create/update/delete) for a project.
+    """
+    try:
+        redis_client.publish(
+            PROJECT_SHARE_LINK_UPDATE_CHANNEL,
+            json.dumps(
+                {
+                    "project_id": instance.project_id,
+                    "event": event,
+                    "share_link": ProjectShareLinkSerializer(instance).data if event != "share_link_deleted" else {
+                        "id": instance.pk,
+                        "project": instance.project_id,
+                    },
+                }
+            ),
+        )
+    except Exception as exc:
+        print(
+            f"{source}(ProjectShareLink): error publishing change for project share link "
+            f"{instance.project_id}/{instance.pk} to Redis: {exc}"
+        )
+
+
+@receiver(post_save, sender=ProjectShareLink)
+def publish_project_share_link_save(sender, instance: ProjectShareLink, created: bool, **kwargs) -> None:
+    publish_project_share_link_change(
+        instance,
+        "post_save",
+        event="share_link_created" if created else "share_link_updated",
+    )
+
+
+@receiver(post_delete, sender=ProjectShareLink)
+def publish_project_share_link_delete(sender, instance: ProjectShareLink, **kwargs) -> None:
+    publish_project_share_link_change(
+        instance,
+        "post_delete",
+        event="share_link_deleted",
     )

@@ -271,7 +271,12 @@ console.log('Hocuspocus server running at ws://localhost:1234');
 // Listen for project updates coming from Django via Redis pub/sub
 const PROJECT_UPDATE_CHANNEL = "yjs:project_updates";
 const PROJECT_COLLABORATOR_UPDATE_CHANNEL = "yjs:project_collaborator_updates";
-const PROJECT_UPDATE_CHANNELS = [PROJECT_UPDATE_CHANNEL, PROJECT_COLLABORATOR_UPDATE_CHANNEL];
+const PROJECT_SHARE_LINK_UPDATE_CHANNEL = "yjs:project_share_link_updates";
+const PROJECT_UPDATE_CHANNELS = [
+  PROJECT_UPDATE_CHANNEL,
+  PROJECT_COLLABORATOR_UPDATE_CHANNEL,
+  PROJECT_SHARE_LINK_UPDATE_CHANNEL,
+];
 
 redisSubscriber.subscribe(...PROJECT_UPDATE_CHANNELS, (err, count) => {
   if (err) {
@@ -317,9 +322,10 @@ redisSubscriber.on("message", (channel, message) => {
       const docConnection = await hocuspocus.openDirectConnection(documentName);
 
       if (channel === PROJECT_UPDATE_CHANNEL) {
-        const { name, yjs_blob } = payload as {
+        const { name, yjs_blob, default_share_link_id } = payload as {
           name?: string | null;
           yjs_blob?: string | null;
+          default_share_link_id?: number | null;
         };
 
         console.log(
@@ -353,6 +359,19 @@ redisSubscriber.on("message", (channel, message) => {
         console.log(
           `[Hocuspocus][Redis] Applied external project update for document ${documentName}.`,
         );
+
+        // Broadcast default share-link changes (if present) as stateless messages
+        if (typeof default_share_link_id !== "undefined") {
+          docConnection.document.getConnections().forEach((connection) => {
+            connection.sendStateless(
+              JSON.stringify({
+                type: "project_default_share_link_change",
+                project_id: projectId,
+                default_share_link_id,
+              }),
+            );
+          });
+        }
       } else if (channel === PROJECT_COLLABORATOR_UPDATE_CHANNEL) {
         const {
           project_id,
@@ -427,6 +446,31 @@ redisSubscriber.on("message", (channel, message) => {
               }),
             );
           }
+        });
+      } else if (channel === PROJECT_SHARE_LINK_UPDATE_CHANNEL) {
+        const {
+          project_id,
+          event,
+          share_link,
+        } = payload as {
+          project_id: number;
+          event: string;
+          share_link: Record<string, any>;
+        };
+
+        console.log(
+          `[Hocuspocus][Redis] Broadcasting share link update for project ${project_id} to connected clients...`,
+        );
+
+        docConnection.document.getConnections().forEach((connection) => {
+          connection.sendStateless(
+            JSON.stringify({
+              type: "project_share_link_change",
+              event,
+              project_id,
+              share_link,
+            }),
+          );
         });
       }
 
