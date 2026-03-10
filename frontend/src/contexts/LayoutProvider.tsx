@@ -10,17 +10,11 @@ import {
   PersonIcon,
   SunIcon,
   MoonIcon,
-  DrawingPinFilledIcon,
-  ImageIcon,
 } from "@radix-ui/react-icons";
 import { useTheme } from "@/contexts/ThemeContext";
-import {
-  useWorkspaceView,
-  WorkspaceView,
-} from "@/contexts/WorkspaceViewContext";
 import DropDownButton from "@/components/ui/DropDownButton";
 import { authApi } from "@/lib/api/auth";
-import { User } from "@/lib/types/api/users";
+import { useUser } from "@/contexts/UserContext";
 
 // contains all controls for layour
 export interface LayoutContextType {
@@ -52,7 +46,7 @@ export default function LayoutProvider({
 }) {
   const { resolvedTheme, toggleTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
+  const user = useUser();
 
   // developer-added controls for header and footer element
   const [middleHeaderElement, setMiddleHeaderElement] =
@@ -106,11 +100,6 @@ export default function LayoutProvider({
   // Avoid hydration mismatch by waiting until mounted
   useEffect(() => {
     setMounted(true);
-
-    authApi
-      .getUserDetails()
-      .then((u) => setUser(u))
-      .catch(() => {});
   }, []);
 
   const ctxValue: LayoutContextType = {

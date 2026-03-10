@@ -164,6 +164,7 @@ export const Table = <
   const [loading, setLoading] = useState<boolean>(true);
   const [showLoadingOverlay, setShowLoadingOverlay] = useState<boolean>(false);
   const loadingOverlayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastFetchKeyRef = useRef<string | null>(null);
 
   const debouncedFilters = useMultiDebounce({
     values: { searchInput, sorting, pagination, filters },
@@ -239,6 +240,11 @@ export const Table = <
   };
 
   useEffect(() => {
+    const fetchKey = JSON.stringify(debouncedFilters);
+    if (lastFetchKeyRef.current === fetchKey) {
+      return;
+    }
+    lastFetchKeyRef.current = fetchKey;
     fetchData();
   }, [debouncedFilters]);
 

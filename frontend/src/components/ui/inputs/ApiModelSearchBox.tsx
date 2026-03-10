@@ -47,7 +47,9 @@ export const ApiModelSearchBox = <
   const tableRef = useRef<TableRef<TData, TFilters>>(null);
 
   useEffect(() => {
-    setHasTyped(true);
+    if (searchDebounce.trim() !== '') {
+      setHasTyped(true);
+    }
   }, [searchDebounce]);
 
   useEffect(() => {
