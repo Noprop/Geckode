@@ -162,6 +162,8 @@ export const Table = <
   });
   const [searchInput, setSearchInput] = useState<string>(initialSearch);
   const [loading, setLoading] = useState<boolean>(true);
+  const [showLoadingOverlay, setShowLoadingOverlay] = useState<boolean>(false);
+  const loadingOverlayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const debouncedFilters = useMultiDebounce({
     values: { searchInput, sorting, pagination, filters },
@@ -239,6 +241,30 @@ export const Table = <
   useEffect(() => {
     fetchData();
   }, [debouncedFilters]);
+
+  useEffect(() => {
+    if (loading) {
+      if (loadingOverlayTimeoutRef.current !== null) {
+        clearTimeout(loadingOverlayTimeoutRef.current);
+      }
+      loadingOverlayTimeoutRef.current = setTimeout(() => {
+        setShowLoadingOverlay(true);
+      }, 150);
+    } else {
+      if (loadingOverlayTimeoutRef.current !== null) {
+        clearTimeout(loadingOverlayTimeoutRef.current);
+        loadingOverlayTimeoutRef.current = null;
+      }
+      setShowLoadingOverlay(false);
+    }
+
+    return () => {
+      if (loadingOverlayTimeoutRef.current !== null) {
+        clearTimeout(loadingOverlayTimeoutRef.current);
+        loadingOverlayTimeoutRef.current = null;
+      }
+    };
+  }, [loading]);
 
   useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
@@ -518,7 +544,7 @@ export const Table = <
       ) : null}
 
       <div className='relative'>
-        {loading && (
+        {showLoadingOverlay && (
           <div className='absolute inset-0 z-10 flex items-center justify-center bg-dark-secondary/50 dark:bg-white/50 backdrop-blur-[1px]'>
             <div className='flex flex-col items-center'>
               <div className='w-10 h-10 border-4 border-white/80 border-t-transparent rounded-full animate-spin'></div>

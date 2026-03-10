@@ -340,13 +340,41 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
     };
   }, [project.id]);
 
+  const contentOuterRef = useRef<HTMLDivElement | null>(null);
+  const contentInnerRef = useRef<HTMLDivElement | null>(null);
+  const [contentHeight, setContentHeight] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof ResizeObserver === "undefined") {
+      return;
+    }
+
+    const node = contentInnerRef.current;
+    if (!node) return;
+
+    const updateHeight = () => {
+      setContentHeight(node.getBoundingClientRect().height);
+    };
+
+    const resizeObserver = new ResizeObserver(() => {
+      updateHeight();
+    });
+
+    resizeObserver.observe(node);
+    updateHeight();
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [tab]);
+
   return (
     <>
     <Modal
       className="bg-green-500 min-w-150"
       title="Share Project"
       subtitle={project.name}
-      text="Share this project with specific users or entire organizations."
+      text="Share this project with specific users/organizations or create share links."
       icon={Share1Icon}
       actions={
         <div className="flex justify-between w-full">
@@ -368,6 +396,16 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
         </div>
       }
     >
+      <div
+        ref={contentOuterRef}
+        className="w-full"
+        style={{
+          height: contentHeight !== null ? contentHeight : undefined,
+          transition: "height 220ms cubic-bezier(0.16, 1, 0.3, 1)",
+          overflow: "hidden",
+        }}
+      >
+        <div ref={contentInnerRef}>
       {tab === 'users' ? <>
         <ProjectShareSearchBox<
           User,
@@ -731,6 +769,8 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
           ]}
         />
       </> : null}
+        </div>
+      </div>
     </Modal>
     {linkToRefresh && (
       <Modal
