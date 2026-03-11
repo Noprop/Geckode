@@ -25,7 +25,7 @@ class OrganizationViewSet(ModelViewSet):
             Q(is_public=True) |
             Q(owner=self.request.user) |
             Q(members=self.request.user)
-        ).distinct()
+        ).distinct().order_by("id")
 
     def perform_create(self, serializer : OrganizationSerializer) -> None:
         serializer.save(owner=self.request.user)

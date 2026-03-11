@@ -62,7 +62,7 @@ class ProjectViewSet(ModelViewSet):
     http_method_names = ['get', 'post', 'patch', 'delete']
 
     def get_queryset(self):
-        return apply_project_access_filters(super().get_queryset(), self.request.user)
+        return apply_project_access_filters(super().get_queryset(), self.request.user).order_by("id")
 
     def get_permissions(self):
         if self.action in ['list', 'create']:

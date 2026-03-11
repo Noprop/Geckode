@@ -49,6 +49,8 @@ __pycache__/
 venv/
 *.sqlite3
 media/
+.coverage
+htmlcov/
 
 .cursor
 node_modules/
