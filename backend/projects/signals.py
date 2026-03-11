@@ -2,7 +2,7 @@ import base64
 import json
 from django.db.models.signals import pre_save, post_save, post_delete
 from django.dispatch import receiver
-from redis import Redis
+from utils.redis_client import safe_hkeys, safe_publish
 from accounts.models import User
 from .models import OrganizationProject, Project, ProjectCollaborator, ProjectShareLink
 from .serializers import ProjectCollaboratorSerializer, ProjectOrganizationSerializer, ProjectShareLinkSerializer
@@ -41,7 +41,6 @@ def delete_thumbnail_on_project_delete(sender, instance: Project, **kwargs) -> N
 
 ### Yjs project update signals
 
-redis_client = Redis(host="localhost", port=6379, db=0)
 CLIENT_MAP_PREFIX = "yjs:clients"
 PROJECT_UPDATE_CHANNEL = "yjs:project_updates"
 PROJECT_COLLABORATOR_UPDATE_CHANNEL = "yjs:project_collaborator_updates"
@@ -55,8 +54,7 @@ def get_project_connected_users(project_id: int) -> list[int]:
     key = f"{CLIENT_MAP_PREFIX}:{project_id}"
     # Field names are user IDs; we don't need the client lists if we only care
     # about which users are present.
-    user_id_bytes = redis_client.hkeys(key)
-    print("users obtained from get_project_connected_users", [int(uid.decode("utf-8")) for uid in user_id_bytes])
+    user_id_bytes = safe_hkeys(key)
     return [int(uid.decode("utf-8")) for uid in user_id_bytes]
 
 @receiver(pre_save, sender=Project)
@@ -110,33 +108,24 @@ def publish_project_change(sender, instance: Project, created: bool, **kwargs) -
     ):
         return
 
-    try:
-        encoded_blob: str | None
-        if instance.yjs_blob is not None and old_yjs_blob != instance.yjs_blob:
-            # Encode binary blob as base64 so it can be transported via JSON/Redis
-            encoded_blob = base64.b64encode(instance.yjs_blob).decode("ascii")
-        else:
-            encoded_blob = None
+    encoded_blob: str | None
+    if instance.yjs_blob is not None and old_yjs_blob != instance.yjs_blob:
+        # Encode binary blob as base64 so it can be transported via JSON/Redis
+        encoded_blob = base64.b64encode(instance.yjs_blob).decode("ascii")
+    else:
+        encoded_blob = None
 
-        payload = {
-            "project_id": instance.pk,
-            "name": instance.name,
-            "yjs_blob": encoded_blob,
-        }
+    payload = {
+        "project_id": instance.pk,
+        "name": instance.name,
+        "yjs_blob": encoded_blob,
+    }
 
-        # Only include default_share_link_id when it changed
-        if old_default_share_link_id != getattr(instance, "default_share_link_id", None):
-            payload["default_share_link_id"] = getattr(instance, "default_share_link_id", None)
+    # Only include default_share_link_id when it changed
+    if old_default_share_link_id != getattr(instance, "default_share_link_id", None):
+        payload["default_share_link_id"] = getattr(instance, "default_share_link_id", None)
 
-        redis_client.publish(
-            PROJECT_UPDATE_CHANNEL,
-            json.dumps(payload),
-        )
-    except Exception as exc:
-        print(
-            "post_save(Project): error publishing name change for project "
-            f"{instance.pk} to Redis: {exc}"
-        )
+    safe_publish(PROJECT_UPDATE_CHANNEL, json.dumps(payload))
 
 def publish_project_collaborator_permission(
     instance: ProjectCollaborator,
@@ -147,27 +136,21 @@ def publish_project_collaborator_permission(
 ) -> None:
     effective_permission = instance.project.get_permission(instance.collaborator)
 
-    try:
-        redis_client.publish(
-            PROJECT_COLLABORATOR_UPDATE_CHANNEL,
-            json.dumps(
-                {
-                    "project_id": instance.project_id,
-                    "event": event,
-                    "collaborator_id": instance.collaborator_id,
-                    "permission": instance.permission,
-                    "project_collaborator": project_collaborator,
-                    "collaborators": {
-                        instance.collaborator_id: effective_permission,
-                    },
-                }
-            )
-        )
-    except Exception as exc:
-        print(
-            f"{source}(ProjectCollaborator): error publishing permission change for project collaborator "
-            f"{instance.project_id} to Redis: {exc}"
-        )
+    safe_publish(
+        PROJECT_COLLABORATOR_UPDATE_CHANNEL,
+        json.dumps(
+            {
+                "project_id": instance.project_id,
+                "event": event,
+                "collaborator_id": instance.collaborator_id,
+                "permission": instance.permission,
+                "project_collaborator": project_collaborator,
+                "collaborators": {
+                    instance.collaborator_id: effective_permission,
+                },
+            }
+        ),
+    )
 
 @receiver(post_save, sender=ProjectCollaborator)
 def publish_project_collaborator_change(sender, instance: ProjectCollaborator, created: bool, **kwargs) -> None:
@@ -193,29 +176,23 @@ def publish_organization_project_permission(
     event: str,
     project_organization: dict | None = None,
 ) -> None:
-    try:
-        redis_client.publish(
-            PROJECT_COLLABORATOR_UPDATE_CHANNEL,
-            json.dumps(
-                {
-                    "project_id": instance.project_id,
-                    "event": event,
-                    "project_organization_id": instance.pk,
-                    "organization_id": instance.organization_id,
-                    "permission": instance.permission,
-                    "project_organization": project_organization,
-                    "collaborators": {
-                        id: instance.project.get_permission(User.objects.get(pk=id))
-                        for id in get_project_connected_users(instance.project_id)
-                    }
+    safe_publish(
+        PROJECT_COLLABORATOR_UPDATE_CHANNEL,
+        json.dumps(
+            {
+                "project_id": instance.project_id,
+                "event": event,
+                "project_organization_id": instance.pk,
+                "organization_id": instance.organization_id,
+                "permission": instance.permission,
+                "project_organization": project_organization,
+                "collaborators": {
+                    id: instance.project.get_permission(User.objects.get(pk=id))
+                    for id in get_project_connected_users(instance.project_id)
                 }
-            )
-        )
-    except Exception as exc:
-        print(
-            f"{source}(ProjectOrganization): error publishing permission change for project/organization "
-            f"{instance.project_id}/{instance.organization_id} to Redis: {exc}"
-        )
+            }
+        ),
+    )
 
 @receiver(post_save, sender=OrganizationProject)
 def publish_organization_project_change(sender, instance: OrganizationProject, created: bool, **kwargs) -> None:
@@ -244,25 +221,19 @@ def publish_project_share_link_change(
     """
     Publish share-link changes (create/update/delete) for a project.
     """
-    try:
-        redis_client.publish(
-            PROJECT_SHARE_LINK_UPDATE_CHANNEL,
-            json.dumps(
-                {
-                    "project_id": instance.project_id,
-                    "event": event,
-                    "share_link": ProjectShareLinkSerializer(instance).data if event != "share_link_deleted" else {
-                        "id": instance.pk,
-                        "project": instance.project_id,
-                    },
-                }
-            ),
-        )
-    except Exception as exc:
-        print(
-            f"{source}(ProjectShareLink): error publishing change for project share link "
-            f"{instance.project_id}/{instance.pk} to Redis: {exc}"
-        )
+    safe_publish(
+        PROJECT_SHARE_LINK_UPDATE_CHANNEL,
+        json.dumps(
+            {
+                "project_id": instance.project_id,
+                "event": event,
+                "share_link": ProjectShareLinkSerializer(instance).data if event != "share_link_deleted" else {
+                    "id": instance.pk,
+                    "project": instance.project_id,
+                },
+            }
+        ),
+    )
 
 
 @receiver(post_save, sender=ProjectShareLink)
