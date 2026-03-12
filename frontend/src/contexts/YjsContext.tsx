@@ -43,6 +43,7 @@ interface InstanceData {
 const instances = new Map<string, InstanceData>();
 const syncCallbacks = new Map<string, Set<() => void>>();
 const pendingSetups = new Map<string, Promise<void>>();
+const initialPermissionReceived = new Set<string>();
 let providerCount = 0;
 
 const getPersistenceKey = (name: string) =>
@@ -120,6 +121,7 @@ const reconnectProviderForDocument = (name: string): void => {
   const instance = instances.get(name);
   if (!instance?.provider) return;
 
+  initialPermissionReceived.delete(name);
   instance.provider.destroy();
   instance.provider = null as unknown as HocuspocusProvider;
   instance.synced = false;
@@ -196,14 +198,13 @@ const setupProvider = async (name: string): Promise<void> => {
           void import("@/stores/geckodeStore").then(({ useGeckodeStore }) => {
             if (!payload.permission) window.location.href = "/projects";
 
+            const isFirstMessage = !initialPermissionReceived.has(name);
+            initialPermissionReceived.add(name);
+
             const storeState = useGeckodeStore.getState();
             storeState.setProjectPermission(payload.permission);
 
-            // Reconnect if permission switched between being allowed to edit or not
-            if (
-              storeState.projectPermission !== payload.permission &&
-              [storeState.projectPermission, payload.permission].includes('view')
-            ) {
+            if (!isFirstMessage) {
               setTimeout(() => reconnectProviderForDocument(name), 0);
             }
           });
@@ -453,6 +454,7 @@ export const YjsProvider = ({ children }: { children: React.ReactNode }) => {
         instances.clear();
         syncCallbacks.clear();
         pendingSetups.clear();
+        initialPermissionReceived.clear();
       }
     };
   }, []);

@@ -12,7 +12,7 @@ import { getClientColourHex } from "@/lib/yjs/clients";
 export const useAwareness = (
   documentName: string,
 ) => {
-  const { blocklyWorkspace } = useGeckodeStore();
+  const blocklyWorkspace = useGeckodeStore((s) => s.blocklyWorkspace);
   const { doc, awareness, onSynced } = useYjs(documentName);
   const user = useUser();
   const dragPollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -138,7 +138,7 @@ export const useAwareness = (
       awareness.off("update", handleUpdate);
       blocklyWorkspace.removeChangeListener(eventsListener);
     };
-  }, [awareness, blocklyWorkspace, doc, user, dragPollingIntervalRef, onSynced]);
+  }, [awareness, blocklyWorkspace, doc, user, stopBlockDragPolling, onSynced]);
 
   useEffect(() => {
     return () => stopBlockDragPolling();
