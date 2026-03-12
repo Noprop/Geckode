@@ -116,6 +116,19 @@ const ensureInstance = (name: string): InstanceData => {
   return instance;
 };
 
+const reconnectProviderForDocument = (name: string): void => {
+  const instance = instances.get(name);
+  if (!instance?.provider) return;
+
+  instance.provider.destroy();
+  instance.provider = null as unknown as HocuspocusProvider;
+  instance.synced = false;
+  pendingSetups.delete(name);
+  setupProvider(name).catch((err) =>
+    console.error(`Yjs reconnect for ${name}:`, err),
+  );
+};
+
 const setupProvider = async (name: string): Promise<void> => {
   if (pendingSetups.has(name)) {
     return pendingSetups.get(name)!;
@@ -178,11 +191,21 @@ const setupProvider = async (name: string): Promise<void> => {
           return;
         }
 
-        // Update the user's project permission from the websocket server
+        // Update the user's project permission; reconnect only when it actually changed
         if (payload.type === "project_permission") {
           void import("@/stores/geckodeStore").then(({ useGeckodeStore }) => {
             if (!payload.permission) window.location.href = "/projects";
-            useGeckodeStore.getState().setProjectPermission(payload.permission)
+
+            const storeState = useGeckodeStore.getState();
+            storeState.setProjectPermission(payload.permission);
+
+            // Reconnect if permission switched between being allowed to edit or not
+            if (
+              storeState.projectPermission !== payload.permission &&
+              [storeState.projectPermission, payload.permission].includes('view')
+            ) {
+              setTimeout(() => reconnectProviderForDocument(name), 0);
+            }
           });
         } else if (payload.type === "project_collaborator_change") {
           window.dispatchEvent(

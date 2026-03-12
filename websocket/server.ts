@@ -403,13 +403,13 @@ redisSubscriber.on("message", (channel, message) => {
           const userId = connection.context?.userId;
 
           if (userId in collaborators) {
-            connection.readOnly = collaborators[userId] === "view";
             connection.sendStateless(
               JSON.stringify({
                 type: "project_permission",
                 permission: collaborators[userId],
               }),
             );
+            setImmediate(() => connection.close()); // Reconnect so the client runs onAuthenticate again with the new permission
           }
 
           if (
