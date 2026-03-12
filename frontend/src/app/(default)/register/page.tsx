@@ -1,11 +1,12 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import usersApi from "@/lib/api/handlers/users";
 import { InputBox, InputBoxRef } from "@/components/ui/inputs/InputBox";
 import { Button } from "@/components/ui/Button";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import { Modal } from "@/components/ui/modals/Modal";
+import Link from "next/link";
 import { Pencil2Icon } from "@radix-ui/react-icons";
 import { extractAxiosErrMsg, extractAxiosFieldErrors } from "@/lib/api/axios";
 import { AxiosError } from "axios";
@@ -23,6 +24,11 @@ export default function RegisterPage() {
 
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+
+
+  useEffect(() => {
+    emailRef.current?.focus();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     if (
@@ -100,30 +106,52 @@ export default function RegisterPage() {
           ref={passwordRef}
           placeholder="Password"
           error={fieldErrors.password}
+          password
         />
         <RegisterInputBox
           ref={password2Ref}
           placeholder="Re-typed Password"
           error={fieldErrors.password2}
+          password
+          submitOnEnter
         />
       </form>
+      <div className="flex justify-center mt-5">
+        <Link href="/login">
+          <div className="hover:text-blue-500">Already have an account? Login Here!</div>
+        </Link>
+      </div>
     </Modal>
   );
 }
 
-function RegisterInputBox({ ref, placeholder, error }: {
-  ref: React.RefObject<InputBoxRef | null>,
-  placeholder: string,
-  error: string[],
+function RegisterInputBox({
+  ref,
+  placeholder,
+  error,
+  password,
+  submitOnEnter,
+}: {
+  ref: React.RefObject<InputBoxRef | null>;
+  placeholder: string;
+  error: string[];
+  password?: boolean;
+  submitOnEnter?: boolean;
 }) {
   return (
     <InputBox
       ref={ref}
       className="flex-1 w-80"
-      type="input"
+      type={password ? "password" : "input"}
       placeholder={placeholder}
       required
       error={error}
+      onKeyDown={(e) => {
+        if (submitOnEnter && e.key === "Enter") {
+          e.preventDefault();
+          e.currentTarget.form?.requestSubmit();
+        }
+      }}
     />
   );
 }

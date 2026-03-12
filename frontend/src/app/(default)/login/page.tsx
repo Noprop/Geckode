@@ -1,6 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { authApi } from "@/lib/api/auth";
 import { InputBox, InputBoxRef } from "@/components/ui/inputs/InputBox";
 import { Button } from "@/components/ui/Button";
@@ -11,7 +10,6 @@ import { EnterIcon } from "@radix-ui/react-icons";
 import { extractAxiosErrMsg } from "@/lib/api/axios";
 
 export default function LoginPage() {
-  const router = useRouter();
   const showSnackbar = useSnackbar();
 
   const usernameRef = useRef<InputBoxRef | null>(null);
@@ -19,10 +17,17 @@ export default function LoginPage() {
 
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  useEffect(() => {
+    usernameRef.current?.focus();
+  }, []);
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement> | FormEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+
+    if (loading) return;
+
     if (!usernameRef.current || !passwordRef.current) return;
 
-    e.preventDefault();
     setLoading(true);
 
     try {
@@ -53,16 +58,52 @@ export default function LoginPage() {
         </>
       }
     >
-      <div className="flex flex-col gap-3">
-        <InputBox ref={usernameRef} placeholder="Username" required={true} />
-        <InputBox ref={passwordRef} type="password" placeholder="Password" required={true} />
-      </div>
+      <form
+        onSubmit={handleSubmit}
+        className="flex flex-col gap-3"
+      >
+        <LoginInputBox
+          ref={usernameRef}
+          placeholder="Username"
+        />
+        <LoginInputBox
+          ref={passwordRef}
+          placeholder="Password"
+          password
+        />
+      </form>
 
-      <form className="flex justify-center mt-5">
+      <div className="flex justify-center mt-5">
         <Link href="/register">
           <div className="hover:text-blue-500">Don't have an account yet? Register Here!</div>
         </Link>
-      </form>
+      </div>
     </Modal>
+  );
+}
+
+function LoginInputBox({
+  ref,
+  placeholder,
+  password,
+}: {
+  ref: React.RefObject<InputBoxRef | null>;
+  placeholder: string;
+  password?: boolean;
+}) {
+  return (
+    <InputBox
+      ref={ref}
+      className="flex-1 w-80"
+      type={password ? "password" : "input"}
+      placeholder={placeholder}
+      required
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          e.currentTarget.form?.requestSubmit();
+        }
+      }}
+    />
   );
 }
