@@ -1,14 +1,12 @@
 import * as Blockly from "blockly/core";
 import { javascriptGenerator } from "blockly/javascript";
 import type { StateCreator } from "zustand";
-import { starterWorkspace } from "@/blockly/workspaces/starter";
 import projectsApi from "@/lib/api/handlers/projects";
-import { createPhaserState } from "@/phaser/PhaserStateManager";
 import { EDITOR_SCENE_KEY, GAME_SCENE_KEY } from "@/phaser/sceneKeys";
-import EditorScene from "@/phaser/scenes/EditorScene";
+import type { Client } from "@/lib/types/yjs/awareness";
 import type { EditorSlice, GeckodeStore, WorkspaceOutputType } from "./types";
 import { projectNameSync } from "@/hooks/yjs/useProjectNameSync";
-import { getYDoc } from "@/hooks/yjs/useWorkspaceSync";
+import { getYDoc } from "@/lib/types/yjs/documents";
 import * as Y from "yjs";
 import {
   enablePersistence as yjsEnablePersistence,
@@ -46,6 +44,7 @@ export const createEditorSlice: StateCreator<
 
   // Other
   persistence: null,
+  clients: [],
 
   getCurrentSpriteId: () => {
     return get().selectedSpriteId ?? undefined;
@@ -242,4 +241,6 @@ export const createEditorSlice: StateCreator<
     yjsDisablePersistence(documentName);
     set({ persistence: null });
   },
+
+  setClients: (clients: Client[]) => set({ clients }),
 });

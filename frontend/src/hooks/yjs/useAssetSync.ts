@@ -3,8 +3,8 @@ import { useYjs } from "./useYjs"
 import { useEffect } from "react";
 import * as Y from 'yjs';
 import { AssetType } from "@/stores/slices/types";
-import EditorScene from "@/phaser/scenes/EditorScene";
-import { getYDoc } from "./useWorkspaceSync";
+import { isEditorScene } from "@/phaser/sceneGuards";
+import { getYDoc } from "@/lib/types/yjs/documents";
 
 export const useAssetSync = (documentName: string, assetType: AssetType) => {
   const { doc, isSynced, onSynced } = useYjs(documentName);
@@ -19,7 +19,7 @@ export const useAssetSync = (documentName: string, assetType: AssetType) => {
       assetsMap.forEach((base64Image, key) => {
         storeState.setAsset(key, base64Image, assetType, false);
 
-        if (assetType === "textures" && storeState.phaserScene instanceof EditorScene) {
+        if (assetType === "textures" && isEditorScene(storeState.phaserScene)) {
           console.log('loading initial texture from sync');
           storeState.phaserScene.updateSpriteTextureAsync(key, base64Image);
         }
@@ -38,7 +38,7 @@ export const useAssetSync = (documentName: string, assetType: AssetType) => {
             const base64Image = assetsMap.get(key) ?? '';
             storeState.setAsset(key, base64Image, assetType, false);
 
-            if (assetType === "textures" && storeState.phaserScene instanceof EditorScene) {
+            if (assetType === "textures" && isEditorScene(storeState.phaserScene)) {
               console.log('loading texture from sync');
               storeState.phaserScene.updateSpriteTextureAsync(key, base64Image);
             }

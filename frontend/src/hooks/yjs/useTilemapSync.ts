@@ -3,7 +3,7 @@ import * as Y from "yjs";
 import { useGeckodeStore } from "@/stores/geckodeStore";
 import { Tilemap } from "@/stores/slices/types";
 import { useYjs } from "./useYjs";
-import { getYDoc } from "./useWorkspaceSync";
+import { getYDoc } from "@/lib/types/yjs/documents";
 import { EventBus } from "@/phaser/EventBus";
 
 type YTilemap = Y.Map<any>;

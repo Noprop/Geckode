@@ -6,7 +6,6 @@ import * as Blockly from "blockly/core";
 import { toPublicUser } from "@/lib/types/api/users";
 import { useUser } from "@/contexts/UserContext";
 import { useGeckodeStore } from "@/stores/geckodeStore";
-import { useLayoutStore } from "@/stores/layoutStore";
 import { getClientColourHex } from "@/lib/yjs/clients";
 
 export const useAwareness = (
@@ -31,12 +30,12 @@ export const useAwareness = (
     awareness.setLocalStateField('user', documentName.length === 0 || !user ? undefined : toPublicUser(user));
 
     const handleUpdate = ({ added, updated, removed }: { added: number[]; updated: number[]; removed: number[] }) => {
-      useLayoutStore.setState({
-        clients: Array.from(awareness.getStates().entries()).map(([id, state]) => ({
+      useGeckodeStore.getState().setClients(
+        Array.from(awareness.getStates().entries()).map(([id, state]) => ({
           id: Number(id),
           user: state.user,
         })).filter(({ id }) => id !== doc.clientID),
-      });
+      );
 
       if (updated.length) {
         updated.forEach((clientId) => {
@@ -62,7 +61,7 @@ export const useAwareness = (
 
           const currentBlockSelectionState = awareness.getStates().get(clientId)?.blockSelection;
           const clientColourHex = getClientColourHex(
-            useLayoutStore.getState().clients.findIndex((client) => client.id === Number(clientId))
+            useGeckodeStore.getState().clients.findIndex((client) => client.id === Number(clientId))
           );
 
           if (currentBlockSelectionState) {
@@ -127,7 +126,12 @@ export const useAwareness = (
         }));
 
       if (initialClients.length > 0) {
-        useLayoutStore.setState({ clients: initialClients });
+        useGeckodeStore.getState().setClients(
+          initialClients.map((client) => ({
+            id: Number(client.id),
+            user: client.user,
+          })),
+        );
       }
     });
 

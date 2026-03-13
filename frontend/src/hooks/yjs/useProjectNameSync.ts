@@ -2,7 +2,7 @@ import { useGeckodeStore } from "@/stores/geckodeStore";
 import { useYjs } from "./useYjs";
 import { useEffect } from "react";
 import * as Y from "yjs";
-import { getYDoc } from "./useWorkspaceSync";
+import { getYDoc } from "@/lib/types/yjs/documents";
 
 export const useProjectNameSync = (documentName: string) => {
   const { doc, isSynced, onSynced } = useYjs(documentName);

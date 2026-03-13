@@ -4,9 +4,9 @@ import * as Y from 'yjs';
 import { useEffect } from "react";
 import { blocksMapChangesHandler, useBlockSync } from "./useBlockSync";
 import { useVariableSync } from "./useVariableSync";
-import { documentRegistry } from "@/lib/types/yjs/documents";
+import { getYDoc } from "@/lib/types/yjs/documents";
 import { useAssetSync } from "./useAssetSync";
-import EditorScene from "@/phaser/scenes/EditorScene";
+import { isEditorScene } from "@/phaser/sceneGuards";
 import * as Blockly from "blockly/core";
 import { useProjectNameSync } from "./useProjectNameSync";
 import { starterSpriteWorkspaces, starterTextures } from "@/blockly/workspaces/starter";
@@ -63,8 +63,8 @@ const loadInitialWorkspaces = (
     // Set up observer for sprite changes
     spriteUnobservers[spriteId] = createSpriteObserver(spriteId, spriteMap, doc);
 
-    // Create Phaser sprite if scene is available
-    if (storeState.phaserScene instanceof EditorScene) {
+    // Create Phaser sprite if editor scene is active
+    if (isEditorScene(storeState.phaserScene)) {
       console.log('creating phaser sprite from initial load');
       storeState.phaserScene.createSprite(spriteInstance);
     }
@@ -178,7 +178,7 @@ export const useWorkspaceSync = (documentName: string) => {
                   newSpriteInstances.splice(index, 0, spriteInstance);
                   addedSpriteIds.push(spriteInstance.id);
 
-                  if (storeState.phaserScene instanceof EditorScene) {
+                  if (isEditorScene(storeState.phaserScene)) {
                     console.log('creating phaser sprite from sync');
                     storeState.phaserScene.createSprite(spriteInstance);
                   }
@@ -194,7 +194,7 @@ export const useWorkspaceSync = (documentName: string) => {
 
                 storeState.spriteWorkspaces[id]?.dispose();
 
-                if (storeState.phaserScene instanceof EditorScene) {
+                if (isEditorScene(storeState.phaserScene)) {
                   storeState.phaserScene.removeSprite(id);
                 }
 
@@ -354,11 +354,6 @@ export const useWorkspaceSync = (documentName: string) => {
     };
   }, [workspaces, blocklyWorkspace, doc, isSynced, onSynced]);
 };
-
-export function getYDoc(): Y.Doc | undefined {
-  const projectId = useGeckodeStore.getState().projectId;
-  return documentRegistry.get(String(projectId ?? ''));
-}
 
 export const addSpriteSync = (instance: SpriteInstance, duplicatedFromSpriteIndex?: number) => {
   const doc = getYDoc();

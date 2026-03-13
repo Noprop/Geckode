@@ -4,6 +4,7 @@ import type {
   SpriteInstance,
 } from "@/blockly/spriteRegistry";
 import type { PhaserExport } from "@/phaser/PhaserStateManager";
+import type { Client } from "@/lib/types/yjs/awareness";
 import type EditorScene from "@/phaser/scenes/EditorScene";
 import type GameScene from "@/phaser/scenes/GameScene";
 import { IndexeddbPersistence } from "y-indexeddb";
@@ -183,6 +184,7 @@ export interface EditorState {
 
   // Other
   persistence: IndexeddbPersistence | null;
+  clients: Client[];
 }
 
 export interface EditorActions {
@@ -211,9 +213,10 @@ export interface EditorActions {
   toggleEditor: () => void;
   markSpriteAsUpdated: (id: string) => void;
 
-  /* Persistence (Yjs IndexedDB) */
+  // Yjs
   enablePersistence: (documentName: string) => void;
   disablePersistence: (documentName: string) => void;
+  setClients: (clients: Client[]) => void;
 }
 
 export type EditorSlice = EditorState & EditorActions;

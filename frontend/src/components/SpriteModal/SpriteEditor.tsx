@@ -5,7 +5,7 @@ import * as Blockly from 'blockly/core';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { Button } from '../ui/Button';
 import { useGeckodeStore } from '@/stores/geckodeStore';
-import EditorScene from '@/phaser/scenes/EditorScene';
+import { isEditorScene } from '@/phaser/sceneGuards';
 import { PixelCanvasEditorLayout } from '@/components/PixelCanvasEditorLayout';
 import { PixelEditorToolbar } from '@/components/PixelEditorToolbar';
 import { useCanvasZoom } from '@/hooks/useCanvasZoom';
@@ -213,7 +213,7 @@ const SpriteEditor = () => {
     };
 
     // Only manipulate Phaser sprites in EditorScene
-    if (phaserScene instanceof EditorScene) {
+    if (isEditorScene(phaserScene)) {
       phaserScene.createSprite(newSprite);
     }
 
@@ -241,7 +241,7 @@ const SpriteEditor = () => {
       spriteModalSaveTargetTextureName: currentSaveTargetTextureName,
       textures: currentTextures,
     } = useGeckodeStore.getState();
-    const isEditorScene = phaserScene instanceof EditorScene;
+    const editorSceneActive = isEditorScene(phaserScene);
 
     if (!phaserScene) throw new Error('Phaser scene is not ready.');
 
@@ -266,7 +266,7 @@ const SpriteEditor = () => {
             updateSpriteInstance(selectedSpriteId, { textureName: nextTextureName });
           }
         } else {
-          const currentState = useGeckodeStore.getState();
+      const currentState = useGeckodeStore.getState();
 
           currentState.spriteInstances
             .filter((sprite) => sprite.textureName === targetTextureName)

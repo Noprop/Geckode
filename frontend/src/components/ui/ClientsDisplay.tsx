@@ -1,9 +1,9 @@
 import { getClientColourHex } from "@/lib/yjs/clients";
-import { useLayoutStore } from "@/stores/layoutStore";
+import { useGeckodeStore } from "@/stores/geckodeStore";
 import { UserIcon } from "./UserIcon";
 
 export const ClientsDisplay = () => {
-  const clients = useLayoutStore((s) => s.clients);
+  const clients = useGeckodeStore((s) => s.clients);
   const maxIconCount = 4;
 
   return <>

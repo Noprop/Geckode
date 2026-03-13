@@ -1,4 +1,5 @@
 import * as Y from 'yjs';
+import { useGeckodeStore } from '@/stores/geckodeStore';
 
 /**
  * Global registry to access Y.Doc instances by document name.
@@ -32,3 +33,8 @@ class DocumentRegistry {
 }
 
 export const documentRegistry = new DocumentRegistry();
+
+export function getYDoc(): Y.Doc | undefined {
+  const projectId = useGeckodeStore.getState().projectId;
+  return documentRegistry.get(String(projectId ?? ''));
+}

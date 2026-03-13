@@ -3,7 +3,7 @@ import * as Y from "yjs";
 import { useGeckodeStore } from "@/stores/geckodeStore";
 import { Tileset } from "@/stores/slices/types";
 import { useYjs } from "./useYjs";
-import { getYDoc } from "./useWorkspaceSync";
+import { getYDoc } from "@/lib/types/yjs/documents";
 
 type YTileset = Y.Map<any>;
 type YTilesetRows = Y.Array<Y.Array<string | null>>;

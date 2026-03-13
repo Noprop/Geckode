@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import * as Y from "yjs";
 import { useGeckodeStore } from "@/stores/geckodeStore";
 import { useYjs } from "./useYjs";
-import { getYDoc } from "./useWorkspaceSync";
+import { getYDoc } from "@/lib/types/yjs/documents";
 
 export const useTileCollidableSync = (documentName: string) => {
   const { doc, isSynced, onSynced } = useYjs(documentName);

@@ -2,7 +2,7 @@ import * as Blockly from 'blockly/core';
 import type { StateCreator } from 'zustand';
 import type { SpriteInstance } from '@/blockly/spriteRegistry';
 import { refreshSpriteGhostBlocks } from "@/lib/blockly/blocks";
-import EditorScene from '@/phaser/scenes/EditorScene';
+import { isEditorScene } from '@/phaser/sceneGuards';
 import {
   bedrockTile,
   brickTile,
@@ -294,7 +294,9 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
     const { spriteInstances, spriteWorkspaces, phaserScene } = get();
     const remaining = spriteInstances.filter((instance) => instance.id !== spriteId);
 
-    if (phaserScene instanceof EditorScene) phaserScene.removeSprite(spriteId);
+    if (isEditorScene(phaserScene)) {
+      phaserScene.removeSprite(spriteId);
+    }
 
     spriteWorkspaces[spriteId]?.dispose();
 
@@ -335,7 +337,7 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
   updateSpriteInstance: (spriteId: string, updates: Partial<SpriteInstance>, syncAfter: boolean = true) => {
     const { phaserGame, phaserScene, blocklyWorkspace } = get();
     if (!phaserGame || !phaserScene) throw new Error('Game is not ready yet.');
-    if (phaserScene instanceof EditorScene) {
+    if (isEditorScene(phaserScene)) {
       phaserScene.updateSprite(spriteId, updates);
     }
 
@@ -404,7 +406,7 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
       },
     });
 
-    if (phaserScene instanceof EditorScene) {
+    if (isEditorScene(phaserScene)) {
       phaserScene.createSprite(instance);
     }
 
@@ -427,10 +429,10 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
 
     // Only load texture immediately if in EditorScene
     // GameScene will pick up changes when user switches back
-    if (phaserScene instanceof EditorScene) {
+    if (isEditorScene(phaserScene)) {
       phaserScene.loadSpriteTextureAsync(textureName, base64Image).then(() => {
         get().setTextureLoadState(textureName, 'loaded');
-      }).catch((err) => {
+      }).catch((err: unknown) => {
         console.error(`Failed to load texture ${textureName}:`, err);
         get().setTextureLoadState(textureName, 'error');
       });
@@ -488,10 +490,10 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
       const { phaserScene } = get();
       // Only load texture immediately if in EditorScene
       // GameScene will pick up changes when user switches back
-      if (phaserScene instanceof EditorScene) {
+      if (isEditorScene(phaserScene)) {
         phaserScene.updateSpriteTextureAsync(name, base64Image).then(() => {
           get().setTextureLoadState(name, 'loaded');
-        }).catch((err) => {
+        }).catch((err: unknown) => {
           console.error(`Failed to load texture ${name}:`, err);
           get().setTextureLoadState(name, 'error');
         });
@@ -504,10 +506,10 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
         .map((tileset) => tileset.id);
 
       const { phaserScene } = get();
-      if (phaserScene instanceof EditorScene) {
+      if (isEditorScene(phaserScene)) {
         phaserScene.updateTileTextureAsync(name, base64Image).then(() => {
           EventBus.emit('update-tilemap');
-        }).catch((err) => {
+        }).catch((err: unknown) => {
           console.error(`Failed to load tile ${name}:`, err);
         });
       }
@@ -595,10 +597,10 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
 
     if (type === 'textures' && name in libaryTextures) {
       const libraryTextureBase64 = libaryTextures[name];
-      if (phaserScene instanceof EditorScene && libraryTextureBase64) {
+      if (isEditorScene(phaserScene) && libraryTextureBase64) {
         phaserScene.updateSpriteTextureAsync(name, libraryTextureBase64).then(() => {
           get().setTextureLoadState(name, 'loaded');
-        }).catch((err) => {
+        }).catch((err: unknown) => {
           console.error(`Failed to restore library texture ${name}:`, err);
           get().setTextureLoadState(name, 'error');
         });
