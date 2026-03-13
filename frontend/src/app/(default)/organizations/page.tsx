@@ -15,7 +15,7 @@ import { Modal } from "@/components/ui/modals/Modal";
 import { InputBox, InputBoxRef } from "@/components/ui/inputs/InputBox";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import DragAndDrop, { DragAndDropRef } from "@/components/DragAndDrop";
-import { ExclamationTriangleIcon, ExitIcon, FilePlusIcon, GearIcon, TrashIcon } from "@radix-ui/react-icons";
+import { ExclamationTriangleIcon, ExitIcon, FaceIcon, FilePlusIcon, GearIcon, PersonIcon, TrashIcon, CalendarIcon } from "@radix-ui/react-icons";
 import { useRouter } from "next/navigation";
 import { extractAxiosErrMsg } from "@/lib/api/axios";
 import { useUser } from "@/contexts/UserContext";
@@ -154,6 +154,29 @@ export default function OrganizationsPage() {
           </>
         }
         rowStyle="py-2"
+        enabledDisplayModes={['table', 'grid']}
+        defaultDisplayMode={'table'}
+        gridDetails={(org) => ({
+          title: org.name,
+          thumbnail: org.thumbnail,
+          details: [
+            {
+              what: 'Created At',
+              label: `${new Date(String(org.created_at)).toLocaleString().split(' ')[0]}`,
+              decal: <CalendarIcon />
+            },
+            {
+              what: 'Owner',
+              label: `${org.owner.first_name} ${org.owner.last_name}`,
+              decal: <FaceIcon />
+            },
+            {
+              what: 'Member Count',
+              label: org.members_count?.toString() ?? '0',
+              decal: <PersonIcon />
+            },
+          ]
+        })}
       />
 
       {showModal === "create" ? (

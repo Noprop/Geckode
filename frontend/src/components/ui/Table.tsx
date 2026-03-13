@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useImperativeHandle, useRef, useState, HTMLAttributes, Dispatch, SetStateAction } from 'react';
+import { useEffect, useImperativeHandle, useRef, useState, HTMLAttributes, Dispatch, SetStateAction, ReactElement } from 'react';
 import {
   createColumnHelper,
   flexRender,
@@ -15,7 +15,7 @@ import { Icon, IconType } from './Icon';
 import { UserIcon } from './UserIcon';
 import { InputBox, InputBoxRef } from './inputs/InputBox';
 import { EditableApiTextCell } from './inputs/EditableApiTextCell';
-import { Option, SelectionBox } from './selectors/SelectionBox';
+import { Option, SelectionBox, SelectionBoxRef } from './selectors/SelectionBox';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import {
   ChevronLeftIcon,
@@ -29,6 +29,8 @@ import {
 import { BaseApiInnerReturn, createBaseApi } from '@/lib/api/base';
 import useMultiDebounce from '@/hooks/useMultiDebounce';
 import { formatTimeSince } from '@/lib/time';
+import { Button } from './Button';
+import { GridIcon, TableIcon } from 'lucide-react';
 
 export interface TableRef<TData, TFilters> {
   refresh: () => void;
@@ -46,6 +48,9 @@ export interface TableRef<TData, TFilters> {
 }
 
 type Filters<TFilters> = Partial<Omit<TFilters, keyof BaseFilters>>;
+
+
+type DisplayMode = 'table' | 'grid'
 
 interface TableProps<TData, TSortKeys, TApi, TFilters> {
   ref?: React.Ref<TableRef<TData, TFilters>>;
@@ -70,6 +75,14 @@ interface TableProps<TData, TSortKeys, TApi, TFilters> {
   showControls?: boolean;
   initialSearch?: string;
   getRowIdValue?: (row: TData) => number | string | null | undefined;
+  staticData?: TData[];
+  enabledDisplayModes?: DisplayMode[];
+  defaultDisplayMode?: DisplayMode;
+  gridDetails?: (obj: TData) => {
+    title?: string;
+    thumbnail?: string | null;
+    details?: {what?:string; label?: string; decal?: ReactElement}[];
+  }
 }
 
 type ColumnTypes =
@@ -148,6 +161,10 @@ export const Table = <
   showControls = true,
   initialSearch = '',
   getRowIdValue,
+  staticData,
+  enabledDisplayModes = ['table'],
+  defaultDisplayMode = 'table',
+  gridDetails
 }: TableProps<TData, TSortKeys, TApi, TFilters>) => {
   const showSnackbar = useSnackbar();
   const pageNumberInputRef = useRef<InputBoxRef | null>(null);
@@ -165,6 +182,33 @@ export const Table = <
   const [showLoadingOverlay, setShowLoadingOverlay] = useState<boolean>(false);
   const loadingOverlayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastFetchKeyRef = useRef<string | null>(null);
+  const gridSortCategoryRef = useRef<SelectionBoxRef>(null);
+  const gridSortDirectionRef = useRef<SelectionBoxRef>(null);
+
+
+  const [displayMode, setDisplayMode] = useState<DisplayMode>(defaultDisplayMode);
+
+  // if static data is loaded, cancel loading
+  useEffect(() => {
+    setLoading(false);
+  }, [staticData]);
+
+  useEffect(() => {console.log(sorting)}, [sorting])
+
+  // error check displayMode every time it is updated
+  useEffect(() => {
+    if (!enabledDisplayModes.includes(displayMode)) {
+      throw new Error(`Table: Current display mode "${displayMode.toString()}" not allowed in "enabledDisplayModes"!`)
+    }
+  },[displayMode])
+
+  useEffect(() => {
+    if (gridDetails && !enabledDisplayModes.includes('grid')) {
+      throw new Error('Table: grid must be listed in "enabledDisplayModes" to specify "gridDetails"')
+    }
+  }, [gridDetails])
+
+  
 
   const debouncedFilters = useMultiDebounce({
     values: { searchInput, sorting, pagination, filters },
@@ -524,7 +568,7 @@ export const Table = <
 
   return (
     <div className={`block ${style}`}>
-      {enableSearch || extras ? (
+      {enableSearch || extras || enabledDisplayModes.length > 1 ? (
         <div className='flex items-center'>
           {enableSearch ? (
             <div className='flex'>
@@ -545,7 +589,21 @@ export const Table = <
           ) : (
             <div></div>
           )}
-          <div className='flex justify-end mx-2 w-full'>{extras}</div>
+          <div className='flex justify-end mx-2 w-full'>
+
+            { enabledDisplayModes.includes('table') && enabledDisplayModes.includes('grid') && (
+                <Button 
+                  className='mr-3 btn-neutral'
+                  onClick={() => setDisplayMode(displayMode === 'table' ? 'grid' : 'table')}>
+                  {
+                    displayMode === 'table' ? <GridIcon  />
+                                            : <TableIcon />
+                  }
+                </Button>
+              )
+            }
+            {extras}
+          </div>
         </div>
       ) : null}
 
@@ -557,7 +615,7 @@ export const Table = <
             </div>
           </div>
         )}
-        <table className='w-full'>
+        {displayMode === 'table' ? (<table className='w-full'>
           {showHeader && (
             <thead className='table-header'>
               {table.getHeaderGroups().map((headerGroup) => (
@@ -571,11 +629,11 @@ export const Table = <
                       visible && (
                         <th
                           key={header.id}
-                          className='text-left select-none px-2 '
+                          className='text-left select-none px-3'
                           onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
                           style={{ cursor: canSort ? 'pointer' : 'default' }}
                         >
-                          <span className='inline-flex items-center text-light-txt dark:text-dark-txt'>
+                          <span className='inline-flex items-center text-black dark:text-white'>
                             {header.isPlaceholder ? null : (
                               <>
                                 {header.column.columnDef.header}
@@ -624,7 +682,7 @@ export const Table = <
                   {row.getVisibleCells().map((cell) => (
                     <td
                       key={cell.id}
-                      className={`border-b border-gray-500 px-2 ${rowStyle}
+                      className={`border-b border-gray-500 ${rowStyle}
                                 ${(cell.column.columnDef.meta as any)?.style ?? ''}`}
                     >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -641,8 +699,81 @@ export const Table = <
               </tr>
             )}
           </tbody>
-        </table>
-      </div>
+        </table>) 
+          : (displayMode === 'grid' && gridDetails) ?
+        /** Grid Mode */
+        <>
+          <div className='flex h-10 my-3'>
+            <p className='font-bold align-middle my-auto mr-2'>Sort By:</p>
+            <SelectionBox
+              ref={gridSortCategoryRef}
+              className='border border-gray-400/50 rounded-md cursor-pointer min-w-40'
+              options={
+                  // display all non-hidden, non-thumbnail columns
+                Object.keys(columns).filter(
+                  (k) => (
+                    (!columns[k].hidden || !columns[k].hidden) &&
+                    (columns[k].type && columns[k].type !== 'thumbnail')
+                  )
+                ).map((sk) => ({value: sk, label: sk}))
+              }
+              onChange={(e) => {setSorting([{
+                desc: gridSortDirectionRef.current?.value === 'desc',
+                id: e.target?.value
+              }])}}
+            />
+            <SelectionBox
+              ref={gridSortDirectionRef}
+              className='border border-gray-400/50 rounded-md cursor-pointer ml-3 min-w-40'
+              options={
+                [
+                  { value: 'asc', label: 'Ascending' },
+                  { value: 'desc', label: 'Descending' }
+                ]
+              }
+              onChange={(e) => (setSorting([{
+                desc: e.target?.value === 'desc',
+                id: gridSortCategoryRef.current?.value ?? 'id'
+              }]))}
+            />
+          </div>
+          <div className='flex items-center'>
+            <div className='w-full grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-y-5'>
+              {
+                data.map((obj, idx) => {
+                  const gridItemProps = gridDetails(obj);
+                  return (
+                <div key={idx} className=' px-6 py-4 border border-gray-400/50 hover:bg-white/20 bg-white/5 hover:translate-y-[-5px] rounded-lg shadow-md w-60 min-h-[370px] cursor-pointer transition-all'>
+                  <img 
+                    className='w-full aspect-square rounded-full  object-cover' 
+                    src={gridItemProps.thumbnail ?? 'user-icon.png'}
+                  />
+                  <h2 className='bg-primary-green rounded-xl font-bold my-3 p-0.5 text-white text-center'>
+                    {gridItemProps.title ?? ''}
+                  </h2>
+                  {gridItemProps.details?.map((detail, idx2) => 
+                    <div key={idx2} className='flex h-5 gap-x-2 mt-1' title={detail.what ?? undefined}>
+                      { detail.decal && 
+                        <div  className='bg-accent-purple rounded-full aspect-square items-center justify-center flex text-white'>
+                          {detail.decal}
+                        </div>
+                      }
+                      { detail.label && 
+                        <p key={idx2} className='text-sm  my-auto'>
+                          {detail.label}
+                        </p>
+                      }
+                    </div>
+                    )
+                  }
+                  <div className='absolute top-2 right-2 flex gap-x-2 h-8'>{/*TODO: put actions here */}</div>
+                </div>
+              )})
+              }
+            </div>
+          </div>
+        </> 
+        : <></>}
 
       {showControls && (
         <div className='flex justify-between items-center mt-4'>
@@ -741,5 +872,6 @@ export const Table = <
         </div>
       )}
     </div>
+  </div>
   );
 };
