@@ -7,6 +7,7 @@ import type { GeckodeStore } from "./slices/types";
 export type {
   SpriteDefinition,
   SpriteInstance,
+  SpriteType,
 } from "@/blockly/spriteRegistry";
 // Re-export types for consumers
 export type {

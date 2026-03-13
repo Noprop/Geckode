@@ -110,13 +110,14 @@ const NumericWithIcon = ({
   max?: number;
 }) => (
   <div className="grid grid-cols-[5rem_auto] items-center gap-1.5">
-    <label htmlFor={id} className="flex items-center gap-1.5 min-w-0">
+    <span className="flex items-center gap-1.5 min-w-0">
       <Icon size={iconSize} className="text-slate-500 dark:text-slate-400 shrink-0" />
       <span className={labelClasses}>{label}</span>
-    </label>
+    </span>
     <input
       id={id}
       type="number"
+      aria-label={label}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       onBlur={onBlur}

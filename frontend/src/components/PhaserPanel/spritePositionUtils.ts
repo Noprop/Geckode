@@ -3,13 +3,14 @@ import type { SpriteInstance } from "@/blockly/spriteRegistry";
 /** Local form state for the sprite position panel */
 export interface SpriteFormValues {
   name: string;
+  spriteTypeId: string;
   x: string;
   y: string;
   scaleX: string;
   scaleY: string;
   direction: string;
   snapToGrid: boolean;
-  visible: boolean;
+  enabled: boolean;
 }
 
 /** Default values for each field when blur produces an invalid value */
@@ -24,13 +25,14 @@ export const FIELD_DEFAULTS = {
 
 const EMPTY_FORM_VALUES: SpriteFormValues = {
   name: "",
+  spriteTypeId: "",
   x: "",
   y: "",
   scaleX: "",
   scaleY: "",
   direction: "",
   snapToGrid: false,
-  visible: true,
+  enabled: true,
 };
 
 /** Resolve the value to commit on blur */
@@ -55,13 +57,14 @@ export function buildFormValues(
   if (!sprite) return EMPTY_FORM_VALUES;
   return {
     name: sprite.name,
+    spriteTypeId: sprite.spriteTypeId ?? "",
     x: String(sprite.x ?? centerX),
     y: String(sprite.y ?? centerY),
     scaleX: String(sprite.scaleX ?? 1),
     scaleY: String(sprite.scaleY ?? 1),
     direction: String(sprite.direction ?? 90),
     snapToGrid: sprite.snapToGrid ?? false,
-    visible: sprite.visible ?? true,
+    enabled: sprite.enabled ?? true,
   };
 }
 
@@ -75,6 +78,14 @@ export const numericInputClasses = `${baseInputClasses} w-14 px-2 text-center [a
 export const textInputClasses = `${baseInputClasses} w-28 px-3`;
 
 export const labelClasses = "font-semibold text-slate-600 dark:text-slate-400";
+
+/** Default text for the type selector trigger when a real type is selected */
+export const typeTriggerTextDefaultClasses = "font-semibold text-slate-700 dark:text-slate-100";
+/** Dimmer variant for the type selector trigger when (none) is selected */
+export const typeTriggerTextClasses = "font-semibold text-slate-400 dark:text-slate-300";
+
+/** White text for dropdown options (excluding (none)) */
+export const dropdownOptionTextClasses = "font-semibold text-slate-900 dark:text-white";
 
 export const iconClasses = "text-slate-500 dark:text-slate-400";
 

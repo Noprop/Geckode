@@ -14,6 +14,7 @@ import { Block } from "@/lib/types/yjs/blocks";
 import { useTilesetSync } from "./useTilesetSync";
 import { useTilemapSync } from "./useTilemapSync";
 import { useTileCollidableSync } from "./useTileCollidableSync";
+import { useSpriteTypeSync, seedDefaultSpriteTypes } from "./useSpriteTypeSync";
 import { refreshSpriteGhostBlocks } from "@/lib/blockly/blocks";
 
 const createSpriteObserver = (id: string, spriteMap: Y.Map<SpriteInstance>, doc: Y.Doc) => {
@@ -55,6 +56,9 @@ const loadInitialWorkspaces = (
     if (!(spriteMap instanceof Y.Map)) continue;
 
     const spriteInstance = spriteMap.toJSON() as SpriteInstance;
+    if (spriteInstance.spriteTypeId === undefined) {
+      spriteInstance.spriteTypeId = null;
+    }
     newSpriteInstances.push(spriteInstance);
     
     const spriteId = spriteInstance.id;
@@ -118,6 +122,7 @@ export const useWorkspaceSync = (documentName: string) => {
 
   useBlockSync(documentName);
   useVariableSync(documentName);
+  useSpriteTypeSync(documentName);
   useProjectNameSync(documentName);
   useAssetSync(documentName, "textures");
   useAssetSync(documentName, "tiles");
@@ -306,6 +311,8 @@ export const useWorkspaceSync = (documentName: string) => {
 
           const texturesMap = doc.getMap<string>('textures');
           if (texturesMap.size > 0) return;
+
+          seedDefaultSpriteTypes();
           
           Object.entries(starterTextures).forEach(([textureName, base64Image]) => {
             texturesMap.set(textureName, base64Image);

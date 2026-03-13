@@ -1,5 +1,18 @@
 import { useGeckodeStore } from '@/stores/geckodeStore';
 
+export type SpriteType = { id: string; name: string };
+
+/** Sentinel for "None" in the UI dropdown - not stored, maps to null */
+export const SPRITE_TYPE_NONE = '';
+
+export const DEFAULT_SPRITE_TYPES: SpriteType[] = [
+  { id: 'sprite_type_player', name: 'player' },
+  { id: 'sprite_type_enemy', name: 'enemy' },
+  { id: 'sprite_type_collectible', name: 'collectible' },
+];
+
+export const DEFAULT_SPRITE_TYPE_ID = 'sprite_type_player';
+
 export type SpriteDefinition = {
   id: string;
   name: string;
@@ -9,11 +22,12 @@ export type SpriteDefinition = {
 export type SpriteInstance = SpriteDefinition & {
   x: number;
   y: number;
-  visible: boolean;
+  enabled: boolean;
   scaleX: number;
   scaleY: number;
   direction: number;
   snapToGrid: boolean;
+  spriteTypeId: string | null;
   physics?: SpritePhysics;
 };
 

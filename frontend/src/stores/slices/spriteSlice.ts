@@ -1,6 +1,7 @@
 import * as Blockly from 'blockly/core';
 import type { StateCreator } from 'zustand';
 import type { SpriteInstance } from '@/blockly/spriteRegistry';
+import { DEFAULT_SPRITE_TYPES, DEFAULT_SPRITE_TYPE_ID } from '@/blockly/spriteRegistry';
 import { refreshSpriteGhostBlocks } from "@/lib/blockly/blocks";
 import { isEditorScene } from '@/phaser/sceneGuards';
 import {
@@ -35,6 +36,7 @@ import {
 import type { AssetType, EditingSource, GeckodeStore, Scene, SpriteSlice, SpriteModalMode, Tilemap, Tileset, LibraryAssetType } from './types';
 import { EventBus } from '@/phaser/EventBus';
 import { addSpriteSync, deleteSpriteSync, updateSpriteSync } from '@/hooks/yjs/useWorkspaceSync';
+import { addSpriteTypeSync, removeSpriteTypeSync, renameSpriteTypeSync } from '@/hooks/yjs/useSpriteTypeSync';
 import { deleteAssetSync, setAssetSync } from '@/hooks/yjs/useAssetSync';
 import { setTilemapCellSync, setTilemapDataSync, setTilemapMetaSync } from '@/hooks/yjs/useTilemapSync';
 import { deleteTilesetSync, setTilesetPreviewSync, upsertTilesetSync } from '@/hooks/yjs/useTilesetSync';
@@ -235,6 +237,7 @@ export const convertToAsset = (asset: LibraryAssetType) : AssetType => String(as
 
 export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> = (set, get) => ({
   spriteInstances: [],
+  spriteTypes: [...DEFAULT_SPRITE_TYPES],
   textures: {},
   tiles: {},
   tilesets: [createDefaultTileset()],
@@ -282,6 +285,40 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
       spriteModalSaveTargetTextureName: null,
       editingTextureToLoad: null,
     }),
+  addSpriteType: (name: string) => {
+    const { spriteTypes } = get();
+    const trimmed = name.trim();
+    if (!trimmed) throw new Error('Sprite type name cannot be empty');
+    if (spriteTypes.some((t) => t.name === trimmed)) throw new Error('A sprite type with that name already exists');
+    const id = `sprite_type_${Date.now()}`;
+    const newType = { id, name: trimmed };
+    set({ spriteTypes: [...spriteTypes, newType] });
+    addSpriteTypeSync(newType);
+    return id;
+  },
+  removeSpriteType: (id: string) => {
+    const { spriteTypes, spriteInstances } = get();
+    const fallbackId = null;
+    set({
+      spriteTypes: spriteTypes.filter((t) => t.id !== id),
+      spriteInstances: spriteInstances.map((inst) =>
+        inst.spriteTypeId === id ? { ...inst, spriteTypeId: fallbackId } : inst,
+      ),
+    });
+    spriteInstances.forEach((inst) => {
+      if (inst.spriteTypeId === id) updateSpriteSync(inst.id, { spriteTypeId: fallbackId });
+    });
+    removeSpriteTypeSync(id);
+  },
+  renameSpriteType: (id: string, name: string) => {
+    const { spriteTypes } = get();
+    const trimmed = name.trim();
+    if (!trimmed) throw new Error('Sprite type name cannot be empty');
+    if (spriteTypes.some((t) => t.id !== id && t.name === trimmed)) throw new Error('A sprite type with that name already exists');
+    const updated = spriteTypes.map((t) => (t.id === id ? { ...t, name: trimmed } : t));
+    set({ spriteTypes: updated });
+    renameSpriteTypeSync(id, trimmed);
+  },
   setSelectedSpriteId: (newId: string | null) => {
     const { selectedSpriteId: prevId } = get();
     if (newId === prevId) return;
@@ -375,6 +412,7 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
       ...source,
       id: `id_${Date.now()}`,
       name: createUniqueSpriteName(source.name, spriteInstances),
+      spriteTypeId: source.spriteTypeId ?? null,
     };
 
     // Add instance to store first so getSpriteDropdownOptions() includes it when loading blocks
@@ -448,11 +486,12 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
       id: `id_${Date.now()}`,
       x: spawnX,
       y: spawnY,
-      visible: true,
+      enabled: true,
       scaleX: 1,
       scaleY: 1,
       direction: 0,
       snapToGrid: true,
+      spriteTypeId: null,
     };
 
     set({
@@ -789,11 +828,12 @@ export const createSpriteSlice: StateCreator<GeckodeStore, [], [], SpriteSlice> 
           name: 'gavin',
           x: 200,
           y: 150,
-          visible: true,
+          enabled: true,
           scaleX: 1,
           scaleY: 1,
           direction: 0,
           snapToGrid: true,
+          spriteTypeId: DEFAULT_SPRITE_TYPE_ID,
         },
       ],
       textures: { gavinDown: gavinDown, gavinLeft: gavinLeft },
