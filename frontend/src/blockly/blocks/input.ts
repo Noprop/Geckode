@@ -167,8 +167,60 @@ javascriptGenerator.forBlock['mousePos'] = function (block, generator) {
 
 };
 
+const mouseDown = {
+  type: "mouseDown",
+  tooltip: "Return \"true\" if a specific mouse button is pressed ",
+  helpUrl: "",
+  message0: "mouse %1 %2",
+  args0: [
+    {
+      type: "field_dropdown",
+      name: "KEY",
+      options: [
+        [
+          "left",
+          "left"
+        ],
+        [
+          "right",
+          "right"
+        ],
+      ]
+    },
+    {
+      type: "field_dropdown",
+      name: "PRESSED_TYPE",
+      options: [
+        [
+          "held",
+          "downMouseButtons"
+        ],
+        [
+          "clicked",
+          "justPressedMouseButtons"
+        ],
+        [
+          "released",
+          "justReleasedMouseButtons"
+        ],
+      ]
+    }
+  ],
+  output: "Boolean",
+  colour: "%{BKY_INPUT_HUE}"
+}
+
+javascriptGenerator.forBlock['mouseDown'] = function (block, generator) {
+  const key = block.getFieldValue('KEY');
+  const type = block.getFieldValue('PRESSED_TYPE');
+  
+  const code = `(scene.${type}.includes('${key}'))`
+  return [code, Order.NONE];
+};
+
 export const inputBlocks = [
   keyPressed,
   onKey,
   mousePos,
+  mouseDown,
 ];

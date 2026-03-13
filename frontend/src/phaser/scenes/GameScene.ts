@@ -29,6 +29,10 @@ export default class GameScene extends Phaser.Scene {
 
   private justPressedKeys: Array<Phaser.Input.Keyboard.Key> = [];
   private justReleasedKeys: Array<Phaser.Input.Keyboard.Key> = [];
+  private justPressedMouseButtons: Array<string> = [];
+  private justReleasedMouseButtons: Array<string> = [];
+  private downMouseButtons: Array<string> = [];
+
   private started: boolean = false;
 
   private gameSprites = new Map<string, Phaser.GameObjects.Sprite>();
@@ -166,6 +170,9 @@ export default class GameScene extends Phaser.Scene {
   update(_time: number, delta: number) {
     this.justPressedKeys = [];
     this.justReleasedKeys = [];
+    this.justPressedMouseButtons = [];
+    this.justReleasedMouseButtons = [];
+    this.updateMouseButtons()
 
     if (!this.started) {
       this.started = true;
@@ -973,6 +980,29 @@ export default class GameScene extends Phaser.Scene {
       return true;
     }
     return false;
+  }
+
+  private updateMouseButtons() {
+    if (!this.downMouseButtons.includes('left') && this.input.activePointer.leftButtonDown()) {
+      this.justPressedMouseButtons.push('left');
+    }
+    if (!this.downMouseButtons.includes('right') && this.input.activePointer.rightButtonDown()) {
+      this.justPressedMouseButtons.push('right');
+    }
+    if (this.downMouseButtons.includes('left') && !this.input.activePointer.leftButtonDown()) {
+      this.justReleasedMouseButtons.push('left');
+    }
+    if (this.downMouseButtons.includes('right') && !this.input.activePointer.rightButtonDown()) {
+      this.justReleasedMouseButtons.push('right');
+    }
+    this.downMouseButtons = []
+    if (this.input.activePointer.leftButtonDown()) {
+      this.downMouseButtons.push('left');
+    }
+    if (this.input.activePointer.rightButtonDown()) {
+      this.downMouseButtons.push('right');
+    }
+
   }
 
   // ─── Arrow-key movement (called from generated code) ─────────────────

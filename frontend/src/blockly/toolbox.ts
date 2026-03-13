@@ -339,6 +339,10 @@ const getToolbox = () => {
             kind: 'block',
             type: 'mousePos',
           },
+          {
+            kind: 'block',
+            type: 'mouseDown',
+          },
         ],
       },
       {
