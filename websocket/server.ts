@@ -10,6 +10,17 @@ const updatedProjectNames: Record<string, string> = {};
 
 const CLIENT_MAP_PREFIX = "yjs:clients";
 
+/** Throttle "saving" stateless broadcasts per document (ms) */
+const SAVE_STATUS_BROADCAST_MIN_MS = 500;
+const lastSaveStatusBroadcast: Record<string, number> = {};
+
+// Dedupe save queue entries: only queue a document once until processed.
+const UPDATES_QUEUE_KEY = "yjs:updates_queue";
+const UPDATES_PENDING_SET_KEY = "yjs:updates_pending";
+
+// Additional guard: Hocuspocus Document has `lastChangeTime`; don't re-store if unchanged.
+const lastStoredChangeTime: Record<string, number> = {};
+
 const getClientMapKey = (documentName: string) => `${CLIENT_MAP_PREFIX}:${documentName}`;
 
 const resetClientMaps = async () => {
@@ -230,9 +241,34 @@ const server = new Server({
     return document;
   },
 
+  async onChange({ documentName, document }) {
+    if (!documentName || documentName === "undefined" || documentName.trim() === "") return;
+
+    const now = Date.now();
+    const last = lastSaveStatusBroadcast[documentName] ?? 0;
+    if (now - last < SAVE_STATUS_BROADCAST_MIN_MS) return;
+    lastSaveStatusBroadcast[documentName] = now;
+
+    const payload = JSON.stringify({
+      type: "project_save_status",
+      status: "saving",
+    });
+    document.getConnections().forEach((connection) => connection.sendStateless(payload));
+  },
+
   async onStoreDocument({ document, documentName }) {
     console.log("storing document", documentName);
     if (!documentName.length) return;
+
+    // If Hocuspocus calls onStoreDocument again without a real doc change,
+    // avoid re-queueing + re-saving (prevents project_saved spam).
+    const docAny = document as unknown as { lastChangeTime?: number };
+    const changeTime = docAny.lastChangeTime ?? Date.now();
+    const lastStored = lastStoredChangeTime[documentName];
+    const hasNameUpdate = documentName in updatedProjectNames;
+    if (lastStored != null && lastStored === changeTime && !hasNameUpdate) {
+      return;
+    }
 
     let bufferObject = {
       blob: Buffer.from(Y.encodeStateAsUpdate(document)),
@@ -244,7 +280,13 @@ const server = new Server({
     }
 
     await redis.hset(`yjs:buffer:${documentName}`, bufferObject);
-    await redis.lpush('yjs:updates_queue', documentName);
+    lastStoredChangeTime[documentName] = changeTime;
+
+    // Only push onto the work queue once per document until processed.
+    const wasAdded = await redis.sadd(UPDATES_PENDING_SET_KEY, documentName);
+    if (wasAdded === 1) {
+      await redis.lpush(UPDATES_QUEUE_KEY, documentName);
+    }
     console.log('stored document', documentName);
   },
 
@@ -272,10 +314,12 @@ console.log('Hocuspocus server running at ws://localhost:1234');
 const PROJECT_UPDATE_CHANNEL = "yjs:project_updates";
 const PROJECT_COLLABORATOR_UPDATE_CHANNEL = "yjs:project_collaborator_updates";
 const PROJECT_SHARE_LINK_UPDATE_CHANNEL = "yjs:project_share_link_updates";
+const PROJECT_SAVED_CHANNEL = "yjs:project_saved";
 const PROJECT_UPDATE_CHANNELS = [
   PROJECT_UPDATE_CHANNEL,
   PROJECT_COLLABORATOR_UPDATE_CHANNEL,
   PROJECT_SHARE_LINK_UPDATE_CHANNEL,
+  PROJECT_SAVED_CHANNEL,
 ];
 
 redisSubscriber.subscribe(...PROJECT_UPDATE_CHANNELS, (err, count) => {
@@ -447,6 +491,24 @@ redisSubscriber.on("message", (channel, message) => {
             );
           }
         });
+      } else if (channel === PROJECT_SAVED_CHANNEL) {
+        const bufferKey = `yjs:buffer:${documentName}`;
+        const stillPending = await redis.exists(bufferKey);
+        if (stillPending) {
+          console.log(
+            `[Hocuspocus][Redis] Skip saved broadcast for ${documentName} (buffer still pending).`,
+          );
+        } else {
+          console.log(`[Hocuspocus][Redis] Broadcasting "saved" for ${documentName}.`);
+          docConnection.document.getConnections().forEach((connection) => {
+            connection.sendStateless(
+              JSON.stringify({
+                type: "project_save_status",
+                status: "saved",
+              }),
+            );
+          });
+        }
       } else if (channel === PROJECT_SHARE_LINK_UPDATE_CHANNEL) {
         const {
           project_id,

@@ -18,6 +18,8 @@ export const PROJECT_SHARE_LINK_CHANGE_EVENT =
   "yjs:project-share-link-change";
 export const PROJECT_DEFAULT_SHARE_LINK_CHANGE_EVENT =
   "yjs:project-default-share-link-change";
+export const PROJECT_SAVE_STATUS_EVENT = "yjs:project-save-status";
+export const PROJECT_WEBSOCKET_STATUS_EVENT = "yjs:project-websocket-status";
 
 interface YjsContextType {
   getProvider: (name: string) => HocuspocusProvider | null;
@@ -183,6 +185,19 @@ const setupProvider = async (name: string): Promise<void> => {
       name,
       document: doc,
       token: name.length === 0 ? () => "" : authApi.getAccessToken,
+      onStatus: (event) => {
+        window.dispatchEvent(
+          new CustomEvent<{
+            type: "project_websocket_status";
+            status: "connecting" | "connected" | "disconnected";
+          }>(PROJECT_WEBSOCKET_STATUS_EVENT, {
+            detail: {
+              type: "project_websocket_status",
+              status: event.status,
+            },
+          }),
+        );
+      },
       onStateless: (event) => {
         let payload: any;
 
@@ -235,6 +250,18 @@ const setupProvider = async (name: string): Promise<void> => {
               PROJECT_DEFAULT_SHARE_LINK_CHANGE_EVENT,
               { detail: payload as ProjectDefaultShareLinkChangePayload },
             ),
+          );
+        } else if (payload.type === "project_save_status") {
+          window.dispatchEvent(
+            new CustomEvent<{
+              type: "project_save_status";
+              status: "saving" | "saved";
+            }>(PROJECT_SAVE_STATUS_EVENT, {
+              detail: payload as {
+                type: "project_save_status";
+                status: "saving" | "saved";
+              },
+            }),
           );
         }
       },
