@@ -16,14 +16,14 @@ export function buildPhaserRuntimeCodeFromOutputs(
   const updateBody = allUpdateHandlers
     .map(
       (h) =>
-        `  for (const __id of scene.getSpriteAndClones('${h?.spriteId}')) ${h?.functionName}(__id);`,
+        `  for (const __id of scene.getSpriteAndClones('${h?.spriteId}')) {\n    if (scene.isSpriteEnabled(__id)) ${h?.functionName}(__id);\n  }`,
     )
     .join("\n");
 
   const startBody = allStartHandlers
     .map(
       (h) =>
-        `  for (const __id of scene.getSpriteAndClones('${h?.spriteId}')) ${h?.functionName}(__id);`,
+        `  for (const __id of scene.getSpriteAndClones('${h?.spriteId}')) {\n    if (scene.isSpriteEnabled(__id)) ${h?.functionName}(__id);\n  }`,
     )
     .join("\n");
 
@@ -42,7 +42,9 @@ export function buildPhaserRuntimeCodeFromOutputs(
       }
 
       return `  if (${condition}) {
-    for (const __id of scene.getSpriteAndClones('${h?.spriteId}')) ${h?.functionName}(__id);
+    for (const __id of scene.getSpriteAndClones('${h?.spriteId}')) {
+      if (scene.isSpriteEnabled(__id)) ${h?.functionName}(__id);
+    }
   }`;
     })
     .join("\n");

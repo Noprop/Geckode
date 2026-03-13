@@ -100,8 +100,8 @@ describe("editorSlice", () => {
     it("returns the id of the selected sprite", () => {
       useGeckodeStore.setState({
         spriteInstances: [
-          { id: "sprite_1", textureName: "t1", name: "s1", x: 0, y: 0, visible: true, scaleX: 1, scaleY: 1, direction: 0, snapToGrid: false },
-          { id: "sprite_2", textureName: "t2", name: "s2", x: 0, y: 0, visible: true, scaleX: 1, scaleY: 1, direction: 0, snapToGrid: false },
+          { id: "sprite_1", textureName: "t1", name: "s1", x: 0, y: 0, enabled: true, scaleX: 1, scaleY: 1, direction: 0, snapToGrid: false, spriteTypeId: null },
+          { id: "sprite_2", textureName: "t2", name: "s2", x: 0, y: 0, enabled: true, scaleX: 1, scaleY: 1, direction: 0, snapToGrid: false, spriteTypeId: null },
         ],
         selectedSpriteId: "sprite_2",
       });
@@ -111,7 +111,7 @@ describe("editorSlice", () => {
     it("returns undefined when selectedSpriteId is null", () => {
       useGeckodeStore.setState({
         spriteInstances: [
-          { id: "sprite_1", textureName: "t1", name: "s1", x: 0, y: 0, visible: true, scaleX: 1, scaleY: 1, direction: 0, snapToGrid: false },
+          { id: "sprite_1", textureName: "t1", name: "s1", x: 0, y: 0, enabled: true, scaleX: 1, scaleY: 1, direction: 0, snapToGrid: false, spriteTypeId: null },
         ],
         selectedSpriteId: null,
       });

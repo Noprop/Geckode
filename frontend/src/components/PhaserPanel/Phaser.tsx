@@ -1,13 +1,12 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useGeckodeStore } from '@/stores/geckodeStore';
 import { PlayIcon, StopIcon } from '@/components/icons';
 import PhaserGame from './PhaserGame';
 import SpriteModal from '../SpriteModal/SpriteModal';
-import SpritePosition, { NumericField } from './SpritePosition';
+import SpritePosition from './SpritePosition';
 import PhaserSpriteList from './PhaserSpriteList';
 import PhaserSceneList from './PhaserSceneList';
 import SpritePhysicsCurtain from './SpritePhysicsCurtain';
-import { FIELD_DEFAULTS, resolveBlurValue } from './spritePositionUtils';
 
 type PropertiesTab = 'general' | 'physics' | 'hitbox';
 
@@ -58,28 +57,6 @@ const Phaser = () => {
   const { isEditorScene, toggleEditor } = useGeckodeStore();
   const [activeTab, setActiveTab] = useState<PropertiesTab>('general');
 
-  const selectedSpriteId = useGeckodeStore((s) => s.selectedSpriteId);
-  const selectedSprite = useGeckodeStore((s) =>
-    s.selectedSpriteId !== null ? (s.spriteInstances.find((i) => i.id === s.selectedSpriteId) ?? null) : null,
-  );
-  const updateSpriteInstance = useGeckodeStore((s) => s.updateSpriteInstance);
-  const canEditProject = useGeckodeStore((s) => s.canEditProject);
-  const disabled = !selectedSprite || !canEditProject;
-
-  const [directionValue, setDirectionValue] = useState(String(selectedSprite?.direction ?? FIELD_DEFAULTS.direction));
-
-  useEffect(() => {
-    setDirectionValue(String(selectedSprite?.direction ?? FIELD_DEFAULTS.direction));
-  }, [selectedSprite]);
-
-  const handleBlurDirection = useCallback(() => {
-    if (selectedSpriteId === null || !selectedSprite) return;
-    const finalValue = resolveBlurValue(directionValue, 'direction', FIELD_DEFAULTS.direction);
-    if (selectedSprite.direction !== finalValue) {
-      updateSpriteInstance(selectedSpriteId, { direction: finalValue as number });
-    }
-  }, [selectedSpriteId, selectedSprite, directionValue, updateSpriteInstance]);
-
   return (
     <div className='flex min-h-0 flex-col overflow-x-hidden' style={{ width: '500px' }}>
       <PhaserGame />
@@ -126,19 +103,8 @@ const Phaser = () => {
             {activeTab === 'general' && <SpritePosition />}
             {activeTab === 'physics' && <SpritePhysicsCurtain />}
             {activeTab === 'hitbox' && (
-              <div className='flex flex-col gap-2'>
-                <div className='flex items-center justify-center py-2'>
-                  <span className='text-xs text-slate-400 dark:text-slate-500'>Hitbox editor coming soon</span>
-                </div>
-                <NumericField
-                  label='Direction'
-                  value={directionValue}
-                  disabled={disabled}
-                  min='-180'
-                  max='180'
-                  onChange={(v) => setDirectionValue(v)}
-                  onBlur={handleBlurDirection}
-                />
+              <div className='flex items-center justify-center py-2'>
+                <span className='text-xs text-slate-400 dark:text-slate-500'>Hitbox editor coming soon</span>
               </div>
             )}
           </div>

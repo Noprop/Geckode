@@ -179,6 +179,79 @@ javascriptGenerator.forBlock['getProperty'] = function (block, generator) {
   return [`(${flipSign}${spriteRef}.${prop})`, Order.NONE];
 };
 
+const BOOLEAN_PROPERTY_OPTIONS = [
+  ['enabled', 'enabled'],
+  ['pushes objects', 'pushesObjects'],
+  ['pushable', 'pushable'],
+  ['collides with walls', 'collidesWithWalls'],
+  ['solid', 'isSolid'],
+  ['collide world bounds', 'collideWorldBounds'],
+] as [string, string][];
+
+const setBooleanProperty = {
+  type: 'setBooleanProperty',
+  tooltip: 'Set a boolean property of a sprite',
+  helpUrl: '',
+  message0: 'set %1 %2 to %3',
+  args0: [
+    { type: 'input_value', name: 'SPRITE' },
+    { type: 'field_dropdown', name: 'PROPERTY', options: [...BOOLEAN_PROPERTY_OPTIONS] },
+    { type: 'input_value', name: 'VALUE', check: 'Boolean' },
+  ],
+  previousStatement: null,
+  nextStatement: null,
+  inputsInline: true,
+  colour: '%{BKY_SPRITES_HUE}',
+};
+
+javascriptGenerator.forBlock['setBooleanProperty'] = function (block, generator) {
+  const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
+  const value = generator.valueToCode(block, 'VALUE', Order.NONE) || 'true';
+  const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
+  const spriteName = spriteKey === `"${currentSpriteId}"` ? 'thisSprite' : spriteKey;
+  const prop = block.getFieldValue('PROPERTY');
+  const spriteRef = `scene.getSprite(${spriteName})`;
+  if (prop === 'enabled') {
+    return `scene.setSpriteEnabled(${spriteRef}, ${value})\n`;
+  }
+  return `${spriteRef}.setData('${prop}', ${value})\n`;
+};
+
+const getBooleanProperty = {
+  type: 'getBooleanProperty',
+  tooltip: 'Get a boolean property of a sprite',
+  helpUrl: '',
+  message0: 'get %1 %2',
+  args0: [
+    { type: 'input_value', name: 'SPRITE' },
+    { type: 'field_dropdown', name: 'PROPERTY', options: [...BOOLEAN_PROPERTY_OPTIONS] },
+  ],
+  output: 'Boolean',
+  colour: '%{BKY_SPRITES_HUE}',
+};
+
+const BOOLEAN_DEFAULTS: Record<string, boolean> = {
+  collidesWithWalls: true,
+  collideWorldBounds: true,
+  enabled: true,
+  pushesObjects: false,
+  pushable: false,
+  isSolid: false,
+};
+
+javascriptGenerator.forBlock['getBooleanProperty'] = function (block, generator) {
+  const spriteKey = generator.valueToCode(block, 'SPRITE', Order.NONE) || '';
+  const currentSpriteId = useGeckodeStore.getState().getCurrentSpriteId();
+  const spriteName = spriteKey === `"${currentSpriteId}"` ? 'thisSprite' : spriteKey;
+  const prop = block.getFieldValue('PROPERTY');
+  const spriteRef = `scene.getSprite(${spriteName})`;
+  const def = BOOLEAN_DEFAULTS[prop] ?? false;
+  if (prop === 'enabled') {
+    return [`scene.isSpriteEnabled(${spriteRef}.name)`, Order.NONE];
+  }
+  return [`(${spriteRef}.getData('${prop}') ?? ${def})`, Order.NONE];
+};
+
 const setRotation = {
   type: "setRotation",
   tooltip: "Set the rotation of a sprite",
@@ -476,6 +549,8 @@ javascriptGenerator.forBlock['isTouchingSolid'] = function (block, generator) {
 export const spriteBlocks = [
   goToXY,
   setProperty,
+  setBooleanProperty,
+  getBooleanProperty,
   changeProperty,
   getProperty,
   setRotation,

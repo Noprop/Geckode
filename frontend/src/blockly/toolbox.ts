@@ -125,6 +125,42 @@ const getToolbox = () => {
           },
           {
             kind: 'block',
+            type: 'setBooleanProperty',
+            inputs: {
+              SPRITE: {
+                shadow: {
+                  type: 'spriteGhost',
+                  fields: {
+                    SPRITE: spriteId,
+                  },
+                },
+              },
+              VALUE: {
+                shadow: {
+                  type: 'logic_boolean',
+                  fields: {
+                    BOOL: 'TRUE',
+                  },
+                },
+              },
+            },
+          },
+          {
+            kind: 'block',
+            type: 'getBooleanProperty',
+            inputs: {
+              SPRITE: {
+                shadow: {
+                  type: 'spriteGhost',
+                  fields: {
+                    SPRITE: spriteId,
+                  },
+                },
+              },
+            },
+          },
+          {
+            kind: 'block',
             type: 'moveWithArrows',
             inputs: {
               SPRITE: {
@@ -581,6 +617,10 @@ const getToolbox = () => {
       {
         kind: 'block',
         type: 'getProperty',
+      },
+      {
+        kind: 'block',
+        type: 'getBooleanProperty',
       },
       {
         kind: 'block',
