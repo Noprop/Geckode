@@ -279,7 +279,7 @@ const SpriteEditor = () => {
         }
       }
 
-      if (isEditorScene) {
+      if (editorSceneActive) {
         await phaserScene.updateSpriteTextureAsync(nextTextureName, base64Image);
       }
 
@@ -312,12 +312,12 @@ const SpriteEditor = () => {
 
           removeAsset(targetTextureName, 'textures');
 
-          if (isEditorScene) {
+          if (editorSceneActive) {
             await phaserScene.updateSpriteTextureAsync(renamedTextureName, base64Image);
           }
         } else {
           setAsset(targetTextureName, base64Image, 'textures');
-          if (isEditorScene) {
+          if (editorSceneActive) {
             await phaserScene.updateSpriteTextureAsync(targetTextureName, base64Image);
           }
         }
@@ -333,7 +333,7 @@ const SpriteEditor = () => {
       const libraryTextureBase64 = libaryTextures[currentEditingAssetName];
       if (!libraryTextureBase64) return;
       console.log('texture name added library: ', currentEditingAssetName);
-      if (isEditorScene) {
+      if (editorSceneActive) {
         await phaserScene.loadSpriteTextureAsync(currentEditingAssetName, libraryTextureBase64);
       }
       createAndInsertSprite(currentEditingAssetName);
@@ -344,7 +344,7 @@ const SpriteEditor = () => {
     if (currentEditingSource === 'asset' && currentEditingAssetName && !isCanvasDirty) {
       const existingTextureBase64 = currentTextures[currentEditingAssetName];
       if (!existingTextureBase64) return;
-      if (isEditorScene) {
+      if (editorSceneActive) {
         await phaserScene.loadSpriteTextureAsync(currentEditingAssetName, existingTextureBase64);
       }
       createAndInsertSprite(currentEditingAssetName);
@@ -357,7 +357,7 @@ const SpriteEditor = () => {
 
     console.log('texture name added new: ', newTextureName);
 
-    if (isEditorScene) {
+    if (editorSceneActive) {
       await phaserScene.loadSpriteTextureAsync(newTextureName, base64Image);
     }
 
