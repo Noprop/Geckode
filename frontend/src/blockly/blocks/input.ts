@@ -4,7 +4,7 @@ import { getKeyPressRegistry } from 'blockly/index';
 
 const keyPressed = {
   type: "keyPressed",
-  tooltip: "return \"true\" if a specific key is pressed ",
+  tooltip: "Return \"true\" if a specific key is pressed ",
   helpUrl: "",
   message0: "key %1 %2",
   args0: [
@@ -131,7 +131,44 @@ javascriptGenerator.forBlock['onKey'] = function (block, generator) {
   return '';
 };
 
+const mousePos = {
+  type: "mousePos",
+  tooltip: "position of the mouse",
+  helpUrl: "",
+  message0: "mouse %1",
+  args0: [
+      {
+      type: "field_dropdown",
+      name: "COORD",
+      options: [
+        [
+          "x",
+          "x"
+        ],
+        [
+          "y",
+          "y"
+        ],
+      ]
+    },
+  ],
+  output: null,
+  colour: "%{BKY_INPUT_HUE}"
+}
+
+javascriptGenerator.forBlock['mousePos'] = function (block, generator) {
+  if (block.getFieldValue('COORD') == "x") {
+    const code = `(scene.input.activePointer.position.x + scene.cameras.main.scrollX)`
+    return [code, Order.NONE];
+  } else {
+    const code = `(-scene.input.activePointer.position.y - scene.cameras.main.scrollY)`
+    return [code, Order.NONE];
+  }
+
+};
+
 export const inputBlocks = [
   keyPressed,
   onKey,
+  mousePos,
 ];

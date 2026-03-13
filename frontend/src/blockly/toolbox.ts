@@ -335,6 +335,10 @@ const getToolbox = () => {
               PRESSED_TYPE: 'pressed',
             },
           },
+          {
+            kind: 'block',
+            type: 'mousePos',
+          },
         ],
       },
       {
@@ -484,6 +488,10 @@ const getToolbox = () => {
                 },
               },
             },
+          },
+          {
+            kind: 'block',
+            type: 'getCameraProperty',
           },
           {
             kind: 'block',
