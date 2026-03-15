@@ -115,7 +115,8 @@ export default function OrganizationsPage() {
         sortKeys={organizationSortKeys}
         defaultSortField="name"
         defaultSortDirection="desc"
-        handleRowClick={(row) => (window.location.href = `/organizations/${row.getValue("id")}/projects/`)}
+        handleRowClick={(row) => (window.location.href = `/organizations/${tableRef.current?.data[row].id}/projects/`)}
+        handleRowDoubleClick={(row) => (window.location.href = `/organizations/${tableRef.current?.data[row].id}/projects/`)}
         actions={[
           {
             rowIcon: TrashIcon,
@@ -140,7 +141,7 @@ export default function OrganizationsPage() {
           {
             rowIcon: GearIcon,
             rowIconSize: 24,
-            rowIconClassName: "transition-transform hover:rotate-22",
+            rowIconClassName: "transition-transform hover:rotate-22 mt-1",
             rowIconClicked: (index) => {
               router.push(`/organizations/${tableRef.current?.data?.[index].id}/settings`);
             },
@@ -155,7 +156,7 @@ export default function OrganizationsPage() {
         }
         rowStyle="py-2"
         enabledDisplayModes={['table', 'grid']}
-        defaultDisplayMode={'table'}
+        defaultDisplayMode={'grid'}
         gridDetails={(org) => ({
           title: org.name,
           thumbnail: org.thumbnail,

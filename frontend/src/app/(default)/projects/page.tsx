@@ -10,7 +10,7 @@ import { InputBox, InputBoxRef } from '@/components/ui/inputs/InputBox';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { convertFormData } from '@/lib/api/base';
 import { ThumbnailUpload } from '@/components/ui/ThumbnailUpload';
-import { FilePlusIcon, Share1Icon, TrashIcon, PlayIcon, OpenInNewWindowIcon } from '@radix-ui/react-icons';
+import { FilePlusIcon, Share1Icon, TrashIcon, PlayIcon, OpenInNewWindowIcon, FaceIcon, PersonIcon } from '@radix-ui/react-icons';
 import { ProjectShareModal } from '@/components/ui/modals/ProjectShareModal';
 import { SelectionBox } from '@/components/ui/selectors/SelectionBox';
 import { useUser } from '@/contexts/UserContext';
@@ -19,7 +19,7 @@ import type { AxiosError } from 'axios';
 import { SidePanel } from '@/components/ui/SidePanel';
 import { ProjectDetailPanel } from '@/components/ui/ProjectDetailPanel';
 import { EditableTextField } from '@/components/ui/inputs/EditableTextField';
-import type { Row } from '@tanstack/react-table';
+import { CalendarIcon } from '@radix-ui/react-icons';
 
 const ROW_SINGLE_CLICK_DELAY_MS = 300;
 
@@ -38,20 +38,20 @@ export default function ProjectsPage() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [createThumbnailFile, setCreateThumbnailFile] = useState<File | null>(null);
 
-  const handleRowClick = (row: Row<Project>) => {
+  const handleRowClick = (id: number) => {
     if (openPanelTimeoutRef.current) clearTimeout(openPanelTimeoutRef.current);
     openPanelTimeoutRef.current = setTimeout(() => {
       openPanelTimeoutRef.current = null;
-      setSelectedProject(row.original);
+      setSelectedProject(tableRef.current?.data[id]!);
     }, ROW_SINGLE_CLICK_DELAY_MS);
   };
 
-  const handleRowDoubleClick = (row: Row<Project>) => {
+  const handleRowDoubleClick = (row: number) => {
     if (openPanelTimeoutRef.current) {
       clearTimeout(openPanelTimeoutRef.current);
       openPanelTimeoutRef.current = null;
     }
-    window.location.href = `/projects/${row.original.id}`;
+    window.location.href = `/projects/${tableRef.current?.data[row].id}`;
   };
 
   useEffect(() => {
@@ -195,9 +195,9 @@ export default function ProjectsPage() {
           },
         ]}
         extras={
-          <div className='flex grow justify-between'>
+          <div className='flex justify-between'>
             <SelectionBox
-              className='border border-gray-400/50 rounded-md'
+              className='border border-gray-400/50 rounded-md mr-3'
               options={[
                 { value: '', label: 'Owned by anyone' },
                 { value: user?.id ?? '', label: 'Owned by me' },
@@ -218,6 +218,23 @@ export default function ProjectsPage() {
           </div>
         }
         rowStyle='py-2'
+        enabledDisplayModes={['table', 'grid']}
+        gridDetails={(prj) => ({
+          title: prj.name,
+          thumbnail: prj.thumbnail,
+          details: [
+            {
+              what: 'Created At',
+              label: `${new Date(String(prj.created_at)).toLocaleString().split(' ')[0]}`,
+              decal: <CalendarIcon />
+            },
+            {
+              what: 'Owner',
+              label: `${prj.owner.first_name} ${prj.owner.last_name}`,
+              decal: <FaceIcon />
+            },
+          ]
+        })}
       />
 
       {showModal === 'create' ? (

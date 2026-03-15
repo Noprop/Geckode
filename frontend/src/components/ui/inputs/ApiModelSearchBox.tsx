@@ -19,7 +19,7 @@ interface ApiModelSearchBoxProps<TApi, TData, TFilters> {
   api: TApi;
   columns: TableColumns<TData>;
   filters?: Partial<TFilters>;
-  handleRowClick?: (row: Row<TData>) => void;
+  handleRowClick?: (row: number) => void;
   disabled?: boolean;
 }
 
