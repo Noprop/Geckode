@@ -106,10 +106,33 @@ javascriptGenerator.forBlock['resetCamera'] = function (block, generator) {
   return `scene.cameras.main.stopFollow()\n`;
 };
 
+const getCameraProperty = {
+  type: 'getCameraProperty',
+  tooltip: 'Get the position of the camera',
+  helpUrl: '',
+  message0: 'get camera %1',
+  args0: [
+    {
+      type: 'field_dropdown',
+      name: 'PROPERTY',
+      options: [['x','x'], ['y','y']],
+    },
+  ],
+  output: null,
+  colour: '%{BKY_CAMERA_HUE}',
+};
+
+javascriptGenerator.forBlock['getCameraProperty'] = function (block, generator) {
+  const property = block.getFieldValue('PROPERTY');
+  const code = property == 'x' ? `(scene.cameras.main.midPoint.x)` : `(-scene.cameras.main.midPoint.y)`
+  return [code, Order.NONE];
+};
+
 
 export const cameraBlocks = [
   setCameraTarget,
   setCamera,
   changeCamera,
-  resetCamera
+  resetCamera,
+  getCameraProperty,
 ];

@@ -205,11 +205,12 @@ const SpriteEditor = () => {
       id: `id_${Date.now()}`,
       x: 0,
       y: 0,
-      visible: true,
+      enabled: true,
       scaleX: 1,
       scaleY: 1,
       direction: 0,
       snapToGrid: true,
+      spriteTypeId: null,
     };
 
     // Only manipulate Phaser sprites in EditorScene

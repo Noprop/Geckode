@@ -2,6 +2,7 @@ import type * as Blockly from "blockly/core";
 import type {
   SpriteDefinition,
   SpriteInstance,
+  SpriteType,
 } from "@/blockly/spriteRegistry";
 import type { PhaserExport } from "@/phaser/PhaserStateManager";
 import type { Client } from "@/lib/types/yjs/awareness";
@@ -11,7 +12,7 @@ import { IndexeddbPersistence } from "y-indexeddb";
 import { ProjectPermissions } from "@/lib/types/api/projects";
 
 // Re-export for consumers
-export type { SpriteDefinition, SpriteInstance };
+export type { SpriteDefinition, SpriteInstance, SpriteType };
 
 export interface SpriteAddPayload {
   name: string;
@@ -57,6 +58,7 @@ export type TextureLoadState = 'pending' | 'loading' | 'loaded' | 'error';
 
 export interface SpriteState {
   spriteInstances: SpriteInstance[];
+  spriteTypes: SpriteType[];
 
   textures: Record<string, string>;
   tiles: Record<string, string>;
@@ -98,6 +100,11 @@ export interface SpriteActions {
   setEditingTextureToLoad: (name: string | null) => void;
   setSpriteModalContext: (mode: SpriteModalMode, saveTargetTextureName?: string | null) => void;
   clearSpriteModalContext: () => void;
+
+  /* Sprite types */
+  addSpriteType: (name: string) => string;
+  removeSpriteType: (id: string) => void;
+  renameSpriteType: (id: string, name: string) => void;
 
   /* Sprites */
   setSpriteInstances: (instances: SpriteInstance[]) => void;

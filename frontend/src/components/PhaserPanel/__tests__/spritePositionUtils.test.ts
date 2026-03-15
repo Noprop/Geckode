@@ -46,33 +46,36 @@ describe("buildFormValues", () => {
       textureName: "hero-walk",
       x: 200,
       y: 150,
-      visible: true,
+      enabled: true,
       scaleX: 2,
       scaleY: 0.5,
       direction: 180,
       snapToGrid: true,
+      spriteTypeId: null,
     };
     const result = buildFormValues(sprite, centerX, centerY);
     expect(result.name).toBe("hero");
+    expect(result.spriteTypeId).toBe("");
     expect(result.x).toBe("200");
     expect(result.y).toBe("150");
     expect(result.scaleX).toBe("2");
     expect(result.scaleY).toBe("0.5");
     expect(result.direction).toBe("180");
     expect(result.snapToGrid).toBe(true);
-    expect(result.visible).toBe(true);
+    expect(result.enabled).toBe(true);
   });
 
   it("returns empty defaults when sprite is null", () => {
     const result = buildFormValues(null, centerX, centerY);
     expect(result.name).toBe("");
+    expect(result.spriteTypeId).toBe("");
     expect(result.x).toBe("");
     expect(result.y).toBe("");
     expect(result.scaleX).toBe("");
     expect(result.scaleY).toBe("");
     expect(result.direction).toBe("");
     expect(result.snapToGrid).toBe(false);
-    expect(result.visible).toBe(true);
+    expect(result.enabled).toBe(true);
   });
 
   it("uses centerX/centerY for missing x/y", () => {
@@ -82,11 +85,12 @@ describe("buildFormValues", () => {
       textureName: "hero-walk",
       x: undefined as unknown as number,
       y: undefined as unknown as number,
-      visible: true,
+      enabled: true,
       scaleX: 1,
       scaleY: 1,
       direction: 90,
       snapToGrid: false,
+      spriteTypeId: null,
     };
     const result = buildFormValues(sprite, centerX, centerY);
     expect(result.x).toBe("100");
@@ -100,11 +104,12 @@ describe("buildFormValues", () => {
       textureName: "hero-walk",
       x: 0,
       y: 0,
-      visible: false,
+      enabled: false,
       scaleX: undefined as unknown as number,
       scaleY: undefined as unknown as number,
       direction: undefined as unknown as number,
       snapToGrid: true,
+      spriteTypeId: null,
     };
     const result = buildFormValues(sprite, centerX, centerY);
     expect(result.scaleX).toBe("1");

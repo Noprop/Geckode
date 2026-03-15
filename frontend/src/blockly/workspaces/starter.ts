@@ -29,11 +29,12 @@ export const starterSpriteWorkspaces: {sprite: SpriteInstance, blocks: Record<st
       textureName: 'gavinDown',
       x: 50,
       y: 50,
-      visible: true,
+      enabled: true,
       scaleX: 1,
       scaleY: 1,
       direction: 0,
       snapToGrid: true,
+      spriteTypeId: null,
       physics: {
         pushesObjects: false,
         pushable: false,

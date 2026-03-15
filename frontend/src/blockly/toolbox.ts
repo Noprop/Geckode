@@ -1,5 +1,6 @@
 import { useGeckodeStore } from '@/stores/geckodeStore';
 import { Dir } from 'fs';
+import { NONE } from 'phaser';
 
 const getToolbox = () => {
   const spriteId = useGeckodeStore.getState().getCurrentSpriteId() ?? '';
@@ -112,6 +113,42 @@ const getToolbox = () => {
           {
             kind: 'block',
             type: 'getProperty',
+            inputs: {
+              SPRITE: {
+                shadow: {
+                  type: 'spriteGhost',
+                  fields: {
+                    SPRITE: spriteId,
+                  },
+                },
+              },
+            },
+          },
+          {
+            kind: 'block',
+            type: 'setBooleanProperty',
+            inputs: {
+              SPRITE: {
+                shadow: {
+                  type: 'spriteGhost',
+                  fields: {
+                    SPRITE: spriteId,
+                  },
+                },
+              },
+              VALUE: {
+                shadow: {
+                  type: 'logic_boolean',
+                  fields: {
+                    BOOL: 'TRUE',
+                  },
+                },
+              },
+            },
+          },
+          {
+            kind: 'block',
+            type: 'getBooleanProperty',
             inputs: {
               SPRITE: {
                 shadow: {
@@ -335,6 +372,14 @@ const getToolbox = () => {
               PRESSED_TYPE: 'pressed',
             },
           },
+          {
+            kind: 'block',
+            type: 'mousePos',
+          },
+          {
+            kind: 'block',
+            type: 'mouseDown',
+          },
         ],
       },
       {
@@ -435,6 +480,34 @@ const getToolbox = () => {
               },
             },
           },
+          {
+            kind: 'block',
+            type: 'math_round',
+            inputs: {
+              NUM: {
+                shadow: {
+                  type: 'math_number',
+                  fields: {
+                    NUM: 0,
+                  },
+                },
+              },
+            }
+          },
+          {
+            kind: 'block',
+            type: 'math_single',
+            inputs: {
+              NUM: {
+                shadow: {
+                  type: 'math_number',
+                  fields: {
+                    NUM: 0,
+                  },
+                },
+              },
+            }
+          },
         ],
       },
       {
@@ -484,6 +557,10 @@ const getToolbox = () => {
                 },
               },
             },
+          },
+          {
+            kind: 'block',
+            type: 'getCameraProperty',
           },
           {
             kind: 'block',
@@ -581,6 +658,10 @@ const getToolbox = () => {
       {
         kind: 'block',
         type: 'getProperty',
+      },
+      {
+        kind: 'block',
+        type: 'getBooleanProperty',
       },
       {
         kind: 'block',

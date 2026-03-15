@@ -166,7 +166,7 @@ export default class EditorScene extends Phaser.Scene {
     sprite.setData('spriteId', instance.id);
     sprite.setDepth(this.SPRITE_DEPTH);
     sprite.setScale(instance.scaleX, instance.scaleY);
-    sprite.setVisible(instance.visible);
+    sprite.setVisible(instance.enabled);
     sprite.setAngle(instance.direction);
     this.spriteLayer.add(sprite);
     this.spriteLayer.bringToTop(sprite);
@@ -208,7 +208,7 @@ export default class EditorScene extends Phaser.Scene {
       updates.y !== undefined ? this.toWorldY(updates.y) : sprite.y,
     );
 
-    if (updates.visible !== undefined) sprite.setVisible(updates.visible);
+    if (updates.enabled !== undefined) sprite.setVisible(updates.enabled);
     if (updates.scaleX !== undefined || updates.scaleY !== undefined) {
       sprite.setScale(updates.scaleX ?? sprite.scaleX, updates.scaleY ?? sprite.scaleY);
     }

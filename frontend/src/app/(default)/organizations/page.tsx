@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/modals/Modal";
 import { InputBox, InputBoxRef } from "@/components/ui/inputs/InputBox";
 import { useSnackbar } from "@/hooks/useSnackbar";
-import DragAndDrop, { DragAndDropRef } from "@/components/DragAndDrop";
+import { ThumbnailUpload } from "@/components/ui/ThumbnailUpload";
 import { ExclamationTriangleIcon, ExitIcon, FaceIcon, FilePlusIcon, GearIcon, PersonIcon, TrashIcon, CalendarIcon } from "@radix-ui/react-icons";
 import { useRouter } from "next/navigation";
 import { extractAxiosErrMsg } from "@/lib/api/axios";
@@ -34,12 +34,12 @@ export default function OrganizationsPage() {
   const user = useUser();
   const router = useRouter();
 
-  const dropboxRef = useRef<DragAndDropRef>(null);
   const tableRef = useRef<TableRef<Organization, OrganizationFilters> | null>(null);
   const organizationNameRef = useRef<InputBoxRef | null>(null);
   const autoOrganizationOpenRef = useRef<InputBoxRef | null>(null);
 
   const [slug, setSlug] = useState<string>("");
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
 
   const [showModal, setShowModal] = useState<null | "create" | "delete" | "leave">(null);
   const [rowIndex, setRowIndex] = useState<number>(0);
@@ -51,7 +51,7 @@ export default function OrganizationsPage() {
         {
           slug: slug,
           name: orgName,
-          thumbnail: dropboxRef.current?.files?.length! > 0 ? dropboxRef.current?.files![0] : null,
+          thumbnail: thumbnailFile,
         },
         {
           headers: {
@@ -65,6 +65,7 @@ export default function OrganizationsPage() {
         } else {
           tableRef.current?.refresh();
           setShowModal(null);
+          setThumbnailFile(null);
         }
       })
       .catch((err) => showSnackbar(extractAxiosErrMsg(err, "Failed to create Organization!"), "error"));
@@ -193,6 +194,7 @@ export default function OrganizationsPage() {
                 onClick={() => {
                   setShowModal(null);
                   setSlug("");
+                  setThumbnailFile(null);
                 }}
                 className="btn-neutral"
               >
@@ -211,7 +213,13 @@ export default function OrganizationsPage() {
             />
             <p className="mt-3 mb-2 h-4 text-white">{slug}</p>
             <p>Organization Thumbnail:</p>
-            <DragAndDrop ref={dropboxRef} accept="image/*" multiple={false} />
+            <ThumbnailUpload
+              onFileSelect={setThumbnailFile}
+              accept="image/*"
+              enableCropZoom
+              cropAspectRatio={1}
+              className="my-2"
+            />
             <div className="flex align-center">
               <InputBox ref={autoOrganizationOpenRef} type="checkbox" defaultChecked={true} className="mr-2" />
               Automatically open the organization after creation

@@ -29,6 +29,10 @@ export default class GameScene extends Phaser.Scene {
 
   private justPressedKeys: Array<Phaser.Input.Keyboard.Key> = [];
   private justReleasedKeys: Array<Phaser.Input.Keyboard.Key> = [];
+  private justPressedMouseButtons: Array<string> = [];
+  private justReleasedMouseButtons: Array<string> = [];
+  private downMouseButtons: Array<string> = [];
+
   private started: boolean = false;
 
   private gameSprites = new Map<string, Phaser.GameObjects.Sprite>();
@@ -41,6 +45,9 @@ export default class GameScene extends Phaser.Scene {
   /** Clone registry: maps original sprite ID → array of clone IDs. */
   private cloneRegistry = new Map<string, string[]>();
   private cloneCounter = 0;
+
+  /** Index: spriteTypeId → Set of sprite IDs (including clones) for type-based collision. */
+  private spriteTypeToIds = new Map<string, Set<string>>();
 
   // Tilemap properties
   private static readonly TILE_SIZE = 16;
@@ -104,6 +111,7 @@ export default class GameScene extends Phaser.Scene {
     this.gameSprites.clear();
     this.cloneRegistry.clear();
     this.cloneCounter = 0;
+    this.spriteTypeToIds.clear();
 
     // Create the tilemap first (sits below everything)
     const { tilemaps, activeTilemapId, tileCollidables } = useGeckodeStore.getState();
@@ -166,6 +174,9 @@ export default class GameScene extends Phaser.Scene {
   update(_time: number, delta: number) {
     this.justPressedKeys = [];
     this.justReleasedKeys = [];
+    this.justPressedMouseButtons = [];
+    this.justReleasedMouseButtons = [];
+    this.updateMouseButtons()
 
     if (!this.started) {
       this.started = true;
@@ -193,8 +204,9 @@ export default class GameScene extends Phaser.Scene {
    * immediately — even user-set velocity — preventing any movement.
    */
   private physicsStep(dt: number) {
-    // 1. Apply gravity and drag BEFORE movement (all sprites)
+    // 1. Apply gravity and drag BEFORE movement (enabled sprites only)
     for (const sprite of this.gameSprites.values()) {
+      if (!sprite.getData('enabled')) continue;
       let vx: number = sprite.getData('vx') || 0;
       let vy: number = sprite.getData('vy') || 0;
 
@@ -232,6 +244,7 @@ export default class GameScene extends Phaser.Scene {
   private resolveVelocityAxisMovement(dt: number, axis: 'x' | 'y'): void {
     const processed = new Set<Phaser.GameObjects.Sprite>();
     for (const sprite of this.gameSprites.values()) {
+      if (!sprite.getData('enabled')) continue;
       if (processed.has(sprite)) continue;
       const velocity = sprite.getData(`v${axis}`);
       if (velocity === 0) continue;
@@ -292,7 +305,7 @@ export default class GameScene extends Phaser.Scene {
     const pathBlockers: BlockerEntry[] = [];
 
     for (const other of this.gameSprites.values()) {
-      if (other === sprite || visited.has(other)) continue;
+      if (other === sprite || visited.has(other) || !other.getData('enabled')) continue;
       const otherSolid = other.getData('isSolid');
       const otherPushes = other.getData('pushesObjects');
       const otherPushable = other.getData('pushable');
@@ -810,14 +823,15 @@ export default class GameScene extends Phaser.Scene {
   // ─── Sprite management ───────────────────────────────────────────────
 
   public addGameSprite(instance: SpriteInstance) {
-    const { id, x, y, textureName, scaleX, scaleY, visible, direction, physics } = instance;
+    const { id, x, y, textureName, scaleX, scaleY, enabled, direction, physics } = instance;
     console.log('[GameScene] addGameSprite called', textureName, x, y, id, physics);
     const sprite = this.add.sprite(x, this.toWorldY(y), 'sprite-' + textureName);
     sprite.setName(id);
     sprite.setData('gameSpriteId', id);
     sprite.setDepth(GameScene.GAME_SPRITE_BASE_DEPTH);
     sprite.setScale(scaleX, scaleY);
-    sprite.setVisible(visible);
+    sprite.setData('enabled', enabled ?? true);
+    sprite.setVisible(enabled ?? true);
     sprite.setAngle(direction);
 
     // Initialize custom physics state
@@ -831,10 +845,17 @@ export default class GameScene extends Phaser.Scene {
     sprite.setData('bounce', physics?.bounce ?? 0);
     sprite.setData('drag', physics?.drag ?? 1);
     sprite.setData('collideWorldBounds', physics?.collideWorldBounds ?? true);
+    sprite.setData('spriteTypeId', instance.spriteTypeId ?? null);
 
     this.gameLayer.add(sprite);
     this.gameLayer.bringToTop(sprite);
     this.gameSprites.set(id, sprite);
+
+    const typeId = instance.spriteTypeId ?? null;
+    if (typeId) {
+      if (!this.spriteTypeToIds.has(typeId)) this.spriteTypeToIds.set(typeId, new Set());
+      this.spriteTypeToIds.get(typeId)!.add(id);
+    }
 
     return sprite;
   }
@@ -842,12 +863,26 @@ export default class GameScene extends Phaser.Scene {
   public removeSprite(id: string) {
     const sprite = this.gameSprites.get(id);
     if (!sprite) return;
+    const typeId = sprite.getData('spriteTypeId') as string | null;
+    if (typeId) {
+      this.spriteTypeToIds.get(typeId)?.delete(id);
+    }
     sprite.destroy();
     this.gameSprites.delete(id);
   }
 
   public getSprite(id: string) {
     return this.gameSprites.get(id);
+  }
+
+  public isSpriteEnabled(spriteId: string): boolean {
+    const sprite = this.gameSprites.get(spriteId);
+    return sprite ? (sprite.getData('enabled') ?? true) : false;
+  }
+
+  public setSpriteEnabled(sprite: Phaser.GameObjects.Sprite, enabled: boolean): void {
+    sprite.setData('enabled', enabled);
+    sprite.setVisible(enabled);
   }
 
   // ─── Cloning ────────────────────────────────────────────────────────
@@ -859,11 +894,13 @@ export default class GameScene extends Phaser.Scene {
 
     const cloneId = `${originalId}_clone_${this.cloneCounter++}`;
 
+    const parentEnabled = original.getData('enabled') ?? true;
     const clone = this.add.sprite(original.x, original.y, original.texture.key);
     clone.setName(cloneId);
     clone.setDepth(original.depth);
     clone.setScale(original.scaleX, original.scaleY);
-    clone.setVisible(original.visible);
+    clone.setData('enabled', parentEnabled);
+    clone.setVisible(parentEnabled);
     clone.setAngle(original.angle);
 
     // Copy ALL data properties dynamically
@@ -876,6 +913,7 @@ export default class GameScene extends Phaser.Scene {
     clone.setData('gameSpriteId', cloneId);
     clone.setData('isClone', true);
     clone.setData('cloneParentId', originalId);
+    clone.setData('enabled', parentEnabled);
 
     this.gameLayer.add(clone);
     this.gameSprites.set(cloneId, clone);
@@ -900,6 +938,9 @@ export default class GameScene extends Phaser.Scene {
     const sprite = this.gameSprites.get(cloneId);
     if (!sprite || !sprite.getData('isClone')) return;
 
+    const typeId = sprite.getData('spriteTypeId') as string | null;
+    if (typeId) this.spriteTypeToIds.get(typeId)?.delete(cloneId);
+
     const parentId = sprite.getData('cloneParentId') as string;
     const clones = this.cloneRegistry.get(parentId);
     if (clones) {
@@ -909,6 +950,11 @@ export default class GameScene extends Phaser.Scene {
 
     sprite.destroy();
     this.gameSprites.delete(cloneId);
+  }
+
+  /** Returns sprite IDs (including clones) that have the given sprite type. For future collision blocks. */
+  public getSpriteIdsByType(spriteTypeId: string): string[] {
+    return [...(this.spriteTypeToIds.get(spriteTypeId) ?? [])];
   }
 
   // ─── Script execution ────────────────────────────────────────────────
@@ -973,6 +1019,29 @@ export default class GameScene extends Phaser.Scene {
       return true;
     }
     return false;
+  }
+
+  private updateMouseButtons() {
+    if (!this.downMouseButtons.includes('left') && this.input.activePointer.leftButtonDown()) {
+      this.justPressedMouseButtons.push('left');
+    }
+    if (!this.downMouseButtons.includes('right') && this.input.activePointer.rightButtonDown()) {
+      this.justPressedMouseButtons.push('right');
+    }
+    if (this.downMouseButtons.includes('left') && !this.input.activePointer.leftButtonDown()) {
+      this.justReleasedMouseButtons.push('left');
+    }
+    if (this.downMouseButtons.includes('right') && !this.input.activePointer.rightButtonDown()) {
+      this.justReleasedMouseButtons.push('right');
+    }
+    this.downMouseButtons = []
+    if (this.input.activePointer.leftButtonDown()) {
+      this.downMouseButtons.push('left');
+    }
+    if (this.input.activePointer.rightButtonDown()) {
+      this.downMouseButtons.push('right');
+    }
+
   }
 
   // ─── Arrow-key movement (called from generated code) ─────────────────
