@@ -15,7 +15,7 @@ import { Modal } from "@/components/ui/modals/Modal";
 import { InputBox, InputBoxRef } from "@/components/ui/inputs/InputBox";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import { ThumbnailUpload } from "@/components/ui/ThumbnailUpload";
-import { ExclamationTriangleIcon, ExitIcon, FaceIcon, FilePlusIcon, GearIcon, PersonIcon, TrashIcon, CalendarIcon } from "@radix-ui/react-icons";
+import { ExclamationTriangleIcon, ExitIcon, FaceIcon, FilePlusIcon, GearIcon, PersonIcon, TrashIcon, CalendarIcon, HomeIcon } from "@radix-ui/react-icons";
 import { useRouter } from "next/navigation";
 import { extractAxiosErrMsg } from "@/lib/api/axios";
 import { useUser } from "@/contexts/UserContext";
@@ -119,6 +119,14 @@ export default function OrganizationsPage() {
         handleRowClick={(row) => (window.location.href = `/organizations/${tableRef.current?.data[row].id}/projects/`)}
         handleRowDoubleClick={(row) => (window.location.href = `/organizations/${tableRef.current?.data[row].id}/projects/`)}
         actions={[
+          {
+            rowIcon: HomeIcon,
+            rowIconSize: 24,
+            rowIconClicked: (index) => {
+              router.push(`/organizations/${tableRef.current?.data[index].id}/overview/`)
+            },
+            rowIconClassName: "hover:text-primary-green mt-1",
+          },
           {
             rowIcon: TrashIcon,
             rowIconSize: 24,

@@ -18,7 +18,7 @@ import { useSnackbar } from '@/hooks/useSnackbar';
 import projectsApi from '@/lib/api/handlers/projects';
 import { Project, ProjectPermissions, projectPermissions } from '@/lib/types/api/projects';
 import DragAndDrop, { DragAndDropRef } from '@/components/DragAndDrop';
-import { CalendarIcon, ExclamationTriangleIcon, FaceIcon, FilePlusIcon, GearIcon, TrashIcon } from '@radix-ui/react-icons';
+import { CalendarIcon, ExclamationTriangleIcon, FaceIcon, FilePlusIcon, GearIcon, HomeIcon, TrashIcon } from '@radix-ui/react-icons';
 import { extractAxiosErrMsg } from '@/lib/api/axios';
 
 export default function ProjectsPage() {
@@ -92,6 +92,10 @@ export default function ProjectsPage() {
         <h1 className='header-1'>Projects</h1>
 
         <div className='w-full flex justify-end'>
+          <HomeIcon
+            className='h-full w-7 transition-transform hover:text-primary-green hover:cursor-pointer mr-3'
+            onClick={() => router.push(`/organizations/${Number(organizationID)}/overview/`)}
+          />
           <GearIcon
             className='h-full w-7 transition-transform hover:rotate-22 hover:cursor-pointer'
             onClick={() => router.push(`/organizations/${Number(organizationID)}/settings`)}
@@ -156,23 +160,23 @@ export default function ProjectsPage() {
           </>
         }
         rowStyle='py-2'
-                enabledDisplayModes={['table', 'grid']}
-                gridDetails={(op) => ({
-                  title: op.project.name,
-                  thumbnail: op.project.thumbnail,
-                  details: [
-                    {
-                      what: 'Created At',
-                      label: `${new Date(String(op.project.created_at)).toLocaleString().split(' ')[0]}`,
-                      decal: <CalendarIcon />
-                    },
-                    {
-                      what: 'Owner',
-                      label: `${op.project.owner.first_name} ${op.project.owner.last_name}`,
-                      decal: <FaceIcon />
-                    },
-                  ]
-                })}
+        enabledDisplayModes={['table', 'grid']}
+        gridDetails={(op) => ({
+          title: op.project.name,
+          thumbnail: op.project.thumbnail,
+          details: [
+            {
+              what: 'Created At',
+              label: `${new Date(String(op.project.created_at)).toLocaleString().split(' ')[0]}`,
+              decal: <CalendarIcon />
+            },
+            {
+              what: 'Owner',
+              label: `${op.project.owner.first_name} ${op.project.owner.last_name}`,
+              decal: <FaceIcon />
+            },
+          ]
+        })}
       />
 
       {showModal === 'create' ? (

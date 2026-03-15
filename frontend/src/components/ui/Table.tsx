@@ -401,7 +401,7 @@ export const Table = <
 
 
   // constructs action button for a specific row
-  const ActionBtn = ({action, dataIdx, className = ''}: 
+  const ActionBtn = ({action, dataIdx, className}: 
     {action: TableAction<TData>, dataIdx: number, className?: string}): ReactElement => {
     const canUseAction = action.canUse === undefined || action.canUse(data[dataIdx]);
 
@@ -752,7 +752,7 @@ export const Table = <
             />
           </div>
           <div className='flex items-center'>
-            <div className='max-w-full grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-y-5'>
+            <div className='mt-3 w-full max-w-full grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-5 justify-items-center'>
               {
                 data.map((obj, idx) => {
                   const gridItemProps = gridDetails(obj);
