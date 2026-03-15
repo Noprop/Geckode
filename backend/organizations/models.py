@@ -20,6 +20,7 @@ class Organization(Model):
         ('manage', 'Can remove members'),
         ('admin', 'Can modify details'),
     ]
+    SEARCH_FIELDS = ['name', 'slug']
 
     created_at = DateTimeField(auto_now_add=True)
     owner = ForeignKey(User, on_delete=PROTECT)

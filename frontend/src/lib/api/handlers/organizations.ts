@@ -16,7 +16,11 @@ const organizationsApi = createBaseApi<Organization, OrganizationPayload, Organi
 })({
   invitationsApi: (id: number | string) => createBaseApi<OrganizationInvitation, OrganizationInvitationPayload, OrganizationInvitationFilters>({
     baseUrl: organizationInvitationsApiUrl(id)
-  })(),
+  })({
+    accept: (invitationId: number | string) => createBaseApi<void, void, void>({
+      baseUrl: `${organizationInvitationsApiUrl(id)}${invitationId}/accept/`
+    })(),
+  }),
   members: (id: number | string) => createBaseApi<OrganizationMember, OrganizationMemberPayload, OrganizationMemberFilters>({
     baseUrl: organizationMembersApiUrl(id)
   })(),

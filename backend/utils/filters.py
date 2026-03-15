@@ -1,9 +1,25 @@
 from django_filters import FilterSet, CharFilter
 from functools import reduce
 from operator import or_
-from django.db.models import Q, CharField, TextField, F
+from django.db.models import Q, CharField, TextField, F, Case, When, Value, IntegerField
 from django.db.models.functions import Lower
 from rest_framework.exceptions import ValidationError
+
+def build_choices_order_annotation(field_name, choices):
+    """
+    Build a Case/When expression that maps choice values to their index for ordering.
+    Use in get_order_expression() with annotate(); order by the annotation (e.g. F('_order_<field_name>')).
+    choices: list of (value, label) tuples in the order they should sort (e.g. Model.CHOICES).
+    """
+    return Case(
+        *[
+            When(**{field_name: choice[0]}, then=Value(i))
+            for i, choice in enumerate(choices)
+        ],
+        default=Value(len(choices)),
+        output_field=IntegerField(),
+    )
+
 
 '''
 Custom FilterSet class used to standardize certain search filters and add an optional prefix
@@ -13,6 +29,7 @@ A class 'prefix' optionally allows all searches and fields (even those defined i
 class PrefixedFilterSet(FilterSet):
     search_fields = []
     ordering_fields = []
+    ordering_choice_fields = {}  # param_value -> choices (list of (value, label)); orders by definition order
     prefix = ''
 
     search = CharFilter(method='filter_search')
@@ -38,6 +55,42 @@ class PrefixedFilterSet(FilterSet):
             }) for field in self.search_fields))
         )
 
+    def get_order_expression(self, queryset, param_value, internal_name, ordering_prefix):
+        """
+        Return (expr, queryset) for one ordering field. Override to add custom
+        ordering. If param_value is in ordering_choice_fields, orders by the
+        choice definition order via build_choices_order_annotation().
+        """
+        choice_fields = getattr(self, 'ordering_choice_fields', {})
+        if param_value in choice_fields:
+            choices = choice_fields[param_value]
+            annotation_name = f'_order_{internal_name}'
+            queryset = queryset.annotate(
+                **{annotation_name: build_choices_order_annotation(internal_name, choices)}
+            )
+            expr = F(annotation_name)
+            if ordering_prefix == '-':
+                expr = expr.desc()
+            else:
+                expr = expr.asc()
+            return expr, queryset
+
+        full_field_name = f'{self.prefix}{internal_name}'
+        try:
+            field = queryset.model._meta.get_field(full_field_name)
+            if isinstance(field, (CharField, TextField)):
+                expr = Lower(F(full_field_name))
+            else:
+                expr = full_field_name
+        except Exception:
+            expr = full_field_name
+
+        if ordering_prefix == '-':
+            expr = expr.desc() if hasattr(expr, 'desc') else f'-{expr}'
+        elif ordering_prefix == '':
+            expr = expr.asc() if hasattr(expr, 'asc') else expr
+        return expr, queryset
+
     def filter_ordering(self, queryset, name, value):
         fields = value.split(',')
 
@@ -51,28 +104,13 @@ class PrefixedFilterSet(FilterSet):
             if field not in self.ordering_fields:
                 raise ValidationError({name: f'Select a valid choice. {field} is not one of the available choices.'})
 
-            fields[i] = (ordering_prefix, self.ordering_fields[field])
+            fields[i] = (ordering_prefix, field, self.ordering_fields[field])
 
         order_expressions = []
-
-        for ordering_prefix, field_name in fields:
-            full_field_name = f'{self.prefix}{field_name}'
-
-            # This makes text ordering non-case-sensitive
-            try:
-                field = queryset.model._meta.get_field(full_field_name)
-                if isinstance(field, (CharField, TextField)):
-                    expr = Lower(F(full_field_name))
-                else:
-                    expr = full_field_name
-            except Exception:
-                expr = full_field_name
-
-            if ordering_prefix == '-':
-                expr = expr.desc() if hasattr(expr, 'desc') else f'-{expr}'
-            elif ordering_prefix == '':
-                expr = expr.asc() if hasattr(expr, 'asc') else expr
-
+        for ordering_prefix, param_value, internal_name in fields:
+            expr, queryset = self.get_order_expression(
+                queryset, param_value, internal_name, ordering_prefix
+            )
             order_expressions.append(expr)
 
         return queryset.order_by(*order_expressions)

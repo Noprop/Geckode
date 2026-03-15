@@ -47,6 +47,21 @@ class OrganizationSerializer(ModelSerializer):
         self._process_thumbnail(validated_data)
         return super().update(instance, validated_data)
 
+class OrganizationLiteSerializer(ModelSerializer):
+    class Meta:
+        model = Organization
+        fields = ['id', 'name', 'slug', 'thumbnail']
+
+
+class UserOrganizationInvitationSerializer(ModelSerializer):
+    organization = OrganizationLiteSerializer(read_only=True)
+    inviter = PublicUserSerializer(read_only=True)
+
+    class Meta:
+        model = OrganizationInvitation
+        fields = ['id', 'organization', 'invited_at', 'inviter', 'permission']
+        read_only_fields = ['invited_at', 'permission']
+
 class OrganizationInvitationSerializer(ModelSerializer):
     invitee = PublicUserSerializer(read_only=True)
     invitee_id = PrimaryKeyRelatedField(queryset=User.objects.all(), write_only=True, source='invitee')

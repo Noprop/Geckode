@@ -22,9 +22,26 @@ const DropDownButton = ({
 }: props) => {
   const [showDD, setShowDD] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showDD) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!containerRef.current) return;
+      if (!containerRef.current.contains(event.target as Node)) {
+        setShowDD(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showDD]);
 
   return (
-    <div className='py-5'>
+    <div ref={containerRef} className='py-5'>
       <button ref={btnRef} onClick={() => setShowDD(!showDD)} className={className} type={type} title={title}>
         {children}
       </button>
@@ -42,10 +59,16 @@ const DropDownButton = ({
                 <li
                   key={label}
                   className='p-2 cursor-pointer rounded-lg hover:bg-white/20'
-                  onClick={() =>
+                  onClick={() => {
+                    // close dropdown first
+                    setShowDD(false);
                     // either redirect user to string provided or trigger the function
-                    typeof action === 'string' ? (window.location.href = action) : action()
-                  }
+                    if (typeof action === 'string') {
+                      window.location.href = action;
+                    } else {
+                      action();
+                    }
+                  }}
                 >
                   {label}
                 </li>
