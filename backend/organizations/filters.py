@@ -48,12 +48,16 @@ class OrganizationInvitationFilter(PrefixedFilterSet):
     ordering_fields = [
         'id',
         'invited_at',
+        'permission',
         *[
             (f'{field1}__{field2}', f'{field1}_{field2}')
             for field1, field2 in search_fields
         ],
         'created_at',
+        ('inviter__username', 'inviter'),
+        ('invitee__username', 'invitee'),
     ]
+    ordering_choice_fields = {'permission': Organization.PERMISSION_CHOICES}
 
     invitee = NumberFilter(field_name='invitee__id')
     inviter = NumberFilter(field_name='inviter__id')
@@ -62,6 +66,26 @@ class OrganizationInvitationFilter(PrefixedFilterSet):
     class Meta:
         model = OrganizationInvitation
         fields = []
+
+
+class UserOrganizationInvitationFilter(OrganizationInvitationFilter):
+    search_fields = [
+        *[
+            ('inviter', field)
+            for field in User.SEARCH_FIELDS
+        ],
+        *[
+            ('organization', field)
+            for field in Organization.SEARCH_FIELDS
+        ],
+    ]
+    ordering_fields = [
+        'id',
+        'invited_at',
+        'permission',
+        ('organization__slug', 'organization'),
+        ('inviter__username', 'inviter'),
+    ]
 
 class OrganizationMemberFilter(PrefixedFilterSet):
     search_fields = [
@@ -72,6 +96,7 @@ class OrganizationMemberFilter(PrefixedFilterSet):
     ordering_fields = [
         'id',
         'invited_at',
+        'permission',
         *[
             (f'{field1}__{field2}', f'{field1}_{field2}')
             for field1, field2 in search_fields
@@ -79,6 +104,7 @@ class OrganizationMemberFilter(PrefixedFilterSet):
         'joined_at',
         ('member__username', 'member'),
     ]
+    ordering_choice_fields = {'permission': Organization.PERMISSION_CHOICES}
 
     invited_by = NumberFilter(field_name='invited_by__id')
     permission = ChoiceFilter(choices=Organization.PERMISSION_CHOICES)

@@ -12,6 +12,9 @@ from rest_framework.request import HttpRequest, Request
 import jwt
 import datetime
 from django.conf import settings
+from organizations.models import OrganizationInvitation
+from organizations.serializers import UserOrganizationInvitationSerializer
+from organizations.filters import UserOrganizationInvitationFilter
 
 class LoginView(APIView):
     authentication_classes = []
@@ -64,5 +67,23 @@ class UserViewSet(ModelViewSet):
         class PermissionClass(BasePermission):
             def has_object_permission(self, request, view, obj):
                 return request.user.is_superuser or obj == request.user
+
+        return super().get_permissions() + [PermissionClass()]
+
+class UserOrganizationInvitationViewSet(ModelViewSet):
+    queryset = OrganizationInvitation.objects.all()
+    serializer_class = UserOrganizationInvitationSerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = UserOrganizationInvitationFilter
+
+    http_method_names = ['get']
+
+    def get_queryset(self):
+        return super().get_queryset().filter(invitee=self.kwargs.get('user_pk'))
+
+    def get_permissions(self) -> list[any]:
+        class PermissionClass(BasePermission):
+            def has_permission(self, request, view):
+                return str(request.user.id) == str(view.kwargs.get('user_pk'))
 
         return super().get_permissions() + [PermissionClass()]
