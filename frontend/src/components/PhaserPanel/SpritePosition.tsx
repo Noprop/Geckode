@@ -127,6 +127,7 @@ const NumericCompact = ({
   const [spriteTypeToDelete, setSpriteTypeToDelete] = useState<string | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const scrollableRef = useRef<HTMLDivElement>(null);
 
   const phaserGame = useGeckodeStore((s) => s.phaserGame);
   const centerX = useMemo(() => (phaserGame ? Math.round(phaserGame.scale.width / 2) : 80), [phaserGame]);
@@ -137,6 +138,12 @@ const NumericCompact = ({
   useEffect(() => {
     setValues(buildFormValues(selectedSprite, centerX, centerY));
   }, [selectedSprite, centerX, centerY]);
+
+  useEffect(() => {
+    if (!dropdownOpen || !scrollableRef.current) return;
+    const selected = scrollableRef.current.querySelector('[aria-selected="true"]');
+    selected?.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+  }, [dropdownOpen]);
 
   useEffect(() => {
     const handleDragStart = ({ id }: { id: string }) => {
@@ -187,13 +194,17 @@ const NumericCompact = ({
 
   useEffect(() => {
     if (!dropdownOpen) return;
-    const handleClickOutside = (e: MouseEvent) => {
+    const handleOutside = (e: MouseEvent | PointerEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setDropdownOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', handleOutside, true);
+    document.addEventListener('pointerdown', handleOutside, true);
+    return () => {
+      document.removeEventListener('mousedown', handleOutside, true);
+      document.removeEventListener('pointerdown', handleOutside, true);
+    };
   }, [dropdownOpen]);
 
   const currentSpriteTypeId = values.spriteTypeId === SPRITE_TYPE_NONE ? null : values.spriteTypeId;
@@ -337,7 +348,7 @@ const NumericCompact = ({
       />
 
       {/* Row 3: Type dropdown (MakeCode Style) | direction (spans cols 2–4, left-aligned) */}
-      <div ref={dropdownRef} className="relative flex items-center gap-1.5 flex-wrap">
+      <div ref={dropdownRef} className="relative flex items-center gap-1.5 flex-wrap col-span-1 min-w-[10rem] max-w-[10rem] overflow-hidde">
         <span className={labelClasses}>Type</span>
         <div className="relative flex-1 min-w-0">
           <button
@@ -362,80 +373,83 @@ const NumericCompact = ({
           {dropdownOpen && (
             <div
               role="listbox"
-              className="absolute left-0 right-0 top-full mt-1 z-50 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-dark-hover shadow-lg py-1 max-h-48 overflow-y-auto"
+              className="absolute left-0 top-full mt-1 z-50 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-dark-hover shadow-lg py-1 max-h-[19.2rem] min-w-64 flex flex-col overflow-hidden"
             >
-              <button
-                type="button"
-                role="option"
-                aria-selected={values.spriteTypeId === SPRITE_TYPE_NONE}
-                onClick={() => handleSpriteTypeSelect(null)}
-                className="w-full flex items-center gap-2 px-3 py-1.5 text-left hover:bg-slate-100 dark:hover:bg-dark-tertiary"
-              >
-                {values.spriteTypeId === SPRITE_TYPE_NONE ? (
-                  <Check size={iconSize} className="shrink-0 text-primary-green" />
-                ) : (
-                  <span className="w-[14px]" />
-                )}
-                <span className={typeTriggerTextClasses}>(none)</span>
-              </button>
-              {spriteTypes.map((t) => (
+              <div ref={scrollableRef} className="overflow-y-auto min-h-0 flex-1 py-1">
                 <button
-                  key={t.id}
                   type="button"
                   role="option"
-                  aria-selected={values.spriteTypeId === t.id}
-                  onClick={() => handleSpriteTypeSelect(t.id)}
+                  aria-selected={values.spriteTypeId === SPRITE_TYPE_NONE}
+                  onClick={() => handleSpriteTypeSelect(null)}
                   className="w-full flex items-center gap-2 px-3 py-1.5 text-left hover:bg-slate-100 dark:hover:bg-dark-tertiary"
                 >
-                  {values.spriteTypeId === t.id ? (
+                  {values.spriteTypeId === SPRITE_TYPE_NONE ? (
                     <Check size={iconSize} className="shrink-0 text-primary-green" />
                   ) : (
                     <span className="w-[14px]" />
                   )}
-                  <span className={dropdownOptionTextClasses}>{t.name}</span>
+                  <span className={typeTriggerTextClasses}>(none)</span>
                 </button>
-              ))}
-              <hr className="border-slate-300 dark:border-slate-600 my-1" />
-              <button
-                type="button"
-                onClick={() => {
-                  setSpriteTypeModal({ show: true, mode: 'create' });
-                  setDropdownOpen(false);
-                }}
-                className="w-full px-3 py-1.5 text-left hover:bg-slate-100 dark:hover:bg-dark-tertiary"
-              >
-                <span className={dropdownOptionTextClasses}>Add a new type...</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (currentSpriteTypeId) {
-                    const t = spriteTypes.find((x) => x.id === currentSpriteTypeId);
-                    setSpriteTypeModal({
-                      show: true,
-                      mode: 'rename',
-                      spriteTypeId: currentSpriteTypeId,
-                      initialName: t?.name ?? '',
-                    });
-                  }
-                  setDropdownOpen(false);
-                }}
-                disabled={!canRenameOrDelete}
-                className="w-full px-3 py-1.5 text-left hover:bg-slate-100 dark:hover:bg-dark-tertiary disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <span className={dropdownOptionTextClasses}>Rename type...</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (currentSpriteTypeId) setSpriteTypeToDelete(currentSpriteTypeId);
-                  setDropdownOpen(false);
-                }}
-                disabled={!canDelete}
-                className="w-full px-3 py-1.5 text-left hover:bg-slate-100 dark:hover:bg-dark-tertiary disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <span className={dropdownOptionTextClasses}>Delete type...</span>
-              </button>
+                {spriteTypes.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    role="option"
+                    aria-selected={values.spriteTypeId === t.id}
+                    onClick={() => handleSpriteTypeSelect(t.id)}
+                    className="w-full flex items-center gap-2 px-3 py-1.5 text-left hover:bg-slate-100 dark:hover:bg-dark-tertiary"
+                  >
+                    {values.spriteTypeId === t.id ? (
+                      <Check size={iconSize} className="shrink-0 text-primary-green" />
+                    ) : (
+                      <span className="w-[14px]" />
+                    )}
+                    <span className={dropdownOptionTextClasses}>{t.name}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="shrink-0 border-t border-slate-300 dark:border-slate-600 py-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSpriteTypeModal({ show: true, mode: 'create' });
+                    setDropdownOpen(false);
+                  }}
+                  className="w-full px-3 py-1.5 text-left hover:bg-slate-100 dark:hover:bg-dark-tertiary"
+                >
+                  <span className={dropdownOptionTextClasses}>Add a new type...</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (currentSpriteTypeId) {
+                      const t = spriteTypes.find((x) => x.id === currentSpriteTypeId);
+                      setSpriteTypeModal({
+                        show: true,
+                        mode: 'rename',
+                        spriteTypeId: currentSpriteTypeId,
+                        initialName: t?.name ?? '',
+                      });
+                    }
+                    setDropdownOpen(false);
+                  }}
+                  disabled={!canRenameOrDelete}
+                  className="w-full px-3 py-1.5 text-left hover:bg-slate-100 dark:hover:bg-dark-tertiary disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span className={dropdownOptionTextClasses}>Rename type...</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (currentSpriteTypeId) setSpriteTypeToDelete(currentSpriteTypeId);
+                    setDropdownOpen(false);
+                  }}
+                  disabled={!canDelete}
+                  className="w-full px-3 py-1.5 text-left hover:bg-slate-100 dark:hover:bg-dark-tertiary disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span className={dropdownOptionTextClasses}>Delete '{spriteTypes.find((t) => t.id === currentSpriteTypeId)?.name ?? ''}' type...</span>
+                </button>
+              </div>
             </div>
           )}
         </div>

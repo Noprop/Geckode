@@ -18,7 +18,7 @@ import { useSnackbar } from '@/hooks/useSnackbar';
 import projectsApi from '@/lib/api/handlers/projects';
 import { Project, ProjectPermissions, projectPermissions } from '@/lib/types/api/projects';
 import DragAndDrop, { DragAndDropRef } from '@/components/DragAndDrop';
-import { ExclamationTriangleIcon, FilePlusIcon, GearIcon, TrashIcon } from '@radix-ui/react-icons';
+import { CalendarIcon, ExclamationTriangleIcon, FaceIcon, FilePlusIcon, GearIcon, TrashIcon } from '@radix-ui/react-icons';
 import { extractAxiosErrMsg } from '@/lib/api/axios';
 
 export default function ProjectsPage() {
@@ -135,7 +135,7 @@ export default function ProjectsPage() {
         }}
         sortKeys={organizationProjectSortKeys}
         defaultSortDirection='desc'
-        handleRowClick={(row) => (window.location.href = `/projects/${(row.getValue('id') as Project).id}/`)}
+        handleRowClick={(row) => (window.location.href = `/projects/${tableRef.current?.data[row].project.id}/`)}
         actions={[
           {
             rowIcon: TrashIcon,
@@ -156,6 +156,23 @@ export default function ProjectsPage() {
           </>
         }
         rowStyle='py-2'
+                enabledDisplayModes={['table', 'grid']}
+                gridDetails={(op) => ({
+                  title: op.project.name,
+                  thumbnail: op.project.thumbnail,
+                  details: [
+                    {
+                      what: 'Created At',
+                      label: `${new Date(String(op.project.created_at)).toLocaleString().split(' ')[0]}`,
+                      decal: <CalendarIcon />
+                    },
+                    {
+                      what: 'Owner',
+                      label: `${op.project.owner.first_name} ${op.project.owner.last_name}`,
+                      decal: <FaceIcon />
+                    },
+                  ]
+                })}
       />
 
       {showModal === 'create' ? (

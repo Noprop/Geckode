@@ -62,8 +62,8 @@ interface TableProps<TData, TSortKeys, TApi, TFilters> {
   pageSizeOptions?: number[];
   enableSearch?: boolean;
   sortKeys?: TSortKeys[];
-  handleRowClick?: (row: Row<TData>) => void;
-  handleRowDoubleClick?: (row: Row<TData>) => void;
+  handleRowClick?: (rowId: number) => void;
+  handleRowDoubleClick?: (rowId: number) => void;
   actions?: TableAction<TData>[];
   extras?: React.ReactNode;
   style?: string;
@@ -407,6 +407,26 @@ export const Table = <
   };
   const defaultRenderer = (value: any) => value?.toString() ?? '';
 
+
+  // constructs action button for a specific row
+  const ActionBtn = ({action, dataIdx, className = ''}: 
+    {action: TableAction<TData>, dataIdx: number, className?: string}): ReactElement => {
+    const canUseAction = action.canUse === undefined || action.canUse(data[dataIdx]);
+
+    if (!canUseAction) return <></>;
+
+    return <Icon
+        icon={action.rowIcon}
+        size={action.rowIconSize}
+        className={action.rowIconClassName + (className ?? ' mx-1 invisible group-hover/row:visible ')}
+        onClick={(e) => {
+          if (!canUseAction) return;
+          e.stopPropagation();
+          action.rowIconClicked(dataIdx);
+        }}
+      />
+  }
+
   const columnHelper = createColumnHelper<TData>();
   const columnDefinitions = [
     ...Object.keys(columns).map((label) => {
@@ -453,26 +473,13 @@ export const Table = <
             id: 'actions',
             cell: (context) =>
               actions.map((action, index) => {
-                const canUseAction = action.canUse === undefined || action.canUse(data[Number(context.row.id)]);
-
-                if (!canUseAction) return;
-
                 return (
                   <span
                     key={index}
                     title={action.rowIconTitle}
                     aria-label={action.rowIconTitle}
                   >
-                    <Icon
-                      icon={action.rowIcon}
-                      size={action.rowIconSize}
-                      className={action.rowIconClassName + ' mx-1 invisible group-hover/row:visible'}
-                      onClick={(e) => {
-                        if (!canUseAction) return;
-                        e.stopPropagation();
-                        action.rowIconClicked(Number(context.row.id));
-                      }}
-                    />
+                    {<ActionBtn key={index} action={action} dataIdx={Number(context.row.id)} />}
                   </span>
                 );
               }),
@@ -684,8 +691,8 @@ export const Table = <
                 const extraRowClass = rowClassName ? rowClassName(row.original) : '';
                 return (
                   <tr
-                    onClick={() => handleRowClick(row)}
-                    onDoubleClick={handleRowDoubleClick ? () => handleRowDoubleClick(row) : undefined}
+                    onClick={() => handleRowClick(Number(row.id))}
+                    onDoubleClick={handleRowDoubleClick ? () => handleRowDoubleClick(Number(row.id)) : undefined}
                     key={row.id}
                     className={`${baseRowClass} ${extraRowClass}`}
                   >
@@ -718,11 +725,17 @@ export const Table = <
             <SelectionBox
               ref={gridSortCategoryRef}
               className='border border-gray-400/50 rounded-md cursor-pointer min-w-40'
+              defaultValue={Object.keys(columns).filter(
+                  (k) => (
+                    (!columns[k].hidden) &&
+                    (columns[k].type && columns[k].type !== 'thumbnail')
+                  )
+                )[0]}
               options={
                   // display all non-hidden, non-thumbnail columns
                 Object.keys(columns).filter(
                   (k) => (
-                    (!columns[k].hidden || !columns[k].hidden) &&
+                    (!columns[k].hidden) &&
                     (columns[k].type && columns[k].type !== 'thumbnail')
                   )
                 ).map((sk) => ({value: sk, label: sk}))
@@ -735,6 +748,7 @@ export const Table = <
             <SelectionBox
               ref={gridSortDirectionRef}
               className='border border-gray-400/50 rounded-md cursor-pointer ml-3 min-w-40'
+              defaultValue={'desc'}
               options={
                 [
                   { value: 'asc', label: 'Ascending' },
@@ -748,12 +762,17 @@ export const Table = <
             />
           </div>
           <div className='flex items-center'>
-            <div className='w-full grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-y-5'>
+            <div className='max-w-full grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-y-5'>
               {
                 data.map((obj, idx) => {
                   const gridItemProps = gridDetails(obj);
                   return (
-                <div key={idx} className=' px-6 py-4 border border-gray-400/50 hover:bg-white/20 bg-white/5 hover:translate-y-[-5px] rounded-lg shadow-md w-60 min-h-[370px] cursor-pointer transition-all'>
+                <div 
+                  key={idx} 
+                  className='relative group/row px-6 py-4 border border-gray-400/50 hover:bg-white/20 bg-white/5 hover:translate-y-[-5px] rounded-lg shadow-md w-60 min-h-[370px] cursor-pointer transition-all'
+                  onClick={() => (handleRowClick(Number(idx)))}
+                  onDoubleClick={() => handleRowDoubleClick ? handleRowDoubleClick(Number(idx)) : undefined}
+                >
                   <img 
                     className='w-full aspect-square rounded-full  object-cover' 
                     src={gridItemProps.thumbnail ?? 'user-icon.png'}
@@ -764,7 +783,7 @@ export const Table = <
                   {gridItemProps.details?.map((detail, idx2) => 
                     <div key={idx2} className='flex h-5 gap-x-2 mt-1' title={detail.what ?? undefined}>
                       { detail.decal && 
-                        <div  className='bg-accent-purple rounded-full aspect-square items-center justify-center flex text-white'>
+                        <div className='bg-accent-purple rounded-full aspect-square items-center justify-center flex text-white'>
                           {detail.decal}
                         </div>
                       }
@@ -776,7 +795,17 @@ export const Table = <
                     </div>
                     )
                   }
-                  <div className='absolute top-2 right-2 flex gap-x-2 h-8'>{/*TODO: put actions here */}</div>
+                  { (actions && actions.length > 0) && 
+                    <div className='absolute top-2 right-2 flex gap-x-2 h-10 mx-1 invisible group-hover/row:visible'>
+                      {actions.map((action, aIdx) => (
+                        <ActionBtn 
+                          key={aIdx} 
+                          action={action} 
+                          dataIdx={idx} 
+                          className=' bg-light-secondary dark:bg-dark-secondary border-gray-400/50 rounded-md gap-x-1 p-1 justify-center items-center flex' 
+                        />))}
+                    </div> 
+                  }
                 </div>
               )})
               }

@@ -138,10 +138,10 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
   }, []);
 
   const handleUserRowClick = useCallback(
-    (row: Row<User>, onSuccess: () => void) => {
+    (id: number, onSuccess: () => void) => {
       collaboratorsApi
         .create({
-          collaborator_id: Number(row.getValue("id")),
+          collaborator_id: id,
           permission: "view",
         })
         .then(() => {
@@ -157,8 +157,8 @@ export const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
   );
 
   const handleOrganizationRowClick = useCallback(
-    (row: Row<Organization>, onSuccess: () => void) => {
-      organizationsApi(row.getValue("id")).projects
+    (id: number, onSuccess: () => void) => {
+      organizationsApi(id).projects
         .create({
           project_id: project.id,
           permission: "view",
@@ -862,7 +862,7 @@ interface ProjectShareSearchBoxProps<TData, TFilters, TApi> {
   noResultsMessage?: string;
   filters?: Partial<TFilters>;
   columns?: TableColumns<TData>;
-  handleRowClick?: (row: Row<TData>, onSuccess: () => void) => void;
+  handleRowClick?: (row: number, onSuccess: () => void) => void;
   canUse?: boolean;
 }
 
