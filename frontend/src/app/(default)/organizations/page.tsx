@@ -86,6 +86,21 @@ export default function OrganizationsPage() {
       .catch((err) => showSnackbar(extractAxiosErrMsg(err, "Something went wrong. Please try again."), "error"));
   };
 
+  const leaveOrganization = () => {
+    const organizationId = tableRef.current?.data?.[rowIndex]["id"];
+    if (!organizationId || !user) return;
+
+    organizationsApi(organizationId)
+      .members(user.id)
+      .delete()
+      .then((res) => {
+        showSnackbar("Succesfully left the organization!", "success");
+        setShowModal(null);
+        tableRef.current?.refresh();
+      })
+      .catch((err) => showSnackbar("Failed to leave organization.", "error"));
+  };
+
   return (
     <div className="mx-20 my-5">
       <h1 className="header-1">Organizations</h1>
@@ -260,7 +275,7 @@ export default function OrganizationsPage() {
           icon={ExclamationTriangleIcon}
           actions={
             <>
-              <Button onClick={deleteOrganization} className="btn-warn ml-3">
+              <Button onClick={leaveOrganization} className="btn-warn ml-3">
                 Leave
               </Button>
               <Button
