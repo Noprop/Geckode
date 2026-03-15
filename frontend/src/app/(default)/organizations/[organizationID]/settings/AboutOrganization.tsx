@@ -6,7 +6,7 @@ import { Organization, OrganizationPayload } from '@/lib/types/api/organizations
 import { User } from '@/lib/types/api/users';
 import { useEffect, useRef, useState } from 'react';
 import { createSlug } from '../../page';
-import { OrgPermissions } from '@/lib/types/api/organizations/invitations';
+import { organizationPermissions } from '@/lib/types/api/organizations/invitations';
 import { Button } from '@/components/ui/Button';
 import { extractAxiosErrMsg } from '@/lib/api/axios';
 
@@ -78,7 +78,7 @@ export const AboutOrganization = ({ org, setOrg, user }: Props) => {
         className='bg-white text-black mb-3 p-2 rounded-md'
         defaultValue={org?.default_member_permission ?? ''}
       >
-        {OrgPermissions.map((p) => (
+        {organizationPermissions.map((p) => (
           <option key={p[0]} value={p[0]}>
             {p.join(' - ')}
           </option>

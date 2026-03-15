@@ -3,11 +3,11 @@ import { HomeIcon, MoonIcon, PersonIcon, QuestionMarkCircledIcon, SunIcon } from
 import Link from 'next/link';
 import React, { useEffect, useState } from 'react';
 import DropDownButton from '../ui/DropDownButton';
-import Image from 'next/image';
 import { useUser } from '@/contexts/UserContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { authApi } from '@/lib/api/auth';
 import { UserIcon } from '../ui/UserIcon';
+import InvitationsModal from '../ui/modals/InvitationsModal';
 
 // buttons placed on the right hand side of the editor
 
@@ -15,6 +15,7 @@ const HeaderRHSBtns = () => {
   const { resolvedTheme, toggleTheme } = useTheme();
   const user = useUser();
   const [mounted, setMounted] = useState(false);
+  const [showInvitations, setShowInvitations] = useState(false);
 
   // Avoid hydration mismatch by waiting until mounted
   useEffect(() => {
@@ -58,6 +59,11 @@ const HeaderRHSBtns = () => {
             'Account Settings': () => {}, // TODO: link account settings once implemented
             'My Projects': '/projects',
             'My Organizations': '/organizations',
+            ...(user
+              ? {
+                  'My Invitations': () => setShowInvitations(true),
+                }
+              : {}),
           },
           ...(user !== null
             ? {
@@ -77,6 +83,12 @@ const HeaderRHSBtns = () => {
           )
         }
       </DropDownButton>
+
+      {user && showInvitations && (
+        <InvitationsModal
+          onClose={() => setShowInvitations(false)}
+        />
+      )}
     </>
   );
 };
