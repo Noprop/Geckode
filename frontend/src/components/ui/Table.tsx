@@ -12,7 +12,7 @@ import {
 } from '@tanstack/react-table';
 import { BaseFilters } from '@/lib/types/api';
 import { Icon, IconType } from './Icon';
-import { UserIcon } from './UserIcon';
+import { UserIcon, OrganizationIcon } from './UserIcon';
 import { InputBox, InputBoxRef } from './inputs/InputBox';
 import { EditableApiTextCell } from './inputs/EditableApiTextCell';
 import { Option, SelectionBox, SelectionBoxRef } from './selectors/SelectionBox';
@@ -88,6 +88,8 @@ interface TableProps<TData, TSortKeys, TApi, TFilters> {
 type ColumnTypes =
   | 'user'
   | 'avatar'
+  | 'organization-avatar'
+  | 'organization'
   | 'datetime'
   | 'time-since'
   | 'thumbnail'
@@ -153,7 +155,7 @@ export const Table = <
   actions,
   extras,
   style = '',
-  rowStyle = '',
+  rowStyle = 'py-2 px-3',
   rowClassName,
   showHeader = true,
   noResultsMessage = 'No results to display.',
@@ -325,6 +327,12 @@ export const Table = <
   > = {
     user: (value) => <UserIcon user={value} variant='inline' />,
     avatar: (value) => <UserIcon user={value} variant='avatar' size='lg' />,
+    'organization-avatar': (value) => (
+      <OrganizationIcon organization={value} variant='avatar' size='lg' />
+    ),
+    organization: (value) => (
+      <OrganizationIcon organization={value} variant='inline' />
+    ),
     datetime: (value) => new Date(value).toLocaleString(),
     'time-since': (value) => formatTimeSince(value),
     thumbnail: (value) => (
@@ -426,9 +434,11 @@ export const Table = <
                   Number(context.row.id),
                 ),
           header: columnMapper.hidden || columnMapper.hideLabel ? '' : label,
-          enableSorting: (sortKeys as Array<keyof TData>).includes(
-            keyPath.at(-1) as keyof TData,
-          ),
+          enableSorting:
+            !columnMapper.hideLabel &&
+            (sortKeys as Array<keyof TData>).includes(
+              keyPath.at(-1) as keyof TData,
+            ),
           enableColumnFilter: false, // Temporary
           meta: {
             style: columnMapper.style,
