@@ -192,6 +192,10 @@ const NumericCompact = ({
     [selectedSpriteId, selectedSprite, updateSpriteInstance],
   );
 
+  const closeSpriteTypeModal = useCallback(() => {
+    setSpriteTypeModal((p) => ({ ...p, show: false }));
+  }, []);
+
   useEffect(() => {
     if (!dropdownOpen) return;
     const handleOutside = (e: MouseEvent | PointerEvent) => {
@@ -477,7 +481,7 @@ const NumericCompact = ({
         mode={spriteTypeModal.mode}
         spriteTypeId={spriteTypeModal.spriteTypeId}
         initialName={spriteTypeModal.initialName}
-        onClose={() => setSpriteTypeModal((p) => ({ ...p, show: false }))}
+        onClose={closeSpriteTypeModal}
         onSuccess={(id) => {
           if (selectedSpriteId) updateSpriteInstance(selectedSpriteId, { spriteTypeId: id });
         }}
